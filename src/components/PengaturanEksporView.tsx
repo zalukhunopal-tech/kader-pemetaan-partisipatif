@@ -45,8 +45,8 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
   const [sertakanFoto, setSertakanFoto] = useState(true);
   const [tampilInfo, setTampilInfo] = useState(false);
 
-  // Total fitur diselaraskan dengan 203 features pada screenshot (+ tambahan data baru)
-  const jumlahFitur = 197 + dataSpasial.length;
+  // Total fitur riil sesuai data spasial lapangan
+  const jumlahFitur = dataSpasial.length;
 
   const handleEksporSekarang = () => {
     const namaBersih = (namaFile.trim() || "Ekspor_AM_2").replace(/\s+/g, "_");

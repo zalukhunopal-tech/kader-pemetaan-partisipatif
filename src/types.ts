@@ -186,6 +186,19 @@ export interface KonfigurasiGDrive {
   terakhirSinkron?: string;
 }
 
+export interface KaderAktifPresence {
+  idKader: string;
+  nama: string;
+  desaWilayah: string;
+  status: "online" | "survei_aktif" | "offline";
+  lat: number;
+  lng: number;
+  akurasi: number;
+  baterai: number;
+  aktivitasTerakhir: string;
+  waktuUpdate: string;
+}
+
 export type MenuTab =
   | "pustaka"
   | "peta"

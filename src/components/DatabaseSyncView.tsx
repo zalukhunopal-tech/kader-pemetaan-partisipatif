@@ -17,7 +17,11 @@ import {
   FolderGit2,
   Copy,
   Check,
-  Database
+  Database,
+  Image as ImageIcon,
+  X,
+  MapPin,
+  ExternalLink
 } from "lucide-react";
 
 interface DatabaseSyncViewProps {
@@ -58,6 +62,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   const [tersalin, setTersalin] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("semua");
 
+  // Modal Lightbox Preview Gambar
+  const [previewFoto, setPreviewFoto] = useState<DataSpasialItem | null>(null);
+
   const jmlLokal = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
   const jmlTersinkron = dataSpasial.filter((d) => d.statusSinkron === "tersinkron").length;
   const jmlVerif = dataSpasial.filter((d) => d.statusSinkron === "terverifikasi").length;
@@ -66,6 +73,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
     filterStatus === "semua" ? true : d.statusSinkron === filterStatus
   );
 
+  // Kumpulkan semua item yang memiliki foto
+  const dataDenganFoto = dataSpasial.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl));
+
   const salinKodeGas = () => {
     navigator.clipboard.writeText(KODE_GOOGLE_APPS_SCRIPT);
     setTersalin(true);
@@ -73,15 +83,16 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   };
 
   return (
-    <div className="page-container">
-      {/* RINGKASAN ANTREAN SINKRONISASI GOOGLE DRIVE */}
+    <div className="page-container" style={{ gap: "14px" }}>
+      {/* 1. RINGKASAN STATUS SINKRONISASI GOOGLE DRIVE */}
       <div className="section-card">
         <div className="section-header-flex">
           <div>
-            <h2>☁️ Sinkronisasi Otomatis Database Google Drive & Sheets</h2>
-            <p className="text-muted">
-              Data lapangan disimpan di memori HP terlebih dahulu (Offline-First) dan diunggah ke
-              struktur folder <code>Database_Pemetaan</code> saat terhubung ke internet.
+            <h2 style={{ fontSize: "1.25rem", margin: "0 0 4px" }}>
+              ☁️ Sinkronisasi Google Drive & Sheets
+            </h2>
+            <p className="text-muted" style={{ margin: 0, fontSize: "0.86rem" }}>
+              Penyimpanan Offline-First: data dan foto tersimpan di memori HP dan otomatis diunggah ke Google Drive saat ada sinyal internet.
             </p>
           </div>
           <button
@@ -89,56 +100,167 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             className="btn-primary"
             disabled={sedangSinkron}
             onClick={onSinkronkanSekarang}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
             <CloudUpload size={17} />
             {sedangSinkron
-              ? "Sedang Mengunggah ke GDrive..."
-              : `Sinkronkan ke GDrive (${jmlLokal} Antrean)`}
+              ? "Sedang Mengunggah..."
+              : `Sinkronkan Sekarang (${jmlLokal} Antrean)`}
           </button>
         </div>
 
-        {pesanSinkron && <div className="alert-banner-success">{pesanSinkron}</div>}
+        {pesanSinkron && <div className="alert-banner-success" style={{ marginTop: 12 }}>{pesanSinkron}</div>}
 
-        <div className="stat-grid-3">
+        <div className="stat-grid-3" style={{ marginTop: 14 }}>
           <div
             className={`stat-box clickable ${filterStatus === "lokal" ? "active-border" : ""}`}
             onClick={() => setFilterStatus(filterStatus === "lokal" ? "semua" : "lokal")}
           >
-            <span className="stat-label">📱 Tersimpan di HP (Belum Sinkron)</span>
+            <span className="stat-label">📱 Tersimpan di HP (Lokal)</span>
             <strong className="stat-num text-amber">{jmlLokal} Data</strong>
             <small>Menunggu koneksi internet</small>
           </div>
 
           <div
             className={`stat-box clickable ${filterStatus === "tersinkron" ? "active-border" : ""}`}
-            onClick={() =>
-              setFilterStatus(filterStatus === "tersinkron" ? "semua" : "tersinkron")
-            }
+            onClick={() => setFilterStatus(filterStatus === "tersinkron" ? "semua" : "tersinkron")}
           >
-            <span className="stat-label">☁️ Tersinkron ke Google Drive</span>
+            <span className="stat-label">☁️ Tersinkron ke Drive</span>
             <strong className="stat-num text-sky">{jmlTersinkron} Data</strong>
-            <small>Masuk ke Master Sheets & Folder GIS</small>
+            <small>Tersimpan di Master Sheets</small>
           </div>
 
           <div
-            className={`stat-box clickable ${
-              filterStatus === "terverifikasi" ? "active-border" : ""
-            }`}
-            onClick={() =>
-              setFilterStatus(filterStatus === "terverifikasi" ? "semua" : "terverifikasi")
-            }
+            className={`stat-box clickable ${filterStatus === "terverifikasi" ? "active-border" : ""}`}
+            onClick={() => setFilterStatus(filterStatus === "terverifikasi" ? "semua" : "terverifikasi")}
           >
-            <span className="stat-label">✅ Terverifikasi Admin GIS</span>
+            <span className="stat-label">✅ Terverifikasi Admin</span>
             <strong className="stat-num text-emerald">{jmlVerif} Data</strong>
-            <small>Dihitung sah untuk Sertifikat & HOK</small>
+            <small>Dihitung sah untuk Sertifikat</small>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. PREVIEW GAMBAR & FOTO HASIL SURVEI (REQUESTED FITUR) */}
+      <div className="section-card">
+        <div className="section-header-flex">
+          <div>
+            <h3 style={{ margin: "0 0 4px", display: "flex", alignItems: "center", gap: 8, fontSize: "1.05rem" }}>
+              <ImageIcon size={20} color="#0d7344" /> Preview Foto Lapangan ({dataDenganFoto.length} Foto)
+            </h3>
+            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+              Preview gambar foto dokumentasi survei kader yang siap diunggah ke Google Drive <code>Database_Pemetaan/Foto_Lapangan/</code>
+            </p>
           </div>
         </div>
 
-        {/* TOMBOL EKSPOR FILE SPASIAL STANDAR GIS (QGIS / ARCGIS / AVENZA) */}
-        <div className="export-bar">
-          <span>
-            <Database size={15} /> <strong>Ekspor Langsung File Spasial & Tabel:</strong>
-          </span>
+        {dataDenganFoto.length > 0 ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: "12px",
+              marginTop: "14px"
+            }}
+          >
+            {dataDenganFoto.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => setPreviewFoto(item)}
+                style={{
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  border: "1px solid #d5dcd8",
+                  background: "#ffffff",
+                  cursor: "pointer",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                }}
+              >
+                <div style={{ width: "100%", height: 130, position: "relative", background: "#f1f5f3" }}>
+                  <img
+                    src={item.fotoBase64 || item.driveFileUrl}
+                    alt={item.judul}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: 6,
+                      left: 6,
+                      background: "rgba(0,0,0,0.65)",
+                      color: "#ffffff",
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      padding: "2px 6px",
+                      borderRadius: 4
+                    }}
+                  >
+                    {item.kategori}
+                  </span>
+                </div>
+                <div style={{ padding: "8px 10px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#181a19", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {item.judul}
+                  </div>
+                  <div style={{ fontSize: "0.74rem", color: "#64748b", marginTop: 2 }}>
+                    {item.namaKader} • {item.createdAt.slice(0, 10)}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <span
+                      style={{
+                        fontSize: "0.68rem",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: 99,
+                        background: item.statusSinkron === "tersinkron" ? "#e0f2fe" : item.statusSinkron === "terverifikasi" ? "#dcfce7" : "#fef3c7",
+                        color: item.statusSinkron === "tersinkron" ? "#0284c7" : item.statusSinkron === "terverifikasi" ? "#166534" : "#b45309"
+                      }}
+                    >
+                      {item.statusSinkron === "tersinkron" ? "☁️ GDrive" : item.statusSinkron === "terverifikasi" ? "✅ Verif" : "📱 HP"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "28px 20px",
+              textAlign: "center",
+              background: "#f8faf9",
+              border: "1.5px dashed #cbd5e1",
+              borderRadius: "14px",
+              marginTop: "12px"
+            }}
+          >
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+              <ImageIcon size={24} />
+            </div>
+            <h5 style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "#1e293b" }}>
+              Belum Ada Foto Survei Lapangan
+            </h5>
+            <p style={{ margin: 0, fontSize: "0.82rem", color: "#64748b", maxWidth: 360, marginInline: "auto" }}>
+              Ambil foto dokumentasi pohon, satwa, atau mata air saat merekam data di menu <b>Temukan (Peta)</b>. Foto akan otomatis tampil di sini dan siap disinkronkan ke Google Drive.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* 3. TABEL DATA SPASIAL HASIL SURVEI (TANPA DATA CONTOH) */}
+      <div className="section-card">
+        <div className="section-header-flex">
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+              📋 Daftar Data Spasial Lapangan ({dataTampil.length})
+            </h3>
+            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+              Daftar objek spasial riil hasil perekaman survei kader
+            </p>
+          </div>
+
+          {/* TOMBOL EKSPOR FILE SPASIAL STANDAR */}
           <div className="export-buttons">
             <button
               type="button"
@@ -151,7 +273,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                 )
               }
             >
-              <Download size={14} /> Unduh GeoJSON (.geojson)
+              <Download size={13} /> GeoJSON
             </button>
             <button
               type="button"
@@ -164,20 +286,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                 )
               }
             >
-              <Download size={14} /> Unduh KML (.kml)
-            </button>
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() =>
-                unduhBerkasTeks(
-                  "Database_Pemetaan_Kader.gpx",
-                  eksporKeGPX(dataSpasial),
-                  "application/gpx+xml"
-                )
-              }
-            >
-              <Download size={14} /> Unduh GPX (.gpx)
+              <Download size={13} /> KML
             </button>
             <button
               type="button"
@@ -190,112 +299,203 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                 )
               }
             >
-              <Download size={14} /> Tabel Master Sheets (.csv)
+              <Download size={13} /> CSV
             </button>
           </div>
         </div>
-      </div>
 
-      {/* TABEL DAFTAR DATA SPASIAL & STATUS SINKRONISASI */}
-      <div className="section-card">
-        <h3>📋 Daftar Data Spasial Lapangan ({dataTampil.length})</h3>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID & Waktu</th>
-                <th>Geometri & Kategori</th>
-                <th>Judul & Atribut Survei</th>
-                <th>Ukuran / Koordinat WKT</th>
-                <th>Status Sinkron</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dataTampil.map((d) => (
-                <tr key={d.id}>
-                  <td>
-                    <strong>{d.id}</strong>
-                    <div className="text-xs text-muted">{d.createdAt.slice(0, 10)}</div>
-                  </td>
-                  <td>
-                    <span className="badge-kategori">{d.kategori}</span>
-                    <div className="text-xs text-muted" style={{ marginTop: "4px" }}>
-                      {d.jenisGeometri.toUpperCase()}
-                    </div>
-                  </td>
-                  <td>
-                    <strong>{d.judul}</strong>
-                    {d.namaLokal && (
-                      <div className="text-xs">
-                        Lokal: <b>{d.namaLokal}</b>{" "}
-                        {d.namaIlmiah ? `(${d.namaIlmiah})` : ""}
-                      </div>
-                    )}
-                    <div className="text-xs text-muted">{d.deskripsi}</div>
-                    {d.riwayatPembaruan.length > 0 && (
-                      <div className="text-xs text-emerald">
-                        ↻ {d.riwayatPembaruan.length}x Pembaruan Kondisi
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {d.jenisGeometri === "line" && <b>{d.panjangKm} km</b>}
-                    {d.jenisGeometri === "polygon" && <b>{d.luasHa} Ha</b>}
-                    {d.jenisGeometri === "point" && (
-                      <span>Elev: {d.koordinat[0]?.elevasi ?? 400} mdpl</span>
-                    )}
-                    <div className="wkt-preview">{keWKT(d).slice(0, 38)}...</div>
-                  </td>
-                  <td>
-                    <span className={`badge-sync status-${d.statusSinkron}`}>
-                      {d.statusSinkron === "lokal" && (
-                        <>
-                          <Clock size={12} /> Tersimpan di HP
-                        </>
-                      )}
-                      {d.statusSinkron === "tersinkron" && (
-                        <>
-                          <CloudUpload size={12} /> Tersinkron GDrive
-                        </>
-                      )}
-                      {d.statusSinkron === "terverifikasi" && (
-                        <>
-                          <CheckCircle2 size={12} /> Terverifikasi Admin
-                        </>
-                      )}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-outline-sm"
-                      onClick={() => {
-                        if (d.koordinat[0]) {
-                          onFokusKePeta(d.koordinat[0].lat, d.koordinat[0].lng, d.judul);
-                        }
-                      }}
-                    >
-                      Lihat di Peta
-                    </button>
-                  </td>
+        {dataTampil.length > 0 ? (
+          <div className="table-responsive" style={{ marginTop: 12 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>ID & Waktu</th>
+                  <th>Kategori & Geometri</th>
+                  <th>Judul Objek</th>
+                  <th>Foto</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {dataTampil.map((d) => (
+                  <tr key={d.id}>
+                    <td>
+                      <strong>{d.id}</strong>
+                      <div className="text-xs text-muted">{d.createdAt.slice(0, 10)}</div>
+                    </td>
+                    <td>
+                      <span className="badge-kategori">{d.kategori}</span>
+                      <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                        {d.jenisGeometri.toUpperCase()}
+                      </div>
+                    </td>
+                    <td>
+                      <strong>{d.judul}</strong>
+                      <div className="text-xs text-muted">{d.deskripsi}</div>
+                    </td>
+                    <td>
+                      {d.fotoBase64 || d.driveFileUrl ? (
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          onClick={() => setPreviewFoto(d)}
+                          style={{ padding: "2px 8px", fontSize: "0.72rem" }}
+                        >
+                          📷 Lihat
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted">-</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge-sync status-${d.statusSinkron}`}>
+                        {d.statusSinkron === "lokal" && <Clock size={11} />}
+                        {d.statusSinkron === "tersinkron" && <CloudUpload size={11} />}
+                        {d.statusSinkron === "terverifikasi" && <CheckCircle2 size={11} />}
+                        <span style={{ marginLeft: 3 }}>{d.statusSinkron.toUpperCase()}</span>
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-outline-sm"
+                        onClick={() => {
+                          if (d.koordinat[0]) {
+                            onFokusKePeta(d.koordinat[0].lat, d.koordinat[0].lng, d.judul);
+                          }
+                        }}
+                      >
+                        Peta
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", fontSize: "0.86rem" }}>
+            Belum ada data spasial tersimpan. Buka menu <b>Temukan (Peta)</b> untuk mulai merekam titik, jejak langkah, atau poligon survei lapangan.
+          </div>
+        )}
       </div>
 
-      {/* KONFIGURASI INTEGRASI GOOGLE DRIVE & KODE APPS SCRIPT */}
+      {/* 4. MODAL LIGHTBOX PREVIEW GAMBAR */}
+      {previewFoto && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            zIndex: 100
+          }}
+          onClick={() => setPreviewFoto(null)}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "16px",
+              maxWidth: 500,
+              width: "100%",
+              overflow: "hidden",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ position: "relative", width: "100%", maxHeight: 320, background: "#000" }}>
+              <img
+                src={previewFoto.fotoBase64 || previewFoto.driveFileUrl}
+                alt={previewFoto.judul}
+                style={{ width: "100%", height: "100%", maxHeight: 320, objectFit: "contain", display: "block" }}
+              />
+              <button
+                type="button"
+                onClick={() => setPreviewFoto(null)}
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.6)",
+                  color: "#ffffff",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer"
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <span className="badge-kategori">{previewFoto.kategori}</span>
+                <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{previewFoto.createdAt.slice(0, 10)}</span>
+              </div>
+              <h4 style={{ margin: "0 0 6px", fontSize: "1.1rem", color: "#181a19" }}>
+                {previewFoto.judul}
+              </h4>
+              <p style={{ margin: "0 0 10px", fontSize: "0.84rem", color: "#475569" }}>
+                {previewFoto.deskripsi || "Foto dokumentasi survei lapangan kader."}
+              </p>
+
+              {previewFoto.koordinat[0] && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", color: "#0d7344", marginBottom: 14 }}>
+                  <MapPin size={14} />
+                  <span>
+                    Lat: {previewFoto.koordinat[0].lat.toFixed(5)}°, Lng: {previewFoto.koordinat[0].lng.toFixed(5)}°
+                  </span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                {previewFoto.koordinat[0] && (
+                  <button
+                    type="button"
+                    className="btn-primary-sm"
+                    onClick={() => {
+                      onFokusKePeta(
+                        previewFoto.koordinat[0].lat,
+                        previewFoto.koordinat[0].lng,
+                        previewFoto.judul
+                      );
+                      setPreviewFoto(null);
+                    }}
+                  >
+                    Buka di Peta
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  onClick={() => setPreviewFoto(null)}
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. KONFIGURASI GOOGLE APPS SCRIPT WEB APP */}
       <div className="section-card">
         <div className="section-header-flex">
           <div>
-            <h3>
-              <FolderGit2 size={18} /> Pengaturan Koneksi Google Drive & Sheets Organisasi
+            <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <FolderGit2 size={18} color="#0d7344" /> Pengaturan Google Drive & Spreadsheet Master
             </h3>
-            <p className="text-muted">
-              Struktur folder otomatis:{" "}
-              <code>Google Drive &gt; Database_Pemetaan &gt; Data_Spasial &amp; Foto_Lapangan</code>
+            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+              Koneksikan ke Web App Google Apps Script organisasi Anda
             </p>
           </div>
           <button
@@ -303,8 +503,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             className="btn-outline-sm"
             onClick={() => setTampilKodeGas((v) => !v)}
           >
-            <FileCode2 size={15} />{" "}
-            {tampilKodeGas ? "Sembunyikan Kode Code.gs" : "Lihat / Salin Kode Google Apps Script"}
+            <FileCode2 size={14} /> {tampilKodeGas ? "Tutup Kode" : "Salin Code.gs"}
           </button>
         </div>
 
@@ -320,7 +519,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             />
           </div>
           <div>
-            <label>Nama / ID Folder Induk Google Drive</label>
+            <label>Folder Google Drive</label>
             <input
               type="text"
               className="form-input"
@@ -329,7 +528,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             />
           </div>
           <div>
-            <label>Nama Tab Spreadsheet Master</label>
+            <label>Nama Tab Spreadsheet</label>
             <input
               type="text"
               className="form-input"
@@ -352,14 +551,14 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               })
             }
           >
-            Simpan Konfigurasi Google Drive
+            Simpan Konfigurasi
           </button>
         </div>
 
         {tampilKodeGas && (
-          <div className="code-box-wrapper">
+          <div className="code-box-wrapper" style={{ marginTop: 12 }}>
             <div className="code-box-header">
-              <span>Kode Backend Google Apps Script (Code.gs)</span>
+              <span>Backend Google Apps Script (Code.gs)</span>
               <button type="button" className="btn-outline-sm" onClick={salinKodeGas}>
                 {tersalin ? <Check size={14} /> : <Copy size={14} />}
                 {tersalin ? "Tersalin!" : "Salin Kode"}

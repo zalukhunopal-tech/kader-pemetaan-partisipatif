@@ -61,16 +61,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
 
-  // Hitung jumlah objek untuk masing-masing Lapisan agar selaras dengan screenshot & data nyata
-  const hitungObjekLapisan = (lapisan: LapisanSpasial, index: number): number => {
-    const tambahanData = dataSpasial.filter(
+  // Hitung jumlah objek riil dari data spasial lapangan
+  const hitungObjekLapisan = (lapisan: LapisanSpasial): number => {
+    return dataSpasial.filter(
       (d) => d.kategori === lapisan.kategoriDefault
     ).length;
-    if (lapisan.id === "LYR-01") return 174 + tambahanData;
-    if (lapisan.id === "LYR-04") return 3 + tambahanData;
-    if (lapisan.id === "LYR-02") return 21 + tambahanData;
-    if (lapisan.id === "LYR-03") return Math.max(0, tambahanData - 1);
-    return index === 0 ? tambahanData : 0;
   };
 
   const daftarPetaTampil = areaOffline
@@ -510,11 +505,33 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                       >
                         Hapus dari Pustaka
                       </button>
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+              ))}
+
+            {daftarPetaTampil.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 20px 80px", color: "#64748b" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                  <Layers size={30} />
+                </div>
+                <h4 style={{ margin: "0 0 8px", fontSize: "1.05rem", fontWeight: 700, color: "#1e293b" }}>
+                  Belum Ada Peta Offline Tersimpan
+                </h4>
+                <p style={{ margin: "0 auto 16px", fontSize: "0.88rem", color: "#64748b", maxWidth: 360, lineHeight: 1.5 }}>
+                  Peta contoh telah dibersihkan. Anda dapat langsung membuka peta dasar daring atau mengunduh dan menambahkan peta baru melalui tombol (+) oranye di bawah.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary-sm"
+                  onClick={onBukaPetaDasar}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  Buka Peta Dasar
+                </button>
               </div>
-            ))}
+            )}
           </div>
 
           {/* FLOATING ACTION BUTTON ORANYE (+) DI POJOK KANAN BAWAH */}
@@ -533,8 +550,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       {subTab === "lapisan" && (
         <div className="avenza-lapisan-content">
           <div className="avenza-layer-list">
-            {daftarLapisanTampil.map((lapisan, idx) => {
-              const jmlObjek = hitungObjekLapisan(lapisan, idx);
+            {daftarLapisanTampil.map((lapisan) => {
+              const jmlObjek = hitungObjekLapisan(lapisan);
               return (
                 <div
                   key={lapisan.id}
