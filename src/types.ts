@@ -75,8 +75,18 @@ export interface AreaPetaOffline {
   zoomMax: number;
   jumlahTile: number;
   ukuranMb: number;
+  jarakKm?: number;
+  thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah";
   diunduhPada: string;
   jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";
+}
+
+export interface LapisanSpasial {
+  id: string;
+  nama: string;
+  jumlahPeta: number;
+  kategoriDefault?: KategoriSurvei;
+  createdAt: string;
 }
 
 export type BasemapType = "satelit" | "osm" | "topo" | "taktis";
@@ -177,6 +187,7 @@ export interface KonfigurasiGDrive {
 }
 
 export type MenuTab =
+  | "pustaka"
   | "peta"
   | "data_sync"
   | "reward"

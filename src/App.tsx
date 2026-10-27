@@ -4,6 +4,7 @@ import {
   DataSpasialItem,
   KlaimUpahHOK,
   KonfigurasiGDrive,
+  LapisanSpasial,
   MenuTab,
   PengumumanBroadcast,
   PeranPengguna,
@@ -18,6 +19,7 @@ import {
   muatDataSpasial,
   muatKlaimUpah,
   muatKonfigGDrive,
+  muatLapisan,
   muatPengumuman,
   muatPesan,
   muatProfil,
@@ -27,14 +29,17 @@ import {
   simpanDataSpasial,
   simpanKlaimUpah,
   simpanKonfigGDrive,
+  simpanLapisan,
   simpanPengumuman,
   simpanPesan,
   simpanProfil,
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { hitungCapaianKader } from "./lib/rewardEngine";
 import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
+import { PustakaView } from "./components/PustakaView";
+import { PemberitahuanView } from "./components/PemberitahuanView";
+import { PengaturanEksporView } from "./components/PengaturanEksporView";
 import { InteractiveMap } from "./components/InteractiveMap";
 import { DatabaseSyncView } from "./components/DatabaseSyncView";
 import { RewardView } from "./components/RewardView";
@@ -45,18 +50,29 @@ import {
   Award,
   Bell,
   CloudUpload,
-  Compass,
+  Folder,
   Map,
   MessageSquare,
+  MoreVertical,
+  Share,
   ShieldCheck,
+  UserCheck,
   Wifi,
   WifiOff
 } from "lucide-react";
 
 export const App: React.FC = () => {
-  const [tabAktif, setTabAktif] = useState<MenuTab>("peta");
+  // Default membuka halaman Pustaka sesuai tangkapan layar UI utama
+  const [tabAktif, setTabAktif] = useState<MenuTab>("pustaka");
   const [peran, setPeran] = useState<PeranPengguna>("kader");
   const [sedangOnline, setSedangOnline] = useState<boolean>(true);
+
+  // Sub-halaman penuh & menu titik tiga (Screenshot 2, 3, 4)
+  const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
+  const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
+  const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
+  const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
+  const [notifToast, setNotifToast] = useState<string | null>(null);
 
   const [profil, setProfil] = useState<ProfilKader>(() => muatProfil());
   const [dataSpasial, setDataSpasial] = useState<DataSpasialItem[]>(() =>
@@ -64,6 +80,9 @@ export const App: React.FC = () => {
   );
   const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() =>
     muatAreaOffline()
+  );
+  const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() =>
+    muatLapisan()
   );
   const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() =>
     muatSertifikat()
@@ -92,6 +111,7 @@ export const App: React.FC = () => {
   useEffect(() => simpanProfil(profil), [profil]);
   useEffect(() => simpanDataSpasial(dataSpasial), [dataSpasial]);
   useEffect(() => simpanAreaOffline(areaOffline), [areaOffline]);
+  useEffect(() => simpanLapisan(lapisanList), [lapisanList]);
   useEffect(() => simpanSertifikat(sertifikatList), [sertifikatList]);
   useEffect(() => simpanKlaimUpah(klaimUpahList), [klaimUpahList]);
   useEffect(() => simpanPengumuman(pengumumanList), [pengumumanList]);
@@ -110,15 +130,20 @@ export const App: React.FC = () => {
     }
   }, [sedangOnline]);
 
-  const capaian = hitungCapaianKader(dataSpasial, profil, false);
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
+
+  const tampilkanToast = (pesan: string) => {
+    setNotifToast(pesan);
+    setTimeout(() => setNotifToast(null), 3200);
+  };
 
   // Handler Simpan Data Spasial Baru dari Peta
   const handleSimpanDataBaru = (item: DataSpasialItem) => {
     setDataSpasial((prev) => [item, ...prev]);
+    tampilkanToast(`✓ "${item.judul}" disimpan ke Lapisan & memori HP.`);
   };
 
-  // Handler Update Kondisi pada Objek Existing (PRD 3.1)
+  // Handler Update Kondisi pada Objek Existing
   const handleTambahPembaruanObjek = (
     idData: string,
     kondisiTerbaru: string,
@@ -146,6 +171,7 @@ export const App: React.FC = () => {
         };
       })
     );
+    tampilkanToast("✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin).");
   };
 
   // Handler Sinkronisasi ke Google Drive & Sheets
@@ -203,75 +229,213 @@ export const App: React.FC = () => {
     setPesanList((prev) => [...prev, msgBaru]);
   };
 
+  const judulHalamanUtama: Record<MenuTab, string> = {
+    pustaka: "Pustaka",
+    peta: "Temukan",
+    data_sync: "GDrive & Ekspor",
+    reward: "Sertifikat & HOK",
+    tugas: "Tugas & Info",
+    komunikasi: "Diskusi Kader",
+    admin: "Panel Admin"
+  };
+
+  // Apabila layar penuh Pemberitahuan (Screenshot 2) aktif
+  if (bukaPemberitahuan) {
+    return (
+      <PemberitahuanView
+        pengumumanList={pengumumanList}
+        tugasList={tugasList}
+        onTutup={() => setBukaPemberitahuan(false)}
+        onBukaTargetDiPeta={handleFokusKePeta}
+        onTandaiTugasSelesai={(id) =>
+          setTugasList((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t))
+          )
+        }
+      />
+    );
+  }
+
+  // Apabila layar penuh Pengaturan Ekspor (Screenshot 4) aktif
+  if (bukaPengaturanEkspor) {
+    return (
+      <PengaturanEksporView
+        dataSpasial={dataSpasial}
+        onTutup={() => setBukaPengaturanEkspor(false)}
+      />
+    );
+  }
+
   return (
-    <div className="app-shell">
-      {/* TOPBAR UTAMA */}
-      <header className="app-topbar">
-        <div className="brand-box">
-          <div className="brand-logo">
-            <Compass size={22} />
-          </div>
-          <div>
-            <div className="brand-title-row">
-              <h1>GeoKader Partisipatif</h1>
-              <span className="org-badge">{profil.desaWilayah}</span>
-            </div>
-            <p className="brand-sub">
-              Survei Flora/Fauna, Pemetaan Wilayah Offline-First & Database Google Drive
-            </p>
-          </div>
+    <div
+      className="app-shell"
+      onClick={() => {
+        if (bukaMenuTitikTiga) setBukaMenuTitikTiga(false);
+      }}
+    >
+      {/* TOPBAR UTAMA BERGAYA AVENZA MAPS (SCREENSHOT 1, 3, 5) */}
+      <header className="avenza-topbar">
+        <div className="avenza-topbar-left">
+          <h1
+            className="avenza-topbar-title"
+            onClick={() => setTabAktif("pustaka")}
+          >
+            {judulHalamanUtama[tabAktif]}
+          </h1>
+          <button
+            type="button"
+            className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
+            onClick={() => setSedangOnline((o) => !o)}
+            title="Klik untuk beralih mode Sinyal Online / Hutan Offline"
+          >
+            {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+            <span>{sedangOnline ? "Online" : "Offline"}</span>
+          </button>
         </div>
 
-        {/* INDIKATOR PROGRES RINGKAS & PEMILIH PERAN (KADER / ADMIN) */}
-        <div className="topbar-controls">
-          <div
-            className="mini-milestone-pill"
+        {/* 4 IKON AKSI KANAN ATAS SESUAI SCREENSHOT: USER-CHECK, LONCENG, EKSPOR/SHARE, TITIK TIGA */}
+        <div className="avenza-topbar-actions">
+          <button
+            type="button"
+            className={`avenza-icon-btn ${tabAktif === "reward" ? "active" : ""}`}
             onClick={() => setTabAktif("reward")}
-            title="Klik untuk melihat progres Sertifikat & Upah HOK"
+            title="Akun Kader, Progres Sertifikat & Klaim Upah HOK"
           >
-            <span>📍 {capaian.totalPoinTitik}/50</span>
-            <span>〰️ {capaian.totalTrackingKm}/5km</span>
-            <span>⬢ {capaian.totalPoligonHa}/5Ha</span>
-            <strong className="text-amber">🏆 {capaian.totalPaketSelesai} Paket</strong>
-          </div>
+            <UserCheck size={23} strokeWidth={2} />
+          </button>
 
           <button
             type="button"
-            className={`conn-toggle-btn ${sedangOnline ? "online" : "offline"}`}
-            onClick={() => setSedangOnline((o) => !o)}
-            title="Klik untuk simulasi kondisi Sinyal Online vs Hutan Offline"
+            className="avenza-icon-btn"
+            onClick={() => setBukaPemberitahuan(true)}
+            title="Pemberitahuan"
           >
-            {sedangOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {sedangOnline ? "Sinyal Online" : "Hutan Offline"}
+            <Bell size={22} strokeWidth={2} />
           </button>
 
-          <div className="role-switcher">
+          <button
+            type="button"
+            className="avenza-icon-btn"
+            onClick={() => setBukaPengaturanEkspor(true)}
+            title="Pengaturan Ekspor (.kml / .geojson / .gpx)"
+          >
+            <Share size={22} strokeWidth={2} />
+          </button>
+
+          <div
+            className="avenza-more-menu-wrap"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
-              className={peran === "kader" ? "active" : ""}
-              onClick={() => {
-                setPeran("kader");
-                if (tabAktif === "admin") setTabAktif("peta");
-              }}
+              className="avenza-icon-btn"
+              onClick={() => setBukaMenuTitikTiga((v) => !v)}
+              title="Menu Lainnya"
             >
-              🌿 Akun Kader
+              <MoreVertical size={22} strokeWidth={2} />
             </button>
-            <button
-              type="button"
-              className={peran === "admin" ? "active" : ""}
-              onClick={() => {
-                setPeran("admin");
-                setTabAktif("admin");
-              }}
-            >
-              🛠️ Panel Admin
-            </button>
+
+            {/* DROPDOWN MENU TITIK TIGA PERSIS SCREENSHOT 3 */}
+            {bukaMenuTitikTiga && (
+              <div className="avenza-overflow-menu">
+                <button
+                  type="button"
+                  className="avenza-overflow-item"
+                  onClick={() => {
+                    setBukaMenuTitikTiga(false);
+                    setTabAktif("pustaka");
+                    setModePilihPustaka(true);
+                  }}
+                >
+                  Pilih
+                </button>
+                <button
+                  type="button"
+                  className="avenza-overflow-item"
+                  onClick={() => {
+                    setBukaMenuTitikTiga(false);
+                    tampilkanToast(
+                      `✓ Semua ${areaOffline.length} peta kerja & ${lapisanList.length} lapisan sudah versi terbaru.`
+                    );
+                  }}
+                >
+                  Periksa pembaruan peta
+                </button>
+                <button
+                  type="button"
+                  className="avenza-overflow-item"
+                  onClick={() => {
+                    setBukaMenuTitikTiga(false);
+                    setTabAktif("data_sync");
+                  }}
+                >
+                  Pengaturan
+                </button>
+                <div className="avenza-overflow-divider" />
+                <button
+                  type="button"
+                  className="avenza-overflow-item"
+                  onClick={() => {
+                    setBukaMenuTitikTiga(false);
+                    const nextPeran = peran === "kader" ? "admin" : "kader";
+                    setPeran(nextPeran);
+                    if (nextPeran === "admin") setTabAktif("admin");
+                    else setTabAktif("pustaka");
+                  }}
+                >
+                  {peran === "kader"
+                    ? "Buka Panel Admin GIS"
+                    : "Kembali ke Mode Kader"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
+      {/* TOAST FEEDBACK RINGKAS */}
+      {notifToast && <div className="avenza-toast">{notifToast}</div>}
+
       {/* ISI HALAMAN AKTIF */}
       <main className="app-main">
+        {tabAktif === "pustaka" && (
+          <PustakaView
+            areaOffline={areaOffline}
+            lapisanList={lapisanList}
+            dataSpasial={dataSpasial}
+            modePilihAktif={modePilihPustaka}
+            onMatikanModePilih={() => setModePilihPustaka(false)}
+            onBukaPetaDasar={() => setTabAktif("peta")}
+            onBukaAreaPeta={(area) => {
+              setFokusKoordinat({
+                lat: (area.minLat + area.maxLat) / 2,
+                lng: (area.minLng + area.maxLng) / 2,
+                label: area.namaArea
+              });
+              setTabAktif("peta");
+            }}
+            onTambahAreaOffline={(a) => {
+              setAreaOffline((prev) => [a, ...prev]);
+              tampilkanToast(`✓ Peta "${a.namaArea}" ditambahkan ke Pustaka.`);
+            }}
+            onHapusAreaOffline={(id) =>
+              setAreaOffline((prev) => prev.filter((a) => a.id !== id))
+            }
+            onTambahLapisan={(l) => {
+              setLapisanList((prev) => [l, ...prev]);
+              tampilkanToast(`✓ "${l.nama}" berhasil dibuat.`);
+            }}
+            onHapusLapisan={(id) =>
+              setLapisanList((prev) => prev.filter((l) => l.id !== id))
+            }
+            onImporDataSpasial={(items) => {
+              setDataSpasial((prev) => [...items, ...prev]);
+              tampilkanToast(`✓ ${items.length} objek spasial berhasil diimpor.`);
+            }}
+            onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
+          />
+        )}
+
         {tabAktif === "peta" && (
           <InteractiveMap
             dataSpasial={dataSpasial}
@@ -281,7 +445,9 @@ export const App: React.FC = () => {
             onSimpanDataBaru={handleSimpanDataBaru}
             onTambahPembaruanObjek={handleTambahPembaruanObjek}
             onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-            onImporDataSpasial={(items) => setDataSpasial((prev) => [...items, ...prev])}
+            onImporDataSpasial={(items) =>
+              setDataSpasial((prev) => [...items, ...prev])
+            }
           />
         )}
 
@@ -358,7 +524,9 @@ export const App: React.FC = () => {
                 )
               )
             }
-            onTerbitkanSertifikat={(sert) => setSertifikatList((prev) => [sert, ...prev])}
+            onTerbitkanSertifikat={(sert) =>
+              setSertifikatList((prev) => [sert, ...prev])
+            }
             onUpdateStatusKlaimHok={(id, status, catatanAdmin) =>
               setKlaimUpahList((prev) =>
                 prev.map((k) => (k.id === id ? { ...k, status, catatanAdmin } : k))
@@ -373,66 +541,69 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION BAR */}
-      <nav className="app-bottom-nav">
+      {/* BOTTOM NAVIGATION BAR SESUAI SCREENSHOT (PUSTAKA & TEMUKAN + AKSES FITUR KADER) */}
+      <nav className="avenza-bottom-nav">
         <button
           type="button"
-          className={`nav-tab ${tabAktif === "peta" ? "active" : ""}`}
-          onClick={() => setTabAktif("peta")}
+          className={`avenza-nav-item ${tabAktif === "pustaka" ? "active" : ""}`}
+          onClick={() => setTabAktif("pustaka")}
         >
-          <Map size={19} />
-          <span>Peta Survei</span>
+          <Folder
+            size={22}
+            fill={tabAktif === "pustaka" ? "#0d7344" : "none"}
+          />
+          <span>Pustaka</span>
         </button>
 
         <button
           type="button"
-          className={`nav-tab ${tabAktif === "data_sync" ? "active" : ""}`}
+          className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
+          onClick={() => setTabAktif("peta")}
+        >
+          <Map size={22} />
+          <span>Temukan</span>
+        </button>
+
+        <button
+          type="button"
+          className={`avenza-nav-item ${tabAktif === "data_sync" ? "active" : ""}`}
           onClick={() => setTabAktif("data_sync")}
         >
           <div className="nav-icon-wrap">
-            <CloudUpload size={19} />
+            <CloudUpload size={22} />
             {antreanLokalCount > 0 && (
               <span className="nav-badge">{antreanLokalCount}</span>
             )}
           </div>
-          <span>GDrive Sync</span>
+          <span>GDrive</span>
         </button>
 
         <button
           type="button"
-          className={`nav-tab ${tabAktif === "reward" ? "active" : ""}`}
+          className={`avenza-nav-item ${tabAktif === "reward" ? "active" : ""}`}
           onClick={() => setTabAktif("reward")}
         >
-          <Award size={19} />
-          <span>Sertifikat & HOK</span>
+          <Award size={22} />
+          <span>Sertifikat</span>
         </button>
 
         <button
           type="button"
-          className={`nav-tab ${tabAktif === "tugas" ? "active" : ""}`}
-          onClick={() => setTabAktif("tugas")}
-        >
-          <Bell size={19} />
-          <span>Tugas & Info</span>
-        </button>
-
-        <button
-          type="button"
-          className={`nav-tab ${tabAktif === "komunikasi" ? "active" : ""}`}
+          className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
           onClick={() => setTabAktif("komunikasi")}
         >
-          <MessageSquare size={19} />
-          <span>Diskusi & Admin</span>
+          <MessageSquare size={22} />
+          <span>Diskusi</span>
         </button>
 
         {peran === "admin" && (
           <button
             type="button"
-            className={`nav-tab ${tabAktif === "admin" ? "active" : ""}`}
+            className={`avenza-nav-item ${tabAktif === "admin" ? "active" : ""}`}
             onClick={() => setTabAktif("admin")}
           >
-            <ShieldCheck size={19} />
-            <span>Panel Admin</span>
+            <ShieldCheck size={22} />
+            <span>Admin</span>
           </button>
         )}
       </nav>

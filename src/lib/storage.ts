@@ -3,6 +3,7 @@ import {
   DataSpasialItem,
   KlaimUpahHOK,
   KonfigurasiGDrive,
+  LapisanSpasial,
   PengumumanBroadcast,
   PesanKomunikasi,
   ProfilKader,
@@ -10,15 +11,16 @@ import {
   TugasPemetaan
 } from "../types";
 
-const KEY_PROFIL = "geokader_profil_v1";
-const KEY_SPASIAL = "geokader_data_spasial_v1";
-const KEY_OFFLINE_MAPS = "geokader_offline_maps_v1";
-const KEY_SERTIFIKAT = "geokader_sertifikat_v1";
-const KEY_UPAH_HOK = "geokader_upah_hok_v1";
-const KEY_PENGUMUMAN = "geokader_pengumuman_v1";
-const KEY_TUGAS = "geokader_tugas_v1";
-const KEY_PESAN = "geokader_pesan_v1";
-const KEY_GDRIVE = "geokader_gdrive_v1";
+const KEY_PROFIL = "geokader_profil_v2";
+const KEY_SPASIAL = "geokader_data_spasial_v2";
+const KEY_OFFLINE_MAPS = "geokader_offline_maps_v2";
+const KEY_LAPISAN = "geokader_lapisan_v2";
+const KEY_SERTIFIKAT = "geokader_sertifikat_v2";
+const KEY_UPAH_HOK = "geokader_upah_hok_v2";
+const KEY_PENGUMUMAN = "geokader_pengumuman_v2";
+const KEY_TUGAS = "geokader_tugas_v2";
+const KEY_PESAN = "geokader_pesan_v2";
+const KEY_GDRIVE = "geokader_gdrive_v2";
 
 export const PROFIL_BAWAAN: ProfilKader = {
   idKader: "KDR-2026-014",
@@ -186,7 +188,7 @@ export const DATA_SPASIAL_AWAL: DataSpasialItem[] = [
 export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [
   {
     id: "MAP-OFF-01",
-    namaArea: "Blok Hutan Desa Rimba Lestari (Citra Satelit Resolusi Tinggi)",
+    namaArea: "PetaKerja_KameraTrap_Gabungan_Desa_Lung_Barang_GeoPDF",
     basemapId: "satelit",
     minLat: -0.96,
     maxLat: -0.93,
@@ -195,13 +197,15 @@ export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [
     zoomMin: 13,
     zoomMax: 18,
     jumlahTile: 1420,
-    ukuranMb: 28.4,
-    diunduhPada: "2026-10-23T19:00:00.000Z",
-    jenisFile: "XYZ Tiles"
+    ukuranMb: 22.2,
+    jarakKm: 162.23,
+    thumbnailType: "radar",
+    diunduhPada: "2026-10-27T19:00:00.000Z",
+    jenisFile: "GeoPDF / GeoTIFF"
   },
   {
     id: "MAP-OFF-02",
-    namaArea: "Peta Kerja Batas Wilayah Adat_2026.geopdf",
+    namaArea: "Hutan Desa Wa' Laya+BIG",
     basemapId: "topo",
     minLat: -0.955,
     maxLat: -0.935,
@@ -210,9 +214,76 @@ export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [
     zoomMin: 14,
     zoomMax: 17,
     jumlahTile: 540,
-    ukuranMb: 14.2,
-    diunduhPada: "2026-10-24T06:30:00.000Z",
+    ukuranMb: 1.5,
+    jarakKm: 206.59,
+    thumbnailType: "vector",
+    diunduhPada: "2026-10-26T06:30:00.000Z",
     jenisFile: "GeoPDF / GeoTIFF"
+  },
+  {
+    id: "MAP-OFF-03",
+    namaArea: "Layout DEM Ruang Atas Mentarang Hulu",
+    basemapId: "topo",
+    minLat: -0.958,
+    maxLat: -0.932,
+    minLng: 100.408,
+    maxLng: 100.432,
+    zoomMin: 13,
+    zoomMax: 17,
+    jumlahTile: 1120,
+    ukuranMb: 22.5,
+    jarakKm: 163.69,
+    thumbnailType: "dem_atas",
+    diunduhPada: "2026-10-25T14:20:00.000Z",
+    jenisFile: "GeoPDF / GeoTIFF"
+  },
+  {
+    id: "MAP-OFF-04",
+    namaArea: "Layout DEM Ruang Bawah Mentarang Hulu",
+    basemapId: "topo",
+    minLat: -0.962,
+    maxLat: -0.938,
+    minLng: 100.402,
+    maxLng: 100.428,
+    zoomMin: 13,
+    zoomMax: 17,
+    jumlahTile: 1150,
+    ukuranMb: 22.7,
+    jarakKm: 145.18,
+    thumbnailType: "dem_bawah",
+    diunduhPada: "2026-10-24T11:10:00.000Z",
+    jenisFile: "GeoPDF / GeoTIFF"
+  }
+];
+
+export const LAPISAN_AWAL: LapisanSpasial[] = [
+  {
+    id: "LYR-01",
+    nama: "Lapisan 1",
+    jumlahPeta: 1,
+    kategoriDefault: "Flora",
+    createdAt: "2026-10-27T08:00:00.000Z"
+  },
+  {
+    id: "LYR-04",
+    nama: "Lapisan 4",
+    jumlahPeta: 1,
+    kategoriDefault: "Fauna",
+    createdAt: "2026-10-26T09:30:00.000Z"
+  },
+  {
+    id: "LYR-02",
+    nama: "Lapisan 2",
+    jumlahPeta: 1,
+    kategoriDefault: "Mata Air",
+    createdAt: "2026-10-25T10:15:00.000Z"
+  },
+  {
+    id: "LYR-03",
+    nama: "Lapisan 3",
+    jumlahPeta: 1,
+    kategoriDefault: "Wilayah Adat / Lahan",
+    createdAt: "2026-10-24T13:00:00.000Z"
   }
 ];
 
@@ -367,6 +438,9 @@ export const simpanDataSpasial = (v: DataSpasialItem[]) => simpanJson(KEY_SPASIA
 
 export const muatAreaOffline = () => bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL);
 export const simpanAreaOffline = (v: AreaPetaOffline[]) => simpanJson(KEY_OFFLINE_MAPS, v);
+
+export const muatLapisan = () => bacaJson<LapisanSpasial[]>(KEY_LAPISAN, LAPISAN_AWAL);
+export const simpanLapisan = (v: LapisanSpasial[]) => simpanJson(KEY_LAPISAN, v);
 
 export const muatSertifikat = () => bacaJson<SertifikatKader[]>(KEY_SERTIFIKAT, SERTIFIKAT_AWAL);
 export const simpanSertifikat = (v: SertifikatKader[]) => simpanJson(KEY_SERTIFIKAT, v);
