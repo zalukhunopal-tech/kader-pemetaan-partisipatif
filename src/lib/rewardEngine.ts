@@ -11,6 +11,9 @@ export const TARGET_TITIK = 50;
 export const TARGET_TRACKING_KM = 5.0;
 export const TARGET_POLIGON_HA = 5.0;
 
+/** Batas sumbangan diskusi pada skor level (setara Level 4; Level 5 butuh data lapangan) */
+export const BATAS_SKOR_DISKUSI = 200;
+
 /** Jeda minimal antar pembaruan pada objek yang sama */
 export const JEDA_PEMBARUAN_JAM = 24;
 const JEDA_PEMBARUAN_MS = JEDA_PEMBARUAN_JAM * 60 * 60 * 1000;
@@ -356,13 +359,18 @@ export function hitungPeringkatGis20Level(
   const skorVariasiData = kategoriUnik * 35 + geometriUnik * 45;
 
   // 3. Skor Keaktifan Diskusi & Koordinasi
+  // Hanya ruang diskusi komunitas, dicocokkan dengan ID pengirim (bukan nama yang bisa sama atau
+  // diubah), dan dibatasi supaya diskusi saja tidak bisa menaikkan level jauh tanpa data lapangan.
   const pesanKader = pesanList.filter(
-    (m) => m.idPengirim === profil.idKader || m.namaPengirim === profil.nama
+    (m) => m.saluran === "komunitas" && m.idPengirim === profil.idKader
   );
   const pesanDiskusi = pesanKader.length;
   const pinDibagikan = pesanKader.filter((m) => Boolean(m.pinKoordinat)).length;
   const pesanSuara = pesanKader.filter((m) => Boolean(m.durasiSuaraDetik)).length;
-  const skorDiskusi = pesanDiskusi * 15 + pinDibagikan * 20 + pesanSuara * 15;
+  const skorDiskusi = Math.min(
+    BATAS_SKOR_DISKUSI,
+    pesanDiskusi * 15 + pinDibagikan * 20 + pesanSuara * 15
+  );
 
   // 4. Skor Kualitas & Validasi Data
   const dataBerfoto = dataKader.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl)).length;

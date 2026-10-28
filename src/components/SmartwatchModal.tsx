@@ -36,6 +36,16 @@ function latToTileY(lat: number, zoom: number): number {
  *   2. Perekaman Jalur
  *   3. Pembuatan Poligon
  */
+interface BluetoothPerangkat {
+  name?: string;
+  gatt?: { connect: () => Promise<unknown>; disconnect?: () => void };
+  addEventListener?: (jenis: string, fn: () => void) => void;
+}
+
+interface WebBluetooth {
+  requestDevice: (opts: Record<string, unknown>) => Promise<BluetoothPerangkat>;
+}
+
 export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
   dataSpasial,
   profil,
@@ -79,47 +89,52 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
   };
 
   // Koneksi Web Bluetooth API ke Smartwatch
+  // Status ini mencerminkan koneksi Bluetooth yang sebenarnya. Layar jam di bawah tampil di HP
+  // dan bekerja tanpa jam fisik; belum ada pertukaran data dengan jam yang terhubung.
+  const perangkatBtRef = useRef<BluetoothPerangkat | null>(null);
+  const [galatBt, setGalatBt] = useState<string | null>(null);
+
   const handleSambungkanBluetooth = async () => {
+    setGalatBt(null);
+    const navBt = navigator as Navigator & { bluetooth?: WebBluetooth };
+    if (!navBt.bluetooth) {
+      setStatusBt("terputus");
+      setGalatBt("Browser ini tidak mendukung Web Bluetooth. Layar jam tetap bisa dipakai di HP.");
+      return;
+    }
     setStatusBt("menyambungkan");
     try {
-      const navBt = navigator as Navigator & {
-        bluetooth?: {
-          requestDevice: (opts: Record<string, unknown>) => Promise<{
-            name?: string;
-            gatt?: { connect: () => Promise<unknown> };
-          }>;
-        };
-      };
-
-      if (navBt.bluetooth) {
-        const device = await navBt.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: ["battery_service", "generic_access", "heart_rate"]
-        });
-        if (device.gatt) {
-          await device.gatt.connect().catch(() => undefined);
-        }
-        const namaTerdeteksi = device.name || "Smartwatch BLE";
-        setNamaJam(namaTerdeteksi);
-        setStatusBt("terhubung");
-        tampilkanPesanSingkat(`Terhubung ke ${namaTerdeteksi}`);
-        return;
-      }
-    } catch {
-      // Jika pengguna menutup dialog BLE browser atau perangkat menggunakan mode langsung
-    }
-
-    // Fallback koneksi langsung Smartwatch Bluetooth
-    window.setTimeout(() => {
-      setNamaJam("Smartwatch GIS BLE");
+      const device = await navBt.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ["battery_service", "generic_access", "heart_rate"]
+      });
+      if (!device.gatt) throw new Error("perangkat tidak menyediakan GATT");
+      await device.gatt.connect();
+      device.addEventListener?.("gattserverdisconnected", () => {
+        setStatusBt("terputus");
+        tampilkanPesanSingkat("Smartwatch terputus");
+      });
+      perangkatBtRef.current = device;
+      const namaTerdeteksi = device.name || "Perangkat Bluetooth";
+      setNamaJam(namaTerdeteksi);
       setStatusBt("terhubung");
-      tampilkanPesanSingkat("Smartwatch Terhubung");
-    }, 500);
+      tampilkanPesanSingkat(`Terhubung ke ${namaTerdeteksi}`);
+    } catch (err) {
+      setStatusBt("terputus");
+      const nama = err instanceof Error ? err.name : "";
+      if (nama === "NotFoundError") {
+        tampilkanPesanSingkat("Pemilihan perangkat dibatalkan");
+      } else {
+        setGalatBt(`Gagal tersambung: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
   };
 
   const handlePutuskanBluetooth = () => {
+    perangkatBtRef.current?.gatt?.disconnect?.();
+    perangkatBtRef.current = null;
     setStatusBt("terputus");
-    tampilkanPesanSingkat("Smartwatch Terputus");
+    tampilkanPesanSingkat("Smartwatch terputus");
   };
 
   // Render Peta pada Layar Smartwatch
@@ -448,6 +463,17 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
               <X size={16} />
             </button>
           </div>
+        </div>
+
+        {galatBt && (
+          <div className="smartwatch-info-note" role="alert" style={{ color: "#fca5a5", fontSize: "0.78rem", padding: "6px 14px" }}>
+            {galatBt}
+          </div>
+        )}
+        <div className="smartwatch-info-note" style={{ color: "#94a3b8", fontSize: "0.74rem", padding: "0 14px 6px" }}>
+          {statusBt === "terhubung"
+            ? `Terhubung ke ${namaJam}. Layar jam ini tampil di HP; jam fisik belum bertukar data.`
+            : "Layar jam ini tampil di HP dan bekerja tanpa jam fisik."}
         </div>
 
         {/* BODI JAM TANGAN PINTAR (SMARTWATCH) */}
