@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -38,7 +38,7 @@ import {
   simpanTugas
 } from "./lib/storage";
 import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
-import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
+import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
@@ -98,7 +98,12 @@ export const App: React.FC = () => {
   const [tabAktif, setTabAktif] = useState<MenuTab>(() =>
     sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka"
   );
-  const [sedangOnline, setSedangOnline] = useState<boolean>(true);
+  // Status jaringan nyata dari browser; tombol "Online/Offline" hanya menambah mode offline manual
+  const [jaringanTersedia, setJaringanTersedia] = useState<boolean>(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const [modeOfflineManual, setModeOfflineManual] = useState<boolean>(false);
+  const sedangOnline = jaringanTersedia && !modeOfflineManual;
 
   // Sub-halaman penuh & menu
   const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
@@ -156,6 +161,8 @@ export const App: React.FC = () => {
   } | null>(null);
   const [sedangSinkron, setSedangSinkron] = useState<boolean>(false);
   const [pesanSinkron, setPesanSinkron] = useState<string | null>(null);
+  const [pesanSinkronGagal, setPesanSinkronGagal] = useState<boolean>(false);
+  const sinkronBerjalanRef = useRef<boolean>(false);
 
   // Status Perekaman Data di Latar Belakang (Global di Semua Tab)
   const rekamLatar = usePerekamLatar();
@@ -178,6 +185,18 @@ export const App: React.FC = () => {
   useEffect(() => simpanPesan(pesanList), [pesanList]);
   useEffect(() => simpanKaderAktif(kaderAktifList), [kaderAktifList]);
   useEffect(() => simpanKonfigGDrive(konfigGDrive), [konfigGDrive]);
+
+  // Ikuti perubahan koneksi dari browser
+  useEffect(() => {
+    const naik = () => setJaringanTersedia(true);
+    const turun = () => setJaringanTersedia(false);
+    window.addEventListener("online", naik);
+    window.addEventListener("offline", turun);
+    return () => {
+      window.removeEventListener("online", naik);
+      window.removeEventListener("offline", turun);
+    };
+  }, []);
 
   // Saat online, kirim pesan antrean
   useEffect(() => {
@@ -372,30 +391,68 @@ export const App: React.FC = () => {
   };
 
   // Handler Sinkronisasi ke Google Drive & Sheets
-  const handleSinkronkanSekarang = async () => {
+  const handleSinkronkanSekarang = async (otomatis: boolean = false) => {
+    if (sinkronBerjalanRef.current) return;
     if (!sedangOnline) {
-      setPesanSinkron(
-        "⚠️ Perangkat sedang dalam Mode Offline. Data tetap tersimpan aman di memori HP dan akan diunggah saat sinyal tersedia."
-      );
+      if (!otomatis) {
+        setPesanSinkronGagal(true);
+        setPesanSinkron(
+          jaringanTersedia
+            ? "⚠️ Mode offline manual aktif. Data tetap aman di HP; matikan mode offline untuk mengunggah."
+            : "⚠️ Tidak ada koneksi internet. Data tetap aman di HP dan akan diunggah saat sinyal tersedia."
+        );
+      }
       return;
     }
+    sinkronBerjalanRef.current = true;
     setSedangSinkron(true);
-    setPesanSinkron(null);
-    const res = await sinkronkanDataKeGDrive(dataSpasial, konfigGDrive);
-    if (res.sukses && res.idTersinkron.length > 0) {
-      setDataSpasial((prev) =>
-        prev.map((d) =>
-          res.idTersinkron.includes(d.id) ? { ...d, statusSinkron: "tersinkron" } : d
-        )
-      );
-      setKonfigGDrive((prev) => ({
-        ...prev,
-        terakhirSinkron: new Date().toLocaleString("id-ID")
-      }));
+    if (!otomatis) setPesanSinkron(null);
+    try {
+      const res = await sinkronkanDataKeGDrive(dataSpasial, konfigGDrive);
+      // Hanya data yang dikonfirmasi tersimpan oleh Apps Script yang berubah status
+      if (res.idTersinkron.length > 0) {
+        const diterima = new Set(res.idTersinkron);
+        setDataSpasial((prev) =>
+          prev.map((d) =>
+            diterima.has(d.id) && d.statusSinkron === "lokal"
+              ? { ...d, statusSinkron: "tersinkron" }
+              : d
+          )
+        );
+        setKonfigGDrive((prev) => ({
+          ...prev,
+          terakhirSinkron: new Date().toLocaleString("id-ID")
+        }));
+      }
+      // Sinkron otomatis diam bila belum diatur; hasil lain selalu ditampilkan
+      if (!(otomatis && res.belumDiatur)) {
+        setPesanSinkronGagal(!res.sukses);
+        setPesanSinkron(res.pesan);
+        if (otomatis) {
+          tampilkanToast(
+            res.sukses
+              ? `☁️ ${res.idTersinkron.length} data tersinkron otomatis.`
+              : "⚠️ Sinkronisasi otomatis belum berhasil. Data tetap aman di HP."
+          );
+        }
+      }
+    } finally {
+      sinkronBerjalanRef.current = false;
+      setSedangSinkron(false);
     }
-    setPesanSinkron(res.pesan);
-    setSedangSinkron(false);
   };
+
+  // Sinkron otomatis: saat ada internet dan ada antrean. Satu percobaan per perubahan antrean
+  // atau koneksi, jadi server yang gagal tidak membuat percobaan berulang tanpa henti.
+  useEffect(() => {
+    if (!sesiPengguna) return;
+    if (!sedangOnline || !konfigGDrive.autoSyncSaatOnline) return;
+    if (!urlAppsScriptValid(konfigGDrive.webAppUrl) || antreanLokalCount === 0) return;
+    const t = window.setTimeout(() => {
+      void handleSinkronkanSekarang(true);
+    }, 2000);
+    return () => window.clearTimeout(t);
+  }, [sedangOnline, konfigGDrive.autoSyncSaatOnline, konfigGDrive.webAppUrl, antreanLokalCount, !!sesiPengguna]);
 
   // Handler Fokus ke Titik Koordinat di Peta
   const handleFokusKePeta = (lat: number, lng: number, label: string) => {
@@ -505,10 +562,17 @@ export const App: React.FC = () => {
                 <button
                   type="button"
                   className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
-                  onClick={() => setSedangOnline((o) => !o)}
+                  onClick={() => setModeOfflineManual((m) => !m)}
+                  title={
+                    jaringanTersedia
+                      ? "Ketuk untuk beralih mode offline manual (tidak mengunggah)"
+                      : "Tidak ada koneksi internet"
+                  }
                 >
                   {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                  <span>{sedangOnline ? "Online" : "Offline"}</span>
+                  <span>
+                    {!jaringanTersedia ? "Offline" : modeOfflineManual ? "Offline (manual)" : "Online"}
+                  </span>
                 </button>
 
                 {adalahAkunAdmin && (
@@ -741,7 +805,9 @@ export const App: React.FC = () => {
             konfigGDrive={konfigGDrive}
             sedangSinkron={sedangSinkron}
             pesanSinkron={pesanSinkron}
-            onSinkronkanSekarang={handleSinkronkanSekarang}
+            pesanSinkronGagal={pesanSinkronGagal}
+            sedangOnline={sedangOnline}
+            onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
             onSimpanKonfigGDrive={setKonfigGDrive}
             onFokusKePeta={handleFokusKePeta}
           />

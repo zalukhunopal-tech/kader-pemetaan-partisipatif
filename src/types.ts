@@ -195,6 +195,7 @@ export interface KonfigurasiGDrive {
   folderIdDatabase: string;
   spreadsheetIdMaster: string;
   autoSyncSaatOnline: boolean;
+  tokenBersama?: string; // dicocokkan dengan GEOKADER_TOKEN di Script Properties Apps Script
   terakhirSinkron?: string;
 }
 

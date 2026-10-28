@@ -17,6 +17,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
    - Antrean *Offline-First* di memori perangkat (`Tersimpan di HP`, `Tersinkron ke GDrive`, `Terverifikasi Admin`).
    - Ekspor langsung ke format standar GIS: **GeoJSON (`.geojson`)**, **KML (`.kml`)**, **GPX (`.gpx`)**, dan **CSV Master Tabel (`.csv`)**.
    - Dilengkapi generator kode backend **Google Apps Script (`Code.gs`)** siap pakai untuk membuat folder `Database_Pemetaan > Data_Spasial & Foto_Lapangan` otomatis di Google Drive.
+   - Status **Tersinkron** hanya diberikan pada data yang dikonfirmasi tersimpan oleh Apps Script. Tanpa URL Web App, tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil. Penyimpanan bersifat idempoten (kirim ulang tidak menggandakan baris) dan dilindungi token: isi `GEOKADER_TOKEN` di *Script Properties* dengan nilai yang sama seperti di Sinkronisasi > Konfigurasi > Token. Status online mengikuti koneksi browser, dan sinkron otomatis berjalan saat ada internet dan ada antrean. Pasang ulang `Code.gs` terbaru setiap kali berubah; Code.gs versi lama tetap bisa dipakai tetapi tanpa token dan tanpa penyimpanan idempoten.
 
 3. **Sistem Gamifikasi, Sertifikat Kader & Upah Harian (1 HOK)**
    - **1 Paket Capaian**: Menyelesaikan **50 Titik Koordinat** ATAU **5,0 km Tracking Perjalanan** ATAU **5,0 Ha Pemetaan Poligon**.

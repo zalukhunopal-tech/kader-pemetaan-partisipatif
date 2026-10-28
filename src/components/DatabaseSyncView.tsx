@@ -7,7 +7,7 @@ import {
   eksporKeKML,
   keWKT
 } from "../lib/geoUtils";
-import { KODE_GOOGLE_APPS_SCRIPT } from "../lib/gdriveSync";
+import { KODE_GOOGLE_APPS_SCRIPT, urlAppsScriptValid } from "../lib/gdriveSync";
 import {
   CloudUpload,
   CheckCircle2,
@@ -29,6 +29,8 @@ interface DatabaseSyncViewProps {
   konfigGDrive: KonfigurasiGDrive;
   sedangSinkron: boolean;
   pesanSinkron: string | null;
+  pesanSinkronGagal: boolean;
+  sedangOnline: boolean;
   onSinkronkanSekarang: () => void;
   onSimpanKonfigGDrive: (k: KonfigurasiGDrive) => void;
   onFokusKePeta: (lat: number, lng: number, label: string) => void;
@@ -51,6 +53,8 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   konfigGDrive,
   sedangSinkron,
   pesanSinkron,
+  pesanSinkronGagal,
+  sedangOnline,
   onSinkronkanSekarang,
   onSimpanKonfigGDrive,
   onFokusKePeta
@@ -58,6 +62,8 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   const [webAppUrl, setWebAppUrl] = useState(konfigGDrive.webAppUrl);
   const [folderId, setFolderId] = useState(konfigGDrive.folderIdDatabase);
   const [sheetId, setSheetId] = useState(konfigGDrive.spreadsheetIdMaster);
+  const [token, setToken] = useState(konfigGDrive.tokenBersama ?? "");
+  const [autoSync, setAutoSync] = useState(konfigGDrive.autoSyncSaatOnline);
   const [tampilKodeGas, setTampilKodeGas] = useState(false);
   const [tersalin, setTersalin] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("semua");
@@ -66,6 +72,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   const [previewFoto, setPreviewFoto] = useState<DataSpasialItem | null>(null);
 
   const jmlLokal = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
+  const sudahTersambung = urlAppsScriptValid(konfigGDrive.webAppUrl);
   const jmlTersinkron = dataSpasial.filter((d) => d.statusSinkron === "tersinkron").length;
   const jmlVerif = dataSpasial.filter((d) => d.statusSinkron === "terverifikasi").length;
 
@@ -92,13 +99,16 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               ☁️ Sinkronisasi
             </h2>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.86rem" }}>
-              Data tersimpan di perangkat lalu diunggah otomatis saat sinyal tersedia.
+              {konfigGDrive.autoSyncSaatOnline
+                ? "Data tersimpan di perangkat lalu diunggah otomatis saat ada internet."
+                : "Data tersimpan di perangkat dan diunggah saat Anda menekan tombol."}
+              {konfigGDrive.terakhirSinkron ? ` Terakhir berhasil: ${konfigGDrive.terakhirSinkron}.` : ""}
             </p>
           </div>
           <button
             type="button"
             className="btn-primary"
-            disabled={sedangSinkron}
+            disabled={sedangSinkron || !sudahTersambung || !sedangOnline}
             onClick={onSinkronkanSekarang}
             style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
@@ -109,7 +119,28 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           </button>
         </div>
 
-        {pesanSinkron && <div className="alert-banner-success" style={{ marginTop: 12 }}>{pesanSinkron}</div>}
+        {!sudahTersambung && (
+          <div className="alert-banner-success" style={{ marginTop: 12, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}>
+            Belum tersambung ke Google Drive. Data hanya tersimpan di HP sampai URL Web App dan token diisi di bagian Konfigurasi di bawah.
+          </div>
+        )}
+        {sudahTersambung && !sedangOnline && (
+          <div className="alert-banner-success" style={{ marginTop: 12, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}>
+            Sedang offline. Antrean akan diunggah setelah koneksi kembali.
+          </div>
+        )}
+        {pesanSinkron && (
+          <div
+            className="alert-banner-success"
+            style={
+              pesanSinkronGagal
+                ? { marginTop: 12, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }
+                : { marginTop: 12 }
+            }
+          >
+            {pesanSinkron}
+          </div>
+        )}
 
         <div className="stat-grid-3" style={{ marginTop: 14 }}>
           <div
@@ -539,6 +570,31 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         </div>
 
         <div style={{ marginTop: "12px" }}>
+          <label>Token bersama</label>
+          <input
+            type="password"
+            className="form-input"
+            autoComplete="off"
+            placeholder="Sama dengan GEOKADER_TOKEN di Script Properties"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+          />
+          <small className="text-muted">
+            Token mencegah orang yang hanya tahu URL menulis ke database. Token tersimpan di HP ini,
+            jadi bukan pengganti login.
+          </small>
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: "0.86rem" }}>
+          <input
+            type="checkbox"
+            checked={autoSync}
+            onChange={(e) => setAutoSync(e.target.checked)}
+          />
+          Unggah otomatis saat ada internet
+        </label>
+
+        <div style={{ marginTop: "12px" }}>
           <button
             type="button"
             className="btn-primary-sm"
@@ -547,7 +603,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                 ...konfigGDrive,
                 webAppUrl: webAppUrl.trim(),
                 folderIdDatabase: folderId.trim() || "Database_Pemetaan",
-                spreadsheetIdMaster: sheetId.trim() || "Master_Spasial"
+                spreadsheetIdMaster: sheetId.trim() || "Master_Spasial",
+                tokenBersama: token.trim(),
+                autoSyncSaatOnline: autoSync
               })
             }
           >

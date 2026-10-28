@@ -130,6 +130,7 @@ export const muatKonfigGDrive = () =>
     folderIdDatabase: "",
     spreadsheetIdMaster: "",
     autoSyncSaatOnline: true,
+    tokenBersama: "",
     terakhirSinkron: ""
   });
 export const simpanKonfigGDrive = (v: KonfigurasiGDrive) => simpanJson(KEY_GDRIVE, v);
