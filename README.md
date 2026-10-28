@@ -63,13 +63,17 @@ Server Esri tanpa kunci (`server.arcgisonline.com`) tidak lagi dipakai karena ke
 
 ## Menjalankan Aplikasi
 
+Butuh **Node.js 22.12 atau lebih baru** (Vite 8 dan Vitest 5). Versi pustaka dikunci di `package-lock.json`; pakai `npm ci` agar setiap mesin membangun dari versi yang sama.
+
 ```bash
-npm install
-npm run dev      # server pengembangan
+npm ci           # pasang dependensi persis sesuai package-lock.json
+npm run dev      # server pengembangan (terbuka ke jaringan lokal di port 3000)
 npm run build    # bangun versi produksi (PWA)
-npm test         # tes Vitest (lib/*: koordinat, skor, impor, sertifikat, QR, auth, penyimpanan, sinkronisasi, Code.gs)
+npm test         # tes Vitest (lib/*: koordinat, skor, impor, sertifikat, QR, auth, PIN dan sidik jari, penyimpanan, sinkronisasi, Code.gs, peta)
 npm run lint     # pemeriksaan tipe (tsc --noEmit)
 ```
+
+Saat menambah atau menaikkan pustaka, jalankan `npm install <paket>` lalu commit `package.json` **dan** `package-lock.json` bersama-sama.
 
 Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: kunci peta satelit (`VITE_GOOGLE_MAPS_API_KEY`, `VITE_ESRI_API_KEY`), sumber tile (`VITE_TILE_*`), tautan verifikasi sertifikat (`VITE_URL_VERIFIKASI`), dan kode aktivasi admin (`VITE_KODE_ADMIN`).
 
