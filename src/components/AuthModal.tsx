@@ -8,13 +8,8 @@ import {
   KeyRound,
   Lock,
   Mail,
-  MapPin,
-  Phone,
   Shield,
-  ShieldCheck,
   User,
-  UserCheck,
-  UserPlus,
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
@@ -39,8 +34,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
   const [peranDaftar, setPeranDaftar] = useState<PeranPengguna>("kader");
   const [desaDaftar, setDesaDaftar] = useState("Desa Rimba Lestari");
   const [noHpDaftar, setNoHpDaftar] = useState("");
-  const [kelompokDaftar, setKelompokDaftar] = useState("KTH Mandiri");
-  const [lihatPasswordDaftar, setLihatPasswordDaftar] = useState(false);
+  const [kelompokDaftar] = useState("KTH Mandiri");
+  const [lihatPasswordDaftar] = useState(false);
 
   // Form Lupa Password
   const [emailLupa, setEmailLupa] = useState("");
@@ -172,14 +167,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "16px",
+        padding: "12px",
         overflowY: "auto"
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "480px",
+          maxWidth: "460px",
           background: "#ffffff",
           borderRadius: "20px",
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.4)",
@@ -192,30 +187,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
           style={{
             background: "linear-gradient(135deg, #064e3b, #0d7344)",
             color: "#ffffff",
-            padding: "24px 20px 20px",
+            padding: "20px 16px 18px",
             textAlign: "center"
           }}
         >
           <div
             style={{
-              width: 56,
-              height: 56,
+              width: 52,
+              height: 52,
               borderRadius: "50%",
               background: "rgba(255, 255, 255, 0.15)",
               border: "2px solid #34d399",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              marginBottom: 10,
+              marginBottom: 8,
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)"
             }}
           >
-            <Compass size={32} color="#fbbf24" />
+            <Compass size={28} color="#fbbf24" />
           </div>
-          <h2 style={{ margin: "0 0 4px", fontSize: "1.45rem", fontWeight: 800, letterSpacing: 0.5 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: "1.35rem", fontWeight: 800, letterSpacing: 0.5 }}>
             GeoKader
           </h2>
-          <p style={{ margin: 0, fontSize: "0.82rem", color: "#a7f3d0", maxWidth: 340, marginInline: "auto" }}>
+          <p style={{ margin: 0, fontSize: "0.8rem", color: "#a7f3d0", maxWidth: 340, marginInline: "auto", lineHeight: 1.35 }}>
             Aplikasi Survei & Pemetaan Partisipatif Kader Masyarakat
           </p>
 
@@ -227,7 +222,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               background: "rgba(0, 0, 0, 0.2)",
               borderRadius: 99,
               padding: 3,
-              marginTop: 18
+              marginTop: 14
             }}
           >
             <button
@@ -240,10 +235,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 border: "none",
                 background: mode === "login" ? "#ffffff" : "transparent",
                 color: mode === "login" ? "#064e3b" : "#ffffff",
-                padding: "8px 14px",
+                padding: "8px 12px",
                 borderRadius: 99,
                 fontWeight: 700,
-                fontSize: "0.84rem",
+                fontSize: "0.82rem",
                 cursor: "pointer",
                 transition: "all 0.2s"
               }}
@@ -260,10 +255,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 border: "none",
                 background: mode === "daftar" ? "#ffffff" : "transparent",
                 color: mode === "daftar" ? "#064e3b" : "#ffffff",
-                padding: "8px 14px",
+                padding: "8px 12px",
                 borderRadius: 99,
                 fontWeight: 700,
-                fontSize: "0.84rem",
+                fontSize: "0.82rem",
                 cursor: "pointer",
                 transition: "all 0.2s"
               }}
@@ -274,7 +269,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
         </div>
 
         {/* BODY FORM */}
-        <div style={{ padding: "20px 24px 24px" }}>
+        <div style={{ padding: "18px 18px 22px" }}>
           {/* PESAN ALERT */}
           {pesanError && (
             <div
@@ -282,13 +277,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 background: "#fef2f2",
                 border: "1px solid #fecaca",
                 color: "#991b1b",
-                padding: "10px 14px",
+                padding: "10px 12px",
                 borderRadius: 10,
-                fontSize: "0.82rem",
+                fontSize: "0.8rem",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                marginBottom: 16
+                marginBottom: 14
               }}
             >
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -302,13 +297,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 background: "#f0fdf4",
                 border: "1px solid #bbf7d0",
                 color: "#166534",
-                padding: "10px 14px",
+                padding: "10px 12px",
                 borderRadius: 10,
-                fontSize: "0.82rem",
+                fontSize: "0.8rem",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                marginBottom: 16
+                marginBottom: 14
               }}
             >
               <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
@@ -337,7 +332,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       padding: "0 12px 0 38px",
                       borderRadius: 10,
                       border: "1.5px solid #cbd5e1",
-                      fontSize: "0.92rem",
+                      fontSize: "0.9rem",
                       outline: "none"
                     }}
                   />
@@ -345,8 +340,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               </div>
 
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#334155" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 4, marginBottom: 5 }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#334155", margin: 0 }}>
                     Kata Sandi
                   </label>
                   <button
@@ -360,7 +355,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       border: "none",
                       background: "transparent",
                       color: "#0d7344",
-                      fontSize: "0.78rem",
+                      fontSize: "0.76rem",
                       fontWeight: 600,
                       cursor: "pointer",
                       padding: 0
@@ -383,7 +378,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       padding: "0 40px 0 38px",
                       borderRadius: 10,
                       border: "1.5px solid #cbd5e1",
-                      fontSize: "0.92rem",
+                      fontSize: "0.9rem",
                       outline: "none"
                     }}
                   />
@@ -409,15 +404,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               <button
                 type="submit"
                 style={{
-                  height: 46,
+                  height: 44,
                   borderRadius: 10,
                   background: "#0d7344",
                   color: "#ffffff",
                   border: "none",
                   fontWeight: 700,
-                  fontSize: "0.95rem",
+                  fontSize: "0.92rem",
                   cursor: "pointer",
-                  marginTop: 6,
+                  marginTop: 4,
                   boxShadow: "0 4px 12px rgba(13, 115, 68, 0.3)"
                 }}
               >
@@ -425,11 +420,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               </button>
 
               {/* DEMO QUICK FILL */}
-              <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
-                <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "#64748b", marginBottom: 8, textAlign: "center" }}>
+              <div style={{ marginTop: 10, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
+                <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#64748b", marginBottom: 8, textAlign: "center" }}>
                   AKSES CEPAT DEMO:
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => isiCepatDemo("admin")}
@@ -439,7 +434,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       color: "#0369a1",
                       borderRadius: 8,
                       padding: "8px 10px",
-                      fontSize: "0.76rem",
+                      fontSize: "0.75rem",
                       fontWeight: 700,
                       cursor: "pointer",
                       display: "flex",
@@ -448,7 +443,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       gap: 5
                     }}
                   >
-                    <Shield size={14} /> Akun Admin
+                    <Shield size={14} style={{ flexShrink: 0 }} /> Akun Admin
                   </button>
 
                   <button
@@ -460,7 +455,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       color: "#166534",
                       borderRadius: 8,
                       padding: "8px 10px",
-                      fontSize: "0.76rem",
+                      fontSize: "0.75rem",
                       fontWeight: 700,
                       cursor: "pointer",
                       display: "flex",
@@ -469,7 +464,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       gap: 5
                     }}
                   >
-                    <User size={14} /> Akun User / Kader
+                    <User size={14} style={{ flexShrink: 0 }} /> Akun User / Kader
                   </button>
                 </div>
               </div>
@@ -478,9 +473,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
 
           {/* 2. FORM PENDAFTARAN AKUN BARU */}
           {mode === "daftar" && (
-            <form onSubmit={handleDaftar} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <form onSubmit={handleDaftar} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                   Nama Lengkap *
                 </label>
                 <div style={{ position: "relative" }}>
@@ -491,13 +486,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     placeholder="Contoh: Budi Santoso"
                     value={namaDaftar}
                     onChange={(e) => setNamaDaftar(e.target.value)}
-                    style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
+                    style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.86rem" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                   Alamat Email *
                 </label>
                 <div style={{ position: "relative" }}>
@@ -508,16 +503,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     placeholder="nama@email.com"
                     value={emailDaftar}
                     onChange={(e) => setEmailDaftar(e.target.value)}
-                    style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
+                    style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.86rem" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                   Pilih Peran Akun *
                 </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => setPeranDaftar("kader")}
@@ -527,13 +522,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       color: peranDaftar === "kader" ? "#0d7344" : "#475569",
                       padding: "8px",
                       borderRadius: 8,
-                      fontSize: "0.78rem",
+                      fontSize: "0.76rem",
                       fontWeight: 700,
                       cursor: "pointer",
                       textAlign: "center"
                     }}
                   >
-                    🌿 User (Kader Lapangan)
+                    🌿 User (Kader)
                   </button>
 
                   <button
@@ -545,20 +540,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       color: peranDaftar === "admin" ? "#0369a1" : "#475569",
                       padding: "8px",
                       borderRadius: 8,
-                      fontSize: "0.78rem",
+                      fontSize: "0.76rem",
                       fontWeight: 700,
                       cursor: "pointer",
                       textAlign: "center"
                     }}
                   >
-                    🛡️ Admin GIS (Koordinator)
+                    🛡️ Admin GIS
                   </button>
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                     Desa / Wilayah
                   </label>
                   <input
@@ -566,11 +561,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     placeholder="Desa Rimba Lestari"
                     value={desaDaftar}
                     onChange={(e) => setDesaDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.85rem" }}
+                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                     No. HP / WhatsApp
                   </label>
                   <input
@@ -578,14 +573,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     placeholder="0812-xxxx-xxxx"
                     value={noHpDaftar}
                     onChange={(e) => setNoHpDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.85rem" }}
+                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                     Kata Sandi *
                   </label>
                   <input
@@ -594,20 +589,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     placeholder="Min. 6 digit"
                     value={passwordDaftar}
                     onChange={(e) => setPasswordDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.85rem" }}
+                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                     Konfirmasi *
                   </label>
                   <input
                     type={lihatPasswordDaftar ? "text" : "password"}
                     required
-                    placeholder="Ulangi kata sandi"
+                    placeholder="Ulangi sandi"
                     value={konfirmasiPasswordDaftar}
                     onChange={(e) => setKonfirmasiPasswordDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.85rem" }}
+                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
                   />
                 </div>
               </div>
@@ -615,21 +610,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               <button
                 type="submit"
                 style={{
-                  height: 44,
+                  height: 42,
                   borderRadius: 10,
                   background: "#0d7344",
                   color: "#ffffff",
                   border: "none",
                   fontWeight: 700,
-                  fontSize: "0.92rem",
+                  fontSize: "0.9rem",
                   cursor: "pointer",
-                  marginTop: 6
+                  marginTop: 4
                 }}
               >
                 Daftar & Masuk Sekarang
               </button>
 
-              <div style={{ textAlign: "center", fontSize: "0.8rem", color: "#64748b", marginTop: 4 }}>
+              <div style={{ textAlign: "center", fontSize: "0.78rem", color: "#64748b", marginTop: 2 }}>
                 Sudah punya akun?{" "}
                 <button
                   type="button"
@@ -647,17 +642,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
 
           {/* 3. FORM LUPA KATA SANDI */}
           {mode === "lupa_password" && (
-            <form onSubmit={handleResetPassword} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <form onSubmit={handleResetPassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ textAlign: "center", marginBottom: 4 }}>
-                <KeyRound size={32} color="#0d7344" />
-                <h4 style={{ margin: "6px 0 2px", fontSize: "1.05rem" }}>Atur Ulang Kata Sandi</h4>
-                <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
+                <KeyRound size={30} color="#0d7344" />
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1.02rem" }}>Atur Ulang Kata Sandi</h4>
+                <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
                   Masukkan email terdaftar dan buat kata sandi baru untuk akun Anda.
                 </p>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                   Alamat Email Terdaftar
                 </label>
                 <input
@@ -666,12 +661,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                   placeholder="nama@email.com"
                   value={emailLupa}
                   onChange={(e) => setEmailLupa(e.target.value)}
-                  style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.9rem" }}
+                  style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                   Kata Sandi Baru (Minimal 6 Karakter)
                 </label>
                 <input
@@ -680,12 +675,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                   placeholder="Ketik kata sandi baru..."
                   value={passwordBaru}
                   onChange={(e) => setPasswordBaru(e.target.value)}
-                  style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.9rem" }}
+                  style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
                   Ulangi Kata Sandi Baru
                 </label>
                 <input
@@ -694,22 +689,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                   placeholder="Ulangi kata sandi baru..."
                   value={konfirmasiPasswordBaru}
                   onChange={(e) => setKonfirmasiPasswordBaru(e.target.value)}
-                  style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.9rem" }}
+                  style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
                 />
               </div>
 
               <button
                 type="submit"
                 style={{
-                  height: 44,
+                  height: 42,
                   borderRadius: 10,
                   background: "#0d7344",
                   color: "#ffffff",
                   border: "none",
                   fontWeight: 700,
-                  fontSize: "0.92rem",
+                  fontSize: "0.9rem",
                   cursor: "pointer",
-                  marginTop: 6
+                  marginTop: 4
                 }}
               >
                 Simpan Kata Sandi Baru
@@ -725,7 +720,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                   border: "none",
                   background: "transparent",
                   color: "#64748b",
-                  fontSize: "0.82rem",
+                  fontSize: "0.8rem",
                   fontWeight: 600,
                   cursor: "pointer"
                 }}

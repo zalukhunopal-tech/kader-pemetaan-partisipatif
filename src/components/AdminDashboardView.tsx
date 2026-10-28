@@ -15,20 +15,13 @@ import {
   Check,
   Award,
   Banknote,
-  Megaphone,
   PlusCircle,
-  ShieldAlert,
   X,
-  Users,
   MapPin,
   Edit3,
   Trash2,
   Battery,
   Radio,
-  Eye,
-  CheckCircle2,
-  Clock,
-  Send,
   Compass
 } from "lucide-react";
 
@@ -70,7 +63,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onTambahPengumuman,
   onTambahTugas,
   onHapusTugas,
-  onBalasPesanAdmin,
   onFokusKePeta
 }) => {
   const [subTabAdmin, setSubTabAdmin] = useState<
@@ -94,17 +86,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   // Form Pengumuman Baru
   const [judulAnn, setJudulAnn] = useState("");
   const [isiAnn, setIsiAnn] = useState("");
-  const [katAnn, setKatAnn] =
-    useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
+  const [katAnn] = useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
 
   // Form Penerbitan Sertifikat
   const [nomorSertBaru, setNomorSertBaru] = useState(
     `043/SERT-KPP/X/${new Date().getFullYear()}`
   );
   const [penandatangan, setPenandatangan] = useState("Ir. Hendra Wijaya, M.Sc.");
-
-  // Balas cepat ke Kader
-  const [balasanAdmin, setBalasanAdmin] = useState("");
 
   const handleBuatTugas = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +156,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <span
                 style={{
                   background: "#0284c7",
@@ -181,14 +169,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               >
                 ADMINISTRATOR GIS
               </span>
-              <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+              <span style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
                 Koordinator Wilayah & Verifikasi Lapangan
               </span>
             </div>
-            <h2 style={{ margin: "4px 0 2px", color: "#ffffff", fontSize: "1.35rem" }}>
+            <h2 style={{ margin: "6px 0 4px", color: "#ffffff", fontSize: "1.25rem", lineHeight: 1.3 }}>
               Panel Kendali Pemetaan Partisipatif
             </h2>
-            <div style={{ fontSize: "0.82rem", color: "#38bdf8" }}>
+            <div style={{ fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
               🟢 {jumlahOnline} Kader Terdeteksi Aktif di Lapangan • {dataSpasial.length} Data Spasial Masuk
             </div>
           </div>
@@ -198,7 +186,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
             gap: 8,
             marginTop: 14
           }}
@@ -207,99 +195,108 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             type="button"
             onClick={() => setSubTabAdmin("kader_aktif")}
             style={{
-              padding: "10px 12px",
+              padding: "10px 10px",
               borderRadius: "10px",
               border: subTabAdmin === "kader_aktif" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
               background: subTabAdmin === "kader_aktif" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
               color: "#ffffff",
-              fontSize: "0.82rem",
+              fontSize: "0.78rem",
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6
+              gap: 6,
+              textAlign: "center"
             }}
           >
-            <Radio size={16} color="#38bdf8" /> Monitor Kader Aktif
+            <Radio size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
+            <span>Monitor Kader Aktif</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSubTabAdmin("kelola_data")}
             style={{
-              padding: "10px 12px",
+              padding: "10px 10px",
               borderRadius: "10px",
               border: subTabAdmin === "kelola_data" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
               background: subTabAdmin === "kelola_data" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
               color: "#ffffff",
-              fontSize: "0.82rem",
+              fontSize: "0.78rem",
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6
+              gap: 6,
+              textAlign: "center"
             }}
           >
-            <Edit3 size={16} color="#38bdf8" /> Kelola & Ubah Data ({dataSpasial.length})
+            <Edit3 size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
+            <span>Kelola Data ({dataSpasial.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSubTabAdmin("tugas_survei")}
             style={{
-              padding: "10px 12px",
+              padding: "10px 10px",
               borderRadius: "10px",
               border: subTabAdmin === "tugas_survei" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
               background: subTabAdmin === "tugas_survei" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
               color: "#ffffff",
-              fontSize: "0.82rem",
+              fontSize: "0.78rem",
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6
+              gap: 6,
+              textAlign: "center"
             }}
           >
-            <PlusCircle size={16} color="#38bdf8" /> Masukkan Tugas Baru ({tugasList.length})
+            <PlusCircle size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
+            <span>Tugas Baru ({tugasList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSubTabAdmin("sertifikat_hok")}
             style={{
-              padding: "10px 12px",
+              padding: "10px 10px",
               borderRadius: "10px",
               border: subTabAdmin === "sertifikat_hok" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
               background: subTabAdmin === "sertifikat_hok" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
               color: "#ffffff",
-              fontSize: "0.82rem",
+              fontSize: "0.78rem",
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6
+              gap: 6,
+              textAlign: "center"
             }}
           >
-            <Award size={16} color="#38bdf8" /> Sertifikat & 1 HOK
+            <Award size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
+            <span>Sertifikat & 1 HOK</span>
           </button>
         </div>
       </div>
 
-      {/* 2. TAB A: MONITOR KADER AKTIF & LOKASI GPS (REQUESTED FITUR) */}
+      {/* 2. TAB A: MONITOR KADER AKTIF & LOKASI GPS */}
       {subTabAdmin === "kader_aktif" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {/* RADAR & MAP PRESENCE CANVAS */}
           <div className="section-card" style={{ padding: "16px 18px" }}>
             <div className="section-header-flex">
               <div>
-                <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 8 }}>
-                  <MapPin size={20} color="#0284c7" /> Peta Lokasi Akun Kader Aktif di Lapangan
+                <h3 style={{ margin: "0 0 4px", fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
+                  <MapPin size={20} color="#0284c7" style={{ flexShrink: 0 }} />
+                  <span>Peta Lokasi Akun Kader Aktif di Lapangan</span>
                 </h3>
-                <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+                <p className="text-muted" style={{ margin: 0, fontSize: "0.8rem" }}>
                   Pemantauan real-time koordinat GPS dan status pergerakan surveyor masyarakat
                 </p>
               </div>
@@ -309,7 +306,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <div
               style={{
                 marginTop: "12px",
-                height: 280,
+                height: 290,
                 borderRadius: "14px",
                 position: "relative",
                 overflow: "hidden",
@@ -323,7 +320,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 style={{
                   position: "absolute",
                   inset: 0,
-                  backgroundImage: "linear-gradient(rgba(52, 211, 153, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(52, 211, 153, 0.15) 1px, transparent 1px)",
+                  backgroundImage:
+                    "linear-gradient(rgba(52, 211, 153, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(52, 211, 153, 0.15) 1px, transparent 1px)",
                   backgroundSize: "40px 40px"
                 }}
               />
@@ -332,13 +330,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <div
                 style={{
                   position: "absolute",
-                  top: 12,
-                  left: 14,
+                  top: 10,
+                  left: 12,
+                  right: 12,
                   color: "#a7f3d0",
-                  fontSize: "0.78rem",
+                  fontSize: "0.72rem",
                   fontWeight: 700,
                   textTransform: "uppercase",
-                  letterSpacing: 1
+                  letterSpacing: 0.8
                 }}
               >
                 Wilayah Konservasi Desa Rimba Lestari
@@ -346,10 +345,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
               {/* Pin Koordinat Kader di Peta Visual */}
               {kaderAktifList.map((kader, idx) => {
-                // Konversi lat/lng relatif ke posisi persentase radar peta
                 const posX = 20 + ((kader.lng - 100.41) * 7000) % 70;
-                const posY = 20 + ((Math.abs(kader.lat) - 0.94) * 5000) % 65;
-
+                const posY = 22 + ((Math.abs(kader.lat) - 0.94) * 5000) % 58;
                 const isOnline = kader.status !== "offline";
 
                 return (
@@ -369,7 +366,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     }}
                     title={`Klik untuk lihat di Peta: ${kader.nama} (${kader.lat}, ${kader.lng})`}
                   >
-                    {/* Glowing pulse if active */}
                     {isOnline && (
                       <div
                         style={{
@@ -377,7 +373,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          background: kader.status === "survei_aktif" ? "rgba(34, 197, 94, 0.4)" : "rgba(56, 189, 248, 0.4)",
+                          background:
+                            kader.status === "survei_aktif"
+                              ? "rgba(34, 197, 94, 0.4)"
+                              : "rgba(56, 189, 248, 0.4)",
                           animation: "pulse 2s infinite"
                         }}
                       />
@@ -388,7 +387,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         width: 28,
                         height: 28,
                         borderRadius: "50%",
-                        background: kader.status === "survei_aktif" ? "#22c55e" : kader.status === "online" ? "#38bdf8" : "#94a3b8",
+                        background:
+                          kader.status === "survei_aktif"
+                            ? "#22c55e"
+                            : kader.status === "online"
+                            ? "#38bdf8"
+                            : "#94a3b8",
                         border: "2px solid #ffffff",
                         display: "flex",
                         alignItems: "center",
@@ -405,11 +409,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <div
                       style={{
                         marginTop: 4,
-                        background: "rgba(0, 0, 0, 0.75)",
+                        background: "rgba(0, 0, 0, 0.78)",
                         color: "#ffffff",
-                        padding: "2px 8px",
+                        padding: "2px 7px",
                         borderRadius: 6,
-                        fontSize: "0.7rem",
+                        fontSize: "0.68rem",
                         fontWeight: 700,
                         whiteSpace: "nowrap",
                         border: "1px solid rgba(255,255,255,0.2)"
@@ -425,15 +429,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <div
                 style={{
                   position: "absolute",
-                  bottom: 10,
-                  right: 12,
-                  background: "rgba(0,0,0,0.7)",
+                  bottom: 8,
+                  left: 10,
+                  right: 10,
+                  background: "rgba(0,0,0,0.72)",
                   borderRadius: 8,
-                  padding: "4px 10px",
-                  fontSize: "0.68rem",
+                  padding: "5px 10px",
+                  fontSize: "0.66rem",
                   color: "#e2e8f0",
                   display: "flex",
-                  gap: 10
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  gap: "6px 12px"
                 }}
               >
                 <span>🟢 Survei Aktif</span>
@@ -445,11 +452,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
           {/* DAFTAR AKUN KADER AKTIF & DETAIL LOKASI */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 12px", fontSize: "1.05rem" }}>
+            <h3 style={{ margin: "0 0 12px", fontSize: "1.02rem" }}>
               👥 Daftar Akun Kader Terdaftar & Lokasi Lapangan
             </h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
               {kaderAktifList.map((k) => (
                 <div
                   key={k.idKader}
@@ -465,7 +472,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   }}
                 >
                   <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span
@@ -473,12 +480,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                               width: 8,
                               height: 8,
                               borderRadius: "50%",
-                              background: k.status === "survei_aktif" ? "#22c55e" : k.status === "online" ? "#0284c7" : "#94a3b8"
+                              background:
+                                k.status === "survei_aktif"
+                                  ? "#22c55e"
+                                  : k.status === "online"
+                                  ? "#0284c7"
+                                  : "#94a3b8",
+                              flexShrink: 0
                             }}
                           />
-                          <strong style={{ fontSize: "0.95rem", color: "#181a19" }}>{k.nama}</strong>
+                          <strong style={{ fontSize: "0.94rem", color: "#181a19" }}>{k.nama}</strong>
                         </div>
-                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 2 }}>
+                        <div style={{ fontSize: "0.74rem", color: "#64748b", marginTop: 2 }}>
                           {k.idKader} • {k.desaWilayah}
                         </div>
                       </div>
@@ -489,8 +502,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           fontWeight: 700,
                           padding: "2px 8px",
                           borderRadius: 99,
-                          background: k.status === "survei_aktif" ? "#dcfce7" : k.status === "online" ? "#e0f2fe" : "#f1f5f9",
-                          color: k.status === "survei_aktif" ? "#166534" : k.status === "online" ? "#0369a1" : "#64748b"
+                          background:
+                            k.status === "survei_aktif"
+                              ? "#dcfce7"
+                              : k.status === "online"
+                              ? "#e0f2fe"
+                              : "#f1f5f9",
+                          color:
+                            k.status === "survei_aktif"
+                              ? "#166534"
+                              : k.status === "online"
+                              ? "#0369a1"
+                              : "#64748b"
                         }}
                       >
                         {k.status === "survei_aktif" ? "Survei Aktif" : k.status === "online" ? "Online" : "Offline"}
@@ -507,7 +530,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.72rem", color: "#64748b" }}>
                       <Battery size={13} color={k.baterai > 50 ? "#16a34a" : "#ca8a04"} />
                       <span>{k.baterai}% • {k.waktuUpdate}</span>
@@ -517,7 +540,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       type="button"
                       className="btn-outline-sm"
                       onClick={() => onFokusKePeta(k.lat, k.lng, k.nama)}
-                      style={{ padding: "3px 8px", fontSize: "0.74rem" }}
+                      style={{ padding: "4px 10px", fontSize: "0.74rem" }}
                     >
                       <MapPin size={12} /> Buka Lokasi
                     </button>
@@ -529,15 +552,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </div>
       )}
 
-      {/* 3. TAB B: KELOLA & UBAH DATA SPASIAL (REQUESTED FITUR) */}
+      {/* 3. TAB B: KELOLA & UBAH DATA SPASIAL */}
       {subTabAdmin === "kelola_data" && (
         <div className="section-card">
           <div className="section-header-flex">
             <div>
-              <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+              <h3 style={{ margin: "0 0 4px", fontSize: "1.02rem" }}>
                 ✏️ Kelola & Ubah Data Lapangan Kader ({dataSpasial.length})
               </h3>
-              <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+              <p className="text-muted" style={{ margin: 0, fontSize: "0.8rem" }}>
                 Admin dapat menyunting judul, kategori, deskripsi, koordinat, memvalidasi atau menghapus data yang tidak sesuai.
               </p>
             </div>
@@ -567,19 +590,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         <div className="text-xs text-muted">{d.deskripsi}</div>
                       </td>
                       <td>
-                        <span className={`badge-sync status-${d.statusSinkron}`}>
+                        <span className={`badge-sync status-${d.statusSinkron}`} style={{ marginLeft: 0 }}>
                           {d.statusSinkron.toUpperCase()}
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: "flex", gap: "6px" }}>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                           <button
                             type="button"
                             className="btn-outline-sm"
                             onClick={() => setItemDiedit(d)}
                             title="Ubah Data Spasial"
                           >
-                            <Edit3 size={13} /> Edit Data
+                            <Edit3 size={13} /> Edit
                           </button>
                           <button
                             type="button"
@@ -632,7 +655,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             style={{
               background: "#ffffff",
               borderRadius: "16px",
-              padding: "20px",
+              padding: "18px",
               maxWidth: 520,
               width: "100%",
               maxHeight: "90vh",
@@ -640,8 +663,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: "1.1rem" }}>✏️ Ubah Data Spasial: {itemDiedit.id}</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "1.02rem" }}>✏️ Ubah Data Spasial: {itemDiedit.id}</h3>
               <button type="button" onClick={() => setItemDiedit(null)} style={{ border: "none", background: "transparent", cursor: "pointer" }}>
                 <X size={20} />
               </button>
@@ -725,14 +748,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </div>
       )}
 
-      {/* 4. TAB C: MEMASUKKAN TUGAS BARU (REQUESTED FITUR) */}
+      {/* 4. TAB C: MEMASUKKAN TUGAS BARU */}
       {subTabAdmin === "tugas_survei" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <form onSubmit={handleBuatTugas} className="section-card">
-            <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "1.02rem" }}>
               🗺️ Masukkan Penugasan Pemetaan Baru untuk Kader
             </h3>
-            <p className="text-muted" style={{ margin: "0 0 12px", fontSize: "0.82rem" }}>
+            <p className="text-muted" style={{ margin: "0 0 12px", fontSize: "0.8rem" }}>
               Tugas yang dibuat akan langsung dikirimkan ke aplikasi seluruh kader di wilayah target
             </p>
 
@@ -851,7 +874,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
           {/* DAFTAR TUGAS AKTIF */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 10px", fontSize: "1.05rem" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: "1.02rem" }}>
               📋 Daftar Penugasan Lapangan ({tugasList.length})
             </h3>
             {tugasList.length > 0 ? (
@@ -871,18 +894,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       gap: 10
                     }}
                   >
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                         <span className="badge-kategori">{t.kategoriTarget}</span>
-                        <strong style={{ fontSize: "0.95rem" }}>{t.judul}</strong>
+                        <strong style={{ fontSize: "0.92rem" }}>{t.judul}</strong>
                       </div>
-                      <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: 3 }}>
+                      <div style={{ fontSize: "0.76rem", color: "#64748b", marginTop: 3 }}>
                         Target: <b>{t.targetKuantitas}</b> • Wilayah: {t.targetWilayah} • Batas: {t.batasWaktu}
                       </div>
                       <div style={{ fontSize: "0.75rem", color: "#334155", marginTop: 2 }}>{t.deskripsi}</div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <button
                         type="button"
                         className="btn-outline-sm"
@@ -907,6 +930,38 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
             )}
           </div>
+
+          {/* SIARAN PENGUMUMAN BROADCAST */}
+          <form onSubmit={handleBuatPengumuman} className="section-card">
+            <h3 style={{ margin: "0 0 6px", fontSize: "1.02rem" }}>
+              📢 Kirim Siaran Pengumuman ke Seluruh Kader
+            </h3>
+            <div className="form-row-2">
+              <div>
+                <label>Judul Pengumuman</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Jadwal Kalibrasi GPS Wilayah"
+                  value={judulAnn}
+                  onChange={(e) => setJudulAnn(e.target.value)}
+                />
+              </div>
+              <div>
+                <label>Isi Pesan Broadcast</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Tulis pesan pengumuman..."
+                  value={isiAnn}
+                  onChange={(e) => setIsiAnn(e.target.value)}
+                />
+              </div>
+            </div>
+            <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }}>
+              Kirim Pengumuman
+            </button>
+          </form>
         </div>
       )}
 
@@ -915,10 +970,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {/* TERBITKAN SERTIFIKAT */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 6px", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Award size={20} color="#0d7344" /> Penerbitan Sertifikat Resmi Kader
+            <h3 style={{ margin: "0 0 6px", fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <Award size={20} color="#0d7344" style={{ flexShrink: 0 }} />
+              <span>Penerbitan Sertifikat Resmi Kader</span>
             </h3>
-            <p className="text-muted" style={{ margin: "0 0 12px", fontSize: "0.82rem" }}>
+            <p className="text-muted" style={{ margin: "0 0 12px", fontSize: "0.8rem" }}>
               Terbitkan dan kirimkan sertifikat kompetensi digital resmi ke akun kader <b>{profilKader.nama}</b> ({profilKader.idKader})
             </p>
 
@@ -963,14 +1019,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 })
               }
             >
-              🏅 Sahkan & Terbitkan Sertifikat Resmi ke Akun Kader ({sertifikatList.length} Terbit)
+              🏅 Sahkan & Terbitkan Sertifikat Resmi ({sertifikatList.length} Terbit)
             </button>
           </div>
 
           {/* PERSETUJUAN KLAIM UPAH 1 HOK */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 6px", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Banknote size={20} color="#0d7344" /> Persetujuan Klaim Upah 1 HOK
+            <h3 style={{ margin: "0 0 6px", fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <Banknote size={20} color="#0d7344" style={{ flexShrink: 0 }} />
+              <span>Persetujuan Klaim Upah 1 HOK</span>
             </h3>
             {klaimUpahList.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -984,10 +1041,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       padding: "12px 14px",
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center"
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 10
                     }}
                   >
-                    <div>
+                    <div style={{ minWidth: 0, flex: "1 1 200px" }}>
                       <strong>{k.namaKader} — Tiket {k.id} (1 HOK)</strong>
                       <div className="text-xs text-muted">{k.rincianBukti}</div>
                       <div className="text-xs text-emerald" style={{ marginTop: 2 }}>

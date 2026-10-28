@@ -91,7 +91,7 @@ export const App: React.FC = () => {
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const [notifToast, setNotifToast] = useState<string | null>(null);
 
-  // Data Store (Clean, without mock dummy data)
+  // Data Store
   const [profil, setProfil] = useState<ProfilKader>(() => {
     const prof = muatProfil();
     if (sesiPengguna) {
@@ -192,7 +192,9 @@ export const App: React.FC = () => {
     } else {
       setTabAktif("pustaka");
     }
-    tampilkanToast(`✓ Selamat datang, ${akun.nama} (${akun.peran === "admin" ? "Admin GIS" : "Kader Lapangan"})!`);
+    tampilkanToast(
+      `✓ Selamat datang, ${akun.nama} (${akun.peran === "admin" ? "Admin GIS" : "Kader Lapangan"})!`
+    );
   };
 
   // Handler Logout
@@ -254,7 +256,11 @@ export const App: React.FC = () => {
   // Handler Ubah Data Spasial oleh Admin (Admin Feature)
   const handleUbahDataSpasial = (dataDiubah: DataSpasialItem) => {
     setDataSpasial((prev) =>
-      prev.map((d) => (d.id === dataDiubah.id ? { ...dataDiubah, updatedAt: new Date().toISOString() } : d))
+      prev.map((d) =>
+        d.id === dataDiubah.id
+          ? { ...dataDiubah, updatedAt: new Date().toISOString() }
+          : d
+      )
     );
     tampilkanToast(`✓ Data "${dataDiubah.judul}" berhasil diperbarui oleh Admin.`);
   };
@@ -403,20 +409,8 @@ export const App: React.FC = () => {
           {/* CHIP PERAN AKUN (ADMIN vs USER KADER) */}
           <button
             type="button"
+            className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
             onClick={() => gantiPeranAkun(peran === "admin" ? "kader" : "admin")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 8px",
-              borderRadius: 99,
-              fontSize: "0.72rem",
-              fontWeight: 800,
-              border: peran === "admin" ? "1.5px solid #0284c7" : "1.5px solid #0d7344",
-              background: peran === "admin" ? "#e0f2fe" : "#e8f5ee",
-              color: peran === "admin" ? "#0369a1" : "#0d7344",
-              cursor: "pointer"
-            }}
             title="Klik untuk beralih Akun Admin / Akun User"
           >
             {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
@@ -433,7 +427,7 @@ export const App: React.FC = () => {
               onClick={() => setTabAktif("reward")}
               title="Akun Kader & Sertifikat"
             >
-              <UserCheck size={22} strokeWidth={2} />
+              <UserCheck size={20} strokeWidth={2} />
             </button>
           )}
 
@@ -443,7 +437,7 @@ export const App: React.FC = () => {
             onClick={() => setBukaPemberitahuan(true)}
             title="Pemberitahuan & Tugas"
           >
-            <Bell size={22} strokeWidth={2} />
+            <Bell size={20} strokeWidth={2} />
           </button>
 
           <button
@@ -452,7 +446,7 @@ export const App: React.FC = () => {
             onClick={() => setBukaPengaturanEkspor(true)}
             title="Pengaturan Ekspor"
           >
-            <Share size={22} strokeWidth={2} />
+            <Share size={20} strokeWidth={2} />
           </button>
 
           {/* TOMBOL LOGOUT RESMI */}
@@ -463,7 +457,7 @@ export const App: React.FC = () => {
             title={`Keluar dari Akun (${sesiPengguna.nama})`}
             style={{ color: "#dc2626" }}
           >
-            <LogOut size={20} strokeWidth={2} />
+            <LogOut size={19} strokeWidth={2} />
           </button>
 
           <div
@@ -476,7 +470,7 @@ export const App: React.FC = () => {
               onClick={() => setBukaMenuTitikTiga((v) => !v)}
               title="Menu Lainnya"
             >
-              <MoreVertical size={22} strokeWidth={2} />
+              <MoreVertical size={20} strokeWidth={2} />
             </button>
 
             {bukaMenuTitikTiga && (
@@ -617,6 +611,8 @@ export const App: React.FC = () => {
             profil={profil}
             sertifikatList={sertifikatList}
             klaimUpahList={klaimUpahList}
+            pesanList={pesanList}
+            tugasList={tugasList}
             onUbahProfil={setProfil}
             onAjukanKlaimUpah={(paketKe, rincian) => {
               const klaimBaru: KlaimUpahHOK = {
@@ -703,7 +699,7 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "pustaka" ? "active" : ""}`}
               onClick={() => setTabAktif("pustaka")}
             >
-              <Folder size={22} fill={tabAktif === "pustaka" ? "#0d7344" : "none"} />
+              <Folder size={20} fill={tabAktif === "pustaka" ? "#0d7344" : "none"} />
               <span>Pustaka</span>
             </button>
 
@@ -712,7 +708,7 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
               onClick={() => setTabAktif("peta")}
             >
-              <Map size={22} />
+              <Map size={20} />
               <span>Temukan</span>
             </button>
 
@@ -722,7 +718,7 @@ export const App: React.FC = () => {
               onClick={() => setTabAktif("data_sync")}
             >
               <div className="nav-icon-wrap">
-                <CloudUpload size={22} />
+                <CloudUpload size={20} />
                 {antreanLokalCount > 0 && (
                   <span className="nav-badge">{antreanLokalCount}</span>
                 )}
@@ -735,7 +731,7 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "reward" ? "active" : ""}`}
               onClick={() => setTabAktif("reward")}
             >
-              <Award size={22} />
+              <Award size={20} />
               <span>Sertifikat</span>
             </button>
 
@@ -744,7 +740,7 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
               onClick={() => setTabAktif("komunikasi")}
             >
-              <MessageSquare size={22} />
+              <MessageSquare size={20} />
               <span>Diskusi</span>
             </button>
           </>
@@ -756,7 +752,7 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "admin" ? "active" : ""}`}
               onClick={() => setTabAktif("admin")}
             >
-              <ShieldCheck size={22} color={tabAktif === "admin" ? "#0284c7" : "#64748b"} />
+              <ShieldCheck size={20} color={tabAktif === "admin" ? "#0284c7" : "#64748b"} />
               <span style={{ color: tabAktif === "admin" ? "#0284c7" : "#64748b" }}>Admin</span>
             </button>
 
@@ -765,7 +761,7 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
               onClick={() => setTabAktif("peta")}
             >
-              <Map size={22} />
+              <Map size={20} />
               <span>Peta Survei</span>
             </button>
 
@@ -774,8 +770,8 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "data_sync" ? "active" : ""}`}
               onClick={() => setTabAktif("data_sync")}
             >
-              <CloudUpload size={22} />
-              <span>GDrive Master</span>
+              <CloudUpload size={20} />
+              <span>GDrive</span>
             </button>
 
             <button
@@ -783,8 +779,8 @@ export const App: React.FC = () => {
               className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
               onClick={() => setTabAktif("komunikasi")}
             >
-              <MessageSquare size={22} />
-              <span>Obrolan Kader</span>
+              <MessageSquare size={20} />
+              <span>Diskusi</span>
             </button>
 
             <button
@@ -793,8 +789,8 @@ export const App: React.FC = () => {
               onClick={() => gantiPeranAkun("kader")}
               style={{ color: "#0d7344" }}
             >
-              <User size={22} />
-              <span>Ke Mode User</span>
+              <User size={20} />
+              <span>Mode User</span>
             </button>
           </>
         )}
