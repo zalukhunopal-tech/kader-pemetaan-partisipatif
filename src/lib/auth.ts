@@ -1,6 +1,14 @@
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { PeranPengguna } from "../types";
+import {
+  buatKodePemulihan,
+  buatRahasiaTotp,
+  hashKodePemulihan,
+  miripKodePemulihan,
+  periksaTotp,
+  uriOtpauth
+} from "./totp";
 
 /**
  * AUTENTIKASI SISI KLIEN
@@ -8,6 +16,11 @@ import { PeranPengguna } from "../types";
  * PBKDF2-SHA256 dengan garam acak per akun dan tidak pernah ditulis ke sesi. Ini mengeraskan
  * penyimpanan lokal, tetapi bukan pengganti server: siapa pun yang bisa membuka dan mengubah
  * penyimpanan browser di perangkat tetap dapat melewatinya.
+ *
+ * Tidak ada pendaftaran mandiri: akun dibuat oleh admin (sandi sementara yang wajib diganti), kecuali
+ * Administrator pertama di perangkat baru. Setiap akun wajib memakai Google Authenticator (TOTP) di
+ * samping sandi. Rahasia TOTP tersimpan di perangkat yang sama dengan akunnya, jadi lapisan ini
+ * menahan orang yang hanya tahu sandi, bukan orang yang dapat membaca penyimpanan perangkat.
  */
 
 export interface AkunPengguna {
@@ -25,12 +38,21 @@ export interface AkunPengguna {
   iterasi: number;
   /** true bila sandi bawaan/sementara: pengguna wajib menggantinya sebelum masuk */
   wajibGantiSandi?: boolean;
+  /** Rahasia TOTP (base32). Kosong = Authenticator belum didaftarkan, dan akun belum bisa masuk */
+  totpRahasia?: string;
+  /** Langkah waktu TOTP terakhir yang terpakai, supaya kode yang sama tidak bisa dipakai dua kali */
+  totpLangkahTerakhir?: number;
+  /** Hash kode pemulihan sekali pakai yang belum terpakai */
+  kodePemulihanHash?: string[];
   /** Sisa format lama (teks polos); dihapus oleh migrasiAkunLama */
   password?: string;
 }
 
 /** Data akun yang aman dibawa di sesi dan state aplikasi (tanpa hash atau sandi) */
-export type AkunSesi = Omit<AkunPengguna, "kataSandiHash" | "garam" | "iterasi" | "password" | "wajibGantiSandi">;
+export type AkunSesi = Omit<
+  AkunPengguna,
+  "kataSandiHash" | "garam" | "iterasi" | "password" | "wajibGantiSandi" | "totpRahasia" | "totpLangkahTerakhir" | "kodePemulihanHash"
+>;
 
 const KEY_ACCOUNTS = "geokader_accounts_v5";
 const KEY_SESSION = "geokader_current_session_v5";
@@ -45,6 +67,9 @@ export const NAMA_ORGANISASI_BAWAAN = "Sertifikat Kader Pemetaan Partisipatif";
 /** Akun uji hanya tersedia di build pengembangan, atau bila VITE_AKUN_UJI=true */
 export const AKUN_UJI_AKTIF: boolean =
   import.meta.env.DEV === true || import.meta.env.VITE_AKUN_UJI === "true";
+
+/** Rahasia TOTP tetap untuk akun uji, supaya kartu cepat-masuk bisa menghitung kodenya sendiri. Hanya di build uji. */
+export const RAHASIA_TOTP_UJI = "KRSXG5DSNFXGOIDUN5ZGK43FMQQHEZLB";
 
 /* ---------- Penyimpanan ---------- */
 
@@ -89,7 +114,7 @@ export function muatSesiPengguna(): AkunSesi | null {
     if (!raw) return null;
     const sesi = JSON.parse(raw) as Partial<AkunSesi>;
     const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === String(sesi.email ?? "").toLowerCase());
-    if (!akun || akun.idKader !== sesi.idKader || akun.peran !== sesi.peran || akun.wajibGantiSandi) {
+    if (!akun || akun.idKader !== sesi.idKader || akun.peran !== sesi.peran || akun.wajibGantiSandi || !akun.totpRahasia) {
       localStorage.removeItem(KEY_SESSION);
       return null;
     }
@@ -218,7 +243,7 @@ function hapusGagal(email: string) {
   tulisGagal(semua);
 }
 
-/* ---------- Masuk, daftar, ganti dan atur ulang sandi ---------- */
+/* ---------- Masuk, pembuatan akun, ganti dan atur ulang sandi ---------- */
 
 export interface HasilAuth {
   sukses: boolean;
@@ -226,9 +251,47 @@ export interface HasilAuth {
   akun?: AkunSesi;
   /** true bila sandi cocok tetapi harus diganti dulu (sandi bawaan atau sementara) */
   wajibGantiSandi?: boolean;
+  /** true bila sandi cocok dan akun sudah memakai Authenticator: minta kode 6 digit atau kode pemulihan */
+  perluKodeTotp?: boolean;
+  /** true bila sandi cocok tetapi Authenticator belum didaftarkan: akun wajib mendaftarkannya dulu */
+  perluDaftarTotp?: boolean;
+  /** Sisa kode pemulihan setelah satu kode dipakai untuk masuk */
+  sisaKodePemulihan?: number;
 }
 
-export async function autentikasiLogin(email: string, kataSandi: string): Promise<HasilAuth> {
+const PESAN_KODE_SALAH = "Kode salah atau sudah kedaluwarsa. Periksa jam HP Anda lalu coba kode terbaru.";
+
+function simpanPerubahanAkun(email: string, perubahan: Partial<AkunPengguna>): void {
+  const accounts = muatSemuaAkun();
+  const idx = accounts.findIndex((a) => a.email.toLowerCase() === email.toLowerCase());
+  if (idx === -1) return;
+  accounts[idx] = { ...accounts[idx], ...perubahan };
+  simpanSemuaAkun(accounts);
+}
+
+/** Memeriksa kode 6 digit TOTP atau satu kode pemulihan; mengembalikan perubahan akun bila cocok */
+function periksaKodeMasuk(
+  akun: AkunPengguna,
+  kode: string
+): { ok: boolean; perubahan?: Partial<AkunPengguna>; pemulihan?: boolean; sisa?: number } {
+  if (miripKodePemulihan(kode)) {
+    const h = hashKodePemulihan(kode, akun.garam);
+    const daftar = akun.kodePemulihanHash ?? [];
+    if (!daftar.includes(h)) return { ok: false };
+    const sisa = daftar.filter((x) => x !== h);
+    return { ok: true, perubahan: { kodePemulihanHash: sisa }, pemulihan: true, sisa: sisa.length };
+  }
+  const r = periksaTotp(akun.totpRahasia ?? "", kode, { langkahTerakhir: akun.totpLangkahTerakhir });
+  return r.ok ? { ok: true, perubahan: { totpLangkahTerakhir: r.langkah } } : { ok: false };
+}
+
+/**
+ * Masuk dalam dua langkah, dipanggil dua kali dengan sandi yang sama:
+ * 1. tanpa `kode`: sandi diperiksa, lalu hasilnya meminta kode (perluKodeTotp) atau pendaftaran
+ *    Authenticator (perluDaftarTotp). Belum ada sesi yang dibuat.
+ * 2. dengan `kode`: sandi dan kode diperiksa, baru sesi dibuat.
+ */
+export async function autentikasiLogin(email: string, kataSandi: string, kode = ""): Promise<HasilAuth> {
   const emailBersih = email.trim().toLowerCase();
   const tunggu = detikTertahan(emailBersih);
   if (tunggu > 0) {
@@ -241,39 +304,75 @@ export async function autentikasiLogin(email: string, kataSandi: string): Promis
     catatGagal(emailBersih);
     return { sukses: false, pesan: "Email atau kata sandi salah." };
   }
-  hapusGagal(emailBersih);
   if (akun.wajibGantiSandi) {
     return { sukses: false, wajibGantiSandi: true, pesan: "Kata sandi ini harus diganti sebelum Anda masuk." };
   }
+  if (!akun.totpRahasia) {
+    return {
+      sukses: false,
+      perluDaftarTotp: true,
+      pesan: "Akun ini wajib memakai Google Authenticator. Daftarkan sekarang untuk melanjutkan."
+    };
+  }
+  if (!kode.trim()) {
+    return { sukses: false, perluKodeTotp: true, pesan: "Masukkan kode 6 digit dari Google Authenticator." };
+  }
+  const hasil = periksaKodeMasuk(akun, kode);
+  if (!hasil.ok) {
+    catatGagal(emailBersih);
+    return { sukses: false, perluKodeTotp: true, pesan: PESAN_KODE_SALAH };
+  }
+  hapusGagal(emailBersih);
+  if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
   const sesi = keSesi(akun);
   simpanSesiPengguna(sesi);
-  return { sukses: true, pesan: `Selamat datang, ${akun.nama}!`, akun: sesi };
+  return {
+    sukses: true,
+    pesan: hasil.pemulihan
+      ? `Selamat datang, ${akun.nama}! Kode pemulihan dipakai; sisa ${hasil.sisa}.`
+      : `Selamat datang, ${akun.nama}!`,
+    akun: sesi,
+    sisaKodePemulihan: hasil.pemulihan ? hasil.sisa : undefined
+  };
 }
 
-interface DataDaftar {
+interface DataAkunBaru {
   nama: string;
   email: string;
-  kataSandi: string;
   desaWilayah: string;
   noHp: string;
   kelompokMasyarakat?: string;
 }
+interface DataDaftar extends DataAkunBaru {
+  kataSandi: string;
+}
 
-async function buatAkun(data: DataDaftar, peran: PeranPengguna): Promise<HasilAuth> {
+const EMAIL_SAH = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Membuat akun tanpa sesi dan tanpa Authenticator; sandi baru ditulis sebagai hash */
+async function buatAkun(
+  data: DataAkunBaru,
+  kataSandi: string,
+  peran: PeranPengguna,
+  opsi: { wajibGantiSandi?: boolean } = {}
+): Promise<{ sukses: boolean; pesan: string; akun?: AkunPengguna }> {
   const emailBersih = data.email.trim().toLowerCase();
+  if (!data.nama.trim()) return { sukses: false, pesan: "Nama lengkap wajib diisi." };
+  if (!EMAIL_SAH.test(emailBersih)) return { sukses: false, pesan: "Alamat email tidak valid." };
   const accounts = muatSemuaAkun();
   if (accounts.some((a) => a.email.toLowerCase() === emailBersih)) {
-    return { sukses: false, pesan: "Email sudah terdaftar. Silakan masuk menggunakan email tersebut." };
+    return { sukses: false, pesan: "Email sudah terdaftar." };
   }
-  const galat = validasiKataSandi(data.kataSandi, { nama: data.nama, email: emailBersih });
-  if (galat) return { sukses: false, pesan: galat };
+  if (!opsi.wajibGantiSandi) {
+    const galat = validasiKataSandi(kataSandi, { nama: data.nama, email: emailBersih });
+    if (galat) return { sukses: false, pesan: galat };
+  }
 
   // ID kader menjadi kunci kepemilikan data, jadi harus unik di antara akun yang ada
   const awalan = peran === "admin" ? "ADM" : "KDR";
-  let idKader = `${awalan}-${acak(6).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`;
-  while (accounts.some((a) => a.idKader === idKader)) {
-    idKader = `${awalan}-${acak(6).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`;
-  }
+  const idBaru = () => `${awalan}-${acak(6).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`;
+  let idKader = idBaru();
+  while (accounts.some((a) => a.idKader === idKader)) idKader = idBaru();
 
   const akunBaru: AkunPengguna = {
     idKader,
@@ -285,32 +384,135 @@ async function buatAkun(data: DataDaftar, peran: PeranPengguna): Promise<HasilAu
     kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",
     namaOrganisasi: NAMA_ORGANISASI_BAWAAN,
     createdAt: new Date().toISOString(),
-    ...(await buatHashSandi(data.kataSandi))
+    ...(await buatHashSandi(kataSandi)),
+    ...(opsi.wajibGantiSandi ? { wajibGantiSandi: true } : {})
   };
   accounts.push(akunBaru);
   simpanSemuaAkun(accounts);
-  const sesi = keSesi(akunBaru);
-  simpanSesiPengguna(sesi);
-  return { sukses: true, pesan: `Pendaftaran berhasil! Selamat bertugas, ${akunBaru.nama}.`, akun: sesi };
+  return { sukses: true, pesan: "Akun dibuat.", akun: akunBaru };
 }
 
-/** Pendaftaran mandiri selalu menghasilkan akun kader */
-export const daftarAkunBaru = (data: DataDaftar) => buatAkun(data, "kader");
-
 /**
- * Admin pertama di perangkat ini. Hanya diizinkan selama belum ada admin, dan bila
+ * Administrator pertama di perangkat baru. Hanya diizinkan selama belum ada admin, dan bila
  * VITE_KODE_ADMIN diisi, kode aktivasi harus cocok (pencegah salah pakai, bukan rahasia:
- * nilainya ikut di aplikasi).
+ * nilainya ikut di aplikasi). Akun belum bisa masuk sebelum mendaftarkan Authenticator.
  */
-export async function daftarAdminPertama(data: DataDaftar, kodeAktivasi = ""): Promise<HasilAuth> {
+export async function buatAdminPertama(data: DataDaftar, kodeAktivasi = ""): Promise<HasilAuth> {
   if (adaAdmin()) {
-    return { sukses: false, pesan: "Perangkat ini sudah memiliki Administrator. Minta admin untuk membuat akses." };
+    return { sukses: false, pesan: "Perangkat ini sudah memiliki Administrator. Minta admin untuk membuatkan akun." };
   }
   const kodeWajib = (import.meta.env.VITE_KODE_ADMIN ?? "").trim();
   if (kodeWajib && kodeAktivasi.trim() !== kodeWajib) {
     return { sukses: false, pesan: "Kode aktivasi administrator tidak cocok." };
   }
-  return buatAkun(data, "admin");
+  const { sukses, pesan } = await buatAkun(data, data.kataSandi, "admin");
+  return { sukses, pesan: sukses ? "Administrator dibuat. Lanjutkan dengan mendaftarkan Google Authenticator." : pesan, perluDaftarTotp: sukses };
+}
+
+/** Sesi hanya sah untuk akun admin yang masih ada, sama dengan data akun */
+function adminSah(adminSesi: AkunSesi | null): AkunPengguna | null {
+  const akunAdmin = muatSemuaAkun().find((a) => a.email.toLowerCase() === (adminSesi?.email ?? "").toLowerCase());
+  if (!adminSesi || !akunAdmin || akunAdmin.peran !== "admin" || akunAdmin.idKader !== adminSesi.idKader) return null;
+  return akunAdmin;
+}
+
+/**
+ * Admin membuat akun user (kader) atau admin lain. Tidak ada pendaftaran mandiri.
+ * Sandi sementara hanya ditampilkan sekali; pemilik akun wajib menggantinya dan mendaftarkan
+ * Google Authenticator saat pertama masuk.
+ */
+export async function buatAkunOlehAdmin(
+  adminSesi: AkunSesi | null,
+  data: DataAkunBaru & { peran?: PeranPengguna }
+): Promise<{ sukses: boolean; pesan: string; sandiSementara?: string; akun?: AkunSesi }> {
+  if (!adminSah(adminSesi)) return { sukses: false, pesan: "Hanya administrator yang dapat membuat akun." };
+  const sandiSementara = buatSandiSementara();
+  const r = await buatAkun(data, sandiSementara, data.peran === "admin" ? "admin" : "kader", { wajibGantiSandi: true });
+  if (!r.sukses || !r.akun) return { sukses: false, pesan: r.pesan };
+  return {
+    sukses: true,
+    pesan: `Akun untuk ${r.akun.nama} dibuat.`,
+    sandiSementara,
+    akun: keSesi(r.akun)
+  };
+}
+
+/* ---------- Pendaftaran Google Authenticator ---------- */
+
+async function periksaSandiUntukTotp(
+  email: string,
+  kataSandi: string
+): Promise<{ akun?: AkunPengguna; galat?: string }> {
+  const emailBersih = email.trim().toLowerCase();
+  const tunggu = detikTertahan(emailBersih);
+  if (tunggu > 0) return { galat: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
+  const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
+  if (!akun || !(await cocokSandi(akun, kataSandi))) {
+    catatGagal(emailBersih);
+    return { galat: "Email atau kata sandi salah." };
+  }
+  if (akun.wajibGantiSandi) return { galat: "Ganti kata sandi sementara dulu sebelum mendaftarkan Authenticator." };
+  if (akun.totpRahasia) return { galat: "Authenticator sudah terdaftar. Minta admin mengatur ulang bila ponsel hilang." };
+  return { akun };
+}
+
+/** Langkah 1: buat rahasia baru dan tautan QR. Belum disimpan sampai kode pertama terbukti benar. */
+export async function mulaiPendaftaranTotp(
+  email: string,
+  kataSandi: string
+): Promise<{ sukses: boolean; pesan: string; rahasia?: string; uri?: string }> {
+  const { akun, galat } = await periksaSandiUntukTotp(email, kataSandi);
+  if (!akun) return { sukses: false, pesan: galat ?? "Gagal." };
+  const rahasia = buatRahasiaTotp();
+  return { sukses: true, pesan: "Pindai kode QR dengan Google Authenticator.", rahasia, uri: uriOtpauth(akun.email, rahasia) };
+}
+
+/**
+ * Langkah 2: simpan rahasia setelah pengguna mengetik kode pertama dari aplikasinya, dan buat
+ * kode pemulihan (ditampilkan sekali). Sesi belum dibuat: layar pemanggil menyimpannya setelah
+ * kode pemulihan diakui telah disimpan.
+ */
+export async function selesaikanPendaftaranTotp(
+  email: string,
+  kataSandi: string,
+  rahasia: string,
+  kode: string
+): Promise<HasilAuth & { kodePemulihan?: string[] }> {
+  const { akun, galat } = await periksaSandiUntukTotp(email, kataSandi);
+  if (!akun) return { sukses: false, pesan: galat ?? "Gagal." };
+  const r = periksaTotp(rahasia, kode);
+  if (!r.ok) {
+    catatGagal(akun.email);
+    return { sukses: false, pesan: PESAN_KODE_SALAH };
+  }
+  hapusGagal(akun.email);
+  const kodePemulihan = buatKodePemulihan();
+  simpanPerubahanAkun(akun.email, {
+    totpRahasia: rahasia,
+    totpLangkahTerakhir: r.langkah,
+    kodePemulihanHash: kodePemulihan.map((k) => hashKodePemulihan(k, akun.garam))
+  });
+  return { sukses: true, pesan: "Google Authenticator aktif.", akun: keSesi(akun), kodePemulihan };
+}
+
+/**
+ * Admin menghapus Authenticator akun lain (ponsel hilang). Pemilik akun mendaftarkan yang baru saat
+ * masuk berikutnya, setelah memasukkan sandinya. Tidak berlaku untuk akun admin itu sendiri.
+ */
+export function aturUlangAuthenticatorOlehAdmin(
+  adminSesi: AkunSesi | null,
+  emailTarget: string
+): { sukses: boolean; pesan: string } {
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator yang dapat mengatur ulang Authenticator." };
+  const target = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailTarget.trim().toLowerCase());
+  if (!target) return { sukses: false, pesan: "Akun tidak ditemukan." };
+  if (target.email.toLowerCase() === akunAdmin.email.toLowerCase()) {
+    return { sukses: false, pesan: "Authenticator Anda sendiri hanya bisa diatur ulang oleh admin lain." };
+  }
+  simpanPerubahanAkun(target.email, { totpRahasia: undefined, totpLangkahTerakhir: undefined, kodePemulihanHash: undefined });
+  hapusGagal(target.email);
+  return { sukses: true, pesan: `Authenticator ${target.nama} dihapus. Ia mendaftarkan yang baru saat masuk berikutnya.` };
 }
 
 export async function ubahKataSandi(email: string, sandiLama: string, sandiBaru: string): Promise<HasilAuth> {
@@ -348,10 +550,8 @@ export async function aturUlangSandiOlehAdmin(
   adminSesi: AkunSesi | null,
   emailTarget: string
 ): Promise<{ sukses: boolean; pesan: string; sandiSementara?: string }> {
-  const akunAdmin = muatSemuaAkun().find((a) => a.email.toLowerCase() === (adminSesi?.email ?? "").toLowerCase());
-  if (!adminSesi || !akunAdmin || akunAdmin.peran !== "admin" || akunAdmin.idKader !== adminSesi.idKader) {
-    return { sukses: false, pesan: "Hanya administrator yang dapat mengatur ulang kata sandi." };
-  }
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator yang dapat mengatur ulang kata sandi." };
   const accounts = muatSemuaAkun();
   const idx = accounts.findIndex((a) => a.email.toLowerCase() === emailTarget.trim().toLowerCase());
   if (idx === -1) return { sukses: false, pesan: "Akun tidak ditemukan." };
@@ -425,11 +625,19 @@ export async function siapkanAkunUji(): Promise<void> {
       ...profil,
       namaOrganisasi: NAMA_ORGANISASI_BAWAAN,
       createdAt: "2026-01-01T00:00:00.000Z",
-      ...(await buatHashSandi(kataSandi, 1000)) // iterasi rendah: hanya untuk uji
+      ...(await buatHashSandi(kataSandi, 1000)), // iterasi rendah: hanya untuk uji
+      totpRahasia: RAHASIA_TOTP_UJI,
+      kodePemulihanHash: []
     });
     berubah = true;
   }
   if (berubah) simpanSemuaAkun(accounts);
+}
+
+/** Hanya build uji: mengizinkan akun uji masuk berulang dalam satu langkah 30 detik (kode uji dihitung otomatis) */
+export function setelUlangLangkahUji(email: string): void {
+  if (!AKUN_UJI_AKTIF) return;
+  simpanPerubahanAkun(email, { totpLangkahTerakhir: undefined });
 }
 
 /** Dipanggil sekali sebelum aplikasi dirender */

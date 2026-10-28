@@ -3,62 +3,83 @@ import {
   AKUN_UJI_AKTIF,
   AkunSesi,
   MIN_PANJANG_SANDI,
+  RAHASIA_TOTP_UJI,
   adaAdmin,
   autentikasiLogin,
-  daftarAdminPertama,
-  daftarAkunBaru,
+  buatAdminPertama,
+  mulaiPendaftaranTotp,
   muatSemuaAkun,
+  selesaikanPendaftaranTotp,
+  setelUlangLangkahUji,
+  simpanSesiPengguna,
   ubahKataSandi
 } from "../lib/auth";
+import { hitungTotp, rahasiaUntukTampil } from "../lib/totp";
+import { KodeQrSvg } from "./KodeQrSvg";
 import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
   Compass,
+  Copy,
   Eye,
   EyeOff,
   KeyRound,
   Lock,
   Mail,
-  User,
-  CheckCircle2,
-  AlertCircle,
   Shield,
-  ArrowRight
+  ShieldCheck,
+  Smartphone,
+  User
 } from "lucide-react";
 
 interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
-  const [mode, setMode] = useState<"login" | "daftar" | "lupa_password" | "ganti_sandi">(() =>
-    muatSemuaAkun().length === 0 ? "daftar" : "login"
-  );
+type Mode = "login" | "kode_totp" | "daftar_totp" | "kode_pemulihan" | "ganti_sandi" | "setup_admin" | "lupa_password";
 
-  // Form Login
+const gayaLabel: React.CSSProperties = { display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 };
+const gayaInput: React.CSSProperties = { width: "100%", height: 42, padding: "0 12px", borderRadius: 10, border: "1.5px solid #cbd5e1", fontSize: "0.88rem", outline: "none" };
+const gayaInputIkon: React.CSSProperties = { ...gayaInput, padding: "0 12px 0 36px" };
+const gayaTombol = (sibuk: boolean): React.CSSProperties => ({
+  height: 44,
+  borderRadius: 10,
+  background: "#0d7344",
+  color: "#ffffff",
+  border: "none",
+  fontWeight: 700,
+  fontSize: "0.9rem",
+  cursor: sibuk ? "wait" : "pointer",
+  opacity: sibuk ? 0.7 : 1
+});
+const gayaTautan: React.CSSProperties = { border: "none", background: "transparent", color: "#64748b", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
+const gayaIkonKiri: React.CSSProperties = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" };
+
+export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
+  // Tidak ada pendaftaran mandiri. Perangkat tanpa Administrator menampilkan penyiapan awal.
+  const [mode, setMode] = useState<Mode>(() => (muatSemuaAkun().length === 0 ? "setup_admin" : "login"));
+
   const [emailLogin, setEmailLogin] = useState("");
   const [passwordLogin, setPasswordLogin] = useState("");
-  const [lihatPasswordLogin, setLihatPasswordLogin] = useState(false);
+  const [lihatPassword, setLihatPassword] = useState(false);
+  const [kode, setKode] = useState("");
 
-  // Form Daftar (tanpa data contoh)
-  const [namaDaftar, setNamaDaftar] = useState("");
-  const [emailDaftar, setEmailDaftar] = useState("");
-  const [passwordDaftar, setPasswordDaftar] = useState("");
-  const [konfirmasiPasswordDaftar, setKonfirmasiPasswordDaftar] = useState("");
-  const [desaDaftar, setDesaDaftar] = useState("");
-  const [noHpDaftar, setNoHpDaftar] = useState("");
-  const [kelompokDaftar, setKelompokDaftar] = useState("");
-  const [lihatPasswordDaftar] = useState(false);
-
-  // Penyiapan awal: admin pertama di perangkat ini (hanya selama belum ada admin)
-  const butuhAdminPertama = !adaAdmin();
+  // Penyiapan Administrator pertama
   const kodeAdminDiperlukan = Boolean((import.meta.env.VITE_KODE_ADMIN ?? "").trim());
-  const [jadiAdmin, setJadiAdmin] = useState(false);
-  const [kodeAktivasi, setKodeAktivasi] = useState("");
+  const [adm, setAdm] = useState({ nama: "", email: "", desa: "", noHp: "", sandi: "", ulang: "", kodeAktivasi: "" });
 
-  // Ganti kata sandi (wajib untuk sandi bawaan atau sementara)
-  const [sandiBaruGanti, setSandiBaruGanti] = useState("");
-  const [konfirmasiSandiGanti, setKonfirmasiSandiGanti] = useState("");
+  // Ganti sandi wajib
+  const [sandiBaru, setSandiBaru] = useState("");
+  const [sandiBaruUlang, setSandiBaruUlang] = useState("");
 
-  // Feedback State
+  // Pendaftaran Authenticator
+  const [totp, setTotp] = useState<{ rahasia: string; uri: string } | null>(null);
+  const [kodeKonfirmasi, setKodeKonfirmasi] = useState("");
+  const [hasilDaftar, setHasilDaftar] = useState<{ akun: AkunSesi; kodePemulihan: string[] } | null>(null);
+  const [sudahDisimpan, setSudahDisimpan] = useState(false);
+  const [tersalin, setTersalin] = useState(false);
+
   const [pesanError, setPesanError] = useState<string | null>(null);
   const [pesanSukses, setPesanSukses] = useState<string | null>(null);
   const [sedangProses, setSedangProses] = useState(false);
@@ -67,83 +88,126 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
     setPesanError(null);
     setPesanSukses(null);
   };
+  const pindah = (m: Mode) => {
+    resetAlert();
+    setMode(m);
+  };
+  const kembaliKeLogin = () => {
+    setPasswordLogin("");
+    setKode("");
+    setTotp(null);
+    pindah("login");
+  };
 
-  const selesaiLogin = (akun: AkunSesi, jeda = 350) => {
+  const masukKeAplikasi = (akun: AkunSesi, pesan: string, jeda = 350) => {
+    setPesanSukses(pesan);
     setTimeout(() => onLoginSukses(akun), jeda);
   };
 
-  const prosesLogin = async (email: string, sandi: string, pesanSelamat?: (nama: string) => string) => {
-    setSedangProses(true);
-    try {
-      const res = await autentikasiLogin(email, sandi);
-      if (res.wajibGantiSandi) {
-        setMode("ganti_sandi");
-        setSandiBaruGanti("");
-        setKonfirmasiSandiGanti("");
-        setPesanError(res.pesan);
-        return;
-      }
-      if (!res.sukses || !res.akun) {
-        setPesanError(res.pesan);
-        return;
-      }
-      setPesanSukses(pesanSelamat ? pesanSelamat(res.akun.nama) : res.pesan);
-      selesaiLogin(res.akun);
-    } finally {
-      setSedangProses(false);
+  /** Mengarahkan hasil langkah sandi ke layar berikutnya */
+  const lanjutDariSandi = async (email: string, sandi: string, kodeTotp = ""): Promise<void> => {
+    const res = await autentikasiLogin(email, sandi, kodeTotp);
+    if (res.wajibGantiSandi) {
+      setSandiBaru("");
+      setSandiBaruUlang("");
+      setMode("ganti_sandi");
+      setPesanError(res.pesan);
+      return;
     }
+    if (res.perluDaftarTotp) {
+      await mulaiDaftarTotp(email, sandi);
+      return;
+    }
+    if (res.perluKodeTotp) {
+      setMode("kode_totp");
+      setKode("");
+      if (kodeTotp) setPesanError(res.pesan);
+      else setPesanError(null);
+      return;
+    }
+    if (!res.sukses || !res.akun) {
+      setPesanError(res.pesan);
+      return;
+    }
+    masukKeAplikasi(res.akun, res.pesan);
+  };
+
+  const mulaiDaftarTotp = async (email: string, sandi: string) => {
+    const r = await mulaiPendaftaranTotp(email, sandi);
+    if (!r.sukses || !r.rahasia || !r.uri) {
+      setPesanError(r.pesan);
+      setMode("login");
+      return;
+    }
+    setTotp({ rahasia: r.rahasia, uri: r.uri });
+    setKodeKonfirmasi("");
+    setMode("daftar_totp");
+    setPesanError(null);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     resetAlert();
-    if (!emailLogin.trim() || !passwordLogin.trim()) {
+    if (!emailLogin.trim() || !passwordLogin) {
       setPesanError("Harap masukkan email dan kata sandi.");
       return;
     }
-    await prosesLogin(emailLogin, passwordLogin);
+    setSedangProses(true);
+    try {
+      await lanjutDariSandi(emailLogin, passwordLogin);
+    } finally {
+      setSedangProses(false);
+    }
+  };
+
+  const handleKodeTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetAlert();
+    if (!kode.trim()) {
+      setPesanError("Masukkan kode dari Google Authenticator atau kode pemulihan.");
+      return;
+    }
+    setSedangProses(true);
+    try {
+      await lanjutDariSandi(emailLogin, passwordLogin, kode);
+    } finally {
+      setSedangProses(false);
+    }
   };
 
   const handleQuickLogin = async (email: string, pass: string) => {
     setEmailLogin(email);
     setPasswordLogin(pass);
     resetAlert();
-    await prosesLogin(email, pass, (nama) => `✓ Berhasil masuk sebagai ${nama}`);
+    setSedangProses(true);
+    try {
+      setelUlangLangkahUji(email); // hanya build uji: izinkan beberapa kali masuk dalam satu langkah 30 detik
+      await lanjutDariSandi(email, pass, hitungTotp(RAHASIA_TOTP_UJI) ?? "");
+    } finally {
+      setSedangProses(false);
+    }
   };
 
-  const handleDaftar = async (e: React.FormEvent) => {
+  const handleSetupAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     resetAlert();
-
-    if (!namaDaftar.trim() || !emailDaftar.trim() || !passwordDaftar.trim()) {
-      setPesanError("Harap isi semua kolom wajib.");
-      return;
-    }
-    if (passwordDaftar !== konfirmasiPasswordDaftar) {
+    if (adm.sandi !== adm.ulang) {
       setPesanError("Konfirmasi kata sandi tidak cocok.");
       return;
     }
-
-    const data = {
-      nama: namaDaftar,
-      email: emailDaftar,
-      kataSandi: passwordDaftar,
-      desaWilayah: desaDaftar,
-      noHp: noHpDaftar,
-      kelompokMasyarakat: kelompokDaftar
-    };
     setSedangProses(true);
     try {
-      const res =
-        butuhAdminPertama && jadiAdmin
-          ? await daftarAdminPertama(data, kodeAktivasi)
-          : await daftarAkunBaru(data);
-      if (!res.sukses || !res.akun) {
+      const res = await buatAdminPertama(
+        { nama: adm.nama, email: adm.email, kataSandi: adm.sandi, desaWilayah: adm.desa, noHp: adm.noHp },
+        adm.kodeAktivasi
+      );
+      if (!res.sukses) {
         setPesanError(res.pesan);
         return;
       }
-      setPesanSukses(res.pesan);
-      selesaiLogin(res.akun, 400);
+      setEmailLogin(adm.email.trim().toLowerCase());
+      setPasswordLogin(adm.sandi);
+      await mulaiDaftarTotp(adm.email, adm.sandi);
     } finally {
       setSedangProses(false);
     }
@@ -152,22 +216,62 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
   const handleGantiSandi = async (e: React.FormEvent) => {
     e.preventDefault();
     resetAlert();
-    if (sandiBaruGanti !== konfirmasiSandiGanti) {
+    if (sandiBaru !== sandiBaruUlang) {
       setPesanError("Konfirmasi kata sandi baru tidak cocok.");
       return;
     }
     setSedangProses(true);
     try {
-      const res = await ubahKataSandi(emailLogin, passwordLogin, sandiBaruGanti);
+      const res = await ubahKataSandi(emailLogin, passwordLogin, sandiBaru);
       if (!res.sukses) {
         setPesanError(res.pesan);
         return;
       }
-      await prosesLogin(emailLogin, sandiBaruGanti, () => "Kata sandi diganti. Selamat datang!");
+      setPasswordLogin(sandiBaru);
+      await lanjutDariSandi(emailLogin, sandiBaru);
     } finally {
       setSedangProses(false);
     }
   };
+
+  const handleKonfirmasiTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetAlert();
+    if (!totp) return;
+    setSedangProses(true);
+    try {
+      const res = await selesaikanPendaftaranTotp(emailLogin, passwordLogin, totp.rahasia, kodeKonfirmasi);
+      if (!res.sukses || !res.akun || !res.kodePemulihan) {
+        setPesanError(res.pesan);
+        return;
+      }
+      setHasilDaftar({ akun: res.akun, kodePemulihan: res.kodePemulihan });
+      setSudahDisimpan(false);
+      setTersalin(false);
+      setMode("kode_pemulihan");
+    } finally {
+      setSedangProses(false);
+    }
+  };
+
+  const salinKodePemulihan = async () => {
+    if (!hasilDaftar) return;
+    try {
+      await navigator.clipboard.writeText(hasilDaftar.kodePemulihan.join("\n"));
+      setTersalin(true);
+    } catch {
+      // clipboard tidak tersedia: kode tetap terlihat dan bisa disalin manual
+    }
+  };
+
+  const lanjutSetelahKodePemulihan = () => {
+    if (!hasilDaftar) return;
+    simpanSesiPengguna(hasilDaftar.akun); // sesi baru dibuat setelah kode pemulihan diakui tersimpan
+    setPasswordLogin("");
+    masukKeAplikasi(hasilDaftar.akun, `Selamat datang, ${hasilDaftar.akun.nama}!`, 150);
+  };
+
+  const butuhAdminPertama = !adaAdmin();
 
   return (
     <div
@@ -218,551 +322,346 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
           >
             <Compass size={26} color="#fbbf24" />
           </div>
-          <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>
-            GeoKader
-          </h2>
-          <p style={{ margin: 0, fontSize: "0.78rem", color: "#a7f3d0" }}>
-            Pemetaan Partisipatif Masyarakat
-          </p>
-
-          {/* TABS SELECTOR */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              background: "rgba(0, 0, 0, 0.2)",
-              borderRadius: 99,
-              padding: 3,
-              marginTop: 14
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setMode("login");
-                resetAlert();
-              }}
-              style={{
-                border: "none",
-                background: mode === "login" ? "#ffffff" : "transparent",
-                color: mode === "login" ? "#064e3b" : "#ffffff",
-                padding: "8px 12px",
-                borderRadius: 99,
-                fontWeight: 700,
-                fontSize: "0.82rem",
-                cursor: "pointer"
-              }}
-            >
-              Masuk
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("daftar");
-                resetAlert();
-              }}
-              style={{
-                border: "none",
-                background: mode === "daftar" ? "#ffffff" : "transparent",
-                color: mode === "daftar" ? "#064e3b" : "#ffffff",
-                padding: "8px 12px",
-                borderRadius: 99,
-                fontWeight: 700,
-                fontSize: "0.82rem",
-                cursor: "pointer"
-              }}
-            >
-              Daftar Akun
-            </button>
-          </div>
+          <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>GeoKader</h2>
+          <p style={{ margin: 0, fontSize: "0.78rem", color: "#a7f3d0" }}>Pemetaan Partisipatif Masyarakat</p>
         </div>
 
-        {/* BODY FORM */}
         <div style={{ padding: "18px" }}>
           {pesanError && (
             <div
-              style={{
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#991b1b",
-                padding: "10px 12px",
-                borderRadius: 10,
-                fontSize: "0.8rem",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 14
-              }}
+              role="alert"
+              style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "10px 12px", borderRadius: 10, fontSize: "0.8rem", display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}
             >
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{pesanError}</span>
             </div>
           )}
-
           {pesanSukses && (
             <div
-              style={{
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                color: "#166534",
-                padding: "10px 12px",
-                borderRadius: 10,
-                fontSize: "0.8rem",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 14
-              }}
+              role="status"
+              style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "10px 12px", borderRadius: 10, fontSize: "0.8rem", display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}
             >
               <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
               <span>{pesanSukses}</span>
             </div>
           )}
 
-          {/* 1. FORM LOGIN */}
+          {/* 1. MASUK */}
           {mode === "login" && (
             <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  Email
-                </label>
+                <label style={gayaLabel}>Email</label>
                 <div style={{ position: "relative" }}>
-                  <Mail size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                  <Mail size={16} style={gayaIkonKiri} />
                   <input
                     type="email"
                     required
+                    autoComplete="username"
                     placeholder="Masukkan alamat email"
                     value={emailLogin}
                     onChange={(e) => setEmailLogin(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 42,
-                      padding: "0 12px 0 36px",
-                      borderRadius: 10,
-                      border: "1.5px solid #cbd5e1",
-                      fontSize: "0.88rem",
-                      outline: "none"
-                    }}
+                    style={gayaInputIkon}
                   />
                 </div>
               </div>
 
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#334155", margin: 0 }}>
-                    Kata Sandi
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("lupa_password");
-                      resetAlert();
-                    }}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      color: "#0d7344",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      padding: 0
-                    }}
-                  >
+                  <label style={{ ...gayaLabel, margin: 0 }}>Kata Sandi</label>
+                  <button type="button" onClick={() => pindah("lupa_password")} style={{ ...gayaTautan, color: "#0d7344", fontSize: "0.75rem", padding: 0 }}>
                     Lupa Kata Sandi?
                   </button>
                 </div>
                 <div style={{ position: "relative" }}>
-                  <Lock size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                  <Lock size={16} style={gayaIkonKiri} />
                   <input
-                    type={lihatPasswordLogin ? "text" : "password"}
+                    type={lihatPassword ? "text" : "password"}
                     required
+                    autoComplete="current-password"
                     placeholder="Masukkan kata sandi"
                     value={passwordLogin}
                     onChange={(e) => setPasswordLogin(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 42,
-                      padding: "0 40px 0 36px",
-                      borderRadius: 10,
-                      border: "1.5px solid #cbd5e1",
-                      fontSize: "0.88rem",
-                      outline: "none"
-                    }}
+                    style={{ ...gayaInputIkon, padding: "0 40px 0 36px" }}
                   />
                   <button
                     type="button"
-                    onClick={() => setLihatPasswordLogin((v) => !v)}
-                    style={{
-                      position: "absolute",
-                      right: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      border: "none",
-                      background: "transparent",
-                      color: "#64748b",
-                      cursor: "pointer"
-                    }}
+                    aria-label={lihatPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                    onClick={() => setLihatPassword((v) => !v)}
+                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", color: "#64748b", cursor: "pointer" }}
                   >
-                    {lihatPasswordLogin ? <EyeOff size={17} /> : <Eye size={17} />}
+                    {lihatPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={sedangProses}
-                style={{
-                  height: 44,
-                  borderRadius: 10,
-                  background: "#0d7344",
-                  color: "#ffffff",
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: "0.9rem",
-                  cursor: sedangProses ? "wait" : "pointer",
-                  marginTop: 4,
-                  opacity: sedangProses ? 0.7 : 1
-                }}
-              >
-                {sedangProses ? "Memeriksa…" : "Masuk"}
+              <button type="submit" disabled={sedangProses} style={{ ...gayaTombol(sedangProses), marginTop: 4 }}>
+                {sedangProses ? "Memeriksa…" : "Lanjut"}
               </button>
+
+              <p style={{ margin: 0, fontSize: "0.74rem", color: "#64748b", textAlign: "center", lineHeight: 1.45 }}>
+                Akun dibuat oleh Administrator. Setelah sandi, Anda memasukkan kode dari Google Authenticator.
+              </p>
+
+              {butuhAdminPertama && (
+                <button type="button" id="buka-setup-admin" onClick={() => pindah("setup_admin")} style={{ ...gayaTautan, color: "#0369a1" }}>
+                  Perangkat ini belum punya Administrator: buat Administrator pertama
+                </button>
+              )}
 
               {/* KARTU AKUN UJI: hanya ada di build pengembangan */}
               {AKUN_UJI_AKTIF && (
-              <div
-                style={{
-                  marginTop: 12,
-                  paddingTop: 12,
-                  borderTop: "1px dashed #cbd5e1"
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    color: "#475569",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    marginBottom: 8,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6
-                  }}
-                >
-                  <KeyRound size={14} color="#0d7344" />
-                  <span>Akun uji (build pengembangan):</span>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-                  {/* AKUN DUMMY USER / KADER */}
-                  <button
-                    type="button"
-                    onClick={() => void handleQuickLogin("kader@geokader.id", "kader123")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px 12px",
-                      borderRadius: 10,
-                      background: "#f0fdf4",
-                      border: "1.5px solid #86efac",
-                      cursor: "pointer",
-                      textAlign: "left"
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 8,
-                          background: "#dcfce7",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#166534",
-                          flexShrink: 0
-                        }}
-                      >
-                        <User size={18} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#166534" }}>
-                          Akun Kader (User Lapangan)
-                        </div>
-                        <div style={{ fontSize: "0.72rem", color: "#15803d" }}>
-                          kader@geokader.id • Sandi: <strong>kader123</strong>
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        background: "#166534",
-                        color: "#ffffff",
-                        padding: "5px 9px",
-                        borderRadius: 6,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4
-                      }}
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed #cbd5e1" }}>
+                  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <KeyRound size={14} color="#0d7344" />
+                    <span>Akun uji (build pengembangan):</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => void handleQuickLogin("kader@geokader.id", "kader123")}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 10, background: "#f0fdf4", border: "1.5px solid #86efac", cursor: "pointer", textAlign: "left" }}
                     >
-                      Masuk <ArrowRight size={12} />
-                    </span>
-                  </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", color: "#166534", flexShrink: 0 }}>
+                          <User size={18} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#166534" }}>Akun Kader (User Lapangan)</div>
+                          <div style={{ fontSize: "0.72rem", color: "#15803d" }}>
+                            kader@geokader.id • Sandi: <strong>kader123</strong>
+                          </div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 700, background: "#166534", color: "#ffffff", padding: "5px 9px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                        Masuk <ArrowRight size={12} />
+                      </span>
+                    </button>
 
-                  {/* AKUN DUMMY ADMIN */}
-                  <button
-                    type="button"
-                    onClick={() => void handleQuickLogin("admin@geokader.id", "admin123")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px 12px",
-                      borderRadius: 10,
-                      background: "#f0f9ff",
-                      border: "1.5px solid #7dd3fc",
-                      cursor: "pointer",
-                      textAlign: "left"
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 8,
-                          background: "#e0f2fe",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#0369a1",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Shield size={18} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#0369a1" }}>
-                          Akun Administrator GIS
-                        </div>
-                        <div style={{ fontSize: "0.72rem", color: "#0284c7" }}>
-                          admin@geokader.id • Sandi: <strong>admin123</strong>
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        background: "#0284c7",
-                        color: "#ffffff",
-                        padding: "5px 9px",
-                        borderRadius: 6,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4
-                      }}
+                    <button
+                      type="button"
+                      onClick={() => void handleQuickLogin("admin@geokader.id", "admin123")}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 10, background: "#f0f9ff", border: "1.5px solid #7dd3fc", cursor: "pointer", textAlign: "left" }}
                     >
-                      Masuk <ArrowRight size={12} />
-                    </span>
-                  </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center", color: "#0369a1", flexShrink: 0 }}>
+                          <Shield size={18} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#0369a1" }}>Akun Administrator GIS</div>
+                          <div style={{ fontSize: "0.72rem", color: "#0284c7" }}>
+                            admin@geokader.id • Sandi: <strong>admin123</strong>
+                          </div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 700, background: "#0284c7", color: "#ffffff", padding: "5px 9px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                        Masuk <ArrowRight size={12} />
+                      </span>
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: "0.7rem", color: "#64748b" }}>
+                    Kode Authenticator akun uji dihitung otomatis.
+                  </div>
                 </div>
-              </div>
               )}
             </form>
           )}
 
-          {/* 2. FORM PENDAFTARAN AKUN BARU */}
-          {mode === "daftar" && (
-            <form onSubmit={handleDaftar} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  Nama Lengkap *
-                </label>
-                <div style={{ position: "relative" }}>
-                  <User size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nama lengkap"
-                    value={namaDaftar}
-                    onChange={(e) => setNamaDaftar(e.target.value)}
-                    style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.86rem" }}
-                  />
-                </div>
+          {/* 2. KODE AUTHENTICATOR */}
+          {mode === "kode_totp" && (
+            <form id="form-kode-totp" onSubmit={handleKodeTotp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ textAlign: "center", marginBottom: 2 }}>
+                <ShieldCheck size={30} color="#0d7344" />
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Verifikasi dua langkah</h4>
+                <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{emailLogin}</div>
               </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  Email *
-                </label>
-                <div style={{ position: "relative" }}>
-                  <Mail size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
-                  <input
-                    type="email"
-                    required
-                    placeholder="Alamat email"
-                    value={emailDaftar}
-                    onChange={(e) => setEmailDaftar(e.target.value)}
-                    style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.86rem" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                    Desa / Wilayah
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Nama desa/wilayah"
-                    value={desaDaftar}
-                    onChange={(e) => setDesaDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                    Kelompok / Organisasi
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Nama kelompok"
-                    value={kelompokDaftar}
-                    onChange={(e) => setKelompokDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  No. HP / WhatsApp
-                </label>
-                <input
-                  type="text"
-                  placeholder="Nomor telepon aktif"
-                  value={noHpDaftar}
-                  onChange={(e) => setNoHpDaftar(e.target.value)}
-                  style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                    Kata Sandi *
-                  </label>
-                  <input
-                    type={lihatPasswordDaftar ? "text" : "password"}
-                    required
-                    placeholder={`Min. ${MIN_PANJANG_SANDI} karakter`}
-                    value={passwordDaftar}
-                    onChange={(e) => setPasswordDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                    Konfirmasi *
-                  </label>
-                  <input
-                    type={lihatPasswordDaftar ? "text" : "password"}
-                    required
-                    placeholder="Ulangi sandi"
-                    value={konfirmasiPasswordDaftar}
-                    onChange={(e) => setKonfirmasiPasswordDaftar(e.target.value)}
-                    style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.84rem" }}
-                  />
-                </div>
-              </div>
-
-              {butuhAdminPertama && (
-                <div
-                  id="blok-admin-pertama"
-                  style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "10px 12px", fontSize: "0.78rem", color: "#1e3a8a" }}
-                >
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
-                    <input
-                      id="jadi-admin"
-                      type="checkbox"
-                      checked={jadiAdmin}
-                      onChange={(e) => setJadiAdmin(e.target.checked)}
-                    />
-                    Jadikan akun ini Administrator GIS
-                  </label>
-                  <div style={{ marginTop: 4 }}>
-                    Belum ada Administrator di perangkat ini. Centang hanya di perangkat koordinator/admin; pilihan ini
-                    hilang setelah Administrator pertama dibuat. Kader biasa tidak perlu mencentangnya.
-                  </div>
-                  {jadiAdmin && kodeAdminDiperlukan && (
-                    <input
-                      id="kode-aktivasi"
-                      type="password"
-                      autoComplete="off"
-                      placeholder="Kode aktivasi administrator"
-                      value={kodeAktivasi}
-                      onChange={(e) => setKodeAktivasi(e.target.value)}
-                      style={{ width: "100%", height: 38, marginTop: 8, padding: "0 10px", borderRadius: 8, border: "1.5px solid #93c5fd", fontSize: "0.84rem" }}
-                    />
-                  )}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={sedangProses}
-                style={{
-                  height: 42,
-                  borderRadius: 10,
-                  background: "#0d7344",
-                  color: "#ffffff",
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: "0.9rem",
-                  cursor: sedangProses ? "wait" : "pointer",
-                  marginTop: 4,
-                  opacity: sedangProses ? 0.7 : 1
-                }}
-              >
-                {sedangProses ? "Menyimpan…" : butuhAdminPertama && jadiAdmin ? "Daftar sebagai Administrator" : "Daftar"}
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "#334155", lineHeight: 1.5 }}>
+                Buka <strong>Google Authenticator</strong> di HP, lalu masukkan kode 6 digit untuk GeoKader.
+              </p>
+              <input
+                id="kode-totp"
+                type="text"
+                inputMode="text"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={14}
+                placeholder="123 456"
+                value={kode}
+                onChange={(e) => setKode(e.target.value)}
+                style={{ ...gayaInput, height: 48, textAlign: "center", fontSize: "1.25rem", letterSpacing: "0.18em", fontWeight: 700 }}
+              />
+              <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
+                {sedangProses ? "Memeriksa…" : "Masuk"}
+              </button>
+              <p style={{ margin: 0, fontSize: "0.74rem", color: "#64748b", lineHeight: 1.45 }}>
+                HP hilang atau Authenticator tidak bisa dibuka? Ketik salah satu <strong>kode pemulihan</strong>{" "}
+                (bentuk <code>ABCDE-FGH23</code>) di kolom ini. Tiap kode hanya berlaku sekali.
+              </p>
+              <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
+                ← Kembali
               </button>
             </form>
           )}
 
-          {/* 3. LUPA KATA SANDI: tidak ada reset mandiri tanpa verifikasi */}
+          {/* 3. PENDAFTARAN AUTHENTICATOR */}
+          {mode === "daftar_totp" && totp && (
+            <form id="form-daftar-totp" onSubmit={handleKonfirmasiTotp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ textAlign: "center", marginBottom: 2 }}>
+                <Smartphone size={30} color="#0d7344" />
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Pasang Google Authenticator</h4>
+                <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{emailLogin}</div>
+              </div>
+              <ol style={{ margin: 0, paddingLeft: 18, fontSize: "0.8rem", color: "#334155", lineHeight: 1.6 }}>
+                <li>Pasang <strong>Google Authenticator</strong> di HP (Play Store atau App Store).</li>
+                <li>Pilih <strong>+</strong> lalu <strong>Pindai kode QR</strong> dan arahkan ke kode di bawah.</li>
+                <li>Ketik kode 6 digit yang muncul untuk GeoKader, lalu tekan Aktifkan.</li>
+              </ol>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <div id="qr-totp">
+                  <KodeQrSvg isi={totp.uri} ukuran={200} label="Kode QR untuk Google Authenticator" />
+                </div>
+              </div>
+              <div style={{ fontSize: "0.74rem", color: "#475569", textAlign: "center" }}>
+                Tidak bisa memindai? Pilih <em>Masukkan kunci setelan</em> lalu ketik kunci ini:
+                <div id="kunci-totp" style={{ marginTop: 4, fontFamily: "ui-monospace, monospace", fontSize: "0.86rem", fontWeight: 700, color: "#0f172a", userSelect: "all", wordBreak: "break-all" }}>
+                  {rahasiaUntukTampil(totp.rahasia)}
+                </div>
+              </div>
+              <input
+                id="kode-konfirmasi-totp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={7}
+                required
+                placeholder="Kode 6 digit"
+                value={kodeKonfirmasi}
+                onChange={(e) => setKodeKonfirmasi(e.target.value)}
+                style={{ ...gayaInput, height: 46, textAlign: "center", fontSize: "1.2rem", letterSpacing: "0.18em", fontWeight: 700 }}
+              />
+              <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
+                {sedangProses ? "Memeriksa…" : "Aktifkan Authenticator"}
+              </button>
+              <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
+                ← Batal
+              </button>
+            </form>
+          )}
+
+          {/* 4. KODE PEMULIHAN (SEKALI TAMPIL) */}
+          {mode === "kode_pemulihan" && hasilDaftar && (
+            <div id="panel-kode-pemulihan" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ textAlign: "center", marginBottom: 2 }}>
+                <ShieldCheck size={30} color="#0d7344" />
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Authenticator aktif</h4>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.8rem", color: "#334155", lineHeight: 1.5 }}>
+                Simpan <strong>kode pemulihan</strong> ini di tempat aman (mis. dicetak). Kode ini satu-satunya jalan masuk bila
+                HP hilang, dan <strong>hanya ditampilkan sekarang</strong>. Tiap kode berlaku sekali.
+              </p>
+              <div
+                id="daftar-kode-pemulihan"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, fontFamily: "ui-monospace, monospace", fontSize: "0.88rem", fontWeight: 700, textAlign: "center" }}
+              >
+                {hasilDaftar.kodePemulihan.map((k) => (
+                  <span key={k} style={{ userSelect: "all" }}>{k}</span>
+                ))}
+              </div>
+              <button type="button" onClick={() => void salinKodePemulihan()} style={{ ...gayaTombol(false), background: "#ffffff", color: "#0d7344", border: "1.5px solid #0d7344", height: 38, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Copy size={14} /> {tersalin ? "Tersalin" : "Salin semua kode"}
+              </button>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.8rem", color: "#334155" }}>
+                <input id="kode-sudah-disimpan" type="checkbox" checked={sudahDisimpan} onChange={(e) => setSudahDisimpan(e.target.checked)} style={{ marginTop: 3 }} />
+                Saya sudah menyimpan kode pemulihan ini.
+              </label>
+              <button type="button" id="lanjut-setelah-pemulihan" disabled={!sudahDisimpan} onClick={lanjutSetelahKodePemulihan} style={{ ...gayaTombol(false), opacity: sudahDisimpan ? 1 : 0.5, cursor: sudahDisimpan ? "pointer" : "not-allowed" }}>
+                Lanjut ke aplikasi
+              </button>
+            </div>
+          )}
+
+          {/* 5. PENYIAPAN ADMINISTRATOR PERTAMA (hanya selama perangkat belum punya admin) */}
+          {mode === "setup_admin" && (
+            <form id="form-setup-admin" onSubmit={handleSetupAdmin} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "10px 12px", fontSize: "0.78rem", color: "#1e3a8a", lineHeight: 1.5 }}>
+                <strong>Penyiapan awal.</strong> Perangkat ini belum punya Administrator. Buat akun Administrator pertama; akun
+                kader selanjutnya dibuat oleh Administrator dari menu Admin &gt; Akun. Tidak ada pendaftaran mandiri.
+              </div>
+              <div>
+                <label style={gayaLabel}>Nama Lengkap *</label>
+                <input type="text" required placeholder="Nama lengkap" value={adm.nama} onChange={(e) => setAdm({ ...adm, nama: e.target.value })} style={gayaInput} />
+              </div>
+              <div>
+                <label style={gayaLabel}>Email *</label>
+                <input type="email" required autoComplete="username" placeholder="Alamat email" value={adm.email} onChange={(e) => setAdm({ ...adm, email: e.target.value })} style={gayaInput} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
+                <div>
+                  <label style={gayaLabel}>Desa / Wilayah</label>
+                  <input type="text" placeholder="Nama desa/wilayah" value={adm.desa} onChange={(e) => setAdm({ ...adm, desa: e.target.value })} style={gayaInput} />
+                </div>
+                <div>
+                  <label style={gayaLabel}>No. HP</label>
+                  <input type="text" placeholder="Nomor telepon" value={adm.noHp} onChange={(e) => setAdm({ ...adm, noHp: e.target.value })} style={gayaInput} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
+                <div>
+                  <label style={gayaLabel}>Kata Sandi *</label>
+                  <input type="password" required autoComplete="new-password" placeholder={`Min. ${MIN_PANJANG_SANDI} karakter`} value={adm.sandi} onChange={(e) => setAdm({ ...adm, sandi: e.target.value })} style={gayaInput} />
+                </div>
+                <div>
+                  <label style={gayaLabel}>Konfirmasi *</label>
+                  <input type="password" required autoComplete="new-password" placeholder="Ulangi sandi" value={adm.ulang} onChange={(e) => setAdm({ ...adm, ulang: e.target.value })} style={gayaInput} />
+                </div>
+              </div>
+              {kodeAdminDiperlukan && (
+                <input
+                  id="kode-aktivasi"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Kode aktivasi administrator"
+                  value={adm.kodeAktivasi}
+                  onChange={(e) => setAdm({ ...adm, kodeAktivasi: e.target.value })}
+                  style={{ ...gayaInput, border: "1.5px solid #93c5fd" }}
+                />
+              )}
+              <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
+                {sedangProses ? "Menyimpan…" : "Buat Administrator"}
+              </button>
+              {muatSemuaAkun().length > 0 && (
+                <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
+                  ← Kembali ke halaman masuk
+                </button>
+              )}
+            </form>
+          )}
+
+          {/* 6. LUPA KATA SANDI: tidak ada reset mandiri tanpa verifikasi */}
           {mode === "lupa_password" && (
             <div id="info-lupa-sandi" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ textAlign: "center", marginBottom: 4 }}>
                 <KeyRound size={28} color="#0d7344" />
-                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Lupa kata sandi</h4>
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Lupa kata sandi atau HP hilang</h4>
               </div>
               <p style={{ margin: 0, fontSize: "0.84rem", color: "#334155", lineHeight: 1.5 }}>
-                Kata sandi tidak bisa diatur ulang sendiri tanpa verifikasi. Hubungi Administrator GIS Anda: admin
-                akan membuat kata sandi sementara untuk akun Anda, dan Anda wajib menggantinya saat masuk.
+                Kata sandi tidak bisa diatur ulang sendiri tanpa verifikasi. Hubungi Administrator GIS Anda: admin akan membuat
+                kata sandi sementara, dan Anda wajib menggantinya saat masuk.
+              </p>
+              <p style={{ margin: 0, fontSize: "0.84rem", color: "#334155", lineHeight: 1.5 }}>
+                HP dengan Google Authenticator hilang? Masuk memakai salah satu <strong>kode pemulihan</strong>, atau minta
+                admin menghapus Authenticator Anda lalu daftarkan yang baru saat masuk.
               </p>
               <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b", lineHeight: 1.5 }}>
-                Jika Anda satu-satunya Administrator dan lupa sandi, data di perangkat ini harus dipulihkan dengan
-                mengosongkan data aplikasi.
+                Jika Anda satu-satunya Administrator dan kehilangan sandi atau kode pemulihan, data di perangkat ini hanya
+                bisa dipulihkan dengan mengosongkan data aplikasi.
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  resetAlert();
-                }}
-                style={{ border: "none", background: "transparent", color: "#64748b", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}
-              >
+              <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
                 ← Kembali
               </button>
             </div>
           )}
 
-          {/* 4. GANTI KATA SANDI (WAJIB UNTUK SANDI BAWAAN ATAU SEMENTARA) */}
+          {/* 7. GANTI KATA SANDI (WAJIB UNTUK SANDI BAWAAN ATAU SEMENTARA) */}
           {mode === "ganti_sandi" && (
             <form id="form-ganti-sandi" onSubmit={handleGantiSandi} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ textAlign: "center", marginBottom: 4 }}>
@@ -776,9 +675,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 required
                 autoComplete="new-password"
                 placeholder={`Kata sandi baru (min. ${MIN_PANJANG_SANDI} karakter)`}
-                value={sandiBaruGanti}
-                onChange={(e) => setSandiBaruGanti(e.target.value)}
-                style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
+                value={sandiBaru}
+                onChange={(e) => setSandiBaru(e.target.value)}
+                style={gayaInput}
               />
               <input
                 id="sandi-baru-ulang"
@@ -786,26 +685,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 required
                 autoComplete="new-password"
                 placeholder="Ulangi kata sandi baru"
-                value={konfirmasiSandiGanti}
-                onChange={(e) => setKonfirmasiSandiGanti(e.target.value)}
-                style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.88rem" }}
+                value={sandiBaruUlang}
+                onChange={(e) => setSandiBaruUlang(e.target.value)}
+                style={gayaInput}
               />
-              <button
-                type="submit"
-                disabled={sedangProses}
-                style={{ height: 42, borderRadius: 10, background: "#0d7344", color: "#ffffff", border: "none", fontWeight: 700, fontSize: "0.9rem", cursor: sedangProses ? "wait" : "pointer", opacity: sedangProses ? 0.7 : 1 }}
-              >
-                {sedangProses ? "Menyimpan…" : "Simpan dan Masuk"}
+              <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
+                {sedangProses ? "Menyimpan…" : "Simpan dan Lanjut"}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  setPasswordLogin("");
-                  resetAlert();
-                }}
-                style={{ border: "none", background: "transparent", color: "#64748b", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}
-              >
+              <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
                 ← Batal
               </button>
             </form>

@@ -27,7 +27,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
 4. **Modul Tugas, Pengumuman, Diskusi Komunitas & Panel Admin**
    - Siaran pengumuman & penugasan spasial dengan tombol **Buka Lokasi Acuan di Peta**.
    - **Ruang Diskusi Sesama Kader** (dengan berbagi pin koordinat & *voice note*) dan **Saluran Tanya Admin (Helpdesk)**.
-   - **Panel Admin GIS**: verifikasi data spasial kader, penerbitan sertifikat, pembuatan tugas dan pengumuman, serta pengelolaan akun (atur ulang sandi kader).
+   - **Panel Admin GIS**: verifikasi data spasial kader, penerbitan sertifikat, pembuatan tugas dan pengumuman, serta pengelolaan akun (membuat akun, atur ulang sandi, dan hapus Authenticator).
    - **Semua fitur di bagian ini hanya bekerja di satu perangkat** (lihat *Batasan* di bawah).
 
 ## Menjalankan Aplikasi
@@ -44,10 +44,14 @@ Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: sumber til
 
 ## Akun & Keamanan
 
-- Perangkat baru menawarkan pembuatan **Administrator pertama** saat mendaftar. Setelah admin ada, pendaftaran mandiri selalu menjadi kader. Bila `VITE_KODE_ADMIN` diisi, pembuatan admin pertama meminta kode itu (pencegah salah pakai, bukan rahasia: nilainya ikut tertanam di aplikasi).
-- Sandi disimpan sebagai hash PBKDF2-SHA256 (200.000 iterasi, garam acak), minimal 8 karakter, menolak sandi umum serta sandi yang memuat nama/email. Percobaan masuk dibatasi bertahap. Sesi divalidasi terhadap data akun sehingga peran yang diubah di penyimpanan peramban dicabut.
-- Tidak ada reset sandi mandiri: admin mengatur ulang sandi kader dari **Admin > Akun** (sandi sementara tampil sekali, wajib diganti saat masuk). Kader dapat mengganti sandi dari menu.
-- Akun uji dan kartu cepat-masuk hanya ada di build pengembangan atau bila `VITE_AKUN_UJI=true`; build produksi tidak memuatnya. Akun lama bersandi teks polos dimigrasikan otomatis, dan admin bawaan lama wajib mengganti sandi.
+- **Tidak ada pendaftaran mandiri.** Perangkat baru menampilkan penyiapan awal untuk membuat **Administrator pertama** (bila `VITE_KODE_ADMIN` diisi, kode itu diminta; ini pencegah salah pakai, bukan rahasia, karena nilainya ikut tertanam di aplikasi). Setelah itu semua akun, kader maupun admin lain, dibuat oleh admin di **Admin > Akun**. Admin menerima sandi sementara yang tampil sekali; pemilik akun membuat sandi baru dan memasang Google Authenticator saat pertama masuk.
+- **Google Authenticator wajib untuk semua akun** (user dan admin). Setelah sandi benar, masuk meminta kode 6 digit (TOTP RFC 6238: HMAC-SHA1, 30 detik, toleransi ±30 detik; satu kode tidak bisa dipakai dua kali). Pemasangan memakai kode QR `otpauth://` (atau kunci manual) dan menampilkan **8 kode pemulihan sekali pakai**, hanya sekali. Ketik salah satu kode itu di kolom kode bila HP hilang.
+- Admin dapat menghapus Authenticator akun lain (HP hilang) dari **Admin > Akun**; pemilik memasang yang baru saat masuk berikutnya. Authenticator admin sendiri hanya bisa diatur ulang oleh admin lain. Karena itu sebaiknya ada lebih dari satu admin.
+- Sandi disimpan sebagai hash PBKDF2-SHA256 (200.000 iterasi, garam acak), minimal 8 karakter, menolak sandi umum serta sandi yang memuat nama/email. Percobaan masuk dibatasi bertahap, termasuk kode Authenticator yang salah. Sesi divalidasi terhadap data akun sehingga peran yang diubah di penyimpanan peramban dicabut.
+- Tidak ada reset sandi mandiri: admin mengatur ulang sandi kader (sandi sementara tampil sekali, wajib diganti saat masuk). Kader dapat mengganti sandi dari menu.
+- **Akun dan sesi dari versi sebelum Authenticator** tetap bisa dipakai sandinya, tetapi sesi lama dicabut dan akun wajib memasang Authenticator saat masuk berikutnya.
+- Akun uji dan kartu cepat-masuk hanya ada di build pengembangan atau bila `VITE_AKUN_UJI=true` (kode Authenticator akun uji dihitung otomatis); build produksi tidak memuatnya.
+- **Batas:** rahasia Authenticator tersimpan di perangkat yang sama dengan akunnya (belum ada server). Lapisan ini menahan orang yang hanya tahu sandi, bukan orang yang dapat membaca atau mengubah penyimpanan perangkat itu.
 
 ## Penyimpanan Data
 
@@ -56,6 +60,6 @@ Data aplikasi disimpan di **IndexedDB** (bukan localStorage yang hanya ±5 MB) d
 ## Batasan yang Perlu Diketahui
 
 - **Belum ada server.** Akun, peran, pesan, tugas, pengumuman, dan status verifikasi hanya ada di perangkat tempat data dibuat. Pesan diskusi berstatus "tersimpan di perangkat ini", bukan "terkirim"; pengumuman dan tugas tidak sampai ke HP kader lain; monitor kader aktif belum tersedia. Hanya data spasial yang bisa dikirim ke luar perangkat, lewat Google Drive/Sheets. Penyelesaian tuntas (verifikasi lintas perangkat, akun dan peran di server) membutuhkan backend.
-- **Keamanan sisi klien ada batasnya.** Siapa pun yang dapat memodifikasi penyimpanan peramban di perangkat yang sama masih dapat melewatinya.
+- **Keamanan sisi klien ada batasnya.** Sandi dan Authenticator menahan orang yang tidak memegang perangkat, tetapi siapa pun yang dapat membaca atau mengubah penyimpanan peramban di perangkat yang sama masih dapat melewatinya.
 - Peta offline hanya aktif untuk penyedia tile berlisensi yang Anda pasang sendiri; tiga layanan publik bawaan hanya untuk dilihat online.
 - Skrip Google Apps Script diuji terhadap tiruan layanan Google, belum di Apps Script sungguhan. Sensor GPS dan kompas diuji dengan lokasi/event buatan, belum di HP.

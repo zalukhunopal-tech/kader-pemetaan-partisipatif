@@ -30,9 +30,14 @@ body {
   overflow-x: hidden;
 }
 
+/* Lebar bingkai aplikasi; satu sumber untuk shell, bilah bawah, dan tombol mengambang */
+:root {
+  --app-w: 640px;
+}
+
 .app-shell {
   min-height: 100vh;
-  max-width: 640px;
+  max-width: var(--app-w);
   margin: 0 auto;
   background: #ffffff;
   display: flex;
@@ -46,8 +51,8 @@ body {
   body {
     background: #eef2f0;
   }
-  .app-shell {
-    max-width: 960px;
+  :root {
+    --app-w: 960px;
   }
 }
 
@@ -284,7 +289,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
   flex: 1;
 }
@@ -300,6 +305,8 @@ body {
   padding: 0 10px;
   color: #262927;
   max-width: 100%;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .avenza-pill-icon {
@@ -319,12 +326,31 @@ body {
   padding-right: 20px;
   cursor: pointer;
   max-width: 165px;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .avenza-pill-select:focus {
   outline: none;
+}
+
+/* Layar sangat sempit: ikon chip disembunyikan agar teks "Baru dilihat" dan "Semua item" tidak terpotong */
+@media (max-width: 360px) {
+  .avenza-pill-icon {
+    display: none;
+  }
+
+  .avenza-pill-select-wrap {
+    padding: 0 6px 0 10px;
+  }
+
+  .avenza-pill-select {
+    font-size: 0.8rem;
+    padding-right: 18px;
+  }
 }
 
 .avenza-pill-caret {
@@ -624,33 +650,20 @@ body {
 .avenza-fab-orange.single-fab,
 .avenza-fab-orange.export-fab {
   position: fixed;
-  right: max(16px, calc(50vw - 450px));
+  right: max(16px, calc((100% - var(--app-w)) / 2 + 16px));
   bottom: 80px;
   z-index: 55;
 }
 
-@media (max-width: 960px) {
-  .avenza-fab-orange.single-fab,
-  .avenza-fab-orange.export-fab {
-    right: 16px;
-  }
-}
-
 .avenza-fab-stack {
   position: fixed;
-  right: max(16px, calc(50vw - 450px));
+  right: max(16px, calc((100% - var(--app-w)) / 2 + 16px));
   bottom: 80px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 12px;
   z-index: 55;
-}
-
-@media (max-width: 960px) {
-  .avenza-fab-stack {
-    right: 16px;
-  }
 }
 
 .avenza-fab-row {
@@ -933,7 +946,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: 960px;
+  max-width: var(--app-w);
   height: 64px;
   background: #ffffff;
   border-top: 1px solid #d5dcd8;
