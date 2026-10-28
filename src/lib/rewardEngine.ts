@@ -320,7 +320,7 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
  * Menghitung posisi level kader dari 20 Level GIS berdasarkan:
  * 1. Banyak data yang diambil (Titik, Jalur Tracking km, Poligon Ha, Pembaruan objek)
  * 2. Variasi data (Keberagaman kategori survei & jenis geometri)
- * 3. Keaktifan dalam diskusi (Pesan terkirim, berbagi pin koordinat, pesan suara)
+ * 3. Keaktifan dalam diskusi (Pesan yang dibuat, berbagi pin koordinat, pesan suara)
  * 4. Kualitas & kelengkapan data (Foto geotagging, atribut lokal/ilmiah, akurasi GPS, verifikasi)
  * 5. Penyelesaian penugasan pemetaan lapangan
  */

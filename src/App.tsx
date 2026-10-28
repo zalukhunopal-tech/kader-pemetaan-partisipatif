@@ -222,17 +222,6 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Saat online, kirim pesan antrean
-  useEffect(() => {
-    if (sedangOnline) {
-      setPesanList((prev) =>
-        prev.map((m) =>
-          m.statusKirim === "antrean_offline" ? { ...m, statusKirim: "terkirim" } : m
-        )
-      );
-    }
-  }, [sedangOnline]);
-
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
   const tampilkanToast = (pesan: string) => {
@@ -429,7 +418,7 @@ export const App: React.FC = () => {
   // Handler Tambah Tugas Baru oleh Admin (Admin Feature)
   const handleTambahTugas = (tugasBaru: TugasPemetaan) => {
     setTugasList((prev) => [tugasBaru, ...prev]);
-    tampilkanToast(`✓ Tugas "${tugasBaru.judul}" dikirim ke peta kader.`);
+    tampilkanToast(`✓ Tugas "${tugasBaru.judul}" disimpan di perangkat ini.`);
   };
 
   // Handler Hapus Tugas
@@ -524,7 +513,7 @@ export const App: React.FC = () => {
       desaPengirim: peran === "admin" ? "Pusat" : profil.desaWilayah,
       teks,
       waktu: new Date().toTimeString().slice(0, 5),
-      statusKirim: sedangOnline ? "terkirim" : "antrean_offline",
+      statusKirim: "tersimpan",
       pinKoordinat,
       durasiSuaraDetik
     };
@@ -912,7 +901,6 @@ export const App: React.FC = () => {
           <KomunikasiView
             pesanList={pesanList}
             profil={profil}
-            sedangOnline={sedangOnline}
             onKirimPesan={handleKirimPesan}
             onLihatPinDiPeta={handleFokusKePeta}
           />

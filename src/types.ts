@@ -185,7 +185,8 @@ export interface PesanKomunikasi {
   desaPengirim: string;
   teks: string;
   waktu: string;
-  statusKirim: "antrean_offline" | "terkirim";
+  /** Pesan hanya tersimpan di perangkat ini; belum ada server yang meneruskannya ke perangkat lain */
+  statusKirim: "tersimpan";
   pinKoordinat?: {
     lat: number;
     lng: number;

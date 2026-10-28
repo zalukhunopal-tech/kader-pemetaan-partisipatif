@@ -13,6 +13,7 @@ import {
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
 import { AkunSesi } from "../lib/auth";
 import { AkunAdminPanel } from "./AkunAdminPanel";
+import { CatatanPerangkat } from "./CatatanPerangkat";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import {
@@ -151,7 +152,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     setItemDiedit(null);
   };
 
-  const jumlahOnline = kaderAktifList.filter((k) => k.status !== "offline").length;
+  const jumlahKaderTercatat = new Set(dataSpasial.map((d) => d.idKader)).size;
 
   return (
     <div className="page-container" style={{ gap: "14px" }}>
@@ -184,7 +185,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               Kendali
             </h2>
             <div style={{ fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
-              🟢 {jumlahOnline} Kader • {dataSpasial.length} Data
+              {jumlahKaderTercatat} kader • {dataSpasial.length} data di perangkat ini
             </div>
           </div>
         </div>
@@ -360,7 +361,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
-              Belum ada kader yang aktif mengirimkan sinyal lokasi lapangan.
+              Pemantauan posisi kader secara langsung belum tersedia. Setiap perangkat menyimpan datanya sendiri dan belum ada server yang menyatukannya, jadi posisi dan status kader di perangkat lain tidak terlihat di sini.
             </div>
           )}
         </div>
@@ -372,6 +373,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
             ✏️ Data ({dataSpasial.length})
           </h3>
+          <CatatanPerangkat style={{ marginBottom: 10 }}>
+            Status verifikasi disimpan di perangkat ini. Data kader di perangkat lain baru bisa diverifikasi setelah masuk ke sini, misalnya lewat impor berkas atau pemakaian satu perangkat bersama.
+          </CatatanPerangkat>
 
           {dataSpasial.length > 0 ? (
             <div className="table-responsive">
@@ -525,6 +529,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {/* 4. TAB C: TUGAS SURVEI */}
       {subTabAdmin === "tugas_survei" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <CatatanPerangkat>
+            Tugas dan pengumuman hanya tersimpan di perangkat ini. Kader di perangkat lain belum menerimanya karena aplikasi belum memakai server.
+          </CatatanPerangkat>
           <form onSubmit={handleBuatTugas} className="section-card">
             <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
               🗺️ Buat Tugas Pemetaan Baru
@@ -695,7 +702,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
 
           <form onSubmit={handleBuatPengumuman} className="section-card">
-            <h3 style={{ margin: "0 0 8px", fontSize: "1rem" }}>📢 Kirim Pengumuman</h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1rem" }}>📢 Buat Pengumuman</h3>
             <div className="form-row-2">
               <input
                 type="text"
@@ -713,7 +720,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               />
             </div>
             <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }}>
-              Kirim Broadcast
+              Simpan Pengumuman
             </button>
           </form>
         </div>

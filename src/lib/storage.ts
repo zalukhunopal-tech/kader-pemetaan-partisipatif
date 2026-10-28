@@ -134,7 +134,9 @@ export const simpanPengumuman = (v: PengumumanBroadcast[]) => simpanJson(KEY_PEN
 export const muatTugas = () => unikkanId(bacaJson<TugasPemetaan[]>(KEY_TUGAS, TUGAS_AWAL));
 export const simpanTugas = (v: TugasPemetaan[]) => simpanJson(KEY_TUGAS, v);
 
-export const muatPesan = () => unikkanId(bacaJson<PesanKomunikasi[]>(KEY_PESAN, PESAN_AWAL));
+// Data lama bertanda "terkirim"/"antrean_offline", padahal pesan tidak pernah meninggalkan perangkat
+export const muatPesan = () =>
+  unikkanId(bacaJson<PesanKomunikasi[]>(KEY_PESAN, PESAN_AWAL)).map((m) => ({ ...m, statusKirim: "tersimpan" as const }));
 export const simpanPesan = (v: PesanKomunikasi[]) => simpanJson(KEY_PESAN, v);
 
 export const muatKaderAktif = () => bacaJson<KaderAktifPresence[]>(KEY_KADER_AKTIF, KADER_AKTIF_AWAL);

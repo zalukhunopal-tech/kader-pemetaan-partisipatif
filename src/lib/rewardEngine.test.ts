@@ -184,7 +184,7 @@ describe("skor diskusi (S4)", () => {
       desaPengirim: "-",
       teks: "halo",
       waktu: "08:00",
-      statusKirim: "terkirim",
+      statusKirim: "tersimpan",
       ...over
     }));
 

@@ -53,7 +53,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
             <Bell size={76} strokeWidth={1.6} />
           </div>
           <h3>Tidak ada pemberitahuan baru</h3>
-          <p>Kami akan memberi tahu Anda ketika ada sesuatu yang baru.</p>
+          <p>Pengumuman dan tugas hanya muncul dari perangkat ini; aplikasi belum menerimanya dari perangkat lain.</p>
         </div>
       ) : (
         /* RIWAYAT PENGUMUMAN & PENUGASAN SPASIAL KADER */
@@ -67,7 +67,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
                 Belum Ada Riwayat Notifikasi
               </h4>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>
-                Tidak ada pengumuman broadcast atau tugas pemetaan baru.
+                Tidak ada pengumuman atau tugas pemetaan di perangkat ini.
               </p>
             </div>
           ) : (
