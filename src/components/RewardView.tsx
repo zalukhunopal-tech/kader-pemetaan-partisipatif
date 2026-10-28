@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataSpasialItem,
-  KlaimUpahHOK,
   PeranPengguna,
   PesanKomunikasi,
   ProfilKader,
@@ -9,6 +8,7 @@ import {
   TugasPemetaan
 } from "../types";
 import {
+  DAFTAR_20_LEVEL_GIS,
   hitungCapaianKader,
   hitungPeringkatGis20Level,
   TARGET_POLIGON_HA,
@@ -17,20 +17,17 @@ import {
 } from "../lib/rewardEngine";
 import {
   Award,
-  Banknote,
   Download,
   ShieldCheck,
-  Sparkles,
   Settings,
   Printer,
-  Layers,
-  MessageSquare,
-  CheckCircle2,
-  Database,
   Camera,
   UserCheck,
   Trash2,
-  PenTool
+  PenTool,
+  ChevronLeft,
+  ChevronRight,
+  Lock
 } from "lucide-react";
 
 interface RewardViewProps {
@@ -38,16 +35,14 @@ interface RewardViewProps {
   profil: ProfilKader;
   peran?: PeranPengguna;
   sertifikatList: SertifikatKader[];
-  klaimUpahList: KlaimUpahHOK[];
   pesanList?: PesanKomunikasi[];
   tugasList?: TugasPemetaan[];
   onUbahProfil: (p: ProfilKader) => void;
   onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
-  onAjukanKlaimUpah: (paketKe: number, rincian: string) => void;
 }
 
 /**
- * Komponen SVG Siluet Orang (Menggantikan ikon tanaman pada Avatar Kader)
+ * Komponen SVG Siluet Orang (Avatar Kader)
  */
 export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
   size = 34,
@@ -70,6 +65,47 @@ export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
 );
 
 /**
+ * Komponen SVG Gambar Kunci (Gembok Level Terkunci)
+ */
+const KunciLevelSvg: React.FC<{ size?: number; warna?: string }> = ({
+  size = 28,
+  warna = "#fbbf24"
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <rect
+      x="10"
+      y="21"
+      width="28"
+      height="21"
+      rx="5"
+      fill="rgba(2, 44, 34, 0.85)"
+      stroke={warna}
+      strokeWidth="3"
+    />
+    <path
+      d="M16 21V15C16 10.5817 19.5817 7 24 7C28.4183 7 32 10.5817 32 15V21"
+      stroke={warna}
+      strokeWidth="3"
+      strokeLinecap="round"
+    />
+    <circle cx="24" cy="30" r="3" fill={warna} />
+    <path
+      d="M24 33V36"
+      stroke={warna}
+      strokeWidth="3"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+/**
  * Menggambar Siluet Orang di dalam Bingkai Foto pada Kanvas Sertifikat
  * ketika kader belum mengunggah foto.
  */
@@ -84,20 +120,17 @@ function gambarSiluetOrangCanvas(
   const cx = x + w / 2;
   const cy = y + h / 2;
 
-  // Latar bingkai hijau zamrud gelap
   const bg = ctx.createLinearGradient(x, y, x, y + h);
   bg.addColorStop(0, "#064e3b");
   bg.addColorStop(1, "#022c22");
   ctx.fillStyle = bg;
   ctx.fillRect(x, y, w, h);
 
-  // Kepala siluet orang
   ctx.fillStyle = "rgba(253, 230, 138, 0.85)";
   ctx.beginPath();
   ctx.arc(cx, cy - 22, 26, 0, Math.PI * 2);
   ctx.fill();
 
-  // Bahu & badan siluet orang
   ctx.beginPath();
   ctx.arc(cx, cy + 58, 52, Math.PI * 1.12, Math.PI * 1.88, false);
   ctx.lineTo(cx + 46, y + h);
@@ -121,12 +154,10 @@ function gambarBingkaiFotoKaderCanvas(
 ) {
   ctx.save();
 
-  // Bayangan lembut
   ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 6;
 
-  // Kotak luar emas
   ctx.fillStyle = "#042f2e";
   ctx.strokeStyle = "#fbbf24";
   ctx.lineWidth = 4;
@@ -137,7 +168,6 @@ function gambarBingkaiFotoKaderCanvas(
 
   ctx.shadowColor = "transparent";
 
-  // Area dalam foto (clip)
   const pad = 8;
   const ix = x + pad;
   const iy = y + pad;
@@ -150,7 +180,6 @@ function gambarBingkaiFotoKaderCanvas(
   ctx.clip();
 
   if (fotoImg && fotoImg.complete && fotoImg.naturalWidth > 0) {
-    // Hitung crop proporsional (object-fit: cover)
     const imgRatio = fotoImg.naturalWidth / fotoImg.naturalHeight;
     const boxRatio = iw / ih;
     let sx = 0;
@@ -171,14 +200,12 @@ function gambarBingkaiFotoKaderCanvas(
   }
   ctx.restore();
 
-  // Garis aksen tipis di dalam foto
   ctx.strokeStyle = "rgba(253, 230, 138, 0.55)";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.roundRect(ix, iy, iw, ih, 9);
   ctx.stroke();
 
-  // Pita label bawah bingkai foto
   ctx.fillStyle = "#022c22";
   ctx.strokeStyle = "#fbbf24";
   ctx.lineWidth = 2;
@@ -196,13 +223,12 @@ function gambarBingkaiFotoKaderCanvas(
 }
 
 /**
- * Menggambar emblem Kompas & Mahkota Daun Emas di atas Kanvas Sertifikat
+ * Menggambar emblem Kompas Emas di atas Kanvas Sertifikat
  */
 function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   ctx.save();
   ctx.translate(cx, cy);
 
-  // Lingkaran cahaya luar
   const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, 62);
   glow.addColorStop(0, "rgba(251, 191, 36, 0.35)");
   glow.addColorStop(1, "rgba(251, 191, 36, 0)");
@@ -211,7 +237,6 @@ function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: n
   ctx.arc(0, 0, 62, 0, Math.PI * 2);
   ctx.fill();
 
-  // Rangkaian daun (Laurel Wreath) kiri & kanan
   ctx.strokeStyle = "#fbbf24";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -221,7 +246,6 @@ function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: n
   ctx.arc(0, 2, 48, Math.PI * 1.2, Math.PI * 1.8, false);
   ctx.stroke();
 
-  // Lingkaran kompas
   ctx.beginPath();
   ctx.arc(0, 0, 36, 0, Math.PI * 2);
   ctx.fillStyle = "#042f2e";
@@ -230,7 +254,6 @@ function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: n
   ctx.strokeStyle = "#fbbf24";
   ctx.stroke();
 
-  // Bintang kompas 4 arah utama
   const pts = [
     [0, -30, 7, -7, 0, 0],
     [30, 0, 7, 7, 0, 0],
@@ -257,7 +280,6 @@ function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: n
     ctx.fill();
   });
 
-  // Titik permata tengah
   ctx.beginPath();
   ctx.arc(0, 0, 5, 0, Math.PI * 2);
   ctx.fillStyle = "#ffffff";
@@ -288,7 +310,6 @@ function gambarKartuMedaliCanvas(
   ctx.fill();
   ctx.stroke();
 
-  // Lingkaran ikon kiri
   const icX = x + 52;
   const icY = y + h / 2;
   ctx.beginPath();
@@ -299,7 +320,6 @@ function gambarKartuMedaliCanvas(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Gambar vektor di dalam lingkaran
   ctx.fillStyle = warnaAksen;
   ctx.strokeStyle = warnaAksen;
   ctx.lineWidth = 2.5;
@@ -331,7 +351,6 @@ function gambarKartuMedaliCanvas(
     ctx.stroke();
   }
 
-  // Teks Nilai & Label
   ctx.textAlign = "left";
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 26px system-ui, -apple-system, sans-serif";
@@ -345,7 +364,6 @@ function gambarKartuMedaliCanvas(
 
 /**
  * Menggambar Segel Pita Bintang Emas di Bawah Tengah Sertifikat
- * (Tidak menuliskan level user, cukup SERTIFIKAT RESMI)
  */
 function gambarSegelBintangEmas(
   ctx: CanvasRenderingContext2D,
@@ -355,7 +373,6 @@ function gambarSegelBintangEmas(
   ctx.save();
   ctx.translate(cx, cy);
 
-  // Pita bawah kiri & kanan
   ctx.fillStyle = "#d97706";
   ctx.beginPath();
   ctx.moveTo(-36, 40);
@@ -375,7 +392,6 @@ function gambarSegelBintangEmas(
   ctx.closePath();
   ctx.fill();
 
-  // Gerigi segel emas (24 sudut)
   const spikes = 24;
   const outerR = 76;
   const innerR = 68;
@@ -396,7 +412,6 @@ function gambarSegelBintangEmas(
   ctx.fillStyle = sealGrad;
   ctx.fill();
 
-  // Lingkaran dalam hijau gelap
   ctx.beginPath();
   ctx.arc(0, 0, 56, 0, Math.PI * 2);
   ctx.fillStyle = "#022c22";
@@ -422,10 +437,7 @@ function gambarSegelBintangEmas(
 }
 
 /**
- * Merender Sertifikat Bergambar & Clean ke Canvas (1600 x 1131 px - A4 Landscape)
- * - TIDAK menuliskan level user pada sertifikat (cukup Sertifikat saja)
- * - Menampilkan Foto Kader (atau Siluet Orang jika belum ada foto)
- * - Menampilkan Nama & Jabatan Penandatangan yang dapat diubah oleh Admin
+ * Merender Sertifikat Bergambar ke Canvas (1600 x 1131 px - A4 Landscape)
  */
 function lukisSertifikatKeCanvas(
   canvas: HTMLCanvasElement,
@@ -444,7 +456,6 @@ function lukisSertifikatKeCanvas(
 
   ctx.clearRect(0, 0, W, H);
 
-  // 1. Latar Belakang Hijau Zamrud Gelap + Kontur Topografi Artistik
   const bg = ctx.createLinearGradient(0, 0, W, H);
   bg.addColorStop(0, "#022c22");
   bg.addColorStop(0.5, "#064e3b");
@@ -452,7 +463,6 @@ function lukisSertifikatKeCanvas(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Ilustrasi Garis Kontur Peta di Sudut Latar Belakang
   ctx.save();
   ctx.strokeStyle = "rgba(52, 211, 153, 0.07)";
   ctx.lineWidth = 2;
@@ -466,7 +476,6 @@ function lukisSertifikatKeCanvas(
   }
   ctx.restore();
 
-  // 2. Bingkai Emas Ganda Modern
   ctx.strokeStyle = "#fbbf24";
   ctx.lineWidth = 7;
   ctx.strokeRect(42, 42, W - 84, H - 84);
@@ -475,7 +484,6 @@ function lukisSertifikatKeCanvas(
   ctx.lineWidth = 2;
   ctx.strokeRect(60, 60, W - 120, H - 120);
 
-  // Ornamen Sudut Emas
   const sudut = [
     [42, 42, 1, 1],
     [W - 42, 42, -1, 1],
@@ -495,10 +503,8 @@ function lukisSertifikatKeCanvas(
     ctx.fill();
   });
 
-  // 3. Emblem Kompas Emas di Tengah Atas
   gambarEmblemKompasEmas(ctx, W / 2, 142);
 
-  // 4. Judul Singkat & Bersih (Tanpa Menuliskan Level User)
   ctx.textAlign = "center";
   ctx.fillStyle = "#fde68a";
   ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
@@ -516,10 +522,8 @@ function lukisSertifikatKeCanvas(
   ctx.font = "600 18px ui-monospace, SFMono-Regular, Consolas, monospace";
   ctx.fillText(`NO. REG: ${sert.nomorSertifikat}`, W / 2, 336);
 
-  // 5. BINGKAI FOTO KADER DI SISI KIRI ATAS NAMA PENERIMA
   gambarBingkaiFotoKaderCanvas(ctx, 145, 342, 158, 198, fotoImg);
 
-  // 6. Nama Penerima (Besar & Menonjol)
   ctx.textAlign = "center";
   ctx.fillStyle = "#cbd5e1";
   ctx.font = "italic 22px Georgia, serif";
@@ -535,7 +539,6 @@ function lukisSertifikatKeCanvas(
   ctx.fillStyle = "#fbbf24";
   ctx.fillText(namaTampil, W / 2, 472);
 
-  // Garis aksen bawah nama
   const wNama = Math.min(860, Math.max(360, ctx.measureText(namaTampil).width + 60));
   ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
   ctx.lineWidth = 2.5;
@@ -552,7 +555,6 @@ function lukisSertifikatKeCanvas(
     532
   );
 
-  // 7. TIGA KARTU VISUAL CAPAIAN SURVEI (TANPA LEVEL USER)
   const cardW = 370;
   const cardH = 104;
   const gap = 34;
@@ -595,10 +597,8 @@ function lukisSertifikatKeCanvas(
     "Pemetaan Wilayah"
   );
 
-  // 8. Footer: Tanggal (Kiri), Segel Emas Bergambar (Tengah), Tanda Tangan (Kanan)
   const yFoot = 835;
 
-  // Kiri
   ctx.textAlign = "left";
   ctx.fillStyle = "#94a3b8";
   ctx.font = "600 18px system-ui, sans-serif";
@@ -619,10 +619,8 @@ function lukisSertifikatKeCanvas(
   ctx.font = "bold 18px ui-monospace, monospace";
   ctx.fillText("Status: SERTIFIKAT RESMI", 130, yFoot + 84);
 
-  // Tengah: Segel Pita Bintang Emas (Tanpa Level)
   gambarSegelBintangEmas(ctx, W / 2, yFoot + 30);
 
-  // Kanan: Penandatangan Sertifikat
   const namaPenandatangan = sert.ditandatanganiOleh || "Koordinator Program GIS";
   const jabatanPenandatangan =
     sert.jabatanPenandatangan || "Koordinator Verifikasi Spasial";
@@ -653,7 +651,7 @@ function lukisSertifikatKeCanvas(
 }
 
 /**
- * Komponen Cincin Progres SVG Visual (Minimal Teks, Kaya Grafis)
+ * Komponen Cincin Progres SVG Visual
  */
 const CincinProgresSvg: React.FC<{
   persen: number;
@@ -739,12 +737,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
   profil,
   peran = "kader",
   sertifikatList,
-  klaimUpahList,
   pesanList = [],
   tugasList = [],
   onUbahProfil,
-  onUbahPenandatanganSertifikat,
-  onAjukanKlaimUpah
+  onUbahPenandatanganSertifikat
 }) => {
   const certCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputFotoRef = useRef<HTMLInputElement | null>(null);
@@ -760,6 +756,30 @@ export const RewardView: React.FC<RewardViewProps> = ({
     () => hitungPeringkatGis20Level(dataSpasial, profil, pesanList, tugasList),
     [dataSpasial, profil, pesanList, tugasList]
   );
+
+  const { levelSaatIni, persenProgresLevel } = peringkatGis;
+
+  // State navigasi level ke kiri / ke kanan (1 s/d 20)
+  const [nomorLevelDilihat, setNomorLevelDilihat] = useState<number>(
+    levelSaatIni.level
+  );
+
+  useEffect(() => {
+    setNomorLevelDilihat(levelSaatIni.level);
+  }, [levelSaatIni.level]);
+
+  const infoLevelDilihat =
+    DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat) || levelSaatIni;
+  const apakahLevelTerkunci = nomorLevelDilihat > levelSaatIni.level;
+
+  const levelKiri =
+    nomorLevelDilihat > 1
+      ? DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat - 1) || null
+      : null;
+  const levelKanan =
+    nomorLevelDilihat < DAFTAR_20_LEVEL_GIS.length
+      ? DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat + 1) || null
+      : null;
 
   const sertifikatSaya = sertifikatList.find((s) => s.idKader === profil.idKader);
 
@@ -809,7 +829,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
       namaOrganisasi:
         profil.namaOrganisasi || "Konsorsium Pemetaan Partisipatif",
       tanggalTerbit: new Date().toISOString().slice(0, 10),
-      alasanCapaian: "Kompetensi Survei & Pemetaan Partisipatif",
+      alasanCapaian: "Sertifikat Pemetaan Partisipatif",
       status: sudahTersertifikasi ? "diterbitkan" : "menunggu_admin",
       ditandatanganiOleh: namaPenandatangan,
       jabatanPenandatangan,
@@ -931,16 +951,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
     win.document.close();
   };
 
-  const {
-    levelSaatIni,
-    levelBerikutnya,
-    jumlahLevelDiBawah,
-    jumlahLevelKeAtas,
-    skorTotal,
-    persenProgresLevel,
-    rincianSkor
-  } = peringkatGis;
-
   return (
     <div className="page-container reward-page-clean">
       {/* INPUT FILE TERSEMBUNYI UNTUK FOTO KADER DI SERTIFIKAT */}
@@ -952,16 +962,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
         onChange={handlePilihFotoSertifikat}
       />
 
-      {/* 1. VISUAL HERO: AVATAR SILUET ORANG / FOTO KADER & PERINGKAT 20 LEVEL GIS */}
+      {/* 1. KARTU LEVEL KADER (GESER KIRI / KANAN DENGAN IKON KUNCI UNTUK LEVEL BELUM TERBUKA, TANPA XP) */}
       <div className="section-card reward-gis-hero-card">
-        {/* Baris Identitas Singkat dengan Avatar Siluet Orang (Bukan Tanaman) */}
         <div className="visual-profile-bar">
           <div className="visual-profile-left">
             <button
               type="button"
               className="visual-avatar-emblem avatar-silhouette-btn"
               onClick={() => inputFotoRef.current?.click()}
-              title="Ketuk untuk mengunggah foto kader ke sertifikat"
+              title="Unggah foto kader"
             >
               {fotoSertifikatBase64 ? (
                 <img
@@ -994,127 +1003,192 @@ export const RewardView: React.FC<RewardViewProps> = ({
             type="button"
             className="visual-icon-gear-btn"
             onClick={() => setBukaPengaturan((v) => !v)}
-            title="Pengaturan Profil & Foto Sertifikat"
+            title="Profil"
           >
             <Settings size={18} />
           </button>
         </div>
 
-        {/* 3 KARTU ILUSTRASI VISUAL LEVEL: DI BAWAH — LEVEL SAAT INI — KE ATAS */}
-        <div className="visual-level-trio">
-          {/* Kiri: Level di Bawah */}
-          <div className="visual-step-box down">
-            <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="22" fill="rgba(52, 211, 153, 0.15)" stroke="#34d399" strokeWidth="2" />
-              <path d="M16 22L24 30L32 22" stroke="#6ee7b7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M18 15H30" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-            <strong className="visual-step-num">{jumlahLevelDiBawah}</strong>
-            <span className="visual-step-lbl">Level di Bawah</span>
-          </div>
+        {/* NAVIGASI LEVEL KE KIRI & KE KANAN DENGAN GAMBAR KUNCI UNTUK LEVEL DI ATASNYA */}
+        <div className="visual-level-carousel">
+          {/* TOMBOL LEVEL KIRI */}
+          <button
+            type="button"
+            className={`visual-level-side-btn ${!levelKiri ? "disabled" : ""}`}
+            disabled={!levelKiri}
+            onClick={() =>
+              levelKiri && setNomorLevelDilihat(levelKiri.level)
+            }
+            title={levelKiri ? `Lihat Level ${levelKiri.level}` : "Level Awal"}
+          >
+            <ChevronLeft size={20} className="side-arrow-icon" />
+            {levelKiri ? (
+              <div className="side-level-badge">
+                {levelKiri.level > levelSaatIni.level ? (
+                  <KunciLevelSvg size={26} warna="#94a3b8" />
+                ) : (
+                  <span className="side-level-unlocked-num">
+                    Lv.{levelKiri.level}
+                  </span>
+                )}
+                <span className="side-level-caption">
+                  {levelKiri.level > levelSaatIni.level
+                    ? "Terkunci"
+                    : `Level ${levelKiri.level}`}
+                </span>
+              </div>
+            ) : (
+              <div className="side-level-badge muted">
+                <span className="side-level-caption">Awal</span>
+              </div>
+            )}
+          </button>
 
-          {/* Tengah: Medali Utama Level Saat Ini */}
+          {/* MEDALI TENGAH: TERBUKA JIKA <= LEVEL SAAT INI, GAMBAR KUNCI JIKA BELUM NAIK LEVEL */}
           <div className="visual-current-level-center">
-            <div className="visual-medal-svg-wrap">
-              <svg width="96" height="96" viewBox="0 0 100 100">
-                <defs>
-                  <linearGradient id="goldMedal" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#fde68a" />
-                    <stop offset="50%" stopColor="#fbbf24" />
-                    <stop offset="100%" stopColor="#d97706" />
-                  </linearGradient>
-                </defs>
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="44"
-                  fill="rgba(2, 44, 34, 0.7)"
-                  stroke="rgba(255,255,255,0.15)"
-                  strokeWidth="6"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="44"
-                  fill="none"
-                  stroke="url(#goldMedal)"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={2 * Math.PI * 44}
-                  strokeDashoffset={
-                    2 * Math.PI * 44 * (1 - persenProgresLevel / 100)
-                  }
-                  transform="rotate(-90 50 50)"
-                />
-                <circle cx="50" cy="50" r="34" fill="url(#goldMedal)" />
-                <text
-                  x="50"
-                  y="46"
-                  textAnchor="middle"
-                  fill="#022c22"
-                  fontSize="12"
-                  fontWeight="900"
+            {apakahLevelTerkunci ? (
+              <>
+                <div className="visual-medal-svg-wrap locked-medal">
+                  <svg width="96" height="96" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="44"
+                      fill="rgba(2, 44, 34, 0.8)"
+                      stroke="rgba(148, 163, 184, 0.35)"
+                      strokeWidth="5"
+                      strokeDasharray="6 5"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="34"
+                      fill="rgba(15, 23, 42, 0.75)"
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                    />
+                  </svg>
+                  <div className="locked-medal-center-icon">
+                    <KunciLevelSvg size={40} warna="#fbbf24" />
+                  </div>
+                </div>
+                <div className="visual-current-level-title locked-title">
+                  <Lock size={14} /> Level {infoLevelDilihat.level} Terkunci
+                </div>
+                <button
+                  type="button"
+                  className="visual-current-status-pill locked-pill"
+                  onClick={() => setNomorLevelDilihat(levelSaatIni.level)}
                 >
-                  LEVEL
-                </text>
-                <text
-                  x="50"
-                  y="68"
-                  textAnchor="middle"
-                  fill="#022c22"
-                  fontSize="24"
-                  fontWeight="900"
-                >
-                  {levelSaatIni.level}
-                </text>
-              </svg>
-            </div>
-            <div className="visual-current-level-title">{levelSaatIni.namaLevel}</div>
-            <div className="visual-current-xp-pill">
-              ⚡ {skorTotal} XP{" "}
-              {levelBerikutnya ? `• ${persenProgresLevel}% ke Lv.${levelBerikutnya.level}` : "• MAX"}
-            </div>
+                  Belum terbuka • Kembali ke Level {levelSaatIni.level}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="visual-medal-svg-wrap">
+                  <svg width="96" height="96" viewBox="0 0 100 100">
+                    <defs>
+                      <linearGradient id="goldMedal" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fde68a" />
+                        <stop offset="50%" stopColor="#fbbf24" />
+                        <stop offset="100%" stopColor="#d97706" />
+                      </linearGradient>
+                    </defs>
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="44"
+                      fill="rgba(2, 44, 34, 0.7)"
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth="6"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="44"
+                      fill="none"
+                      stroke="url(#goldMedal)"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 44}
+                      strokeDashoffset={
+                        2 * Math.PI * 44 * (1 - persenProgresLevel / 100)
+                      }
+                      transform="rotate(-90 50 50)"
+                    />
+                    <circle cx="50" cy="50" r="34" fill="url(#goldMedal)" />
+                    <text
+                      x="50"
+                      y="46"
+                      textAnchor="middle"
+                      fill="#022c22"
+                      fontSize="12"
+                      fontWeight="900"
+                    >
+                      LEVEL
+                    </text>
+                    <text
+                      x="50"
+                      y="68"
+                      textAnchor="middle"
+                      fill="#022c22"
+                      fontSize="24"
+                      fontWeight="900"
+                    >
+                      {infoLevelDilihat.level}
+                    </text>
+                  </svg>
+                </div>
+                <div className="visual-current-level-title">
+                  {infoLevelDilihat.namaLevel}
+                </div>
+                <div className="visual-current-status-pill">
+                  {infoLevelDilihat.level === levelSaatIni.level
+                    ? `Level Aktif • Progres ${persenProgresLevel}%`
+                    : "Level Telah Terbuka"}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Kanan: Level ke Atas */}
-          <div className="visual-step-box up">
-            <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="22" fill="rgba(251, 191, 36, 0.16)" stroke="#fbbf24" strokeWidth="2" />
-              <path d="M16 26L24 18L32 26" stroke="#fde68a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M18 33H30" stroke="#fde68a" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-            <strong className="visual-step-num">{jumlahLevelKeAtas}</strong>
-            <span className="visual-step-lbl">Level ke Atas</span>
-          </div>
-        </div>
-
-        {/* 5 IKON BADGE VISUAL SKOR XP */}
-        <div className="visual-xp-badges-row">
-          <div className="visual-xp-mini">
-            <Database size={16} />
-            <strong>+{rincianSkor.skorVolumeData}</strong>
-            <span>Data</span>
-          </div>
-          <div className="visual-xp-mini">
-            <Layers size={16} />
-            <strong>+{rincianSkor.skorVariasiData}</strong>
-            <span>Variasi</span>
-          </div>
-          <div className="visual-xp-mini">
-            <MessageSquare size={16} />
-            <strong>+{rincianSkor.skorDiskusi}</strong>
-            <span>Diskusi</span>
-          </div>
-          <div className="visual-xp-mini">
-            <Camera size={16} />
-            <strong>+{rincianSkor.skorKualitasData}</strong>
-            <span>Kualitas</span>
-          </div>
-          <div className="visual-xp-mini">
-            <CheckCircle2 size={16} />
-            <strong>+{rincianSkor.skorTugas}</strong>
-            <span>Tugas</span>
-          </div>
+          {/* TOMBOL LEVEL KANAN (DIBERI GAMBAR KUNCI JIKA BELUM NAIK LEVEL) */}
+          <button
+            type="button"
+            className={`visual-level-side-btn ${!levelKanan ? "disabled" : ""}`}
+            disabled={!levelKanan}
+            onClick={() =>
+              levelKanan && setNomorLevelDilihat(levelKanan.level)
+            }
+            title={
+              levelKanan
+                ? levelKanan.level > levelSaatIni.level
+                  ? `Level ${levelKanan.level} Terkunci`
+                  : `Lihat Level ${levelKanan.level}`
+                : "Level Puncak"
+            }
+          >
+            {levelKanan ? (
+              <div className="side-level-badge">
+                {levelKanan.level > levelSaatIni.level ? (
+                  <KunciLevelSvg size={28} warna="#fbbf24" />
+                ) : (
+                  <span className="side-level-unlocked-num">
+                    Lv.{levelKanan.level}
+                  </span>
+                )}
+                <span className="side-level-caption">
+                  {levelKanan.level > levelSaatIni.level
+                    ? `Lv.${levelKanan.level} Terkunci`
+                    : `Level ${levelKanan.level}`}
+                </span>
+              </div>
+            ) : (
+              <div className="side-level-badge muted">
+                <span className="side-level-caption">Puncak</span>
+              </div>
+            )}
+            <ChevronRight size={20} className="side-arrow-icon" />
+          </button>
         </div>
       </div>
 
@@ -1124,7 +1198,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
           persen={(totalPoin / TARGET_TITIK) * 100}
           warna="#0d7344"
           nilai={`${totalPoin}/${TARGET_TITIK}`}
-          label="Titik Lokasi"
+          label="Titik"
           ikon={
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" />
@@ -1137,7 +1211,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
           persen={(totalKm / TARGET_TRACKING_KM) * 100}
           warna="#0284c7"
           nilai={`${totalKm.toFixed(1)}/${TARGET_TRACKING_KM} km`}
-          label="Jalur Tracking"
+          label="Jalur"
           ikon={
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <circle cx="6" cy="18" r="3" />
@@ -1151,7 +1225,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
           persen={(totalHa / TARGET_POLIGON_HA) * 100}
           warna="#d97706"
           nilai={`${totalHa.toFixed(1)}/${TARGET_POLIGON_HA} Ha`}
-          label="Luas Poligon"
+          label="Poligon"
           ikon={
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <polygon points="12 3 21 8 18 19 6 19 3 8" />
@@ -1165,7 +1239,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
         <div className="certificate-header-bar">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Award size={20} color="#0d7344" />
-            <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat Kader</h3>
+            <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat</h3>
           </div>
 
           <div className="certificate-action-btns">
@@ -1173,16 +1247,16 @@ export const RewardView: React.FC<RewardViewProps> = ({
               type="button"
               className="btn-outline-sm"
               onClick={() => inputFotoRef.current?.click()}
-              title="Tambahkan atau ganti foto kader pada sertifikat"
+              title="Foto Sertifikat"
             >
-              <Camera size={14} /> {fotoSertifikatBase64 ? "Ganti Foto" : "+ Foto Sertifikat"}
+              <Camera size={14} /> {fotoSertifikatBase64 ? "Ganti Foto" : "+ Foto"}
             </button>
             {fotoSertifikatBase64 && (
               <button
                 type="button"
                 className="btn-outline-sm"
                 onClick={handleHapusFotoSertifikat}
-                title="Hapus foto dari sertifikat"
+                title="Hapus Foto"
               >
                 <Trash2 size={14} />
               </button>
@@ -1192,14 +1266,14 @@ export const RewardView: React.FC<RewardViewProps> = ({
               className="btn-outline-sm"
               onClick={handleCetakSertifikat}
             >
-              <Printer size={14} /> Cetak PDF
+              <Printer size={14} /> Cetak
             </button>
             <button
               type="button"
               className="btn-primary-sm"
               onClick={handleUnduhSertifikatPng}
             >
-              <Download size={14} /> Unduh PNG
+              <Download size={14} /> Unduh
             </button>
           </div>
         </div>
@@ -1217,15 +1291,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
           <div className="cert-admin-signer-box">
             <div className="cert-admin-signer-title">
               <PenTool size={15} color="#0284c7" />
-              <strong>Pengaturan Penandatangan Sertifikat (Mode Admin)</strong>
+              <strong>Penandatangan</strong>
             </div>
             <div className="form-row-2">
               <div>
-                <label>Nama Pejabat Penandatangan</label>
+                <label>Nama Pejabat</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Contoh: Dr. Budi Santoso, M.Sc"
+                  placeholder="Nama penandatangan"
                   value={sertifikatTampil.ditandatanganiOleh}
                   onChange={(e) => {
                     const namaBaru = e.target.value;
@@ -1241,11 +1315,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 />
               </div>
               <div>
-                <label>Jabatan Penandatangan</label>
+                <label>Jabatan</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Contoh: Koordinator Program GIS"
+                  placeholder="Jabatan penandatangan"
                   value={sertifikatTampil.jabatanPenandatangan}
                   onChange={(e) => {
                     const jabatanBaru = e.target.value;
@@ -1265,64 +1339,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
         )}
       </div>
 
-      {/* 4. VOUCHER VISUAL INSENTIF 1 HOK */}
-      <div className="section-card visual-hok-voucher">
-        <div className="visual-hok-left">
-          <div className="visual-hok-svg-box">
-            <Banknote size={26} color="#0d7344" />
-          </div>
-          <div>
-            <div className="visual-hok-title">Insentif Kerja 1 HOK</div>
-            <strong className="visual-hok-price">
-              Rp {profil.tarifHokRupiah.toLocaleString("id-ID")}
-            </strong>
-          </div>
-        </div>
-
-        <div className="visual-hok-right">
-          {capaian.jumlahHakUpahHok > klaimUpahList.length ? (
-            <button
-              type="button"
-              className="btn-primary-sm"
-              onClick={() =>
-                onAjukanKlaimUpah(
-                  (klaimUpahList.length + 1) * 2,
-                  `${capaian.totalPoinTitik} titik, ${capaian.totalTrackingKm.toFixed(1)} km, ${capaian.totalPoligonHa.toFixed(1)} Ha`
-                )
-              }
-            >
-              <Sparkles size={14} /> Klaim 1 HOK
-            </button>
-          ) : (
-            <span className="visual-hok-badge">
-              {capaian.totalPaketSelesai} / 2 Paket
-            </span>
-          )}
-        </div>
-      </div>
-
-      {klaimUpahList.length > 0 && (
-        <div className="hok-list">
-          {klaimUpahList.map((k) => (
-            <div key={k.id} className="hok-item">
-              <strong>Tiket {k.id} (1 HOK)</strong>
-              <span className={`badge-sync status-${k.status}`}>
-                Rp {k.nominalRupiah.toLocaleString("id-ID")} • {k.status.toUpperCase()}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 5. DRAWER PENGATURAN IDENTITAS & FOTO SERTIFIKAT */}
+      {/* 4. DRAWER PENGATURAN PROFIL */}
       {bukaPengaturan && (
         <div className="section-card">
           <h4 style={{ margin: "0 0 10px", fontSize: "0.94rem", display: "flex", alignItems: "center", gap: 6 }}>
-            <UserCheck size={16} color="#0d7344" /> Identitas & Foto Sertifikat
+            <UserCheck size={16} color="#0d7344" /> Profil
           </h4>
           <div className="form-row-3">
             <div>
-              <label>Nama di Sertifikat</label>
+              <label>Nama</label>
               <input
                 type="text"
                 className="form-input"
@@ -1331,7 +1356,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
               />
             </div>
             <div>
-              <label>Desa / Wilayah</label>
+              <label>Wilayah</label>
               <input
                 type="text"
                 className="form-input"
@@ -1356,7 +1381,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
               className="btn-primary-sm"
               onClick={() => inputFotoRef.current?.click()}
             >
-              <Camera size={14} /> {fotoSertifikatBase64 ? "Ubah Foto Sertifikat" : "Pilih Foto untuk Sertifikat"}
+              <Camera size={14} /> {fotoSertifikatBase64 ? "Ubah Foto" : "Pilih Foto"}
             </button>
             {fotoSertifikatBase64 && (
               <button

@@ -20,8 +20,6 @@ export interface HasilPerhitunganCapaian {
   progresPaketBerikutnyaPersen: number;
   berhakSertifikat: boolean;
   alasanSertifikat: string;
-  jumlahHakUpahHok: number;
-  paketMenujuUpahBerikutnya: number;
 }
 
 export interface InfoLevelGis {
@@ -454,21 +452,6 @@ export function hitungCapaianKader(
     );
   }
 
-  // Perhitungan Siklus Upah Harian (1 HOK setiap 2x Paket Capaian)
-  let jumlahHakUpahHok = 0;
-  let paketMenujuUpahBerikutnya = 2;
-
-  if (profil.modePerhitunganUpah === "reset_setelah_sertifikat") {
-    // Setelah paket ke-1 dipakai sertifikat, setiap 2 paket berikutnya = 1 HOK (paket ke-3, 5, 7...)
-    const paketSetelahSertifikat = Math.max(0, totalPaketSelesai - 1);
-    jumlahHakUpahHok = Math.floor(paketSetelahSertifikat / 2);
-    paketMenujuUpahBerikutnya = 2 - (paketSetelahSertifikat % 2);
-  } else {
-    // Kumulatif: setiap kelipatan 2 paket (paket ke-2, 4, 6...) = 1 HOK
-    jumlahHakUpahHok = Math.floor(totalPaketSelesai / 2);
-    paketMenujuUpahBerikutnya = 2 - (totalPaketSelesai % 2);
-  }
-
   return {
     jumlahTitik,
     jumlahPembaruan,
@@ -484,8 +467,6 @@ export function hitungCapaianKader(
     totalPaketSelesai,
     progresPaketBerikutnyaPersen,
     berhakSertifikat,
-    alasanSertifikat: alasanList.join(" & ") || "Dalam Progres",
-    jumlahHakUpahHok,
-    paketMenujuUpahBerikutnya
+    alasanSertifikat: alasanList.join(", ") || "Dalam Progres"
   };
 }

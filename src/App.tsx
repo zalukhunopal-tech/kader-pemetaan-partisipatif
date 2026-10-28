@@ -3,7 +3,6 @@ import {
   AreaPetaOffline,
   DataSpasialItem,
   KaderAktifPresence,
-  KlaimUpahHOK,
   KonfigurasiGDrive,
   LapisanSpasial,
   MenuTab,
@@ -19,7 +18,6 @@ import {
   muatAreaOffline,
   muatDataSpasial,
   muatKaderAktif,
-  muatKlaimUpah,
   muatKonfigGDrive,
   muatLapisan,
   muatPengumuman,
@@ -30,7 +28,6 @@ import {
   simpanAreaOffline,
   simpanDataSpasial,
   simpanKaderAktif,
-  simpanKlaimUpah,
   simpanKonfigGDrive,
   simpanLapisan,
   simpanPengumuman,
@@ -130,9 +127,6 @@ export const App: React.FC = () => {
   const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() =>
     muatSertifikat()
   );
-  const [klaimUpahList, setKlaimUpahList] = useState<KlaimUpahHOK[]>(() =>
-    muatKlaimUpah()
-  );
   const [pengumumanList, setPengumumanList] = useState<PengumumanBroadcast[]>(() =>
     muatPengumuman()
   );
@@ -169,7 +163,6 @@ export const App: React.FC = () => {
   useEffect(() => simpanAreaOffline(areaOffline), [areaOffline]);
   useEffect(() => simpanLapisan(lapisanList), [lapisanList]);
   useEffect(() => simpanSertifikat(sertifikatList), [sertifikatList]);
-  useEffect(() => simpanKlaimUpah(klaimUpahList), [klaimUpahList]);
   useEffect(() => simpanPengumuman(pengumumanList), [pengumumanList]);
   useEffect(() => simpanTugas(tugasList), [tugasList]);
   useEffect(() => simpanPesan(pesanList), [pesanList]);
@@ -385,11 +378,11 @@ export const App: React.FC = () => {
   const judulHalamanUtama: Record<MenuTab, string> = {
     pustaka: "Pustaka",
     peta: "Temukan",
-    data_sync: "GDrive & Foto",
+    data_sync: "Sinkronisasi",
     reward: "Sertifikat",
-    tugas: "Tugas & Info",
+    tugas: "Tugas",
     komunikasi: "Diskusi",
-    admin: "Panel Admin"
+    admin: "Admin"
   };
 
   if (bukaPemberitahuan) {
@@ -424,7 +417,7 @@ export const App: React.FC = () => {
         if (bukaMenuTitikTiga) setBukaMenuTitikTiga(false);
       }}
     >
-      {/* TOPBAR BERGAYA AVENZA MAPS DENGAN INDIKATOR PERAN (ADMIN / USER) & TOMBOL LOGOUT */}
+      {/* TOPBAR BERSIH: JUDUL TUNGGAL DI KIRI, TOOLBAR DISEMBUNYIKAN HINGGA DIKLIK AGAR TIDAK MENIMPA TEKS */}
       <header className="avenza-topbar">
         <div className="avenza-topbar-left">
           <h1
@@ -433,142 +426,133 @@ export const App: React.FC = () => {
           >
             {judulHalamanUtama[tabAktif]}
           </h1>
-
-          {/* CHIP KONEKSI */}
-          <button
-            type="button"
-            className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
-            onClick={() => setSedangOnline((o) => !o)}
-            title="Klik untuk beralih mode Sinyal Online / Hutan Offline"
-          >
-            {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-            <span>{sedangOnline ? "Online" : "Offline"}</span>
-          </button>
-
-          {/* CHIP PERAN AKUN (ADMIN vs USER KADER) */}
-          <button
-            type="button"
-            className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
-            onClick={() => gantiPeranAkun(peran === "admin" ? "kader" : "admin")}
-            title="Klik untuk beralih Akun Admin / Akun User"
-          >
-            {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
-            <span>{peran === "admin" ? "Admin" : "User"}</span>
-          </button>
         </div>
 
-        {/* 5 IKON AKSI KANAN ATAS: REWARD, NOTIF, SHARE, LOGOUT, TITIK TIGA */}
-        <div className="avenza-topbar-actions">
+        <div
+          className="avenza-topbar-actions"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
-            className={`avenza-icon-btn ${tabAktif === "reward" ? "active" : ""}`}
-            onClick={() => setTabAktif("reward")}
-            title="Sertifikat & Profil Kader"
+            className={`avenza-toolbar-toggle-btn ${bukaMenuTitikTiga ? "active" : ""}`}
+            onClick={() => setBukaMenuTitikTiga((v) => !v)}
+            title="Buka Toolbar"
           >
-            <UserCheck size={20} strokeWidth={2} />
+            <MoreVertical size={19} strokeWidth={2.2} />
+            <span>Menu</span>
           </button>
 
-          <button
-            type="button"
-            className="avenza-icon-btn"
-            onClick={() => setBukaPemberitahuan(true)}
-            title="Pemberitahuan & Tugas"
-          >
-            <Bell size={20} strokeWidth={2} />
-          </button>
-
-          <button
-            type="button"
-            className="avenza-icon-btn"
-            onClick={() => setBukaPengaturanEkspor(true)}
-            title="Pengaturan Ekspor"
-          >
-            <Share size={20} strokeWidth={2} />
-          </button>
-
-          {/* TOMBOL LOGOUT RESMI */}
-          <button
-            type="button"
-            className="avenza-icon-btn"
-            onClick={handleLogout}
-            title={`Keluar dari Akun (${sesiPengguna.nama})`}
-            style={{ color: "#dc2626" }}
-          >
-            <LogOut size={19} strokeWidth={2} />
-          </button>
-
-          <div
-            className="avenza-more-menu-wrap"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="avenza-icon-btn"
-              onClick={() => setBukaMenuTitikTiga((v) => !v)}
-              title="Menu Lainnya"
-            >
-              <MoreVertical size={20} strokeWidth={2} />
-            </button>
-
-            {bukaMenuTitikTiga && (
-              <div className="avenza-overflow-menu">
+          {bukaMenuTitikTiga && (
+            <div className="avenza-overflow-menu toolbar-popover">
+              {/* BARIS CHIP KONEKSI & PERAN DI DALAM TOOLBAR POPOVER */}
+              <div className="toolbar-popover-chips">
                 <button
                   type="button"
-                  className="avenza-overflow-item"
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    setTabAktif("pustaka");
-                    setModePilihPustaka(true);
-                  }}
+                  className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
+                  onClick={() => setSedangOnline((o) => !o)}
                 >
-                  Pilih
+                  {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+                  <span>{sedangOnline ? "Online" : "Offline"}</span>
                 </button>
+
                 <button
                   type="button"
-                  className="avenza-overflow-item"
+                  className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
                   onClick={() => {
                     setBukaMenuTitikTiga(false);
-                    tampilkanToast("✓ Memeriksa pembaruan peta offline.");
+                    gantiPeranAkun(peran === "admin" ? "kader" : "admin");
                   }}
                 >
-                  Periksa pembaruan peta
-                </button>
-                <button
-                  type="button"
-                  className="avenza-overflow-item"
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    setTabAktif("data_sync");
-                  }}
-                >
-                  Pengaturan Google Drive
-                </button>
-                <div className="avenza-overflow-divider" />
-                <button
-                  type="button"
-                  className="avenza-overflow-item"
-                  style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    gantiPeranAkun(peran === "kader" ? "admin" : "kader");
-                  }}
-                >
-                  {peran === "kader" ? "🛡️ Beralih ke Akun Admin" : "👤 Beralih ke Akun User"}
-                </button>
-                <button
-                  type="button"
-                  className="avenza-overflow-item"
-                  style={{ color: "#dc2626", fontWeight: 700 }}
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    handleLogout();
-                  }}
-                >
-                  Keluar / Logout
+                  {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
+                  <span>{peran === "admin" ? "Admin" : "User"}</span>
                 </button>
               </div>
-            )}
-          </div>
+
+              <div className="avenza-overflow-divider" />
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  setTabAktif("reward");
+                }}
+              >
+                <UserCheck size={16} /> Sertifikat
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  setBukaPemberitahuan(true);
+                }}
+              >
+                <Bell size={16} /> Pemberitahuan
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  setBukaPengaturanEkspor(true);
+                }}
+              >
+                <Share size={16} /> Ekspor
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  setTabAktif("pustaka");
+                  setModePilihPustaka(true);
+                }}
+              >
+                <Folder size={16} /> Pilih
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  setTabAktif("data_sync");
+                }}
+              >
+                <CloudUpload size={16} /> Sinkronisasi
+              </button>
+
+              <div className="avenza-overflow-divider" />
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  gantiPeranAkun(peran === "kader" ? "admin" : "kader");
+                }}
+              >
+                {peran === "kader" ? "🛡️ Mode Admin" : "👤 Mode User"}
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                style={{ color: "#dc2626", fontWeight: 700 }}
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  handleLogout();
+                }}
+              >
+                <LogOut size={16} /> Keluar
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -702,26 +686,10 @@ export const App: React.FC = () => {
             profil={profil}
             peran={peran}
             sertifikatList={sertifikatList}
-            klaimUpahList={klaimUpahList}
             pesanList={pesanList}
             tugasList={tugasList}
             onUbahProfil={setProfil}
             onUbahPenandatanganSertifikat={handleUbahPenandatanganSertifikat}
-            onAjukanKlaimUpah={(paketKe, rincian) => {
-              const klaimBaru: KlaimUpahHOK = {
-                id: `HOK-${Date.now().toString().slice(-4)}`,
-                idKader: profil.idKader,
-                namaKader: profil.nama,
-                desaWilayah: profil.desaWilayah,
-                paketKe,
-                jumlahHok: 1,
-                nominalRupiah: profil.tarifHokRupiah,
-                rincianBukti: rincian,
-                tanggalKlaim: new Date().toISOString().slice(0, 10),
-                status: "diajukan"
-              };
-              setKlaimUpahList((prev) => [klaimBaru, ...prev]);
-            }}
           />
         )}
 
@@ -753,7 +721,6 @@ export const App: React.FC = () => {
             dataSpasial={dataSpasial}
             profilKader={profil}
             sertifikatList={sertifikatList}
-            klaimUpahList={klaimUpahList}
             tugasList={tugasList}
             kaderAktifList={kaderAktifList}
             onVerifikasiData={(id: string, status: StatusSinkron, catatan?: string) =>
@@ -772,11 +739,6 @@ export const App: React.FC = () => {
               handleUbahPenandatanganSertifikat(nama, jabatan);
               tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
             }}
-            onUpdateStatusKlaimHok={(id, status, catatanAdmin) =>
-              setKlaimUpahList((prev) =>
-                prev.map((k) => (k.id === id ? { ...k, status, catatanAdmin } : k))
-              )
-            }
             onTambahPengumuman={(p) => setPengumumanList((prev) => [p, ...prev])}
             onTambahTugas={handleTambahTugas}
             onHapusTugas={handleHapusTugas}

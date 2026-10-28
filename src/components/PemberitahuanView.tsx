@@ -74,7 +74,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
             <>
               {pengumumanList.length > 0 && (
                 <div className="section-card">
-                  <h3>📢 Pengumuman Lapangan ({pengumumanList.length})</h3>
+                  <h3>📢 Pengumuman ({pengumumanList.length})</h3>
                   <div className="announcement-list">
                     {pengumumanList.map((p) => (
                       <div
@@ -97,7 +97,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
 
               {tugasList.length > 0 && (
                 <div className="section-card">
-                  <h3>🎯 Penugasan Survei Lapangan ({tugasList.length})</h3>
+                  <h3>🎯 Tugas ({tugasList.length})</h3>
                   <div className="task-grid">
                     {tugasList.map((t) => (
                       <div key={t.id} className="task-card">

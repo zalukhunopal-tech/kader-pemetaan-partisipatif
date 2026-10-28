@@ -100,8 +100,6 @@ export interface ProfilKader {
   kelompokMasyarakat: string;
   noHp: string;
   namaOrganisasi: string;
-  tarifHokRupiah: number;
-  modePerhitunganUpah: "kumulatif" | "reset_setelah_sertifikat";
   modeKombinasiTarget: "per_kategori" | "gabungan_proporsional";
   fotoKaderBase64?: string;
   namaPenandatanganSertifikat?: string;
@@ -121,20 +119,6 @@ export interface SertifikatKader {
   ditandatanganiOleh: string;
   jabatanPenandatangan: string;
   fotoKaderBase64?: string;
-}
-
-export interface KlaimUpahHOK {
-  id: string;
-  idKader: string;
-  namaKader: string;
-  desaWilayah: string;
-  paketKe: number; // misal Paket 2, 4, 6...
-  jumlahHok: number; // 1 Hari Orang Kerja (1 HOK)
-  nominalRupiah: number;
-  rincianBukti: string;
-  tanggalKlaim: string;
-  status: "terbuka" | "diajukan" | "disetujui" | "dicairkan";
-  catatanAdmin?: string;
 }
 
 export interface PengumumanBroadcast {

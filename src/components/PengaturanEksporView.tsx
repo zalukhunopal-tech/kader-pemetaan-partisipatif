@@ -92,7 +92,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
           >
             <ArrowLeft size={24} />
           </button>
-          <h2>Pengaturan ekspor</h2>
+          <h2>Ekspor</h2>
         </div>
 
         <button

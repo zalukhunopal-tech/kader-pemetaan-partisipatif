@@ -3199,3 +3199,165 @@ label {
   border-radius: 99px;
   cursor: pointer;
 }
+
+/* ============================================================================
+   TOOLBAR ATAS TERSEMBUNYI (MUNCUL HANYA SAAT DIKLIK AGAR TIDAK MENIMPA TEKS)
+   ============================================================================ */
+.avenza-toolbar-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f5f3;
+  color: #181a19;
+  border: 1px solid #cbd5e1;
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.avenza-toolbar-toggle-btn.active,
+.avenza-toolbar-toggle-btn:hover {
+  background: #e8f5ee;
+  border-color: var(--avenza-green);
+  color: var(--avenza-green);
+}
+
+.toolbar-popover {
+  min-width: 215px;
+  padding: 8px 0;
+}
+
+.toolbar-popover-chips {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 14px 10px;
+}
+
+.toolbar-popover .avenza-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ============================================================================
+   KARTU NAVIGASI LEVEL KIRI / KANAN DENGAN GAMBAR KUNCI (TANPA XP)
+   ============================================================================ */
+.visual-level-carousel {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 16px 12px;
+}
+
+.visual-level-side-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 12px 8px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  min-height: 86px;
+}
+
+.visual-level-side-btn:hover:not(.disabled) {
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.55);
+  transform: translateY(-1px);
+}
+
+.visual-level-side-btn.disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.side-arrow-icon {
+  color: #fde68a;
+  flex-shrink: 0;
+}
+
+.side-level-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.side-level-unlocked-num {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #6ee7b7;
+}
+
+.side-level-caption {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  line-height: 1.15;
+}
+
+.locked-medal {
+  position: relative;
+}
+
+.locked-medal-center-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.locked-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #cbd5e1 !important;
+}
+
+.visual-current-status-pill {
+  background: rgba(251, 191, 36, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fef08a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 99px;
+}
+
+.visual-current-status-pill.locked-pill {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(251, 191, 36, 0.55);
+  color: #fde68a;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .visual-level-carousel {
+    padding: 12px 8px;
+    gap: 6px;
+  }
+
+  .visual-level-side-btn {
+    padding: 10px 4px;
+    min-height: 76px;
+  }
+
+  .side-level-caption {
+    font-size: 0.64rem;
+  }
+}

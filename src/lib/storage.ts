@@ -2,7 +2,6 @@ import {
   AreaPetaOffline,
   DataSpasialItem,
   KaderAktifPresence,
-  KlaimUpahHOK,
   KonfigurasiGDrive,
   LapisanSpasial,
   PengumumanBroadcast,
@@ -18,7 +17,6 @@ const KEY_SPASIAL = "geokader_data_spasial_v5";
 const KEY_OFFLINE_MAPS = "geokader_offline_maps_v5";
 const KEY_LAPISAN = "geokader_lapisan_v5";
 const KEY_SERTIFIKAT = "geokader_sertifikat_v5";
-const KEY_UPAH_HOK = "geokader_upah_hok_v5";
 const KEY_PENGUMUMAN = "geokader_pengumuman_v5";
 const KEY_TUGAS = "geokader_tugas_v5";
 const KEY_PESAN = "geokader_pesan_v5";
@@ -52,8 +50,6 @@ export const PROFIL_BAWAAN: ProfilKader = {
   kelompokMasyarakat: "-",
   noHp: "-",
   namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
-  tarifHokRupiah: 150000,
-  modePerhitunganUpah: "kumulatif",
   modeKombinasiTarget: "per_kategori",
   namaPenandatanganSertifikat: "Koordinator Program GIS",
   jabatanPenandatanganSertifikat: "Koordinator Verifikasi Spasial"
@@ -64,7 +60,6 @@ export const DATA_SPASIAL_AWAL: DataSpasialItem[] = [];
 export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [];
 export const LAPISAN_AWAL: LapisanSpasial[] = [];
 export const SERTIFIKAT_AWAL: SertifikatKader[] = [];
-export const KLAIM_UPAH_AWAL: KlaimUpahHOK[] = [];
 export const PENGUMUMAN_AWAL: PengumumanBroadcast[] = [];
 export const TUGAS_AWAL: TugasPemetaan[] = [];
 export const PESAN_AWAL: PesanKomunikasi[] = [];
@@ -102,9 +97,6 @@ export const simpanLapisan = (v: LapisanSpasial[]) => simpanJson(KEY_LAPISAN, v)
 
 export const muatSertifikat = () => bacaJson<SertifikatKader[]>(KEY_SERTIFIKAT, SERTIFIKAT_AWAL);
 export const simpanSertifikat = (v: SertifikatKader[]) => simpanJson(KEY_SERTIFIKAT, v);
-
-export const muatKlaimUpah = () => bacaJson<KlaimUpahHOK[]>(KEY_UPAH_HOK, KLAIM_UPAH_AWAL);
-export const simpanKlaimUpah = (v: KlaimUpahHOK[]) => simpanJson(KEY_UPAH_HOK, v);
 
 export const muatPengumuman = () => bacaJson<PengumumanBroadcast[]>(KEY_PENGUMUMAN, PENGUMUMAN_AWAL);
 export const simpanPengumuman = (v: PengumumanBroadcast[]) => simpanJson(KEY_PENGUMUMAN, v);

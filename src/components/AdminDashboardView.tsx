@@ -4,7 +4,6 @@ import {
   JenisGeometri,
   KaderAktifPresence,
   KategoriSurvei,
-  KlaimUpahHOK,
   PengumumanBroadcast,
   ProfilKader,
   SertifikatKader,
@@ -14,7 +13,6 @@ import {
 import {
   Check,
   Award,
-  Banknote,
   PlusCircle,
   X,
   MapPin,
@@ -29,7 +27,6 @@ interface AdminDashboardViewProps {
   dataSpasial: DataSpasialItem[];
   profilKader: ProfilKader;
   sertifikatList: SertifikatKader[];
-  klaimUpahList: KlaimUpahHOK[];
   tugasList: TugasPemetaan[];
   kaderAktifList: KaderAktifPresence[];
   onVerifikasiData: (id: string, status: StatusSinkron, catatan?: string) => void;
@@ -37,11 +34,6 @@ interface AdminDashboardViewProps {
   onHapusDataSpasial: (id: string) => void;
   onTerbitkanSertifikat: (sert: SertifikatKader) => void;
   onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
-  onUpdateStatusKlaimHok: (
-    id: string,
-    status: KlaimUpahHOK["status"],
-    catatanAdmin: string
-  ) => void;
   onTambahPengumuman: (p: PengumumanBroadcast) => void;
   onTambahTugas: (t: TugasPemetaan) => void;
   onHapusTugas: (id: string) => void;
@@ -53,7 +45,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   dataSpasial,
   profilKader,
   sertifikatList,
-  klaimUpahList,
   tugasList,
   kaderAktifList,
   onVerifikasiData,
@@ -61,14 +52,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onHapusDataSpasial,
   onTerbitkanSertifikat,
   onUbahPenandatanganSertifikat,
-  onUpdateStatusKlaimHok,
   onTambahPengumuman,
   onTambahTugas,
   onHapusTugas,
   onFokusKePeta
 }) => {
   const [subTabAdmin, setSubTabAdmin] = useState<
-    "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat_hok"
+    "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat"
   >("kader_aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
@@ -181,10 +171,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </span>
             </div>
             <h2 style={{ margin: "6px 0 4px", color: "#ffffff", fontSize: "1.2rem", lineHeight: 1.3 }}>
-              Panel Kendali Pemetaan
+              Kendali
             </h2>
             <div style={{ fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
-              🟢 {jumlahOnline} Kader Aktif • {dataSpasial.length} Data Spasial
+              🟢 {jumlahOnline} Kader • {dataSpasial.length} Data
             </div>
           </div>
         </div>
@@ -193,7 +183,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
             gap: 8,
             marginTop: 14
           }}
@@ -217,7 +207,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             }}
           >
             <Radio size={15} color="#38bdf8" />
-            <span>Monitor Kader</span>
+            <span>Monitor</span>
           </button>
 
           <button
@@ -239,7 +229,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             }}
           >
             <Edit3 size={15} color="#38bdf8" />
-            <span>Kelola Data ({dataSpasial.length})</span>
+            <span>Data ({dataSpasial.length})</span>
           </button>
 
           <button
@@ -266,12 +256,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => setSubTabAdmin("sertifikat_hok")}
+            onClick={() => setSubTabAdmin("sertifikat")}
             style={{
               padding: "10px 10px",
               borderRadius: "10px",
-              border: subTabAdmin === "sertifikat_hok" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
-              background: subTabAdmin === "sertifikat_hok" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
+              border: subTabAdmin === "sertifikat" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
+              background: subTabAdmin === "sertifikat" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
               color: "#ffffff",
               fontSize: "0.78rem",
               fontWeight: 700,
@@ -283,7 +273,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             }}
           >
             <Award size={15} color="#38bdf8" />
-            <span>Sertifikat & HOK</span>
+            <span>Sertifikat</span>
           </button>
         </div>
       </div>
@@ -292,7 +282,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {subTabAdmin === "kader_aktif" && (
         <div className="section-card">
           <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-            <MapPin size={18} color="#0284c7" /> Monitor Lokasi Kader Lapangan
+            <MapPin size={18} color="#0284c7" /> Monitor
           </h3>
 
           {kaderAktifList.length > 0 ? (
@@ -346,7 +336,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {subTabAdmin === "kelola_data" && (
         <div className="section-card">
           <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
-            ✏️ Kelola Data Lapangan ({dataSpasial.length})
+            ✏️ Data ({dataSpasial.length})
           </h3>
 
           {dataSpasial.length > 0 ? (
@@ -354,8 +344,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>ID & Kader</th>
-                    <th>Kategori & Judul</th>
+                    <th>Kader</th>
+                    <th>Objek</th>
                     <th>Status</th>
                     <th>Tindakan</th>
                   </tr>
@@ -693,12 +683,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </div>
       )}
 
-      {/* 5. TAB D: SERTIFIKAT & 1 HOK */}
-      {subTabAdmin === "sertifikat_hok" && (
+      {/* 5. TAB D: SERTIFIKAT */}
+      {subTabAdmin === "sertifikat" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div className="section-card">
             <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Award size={18} color="#0d7344" /> Pengaturan Penandatangan & Penerbitan Sertifikat
+              <Award size={18} color="#0d7344" /> Sertifikat
             </h3>
 
             <div className="form-row-3">
@@ -712,7 +702,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 />
               </div>
               <div>
-                <label>Nama Pejabat Penandatangan</label>
+                <label>Nama Penandatangan</label>
                 <input
                   type="text"
                   className="form-input"
@@ -750,7 +740,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   onUbahPenandatanganSertifikat?.(penandatangan, jabatanPenandatangan)
                 }
               >
-                ✍️ Simpan Nama Penandatangan Sertifikat
+                ✍️ Simpan Penandatangan
               </button>
 
               <button
@@ -774,7 +764,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   })
                 }
               >
-                🏅 Terbitkan Sertifikat ({sertifikatList.length} Terbit)
+                🏅 Terbitkan ({sertifikatList.length})
               </button>
             </div>
 
@@ -799,58 +789,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <div>
                       <strong>{s.nomorSertifikat}</strong> — {s.namaKader}
                       <div style={{ color: "#047857", fontSize: "0.78rem" }}>
-                        Ditandatangani oleh: <strong>{s.ditandatanganiOleh}</strong> ({s.jabatanPenandatangan})
+                        Penandatangan: <strong>{s.ditandatanganiOleh}</strong> ({s.jabatanPenandatangan})
                       </div>
                     </div>
                     <span className="badge-sync status-terverifikasi">TERBIT</span>
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-
-          <div className="section-card">
-            <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Banknote size={18} color="#0d7344" /> Klaim Upah 1 HOK
-            </h3>
-            {klaimUpahList.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {klaimUpahList.map((k) => (
-                  <div
-                    key={k.id}
-                    style={{
-                      background: "#f8faf9",
-                      border: "1px solid #d5dcd8",
-                      borderRadius: 12,
-                      padding: "12px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                      gap: 10
-                    }}
-                  >
-                    <div>
-                      <strong>{k.namaKader} — {k.id}</strong>
-                      <div className="text-xs text-emerald">
-                        Rp {k.nominalRupiah.toLocaleString("id-ID")} • <b>{k.status.toUpperCase()}</b>
-                      </div>
-                    </div>
-                    {k.status !== "dicairkan" && (
-                      <button
-                        type="button"
-                        className="btn-primary-sm"
-                        onClick={() => onUpdateStatusKlaimHok(k.id, "dicairkan", "Disetujui.")}
-                      >
-                        Cairkan
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: 20, color: "#64748b" }}>
-                Belum ada pengajuan klaim 1 HOK.
               </div>
             )}
           </div>

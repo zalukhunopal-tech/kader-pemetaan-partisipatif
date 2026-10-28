@@ -866,7 +866,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         {bukaMenuPeta && (
           <div className="map-layers-popover">
             <div className="map-popover-head">
-              <strong>Peta Dasar & Alat</strong>
+              <strong>Peta</strong>
               <button
                 type="button"
                 className="btn-icon-close"

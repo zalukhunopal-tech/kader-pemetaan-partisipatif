@@ -89,10 +89,10 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         <div className="section-header-flex">
           <div>
             <h2 style={{ fontSize: "1.25rem", margin: "0 0 4px" }}>
-              ☁️ Sinkronisasi Google Drive & Sheets
+              ☁️ Sinkronisasi
             </h2>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.86rem" }}>
-              Penyimpanan Offline-First: data dan foto tersimpan di memori HP dan otomatis diunggah ke Google Drive saat ada sinyal internet.
+              Data tersimpan di perangkat lalu diunggah otomatis saat sinyal tersedia.
             </p>
           </div>
           <button
@@ -146,10 +146,10 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         <div className="section-header-flex">
           <div>
             <h3 style={{ margin: "0 0 4px", display: "flex", alignItems: "center", gap: 8, fontSize: "1.05rem" }}>
-              <ImageIcon size={20} color="#0d7344" /> Preview Foto Lapangan ({dataDenganFoto.length} Foto)
+              <ImageIcon size={20} color="#0d7344" /> Foto ({dataDenganFoto.length})
             </h3>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-              Preview gambar foto dokumentasi survei kader yang siap diunggah ke Google Drive <code>Database_Pemetaan/Foto_Lapangan/</code>
+              Dokumentasi foto survei lapangan
             </p>
           </div>
         </div>
@@ -253,10 +253,10 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         <div className="section-header-flex">
           <div>
             <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
-              📋 Daftar Data Spasial Lapangan ({dataTampil.length})
+              📋 Data ({dataTampil.length})
             </h3>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-              Daftar objek spasial riil hasil perekaman survei kader
+              Daftar objek spasial hasil perekaman
             </p>
           </div>
 
@@ -492,7 +492,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         <div className="section-header-flex">
           <div>
             <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <FolderGit2 size={18} color="#0d7344" /> Pengaturan Google Drive & Spreadsheet Master
+              <FolderGit2 size={18} color="#0d7344" /> Konfigurasi
             </h3>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
               Koneksikan ke Web App Google Apps Script organisasi Anda
