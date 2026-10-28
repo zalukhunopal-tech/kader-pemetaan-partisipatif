@@ -172,8 +172,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               }}
             >
               {saluranAktif === "komunitas"
-                ? "Grup Koordinasi Kader Lapangan"
-                : "Helpdesk Admin & Verifikasi GIS"}
+                ? "Komunitas"
+                : "Admin"}
             </div>
             <div
               style={{
@@ -198,11 +198,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 }}
               />
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                {sedangOnline
-                  ? saluranAktif === "komunitas"
-                    ? "3 Kader online di wilayah"
-                    : "Admin standby (Respons Cepat)"
-                  : "Mode Offline (Antrean Otomatis)"}
+                {sedangOnline ? "Online" : "Offline"}
               </span>
             </div>
           </div>
@@ -359,7 +355,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
               {saluranAktif === "komunitas"
                 ? "Bagikan kabar temuan pohon, sarang satwa, mata air, atau titik koordinat GPS ke sesama kader."
-                : "Konsultasikan batas survei, validasi data spasial, sertifikat, atau pencairan HOK ke admin GIS."}
+                : "Konsultasikan batas survei, validasi data spasial, atau sertifikat ke admin GIS."}
             </div>
           </div>
         ) : (

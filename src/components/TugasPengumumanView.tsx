@@ -20,7 +20,7 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
       {/* PENGUMUMAN BROADCAST DARI ADMIN */}
       <div className="section-card">
         <h3>
-          <Bell size={18} /> Papan Pengumuman & Informasi Lapangan ({pengumumanList.length})
+          <Bell size={18} /> Pengumuman ({pengumumanList.length})
         </h3>
         <div className="announcement-list">
           {pengumumanList.map((p) => (
@@ -44,7 +44,7 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
       {/* PENUGASAN SPASIAL SPESIFIK (TASK ASSIGNMENT) */}
       <div className="section-card">
         <h3>
-          <Target size={18} /> Daftar Penugasan Survei & Pemetaan Spesifik ({tugasList.length})
+          <Target size={18} /> Tugas ({tugasList.length})
         </h3>
         <p className="text-muted">
           Klik tombol <b>Buka Lokasi Acuan di Peta</b> untuk memusatkan peta satelit dan menyalakan

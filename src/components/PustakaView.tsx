@@ -627,7 +627,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Tambah / Impor Peta ke Pustaka</h3>
+              <h3>Peta</h3>
               <button
                 type="button"
                 className="btn-icon-close"
@@ -692,7 +692,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Buat Lapisan Baru</h3>
+              <h3>Lapisan</h3>
               <button
                 type="button"
                 className="btn-icon-close"

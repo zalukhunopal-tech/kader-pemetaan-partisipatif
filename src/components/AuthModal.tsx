@@ -573,7 +573,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                   marginTop: 4
                 }}
               >
-                Daftar & Masuk
+                Daftar
               </button>
             </form>
           )}
@@ -583,7 +583,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             <form onSubmit={handleResetPassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ textAlign: "center", marginBottom: 4 }}>
                 <KeyRound size={28} color="#0d7344" />
-                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Atur Ulang Kata Sandi</h4>
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Sandi</h4>
               </div>
 
               <div>
