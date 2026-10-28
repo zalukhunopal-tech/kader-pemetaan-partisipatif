@@ -23,8 +23,7 @@ export const GerbangAdminView: React.FC<GerbangAdminViewProps> = ({ sesi, onTerb
       <h3>Mode Admin terkunci</h3>
       <p className="gerbang-admin-teks">
         Akses administrator dipisah dari akun user. Mode admin terkunci setelah aplikasi dibuka ulang, setelah{" "}
-        {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas, atau setelah beralih ke Mode User. Buka lagi untuk{" "}
-        {sesi.email}:
+        {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas, atau setelah beralih ke Mode User. Buka lagi untuk {sesi.email}:
       </p>
       <VerifikasiIdentitas sesi={sesi} tujuan="admin" onBerhasil={onTerbuka} />
       <button type="button" className="btn-outline-sm gerbang-admin-tombol" onClick={onModeUser}>

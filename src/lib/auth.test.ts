@@ -75,7 +75,12 @@ async function bukaGerbang(admin: { sesi: AkunSesi; rahasia: string }) {
 
 /** Admin membuat kader, kader mengganti sandi sementara dan memasang Authenticator */
 async function buatKaderLengkap(admin: AkunSesi, n = "K", sandiBaru = "KataBaruKu-2028") {
-  const r = await buatAkunOlehAdmin(admin, { nama: "Kader " + n, email: `kader${n.toLowerCase()}@contoh.id`, desaWilayah: "Desa B", noHp: "0813" });
+  const r = await buatAkunOlehAdmin(admin, {
+    nama: "Kader " + n,
+    email: `kader${n.toLowerCase()}@contoh.id`,
+    desaWilayah: "Desa B",
+    noHp: "0813"
+  });
   expect(r.sukses).toBe(true);
   const email = `kader${n.toLowerCase()}@contoh.id`;
   expect((await ubahKataSandi(email, r.sandiSementara!, sandiBaru)).sukses).toBe(true);
@@ -160,7 +165,13 @@ describe("tidak ada pendaftaran mandiri; admin pertama dan akun dari admin", () 
 
   it("admin membuat kader: sandi sementara acak tampil sekali, tersimpan sebagai hash, ID unik, wajib ganti sandi", async () => {
     const admin = await siapkanAdmin();
-    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "Siti Kader", email: "siti@contoh.id", desaWilayah: "Desa B", noHp: "0813", kelompokMasyarakat: "KTH" });
+    const r = await buatAkunOlehAdmin(admin.sesi, {
+      nama: "Siti Kader",
+      email: "siti@contoh.id",
+      desaWilayah: "Desa B",
+      noHp: "0813",
+      kelompokMasyarakat: "KTH"
+    });
     expect(r.sukses).toBe(true);
     expect(r.sandiSementara).toMatch(/^[A-Za-z2-9]{12}$/);
     expect(r.akun).toMatchObject({ peran: "kader", nama: "Siti Kader", desaWilayah: "Desa B", kelompokMasyarakat: "KTH" });
@@ -170,12 +181,20 @@ describe("tidak ada pendaftaran mandiri; admin pertama dan akun dari admin", () 
     expect(akun.totpRahasia).toBeUndefined();
     expect(JSON.stringify(localStorage)).not.toContain(r.sandiSementara!);
     // email ganda ditolak
-    expect((await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "SITI@contoh.id", desaWilayah: "-", noHp: "-" })).pesan).toMatch(/sudah terdaftar/);
+    expect((await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "SITI@contoh.id", desaWilayah: "-", noHp: "-" })).pesan).toMatch(
+      /sudah terdaftar/
+    );
   });
 
   it("admin dapat membuat admin lain; ID dan peran sesuai", async () => {
     const admin = await siapkanAdmin();
-    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "Admin Dua", email: "dua@contoh.id", desaWilayah: "-", noHp: "-", peran: "admin" });
+    const r = await buatAkunOlehAdmin(admin.sesi, {
+      nama: "Admin Dua",
+      email: "dua@contoh.id",
+      desaWilayah: "-",
+      noHp: "-",
+      peran: "admin"
+    });
     expect(r.sukses).toBe(true);
     expect(muatSemuaAkun().find((a) => a.email === "dua@contoh.id")).toMatchObject({ peran: "admin" });
     expect(muatSemuaAkun().find((a) => a.email === "dua@contoh.id")!.idKader).toMatch(/^ADM-/);
@@ -342,7 +361,10 @@ describe("Google Authenticator (TOTP)", () => {
   it("sesi lama untuk akun tanpa Authenticator (mis. dari versi sebelumnya) dicabut", async () => {
     await buatAdminPertama(data("A"));
     const akun = muatSemuaAkun()[0];
-    localStorage.setItem("geokader_current_session_v5", JSON.stringify({ idKader: akun.idKader, nama: akun.nama, email: akun.email, peran: akun.peran }));
+    localStorage.setItem(
+      "geokader_current_session_v5",
+      JSON.stringify({ idKader: akun.idKader, nama: akun.nama, email: akun.email, peran: akun.peran })
+    );
     expect(muatSesiPengguna()).toBeNull();
     expect(localStorage.getItem("geokader_current_session_v5")).toBeNull();
   });
@@ -543,8 +565,19 @@ describe("ganti dan atur ulang sandi", () => {
 describe("migrasi akun lama", () => {
   const lama = (over: Partial<AkunPengguna> & { password: string }): AkunPengguna =>
     ({
-      idKader: "KDR-001", nama: "Budi", email: "kader@geokader.id", peran: "kader", desaWilayah: "-", noHp: "-",
-      kelompokMasyarakat: "-", namaOrganisasi: "x", createdAt: "2026-01-01T00:00:00.000Z", kataSandiHash: "", garam: "", iterasi: 0, ...over
+      idKader: "KDR-001",
+      nama: "Budi",
+      email: "kader@geokader.id",
+      peran: "kader",
+      desaWilayah: "-",
+      noHp: "-",
+      kelompokMasyarakat: "-",
+      namaOrganisasi: "x",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      kataSandiHash: "",
+      garam: "",
+      iterasi: 0,
+      ...over
     }) as AkunPengguna;
 
   it("mengubah sandi teks polos menjadi hash dan menghapusnya dari akun dan sesi", async () => {
@@ -605,7 +638,23 @@ describe("akun uji (build pengembangan)", () => {
   });
   it("tidak menimpa akun yang sudah ada", async () => {
     const h = await buatHashSandi("SandiSendiri-5");
-    localStorage.setItem("geokader_accounts_v5", JSON.stringify([{ idKader: "ADM-9", nama: "Admin Asli", email: "admin@geokader.id", peran: "admin", desaWilayah: "-", noHp: "-", kelompokMasyarakat: "-", namaOrganisasi: "x", createdAt: "", ...h }]));
+    localStorage.setItem(
+      "geokader_accounts_v5",
+      JSON.stringify([
+        {
+          idKader: "ADM-9",
+          nama: "Admin Asli",
+          email: "admin@geokader.id",
+          peran: "admin",
+          desaWilayah: "-",
+          noHp: "-",
+          kelompokMasyarakat: "-",
+          namaOrganisasi: "x",
+          createdAt: "",
+          ...h
+        }
+      ])
+    );
     await siapkanAkunUji();
     expect(muatSemuaAkun().find((a) => a.email === "admin@geokader.id")?.nama).toBe("Admin Asli");
   });

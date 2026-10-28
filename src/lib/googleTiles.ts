@@ -137,11 +137,7 @@ export interface BatasTampilan {
 }
 
 /** Teks hak cipta citra untuk area yang sedang tampil (wajib ditampilkan menurut ketentuan Google) */
-export async function ambilAtribusiGoogle(
-  batas: BatasTampilan,
-  zoom: number,
-  ambil: typeof fetch = fetch
-): Promise<string | null> {
+export async function ambilAtribusiGoogle(batas: BatasTampilan, zoom: number, ambil: typeof fetch = fetch): Promise<string | null> {
   const token = tokenSesiGoogle();
   if (!token) return null;
   const q = new URLSearchParams({

@@ -50,7 +50,14 @@ let status: StatusPenyimpanan = { mode: "localstorage", persisten: null, galat: 
 
 function ubahStatus(sebagian: Partial<StatusPenyimpanan>): void {
   const baru = { ...status, ...sebagian };
-  if (baru.mode === status.mode && baru.persisten === status.persisten && baru.galat === status.galat && baru.kuotaPenuh === status.kuotaPenuh && baru.menunggu === status.menunggu) return;
+  if (
+    baru.mode === status.mode &&
+    baru.persisten === status.persisten &&
+    baru.galat === status.galat &&
+    baru.kuotaPenuh === status.kuotaPenuh &&
+    baru.menunggu === status.menunggu
+  )
+    return;
   status = baru;
   pendengar.forEach((p) => p());
 }

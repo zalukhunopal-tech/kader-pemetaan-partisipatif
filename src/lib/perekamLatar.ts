@@ -283,10 +283,7 @@ export const perekamLatar = {
 };
 
 export function durasiRekamMs(s: StatePerekamLatar): number {
-  return (
-    s.durasiTersimpanMs +
-    (s.status === "merekam" && s.segmenMulaiMs ? Date.now() - s.segmenMulaiMs : 0)
-  );
+  return s.durasiTersimpanMs + (s.status === "merekam" && s.segmenMulaiMs ? Date.now() - s.segmenMulaiMs : 0);
 }
 
 export function formatDurasi(ms: number): string {

@@ -28,7 +28,9 @@ function dataAutentikator(bendera: number, rp = RP): Uint8Array {
   return ad;
 }
 
-async function buatAsersi(opsi: { alg?: number; bendera?: number; jenis?: string; asal?: string; rp?: string; tantanganLain?: boolean } = {}) {
+async function buatAsersi(
+  opsi: { alg?: number; bendera?: number; jenis?: string; asal?: string; rp?: string; tantanganLain?: boolean } = {}
+) {
   const alg = opsi.alg ?? ALG_ES256;
   const pasangan =
     alg === ALG_ES256
@@ -41,7 +43,9 @@ async function buatAsersi(opsi: { alg?: number; bendera?: number; jenis?: string
   const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pasangan.publicKey));
   const tantangan = crypto.getRandomValues(new Uint8Array(32));
   const dikirim = opsi.tantanganLain ? crypto.getRandomValues(new Uint8Array(32)) : tantangan;
-  const dataKlienJson = enc.encode(JSON.stringify({ type: opsi.jenis ?? "webauthn.get", challenge: keBase64Url(dikirim), origin: opsi.asal ?? ASAL }));
+  const dataKlienJson = enc.encode(
+    JSON.stringify({ type: opsi.jenis ?? "webauthn.get", challenge: keBase64Url(dikirim), origin: opsi.asal ?? ASAL })
+  );
   const ad = dataAutentikator(opsi.bendera ?? 0x05, opsi.rp);
   const pesan = new Uint8Array([...ad, ...sha256(dataKlienJson)]);
   const ttd =

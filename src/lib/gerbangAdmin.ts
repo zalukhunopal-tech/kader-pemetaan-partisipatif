@@ -21,8 +21,7 @@ const gerbang = buatGerbangMemori(BATAS_DIAM_MS);
 /** Dipakai oleh auth.ts dan kunciCepat.ts setelah identitas admin terverifikasi; jangan dipanggil dari tempat lain */
 export const bukaGerbangAdmin = (email: string, sekarang = Date.now()): void => gerbang.buka(email, sekarang);
 export const kunciGerbangAdmin = (): void => gerbang.kunci();
-export const gerbangAdminTerbuka = (email: string | undefined | null, sekarang = Date.now()): boolean =>
-  gerbang.terbuka(email, sekarang);
+export const gerbangAdminTerbuka = (email: string | undefined | null, sekarang = Date.now()): boolean => gerbang.terbuka(email, sekarang);
 export const catatAktivitasAdmin = (sekarang = Date.now()): void => gerbang.catatAktivitas(sekarang);
 export const sisaWaktuGerbang = (sekarang = Date.now()): number => gerbang.sisaWaktu(sekarang);
 export const useVersiGerbangAdmin = (): number => gerbang.useVersi();

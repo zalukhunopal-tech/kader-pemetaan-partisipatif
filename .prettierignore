@@ -1,0 +1,10 @@
+# Dihasilkan atau dikelola alat lain
+dist
+dist-e2e
+dev-dist
+test-results
+playwright-report
+package-lock.json
+public
+# Dokumen prosa dibiarkan apa adanya
+*.md

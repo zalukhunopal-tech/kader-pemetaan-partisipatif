@@ -2,13 +2,7 @@ export type PeranPengguna = "kader" | "admin";
 
 export type JenisGeometri = "point" | "line" | "polygon";
 
-export type KategoriSurvei =
-  | "Flora"
-  | "Fauna"
-  | "Mata Air"
-  | "Tanda Batas"
-  | "Ancaman / Temuan"
-  | "Wilayah Adat / Lahan";
+export type KategoriSurvei = "Flora" | "Fauna" | "Mata Air" | "Tanda Batas" | "Ancaman / Temuan" | "Wilayah Adat / Lahan";
 
 export type StatusSinkron =
   | "lokal" // Tersimpan di HP (Belum Sinkron)
@@ -218,11 +212,4 @@ export interface KaderAktifPresence {
   waktuUpdate: string;
 }
 
-export type MenuTab =
-  | "pustaka"
-  | "peta"
-  | "data_sync"
-  | "reward"
-  | "tugas"
-  | "komunikasi"
-  | "admin";
+export type MenuTab = "pustaka" | "peta" | "data_sync" | "reward" | "tugas" | "komunikasi" | "admin";

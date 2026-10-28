@@ -148,7 +148,10 @@ describe("unduhTile dengan Cache API tiruan", () => {
 
   it("menyimpan tile gambar, menghitung byte, lalu mengenali yang sudah ada", async () => {
     const isi = pasangCacheTiruan();
-    vi.stubGlobal("fetch", vi.fn(async () => respons(200, "image/png", 250)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => respons(200, "image/png", 250))
+    );
     const m = await muat();
     const kemajuan = vi.fn();
     const h = await m.unduhTile(urls(6), { onKemajuan: kemajuan });
@@ -167,7 +170,10 @@ describe("unduhTile dengan Cache API tiruan", () => {
     const isi = pasangCacheTiruan();
     const urutan = [respons(404), respons(410), respons(403), respons(500), respons(200, "text/html")];
     let i = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => urutan[i++ % urutan.length]));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => urutan[i++ % urutan.length])
+    );
     const m = await muat();
     const h = await m.unduhTile(urls(5));
     expect(h.tidakAda).toBe(2);
@@ -179,11 +185,14 @@ describe("unduhTile dengan Cache API tiruan", () => {
   it("galat jaringan dicoba sekali lagi; pulih pada percobaan kedua", async () => {
     pasangCacheTiruan();
     let panggilan = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      panggilan++;
-      if (panggilan === 1) throw new TypeError("network");
-      return respons(200);
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        panggilan++;
+        if (panggilan === 1) throw new TypeError("network");
+        return respons(200);
+      })
+    );
     const m = await muat();
     const h = await m.unduhTile(urls(1));
     expect(h).toMatchObject({ tersimpan: 1, gagal: 0 });
@@ -205,11 +214,14 @@ describe("unduhTile dengan Cache API tiruan", () => {
   it("pembatalan menghentikan unduhan dan menandai dihentikan", async () => {
     pasangCacheTiruan();
     const pengendali = new AbortController();
-    vi.stubGlobal("fetch", vi.fn(async (_u: string, opsi: { signal?: AbortSignal }) => {
-      pengendali.abort();
-      if (opsi.signal?.aborted) throw new DOMException("dibatalkan", "AbortError");
-      return respons(200);
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_u: string, opsi: { signal?: AbortSignal }) => {
+        pengendali.abort();
+        if (opsi.signal?.aborted) throw new DOMException("dibatalkan", "AbortError");
+        return respons(200);
+      })
+    );
     const m = await muat();
     const h = await m.unduhTile(urls(20), { sinyal: pengendali.signal });
     expect(h.dihentikan).toBe(true);
@@ -218,7 +230,10 @@ describe("unduhTile dengan Cache API tiruan", () => {
 
   it("penyimpanan penuh (QuotaExceededError) menghentikan unduhan dan ditandai kuotaPenuh", async () => {
     pasangCacheTiruan(() => new DOMException("penuh", "QuotaExceededError"));
-    vi.stubGlobal("fetch", vi.fn(async () => respons(200)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => respons(200))
+    );
     const m = await muat();
     const h = await m.unduhTile(urls(30));
     expect(h.kuotaPenuh).toBe(true);
@@ -254,7 +269,7 @@ describe("hapus tile area", () => {
   it("tile yang juga dipakai area lain tidak ikut terhapus", async () => {
     const isi = pasangCacheTiruan();
     const m = await muat();
-    const a = area("A", 100.30, 100.40);
+    const a = area("A", 100.3, 100.4);
     const b = area("B", 100.35, 100.45); // beririsan dengan A
     const urlA = m.urlTileArea(a);
     const urlB = m.urlTileArea(b);

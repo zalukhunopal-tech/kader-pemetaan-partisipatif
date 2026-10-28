@@ -103,10 +103,7 @@ function simpanJson<T>(key: string, val: T): void {
 
 export const muatProfil = () => {
   const p = bacaJson<ProfilKader>(KEY_PROFIL, PROFIL_BAWAAN);
-  if (
-    !p.namaOrganisasi ||
-    p.namaOrganisasi === "Konsorsium Pemetaan Partisipatif"
-  ) {
+  if (!p.namaOrganisasi || p.namaOrganisasi === "Konsorsium Pemetaan Partisipatif") {
     p.namaOrganisasi = "Sertifikat Kader Pemetaan Partisipatif";
   }
   if (p.nama === "Budi Santoso (Kader Lapangan)") {

@@ -47,18 +47,47 @@ export const GantiSandiModal: React.FC<GantiSandiModalProps> = ({ email, onTutup
         <form className="modal-form" id="form-ganti-sandi-menu" onSubmit={simpan}>
           <div>
             <label htmlFor="sandi-lama">Kata sandi saat ini</label>
-            <input id="sandi-lama" type="password" className="form-input" autoComplete="current-password" required value={lama} onChange={(e) => setLama(e.target.value)} />
+            <input
+              id="sandi-lama"
+              type="password"
+              className="form-input"
+              autoComplete="current-password"
+              required
+              value={lama}
+              onChange={(e) => setLama(e.target.value)}
+            />
           </div>
           <div>
             <label htmlFor="sandi-baru-menu">Kata sandi baru</label>
-            <input id="sandi-baru-menu" type="password" className="form-input" autoComplete="new-password" required placeholder={`Minimal ${MIN_PANJANG_SANDI} karakter`} value={baru} onChange={(e) => setBaru(e.target.value)} />
+            <input
+              id="sandi-baru-menu"
+              type="password"
+              className="form-input"
+              autoComplete="new-password"
+              required
+              placeholder={`Minimal ${MIN_PANJANG_SANDI} karakter`}
+              value={baru}
+              onChange={(e) => setBaru(e.target.value)}
+            />
           </div>
           <div>
             <label htmlFor="sandi-baru-ulang-menu">Ulangi kata sandi baru</label>
-            <input id="sandi-baru-ulang-menu" type="password" className="form-input" autoComplete="new-password" required value={ulang} onChange={(e) => setUlang(e.target.value)} />
+            <input
+              id="sandi-baru-ulang-menu"
+              type="password"
+              className="form-input"
+              autoComplete="new-password"
+              required
+              value={ulang}
+              onChange={(e) => setUlang(e.target.value)}
+            />
           </div>
           {galat && (
-            <div role="alert" className="alert-banner-success" style={{ margin: 0, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }}>
+            <div
+              role="alert"
+              className="alert-banner-success"
+              style={{ margin: 0, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }}
+            >
               {galat}
             </div>
           )}

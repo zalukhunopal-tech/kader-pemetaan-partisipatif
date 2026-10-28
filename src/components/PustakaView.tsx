@@ -2,18 +2,7 @@ import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
-import {
-  ArrowUpDown,
-  ChevronDown,
-  Download,
-  Filter,
-  Layers,
-  Map as MapIcon,
-  MoreHorizontal,
-  Plus,
-  Search,
-  X
-} from "lucide-react";
+import { ArrowUpDown, ChevronDown, Download, Filter, Layers, Map as MapIcon, MoreHorizontal, Plus, Search, X } from "lucide-react";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -84,18 +73,14 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     });
 
   const daftarLapisanTampil = lapisanList
-    .filter((l) =>
-      kataKunci.trim() ? l.nama.toLowerCase().includes(kataKunci.toLowerCase()) : true
-    )
+    .filter((l) => (kataKunci.trim() ? l.nama.toLowerCase().includes(kataKunci.toLowerCase()) : true))
     .sort((a, b) => {
       if (urutLapisan === "nama") return a.nama.localeCompare(b.nama);
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
   const togglePilihId = (id: string) => {
-    setIdTerpilih((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setIdTerpilih((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleSimpanPetaBaru = (e: React.FormEvent) => {
@@ -171,11 +156,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       {/* SEGMENTED PILL TABS: PETA | LAPISAN */}
       <div className="avenza-segmented-wrap">
         <div className="avenza-segmented-control">
-          <button
-            type="button"
-            className={`avenza-segment-btn ${subTab === "peta" ? "active" : ""}`}
-            onClick={() => setSubTab("peta")}
-          >
+          <button type="button" className={`avenza-segment-btn ${subTab === "peta" ? "active" : ""}`} onClick={() => setSubTab("peta")}>
             Peta
           </button>
           <button
@@ -194,11 +175,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           {subTab === "peta" ? (
             <div className="avenza-pill-select-wrap">
               <ArrowUpDown size={15} className="avenza-pill-icon" />
-              <select
-                className="avenza-pill-select"
-                value={urutPeta}
-                onChange={(e) => setUrutPeta(e.target.value as any)}
-              >
+              <select className="avenza-pill-select" value={urutPeta} onChange={(e) => setUrutPeta(e.target.value as typeof urutPeta)}>
                 <option value="baru_dilihat">Baru dilihat</option>
                 <option value="nama">Nama (A-Z)</option>
                 <option value="ukuran">Ukuran File</option>
@@ -211,7 +188,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               <select
                 className="avenza-pill-select"
                 value={urutLapisan}
-                onChange={(e) => setUrutLapisan(e.target.value as any)}
+                onChange={(e) => setUrutLapisan(e.target.value as typeof urutLapisan)}
               >
                 <option value="terbaru">Terbaru</option>
                 <option value="nama">Nama (A-Z)</option>
@@ -222,11 +199,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
           <div className="avenza-pill-select-wrap">
             <Filter size={15} className="avenza-pill-icon" />
-            <select
-              className="avenza-pill-select"
-              value={filterItem}
-              onChange={(e) => setFilterItem(e.target.value as any)}
-            >
+            <select className="avenza-pill-select" value={filterItem} onChange={(e) => setFilterItem(e.target.value as typeof filterItem)}>
               <option value="semua">Semua item</option>
               <option value="geopdf">GeoPDF / Peta</option>
               <option value="tiles">Peta Satelit</option>
@@ -235,12 +208,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          className="avenza-search-icon-btn"
-          onClick={() => setCariTerbuka((v) => !v)}
-          title="Cari Peta atau Lapisan"
-        >
+        <button type="button" className="avenza-search-icon-btn" onClick={() => setCariTerbuka((v) => !v)} title="Cari Peta atau Lapisan">
           <Search size={21} />
         </button>
       </div>
@@ -268,11 +236,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         <div className="avenza-selection-banner">
           <span>{idTerpilih.length} item dipilih</span>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={onBukaPengaturanEkspor}
-            >
+            <button type="button" className="btn-outline-sm" onClick={onBukaPengaturanEkspor}>
               Ekspor Pilihan
             </button>
             <button
@@ -342,13 +306,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                       </radialGradient>
                     </defs>
                     <rect width="64" height="64" fill="url(#demGrad)" />
-                    <path
-                      d="M8,12 Q28,24 22,44 T52,58"
-                      stroke="#713f12"
-                      strokeWidth="1.2"
-                      fill="none"
-                      opacity="0.65"
-                    />
+                    <path d="M8,12 Q28,24 22,44 T52,58" stroke="#713f12" strokeWidth="1.2" fill="none" opacity="0.65" />
                   </svg>
                 </div>
 
@@ -358,15 +316,16 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     {item.unduhanNyata || item.jenisFile !== "XYZ Tiles"
                       ? `${formatAngkaIndo(item.ukuranMb)} MB`
                       : "Ukuran tidak diketahui"}{" "}
-                    <span className="dot-sep">•</span>{" "}
-                    {formatAngkaIndo(item.jarakKm ?? 0)} km
+                    <span className="dot-sep">•</span> {formatAngkaIndo(item.jarakKm ?? 0)} km
                     {item.unduhanNyata ? (
                       <>
-                        {" "}<span className="dot-sep">•</span> {item.jumlahTile.toLocaleString("id-ID")} tile
+                        {" "}
+                        <span className="dot-sep">•</span> {item.jumlahTile.toLocaleString("id-ID")} tile
                       </>
                     ) : (
                       <>
-                        {" "}<span className="dot-sep">•</span> Catatan saja
+                        {" "}
+                        <span className="dot-sep">•</span> Catatan saja
                       </>
                     )}
                   </div>
@@ -421,12 +380,22 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
             {daftarPetaTampil.length === 0 && (
               <div style={{ textAlign: "center", padding: "36px 20px 80px", color: "#64748b" }}>
-                <div style={{ width: 58, height: 58, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: "50%",
+                    background: "#e8f5ee",
+                    color: "#0d7344",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 10
+                  }}
+                >
                   <Layers size={28} />
                 </div>
-                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>
-                  Pustaka Peta Kosong
-                </h4>
+                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>Pustaka Peta Kosong</h4>
                 <p style={{ margin: "0 auto 14px", fontSize: "0.84rem", color: "#64748b", maxWidth: 320 }}>
                   Ketuk tombol (+) di kanan bawah untuk mengimpor peta kerja atau buka peta dasar.
                 </p>
@@ -452,11 +421,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             {daftarLapisanTampil.map((lapisan) => {
               const jmlObjek = hitungObjekLapisan(lapisan);
               return (
-                <div
-                  key={lapisan.id}
-                  className="avenza-layer-row"
-                  onClick={onBukaPetaDasar}
-                >
+                <div key={lapisan.id} className="avenza-layer-row" onClick={onBukaPetaDasar}>
                   <div className="avenza-layer-icon-box">
                     <Layers size={24} />
                   </div>
@@ -478,9 +443,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     className="avenza-map-more-wrap"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setMenuItemTerbuka(
-                        menuItemTerbuka === lapisan.id ? null : lapisan.id
-                      );
+                      setMenuItemTerbuka(menuItemTerbuka === lapisan.id ? null : lapisan.id);
                     }}
                   >
                     <button type="button" className="avenza-more-dots-btn" title="Opsi Lapisan">
@@ -526,12 +489,22 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
             {daftarLapisanTampil.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
-                <div style={{ width: 58, height: 58, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: "50%",
+                    background: "#e8f5ee",
+                    color: "#0d7344",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 10
+                  }}
+                >
                   <Layers size={28} />
                 </div>
-                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>
-                  Belum Ada Lapisan
-                </h4>
+                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>Belum Ada Lapisan</h4>
                 <p style={{ margin: "0 auto", fontSize: "0.84rem", color: "#64748b", maxWidth: 300 }}>
                   Gunakan tombol "Buat lapisan" atau "Impor" di kanan bawah.
                 </p>
@@ -541,18 +514,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
           <div className="avenza-fab-stack">
             <div className="avenza-fab-row">
-              <span
-                className="avenza-fab-label"
-                onClick={() => setBukaModalLapisanBaru(true)}
-              >
+              <span className="avenza-fab-label" onClick={() => setBukaModalLapisanBaru(true)}>
                 Buat lapisan
               </span>
-              <button
-                type="button"
-                className="avenza-fab-orange"
-                onClick={() => setBukaModalLapisanBaru(true)}
-                title="Buat Lapisan Baru"
-              >
+              <button type="button" className="avenza-fab-orange" onClick={() => setBukaModalLapisanBaru(true)} title="Buat Lapisan Baru">
                 <Layers size={22} />
               </button>
             </div>
@@ -561,11 +526,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               <label className="avenza-fab-label" htmlFor="impor-lapisan-input">
                 Impor
               </label>
-              <label
-                htmlFor="impor-lapisan-input"
-                className="avenza-fab-orange"
-                title="Impor File Lapisan (.kml, .geojson, .gpx)"
-              >
+              <label htmlFor="impor-lapisan-input" className="avenza-fab-orange" title="Impor File Lapisan (.kml, .geojson, .gpx)">
                 <Download size={22} />
                 <input
                   id="impor-lapisan-input"
@@ -586,11 +547,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <div className="modal-card">
             <div className="modal-header">
               <h3>Peta</h3>
-              <button
-                type="button"
-                className="btn-icon-close"
-                onClick={() => setBukaModalPetaBaru(false)}
-              >
+              <button type="button" className="btn-icon-close" onClick={() => setBukaModalPetaBaru(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -629,11 +586,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </div>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  onClick={() => setBukaModalPetaBaru(false)}
-                >
+                <button type="button" className="btn-outline-sm" onClick={() => setBukaModalPetaBaru(false)}>
                   Batal
                 </button>
                 <button type="submit" className="btn-primary">
@@ -651,11 +604,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <div className="modal-card">
             <div className="modal-header">
               <h3>Lapisan</h3>
-              <button
-                type="button"
-                className="btn-icon-close"
-                onClick={() => setBukaModalLapisanBaru(false)}
-              >
+              <button type="button" className="btn-icon-close" onClick={() => setBukaModalLapisanBaru(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -672,11 +621,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 />
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  onClick={() => setBukaModalLapisanBaru(false)}
-                >
+                <button type="button" className="btn-outline-sm" onClick={() => setBukaModalLapisanBaru(false)}>
                   Batal
                 </button>
                 <button type="submit" className="btn-primary">

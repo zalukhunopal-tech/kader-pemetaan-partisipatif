@@ -1,21 +1,7 @@
 import React, { useState } from "react";
 import { DataSpasialItem } from "../types";
-import {
-  eksporKeCSV,
-  eksporKeGeoJSON,
-  eksporKeGPX,
-  eksporKeKML
-} from "../lib/geoUtils";
-import {
-  ArrowLeft,
-  ChevronDown,
-  FileText,
-  Image as ImageIcon,
-  Info,
-  Layers,
-  MapPin,
-  Share
-} from "lucide-react";
+import { eksporKeCSV, eksporKeGeoJSON, eksporKeGPX, eksporKeKML } from "../lib/geoUtils";
+import { ArrowLeft, ChevronDown, FileText, Image as ImageIcon, Info, Layers, MapPin, Share } from "lucide-react";
 
 interface PengaturanEksporViewProps {
   dataSpasial: DataSpasialItem[];
@@ -34,10 +20,7 @@ function unduhBerkas(namaFile: string, isi: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
-  dataSpasial,
-  onTutup
-}) => {
+export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ dataSpasial, onTutup }) => {
   const [namaFile, setNamaFile] = useState("Ekspor AM 2");
   const [jenisData, setJenisData] = useState("Hanya lapisan");
   const [formatFile, setFormatFile] = useState<".kml" | ".geojson" | ".gpx" | ".csv">(".kml");
@@ -53,29 +36,13 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     const sumberData = hanyaSkema ? [] : dataSpasial;
 
     if (formatFile === ".kml") {
-      unduhBerkas(
-        `${namaBersih}.kml`,
-        eksporKeKML(sumberData),
-        "application/vnd.google-earth.kml+xml"
-      );
+      unduhBerkas(`${namaBersih}.kml`, eksporKeKML(sumberData), "application/vnd.google-earth.kml+xml");
     } else if (formatFile === ".geojson") {
-      unduhBerkas(
-        `${namaBersih}.geojson`,
-        eksporKeGeoJSON(sumberData),
-        "application/geo+json"
-      );
+      unduhBerkas(`${namaBersih}.geojson`, eksporKeGeoJSON(sumberData), "application/geo+json");
     } else if (formatFile === ".gpx") {
-      unduhBerkas(
-        `${namaBersih}.gpx`,
-        eksporKeGPX(sumberData),
-        "application/gpx+xml"
-      );
+      unduhBerkas(`${namaBersih}.gpx`, eksporKeGPX(sumberData), "application/gpx+xml");
     } else {
-      unduhBerkas(
-        `${namaBersih}.csv`,
-        eksporKeCSV(sumberData),
-        "text/csv;charset=utf-8"
-      );
+      unduhBerkas(`${namaBersih}.csv`, eksporKeCSV(sumberData), "text/csv;charset=utf-8");
     }
   };
 
@@ -84,32 +51,21 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
       {/* HEADER PENGATURAN EKSPOR */}
       <header className="avenza-subpage-header">
         <div className="avenza-subpage-left">
-          <button
-            type="button"
-            className="avenza-back-btn"
-            onClick={onTutup}
-            title="Kembali"
-          >
+          <button type="button" className="avenza-back-btn" onClick={onTutup} title="Kembali">
             <ArrowLeft size={24} />
           </button>
           <h2>Ekspor</h2>
         </div>
 
-        <button
-          type="button"
-          className="avenza-info-btn"
-          onClick={() => setTampilInfo((v) => !v)}
-          title="Informasi Ekspor"
-        >
+        <button type="button" className="avenza-info-btn" onClick={() => setTampilInfo((v) => !v)} title="Informasi Ekspor">
           <Info size={22} />
         </button>
       </header>
 
       {tampilInfo && (
         <div className="avenza-info-banner">
-          Ekspor lapisan spasial ke format standar GIS (<strong>.kml</strong>,{" "}
-          <strong>.geojson</strong>, <strong>.gpx</strong>, atau <strong>.csv</strong>)
-          agar siap dibuka di Avenza Maps, QGIS, Google Earth, atau diunggah ke Google Drive.
+          Ekspor lapisan spasial ke format standar GIS (<strong>.kml</strong>, <strong>.geojson</strong>, <strong>.gpx</strong>, atau{" "}
+          <strong>.csv</strong>) agar siap dibuka di Avenza Maps, QGIS, Google Earth, atau diunggah ke Google Drive.
         </div>
       )}
 
@@ -121,11 +77,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
 
           <div className="avenza-outlined-field">
             <span className="avenza-floating-label">Nama</span>
-            <input
-              type="text"
-              value={namaFile}
-              onChange={(e) => setNamaFile(e.target.value)}
-            />
+            <input type="text" value={namaFile} onChange={(e) => setNamaFile(e.target.value)} />
           </div>
           <div className="avenza-field-helper">Ubah nama file yang diekspor</div>
         </section>
@@ -138,10 +90,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
 
           <div className="avenza-outlined-field select-field">
             <span className="avenza-floating-label">Ekspor</span>
-            <select
-              value={jenisData}
-              onChange={(e) => setJenisData(e.target.value)}
-            >
+            <select value={jenisData} onChange={(e) => setJenisData(e.target.value)}>
               <option value="Hanya lapisan">Hanya lapisan</option>
               <option value="Lapisan dan peta">Lapisan dan atribut lengkap</option>
               <option value="Semua fitur terpilih">Semua fitur terpilih</option>
@@ -160,12 +109,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
           <div
             className="avenza-export-item clickable"
             onClick={() => {
-              const urutan: (".kml" | ".geojson" | ".gpx" | ".csv")[] = [
-                ".kml",
-                ".geojson",
-                ".gpx",
-                ".csv"
-              ];
+              const urutan: (".kml" | ".geojson" | ".gpx" | ".csv")[] = [".kml", ".geojson", ".gpx", ".csv"];
               const idx = urutan.indexOf(formatFile);
               setFormatFile(urutan[(idx + 1) % urutan.length]);
             }}
@@ -205,12 +149,8 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
               <MapPin size={22} />
             </div>
             <div className="avenza-export-text">
-              <div className="avenza-export-main">
-                {hanyaSkema ? "0 features" : `${jumlahFitur} features`}
-              </div>
-              <div className="avenza-export-sub">
-                Semua data yang dipilih akan diekspor
-              </div>
+              <div className="avenza-export-main">{hanyaSkema ? "0 features" : `${jumlahFitur} features`}</div>
+              <div className="avenza-export-sub">Semua data yang dipilih akan diekspor</div>
             </div>
           </div>
         </section>
@@ -221,30 +161,20 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
         <section className="avenza-export-section">
           <div className="avenza-section-title">Sertakan dalam ekspor</div>
 
-          <div
-            className="avenza-export-item clickable"
-            onClick={() => setSertakanFoto((v) => !v)}
-          >
+          <div className="avenza-export-item clickable" onClick={() => setSertakanFoto((v) => !v)}>
             <div className="avenza-export-icon">
               <ImageIcon size={22} />
             </div>
             <div className="avenza-export-text">
               <div className="avenza-export-main">Foto ditautkan</div>
-              <div className="avenza-export-sub">
-                {sertakanFoto ? "Sertakan tautan foto dokumentasi lapangan" : "Tanpa lampiran foto"}
-              </div>
+              <div className="avenza-export-sub">{sertakanFoto ? "Sertakan tautan foto dokumentasi lapangan" : "Tanpa lampiran foto"}</div>
             </div>
           </div>
         </section>
       </div>
 
       {/* FLOATING ACTION BUTTON EKSPOR ORANYE DI POJOK KANAN BAWAH */}
-      <button
-        type="button"
-        className="avenza-fab-orange export-fab"
-        onClick={handleEksporSekarang}
-        title="Ekspor & Unduh File Sekarang"
-      >
+      <button type="button" className="avenza-fab-orange export-fab" onClick={handleEksporSekarang} title="Ekspor & Unduh File Sekarang">
         <Share size={24} />
       </button>
     </div>

@@ -4,3 +4,6 @@ dist-ssr
 dev-dist
 *.local
 .DS_Store
+dist-e2e
+test-results
+playwright-report

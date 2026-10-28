@@ -21,8 +21,25 @@ describe("GeoJSON: bentuk berkas", () => {
     const h = parseGeoJSON(
       fc(
         feat(pt(100.4, -0.9), { judul: "Pohon" }),
-        feat({ type: "LineString", coordinates: [[100, 0], [100.1, 0.1]] }),
-        feat({ type: "Polygon", coordinates: [[[100, 0], [100.1, 0], [100.1, 0.1], [100, 0.1], [100, 0]]] })
+        feat({
+          type: "LineString",
+          coordinates: [
+            [100, 0],
+            [100.1, 0.1]
+          ]
+        }),
+        feat({
+          type: "Polygon",
+          coordinates: [
+            [
+              [100, 0],
+              [100.1, 0],
+              [100.1, 0.1],
+              [100, 0.1],
+              [100, 0]
+            ]
+          ]
+        })
       )
     );
     expect(h.format).toBe("GeoJSON");
@@ -30,7 +47,22 @@ describe("GeoJSON: bentuk berkas", () => {
     expect(h.dilewati).toEqual([]);
   });
   it("cincin poligon ditutup titik pertama dibuka (4 sudut, bukan 5)", () => {
-    const h = parseGeoJSON(fc(feat({ type: "Polygon", coordinates: [[[100, 0], [100.1, 0], [100.1, 0.1], [100, 0.1], [100, 0]]] })));
+    const h = parseGeoJSON(
+      fc(
+        feat({
+          type: "Polygon",
+          coordinates: [
+            [
+              [100, 0],
+              [100.1, 0],
+              [100.1, 0.1],
+              [100, 0.1],
+              [100, 0]
+            ]
+          ]
+        })
+      )
+    );
     expect(h.fitur[0].koordinat).toHaveLength(4);
   });
   it("Feature tunggal dan geometri polos diterima", () => {
@@ -38,19 +70,81 @@ describe("GeoJSON: bentuk berkas", () => {
     expect(parseGeoJSON(JSON.stringify(pt(100, 0))).fitur).toHaveLength(1);
   });
   it("GeometryCollection diuraikan", () => {
-    const g = { type: "GeometryCollection", geometries: [pt(100, 0), { type: "LineString", coordinates: [[100, 0], [101, 1]] }] };
+    const g = {
+      type: "GeometryCollection",
+      geometries: [
+        pt(100, 0),
+        {
+          type: "LineString",
+          coordinates: [
+            [100, 0],
+            [101, 1]
+          ]
+        }
+      ]
+    };
     expect(parseGeoJSON(fc(feat(g))).fitur.map((f) => f.jenisGeometri)).toEqual(["point", "line"]);
   });
   it("Multi* dipecah menjadi beberapa objek bernomor", () => {
     const h = parseGeoJSON(
-      fc(feat({ type: "MultiPoint", coordinates: [[100, 0], [101, 1], [102, 2]] }, { judul: "Rumpun" }))
+      fc(
+        feat(
+          {
+            type: "MultiPoint",
+            coordinates: [
+              [100, 0],
+              [101, 1],
+              [102, 2]
+            ]
+          },
+          { judul: "Rumpun" }
+        )
+      )
     );
     expect(h.fitur.map((f) => f.judul)).toEqual(["Rumpun (1)", "Rumpun (2)", "Rumpun (3)"]);
     const mp = parseGeoJSON(
-      fc(feat({ type: "MultiPolygon", coordinates: [[[[100, 0], [100.1, 0], [100.1, 0.1], [100, 0]]], [[[101, 0], [101.1, 0], [101.1, 0.1], [101, 0]]]] }))
+      fc(
+        feat({
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [100, 0],
+                [100.1, 0],
+                [100.1, 0.1],
+                [100, 0]
+              ]
+            ],
+            [
+              [
+                [101, 0],
+                [101.1, 0],
+                [101.1, 0.1],
+                [101, 0]
+              ]
+            ]
+          ]
+        })
+      )
     );
     expect(mp.fitur).toHaveLength(2);
-    const ml = parseGeoJSON(fc(feat({ type: "MultiLineString", coordinates: [[[100, 0], [101, 1]], [[102, 0], [103, 1]]] })));
+    const ml = parseGeoJSON(
+      fc(
+        feat({
+          type: "MultiLineString",
+          coordinates: [
+            [
+              [100, 0],
+              [101, 1]
+            ],
+            [
+              [102, 0],
+              [103, 1]
+            ]
+          ]
+        })
+      )
+    );
     expect(ml.fitur.map((f) => f.jenisGeometri)).toEqual(["line", "line"]);
   });
 });
@@ -62,8 +156,28 @@ describe("GeoJSON: validasi (T6/S7)", () => {
     ["koordinat bukan angka", { type: "Point", coordinates: ["100", "0"] }],
     ["koordinat kosong", { type: "Point", coordinates: [] }],
     ["jalur satu titik", { type: "LineString", coordinates: [[100, 0]] }],
-    ["jalur dengan satu titik rusak", { type: "LineString", coordinates: [[100, 0], [null, 1]] }],
-    ["poligon dua sudut", { type: "Polygon", coordinates: [[[100, 0], [101, 1]]] }],
+    [
+      "jalur dengan satu titik rusak",
+      {
+        type: "LineString",
+        coordinates: [
+          [100, 0],
+          [null, 1]
+        ]
+      }
+    ],
+    [
+      "poligon dua sudut",
+      {
+        type: "Polygon",
+        coordinates: [
+          [
+            [100, 0],
+            [101, 1]
+          ]
+        ]
+      }
+    ],
     ["poligon tanpa cincin", { type: "Polygon", coordinates: [] }]
   ])("%s dilewati dan dilaporkan, tidak diimpor setengah rusak", (_nama, geometri) => {
     const h = parseGeoJSON(fc(feat(geometri)));
@@ -94,7 +208,15 @@ describe("GeoJSON: validasi (T6/S7)", () => {
 
 describe("GeoJSON: atribut", () => {
   it("judul memakai judul, name, Name, title, lalu nomor urut", () => {
-    const h = parseGeoJSON(fc(feat(pt(1, 1), { judul: "A" }), feat(pt(1, 1), { name: "B" }), feat(pt(1, 1), { Name: "C" }), feat(pt(1, 1), { title: "D" }), feat(pt(1, 1))));
+    const h = parseGeoJSON(
+      fc(
+        feat(pt(1, 1), { judul: "A" }),
+        feat(pt(1, 1), { name: "B" }),
+        feat(pt(1, 1), { Name: "C" }),
+        feat(pt(1, 1), { title: "D" }),
+        feat(pt(1, 1))
+      )
+    );
     expect(h.fitur.map((f) => f.judul)).toEqual(["A", "B", "C", "D", "Impor #5"]);
   });
   it("kategori tidak dikenal dibuang (bukan diteruskan sebagai teks bebas)", () => {
@@ -106,7 +228,20 @@ describe("GeoJSON: atribut", () => {
     expect(h.fitur.map((f) => f.koordinat[0].elevasi)).toEqual([53, undefined, undefined]);
   });
   it("teks panjang dipotong dan penanda simulasi diteruskan ke tiap titik", () => {
-    const h = parseGeoJSON(fc(feat({ type: "LineString", coordinates: [[1, 1], [2, 2]] }, { deskripsi: "x".repeat(2000), simulasi: true })));
+    const h = parseGeoJSON(
+      fc(
+        feat(
+          {
+            type: "LineString",
+            coordinates: [
+              [1, 1],
+              [2, 2]
+            ]
+          },
+          { deskripsi: "x".repeat(2000), simulasi: true }
+        )
+      )
+    );
     expect(h.fitur[0].deskripsi).toHaveLength(500);
     expect(h.fitur[0].koordinat.every((k) => k.simulasi === true)).toBe(true);
   });
@@ -211,12 +346,18 @@ describe("parseBerkas", () => {
 
 describe("ringkasDilewati dan fiturKeDataSpasial", () => {
   it("mengelompokkan alasan yang sama dan mengurutkan dari yang terbanyak", () => {
-    const r = ringkasDilewati(["fitur 1: koordinat titik tidak valid", "fitur 2: koordinat titik tidak valid", "fitur 3: tipe geometri Curve tidak didukung"]);
+    const r = ringkasDilewati([
+      "fitur 1: koordinat titik tidak valid",
+      "fitur 2: koordinat titik tidak valid",
+      "fitur 3: tipe geometri Curve tidak didukung"
+    ]);
     expect(r).toBe("2x koordinat titik tidak valid; tipe geometri Curve tidak didukung");
     expect(ringkasDilewati([])).toBe("");
   });
   it("objek impor: ID berawalan IMP-, ditandai diimpor, status lokal, dan belum dihitung capaian", () => {
-    const [jalur] = parseGeoJSON(fc(feat({ type: "LineString", coordinates: Array.from({ length: 60 }, (_, i) => [100.4, -0.9478 + i * 0.0008]) }))).fitur;
+    const [jalur] = parseGeoJSON(
+      fc(feat({ type: "LineString", coordinates: Array.from({ length: 60 }, (_, i) => [100.4, -0.9478 + i * 0.0008]) }))
+    ).fitur;
     const o = fiturKeDataSpasial(jalur, { idKader: "KDR-001", namaKader: "Budi", desaWilayah: "A" });
     expect(o.id).toMatch(/^IMP-[0-9a-f]{12}$/);
     expect(o.diimpor).toBe(true);
@@ -227,7 +368,25 @@ describe("ringkasDilewati dan fiturKeDataSpasial", () => {
     expect(dihitungUntukCapaian({ ...o, statusSinkron: "terverifikasi" })).toBe(true);
   });
   it("poligon impor menghitung luas; kategori tak dikenal menjadi Flora", () => {
-    const [poli] = parseGeoJSON(fc(feat({ type: "Polygon", coordinates: [[[100, 0], [100.01, 0], [100.01, 0.01], [100, 0.01], [100, 0]]] }, { kategori: "Aneh" }))).fitur;
+    const [poli] = parseGeoJSON(
+      fc(
+        feat(
+          {
+            type: "Polygon",
+            coordinates: [
+              [
+                [100, 0],
+                [100.01, 0],
+                [100.01, 0.01],
+                [100, 0.01],
+                [100, 0]
+              ]
+            ]
+          },
+          { kategori: "Aneh" }
+        )
+      )
+    ).fitur;
     const o = fiturKeDataSpasial(poli, { idKader: "K", namaKader: "N", desaWilayah: "D" });
     expect(o.luasHa).toBeGreaterThan(100);
     expect(o.kategori).toBe("Flora");

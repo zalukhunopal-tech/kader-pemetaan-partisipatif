@@ -27,7 +27,12 @@ describe("posisi peta terakhir", () => {
   });
 
   it("isi rusak atau di luar rentang diabaikan", () => {
-    for (const isi of ["{rusak", JSON.stringify({ lat: 95, lng: 100, zoom: 15 }), JSON.stringify({ lat: "x", lng: 1, zoom: 1 }), JSON.stringify({ lat: 1, lng: 200, zoom: 15 })]) {
+    for (const isi of [
+      "{rusak",
+      JSON.stringify({ lat: 95, lng: 100, zoom: 15 }),
+      JSON.stringify({ lat: "x", lng: 1, zoom: 1 }),
+      JSON.stringify({ lat: 1, lng: 200, zoom: 15 })
+    ]) {
       localStorage.setItem(KUNCI_POSISI_PETA, isi);
       expect(bacaPosisiPeta()).toBeNull();
     }

@@ -104,7 +104,9 @@ export async function verifikasiAsersi(d: DataAsersi): Promise<boolean> {
       return await sub.verify({ name: "ECDSA", hash: "SHA-256" }, kunci, keBuffer(mentah), keBuffer(pesan));
     }
     if (d.alg === ALG_RS256) {
-      const kunci = await sub.importKey("spki", keBuffer(d.kunciPublikSpki), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+      const kunci = await sub.importKey("spki", keBuffer(d.kunciPublikSpki), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, [
+        "verify"
+      ]);
       return await sub.verify("RSASSA-PKCS1-v1_5", kunci, keBuffer(d.tandaTangan), keBuffer(pesan));
     }
     return false;
