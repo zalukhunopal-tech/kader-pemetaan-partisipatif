@@ -1,4 +1,4 @@
-# GeoKader — Aplikasi Survei & Pemetaan Partisipatif Kader Masyarakat
+# Titik Tapak — Aplikasi Survei & Pemetaan Partisipatif Kader Masyarakat
 
 Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbasis masyarakat (*community-based participatory mapping*) dengan arsitektur **Offline-First**, sinkronisasi otomatis ke **Google Drive & Google Sheets**, serta sertifikat kader yang diterbitkan dari data yang sudah diverifikasi admin.
 
@@ -16,7 +16,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
 2. **Integrasi & Sinkronisasi Database Google Drive & Sheets**
    - Antrean *Offline-First* di memori perangkat (`Tersimpan di HP`, `Tersinkron ke GDrive`, `Terverifikasi Admin`).
    - Ekspor langsung ke format standar GIS: **GeoJSON (`.geojson`)**, **KML (`.kml`)**, **GPX (`.gpx`)**, dan **CSV Master Tabel (`.csv`)**.
-   - Semua data masuk ke **satu Google Drive milik pemilik aplikasi**, dengan folder per wilayah administrasi yang dibuat otomatis: `GeoKader_Database / Provinsi / Kabupaten atau Kota / Kecamatan / Kelurahan atau Desa`. Nama berkas mengikuti **akun pembuat, nama data, bulan, dan tahun perekaman**, mis. `budi_sebaran_anggrek_november_2026.geojson` (semua objek "Sebaran Anggrek" milik Budi pada November 2026 dalam satu berkas) dan fotonya `budi_sebaran_anggrek_november_2026_foto_1.jpg`. Satu spreadsheet `Master_Data_GeoKader` mencatat setiap objek beserta wilayah dan tautan berkasnya. Lihat *Google Drive (pasang sekali)*.
+   - Semua data masuk ke **satu Google Drive milik pemilik aplikasi**, dengan folder per wilayah administrasi yang dibuat otomatis: `Titik_Tapak_Database / Provinsi / Kabupaten atau Kota / Kecamatan / Kelurahan atau Desa`. Nama berkas mengikuti **akun pembuat, nama data, bulan, dan tahun perekaman**, mis. `budi_sebaran_anggrek_november_2026.geojson` (semua objek "Sebaran Anggrek" milik Budi pada November 2026 dalam satu berkas) dan fotonya `budi_sebaran_anggrek_november_2026_foto_1.jpg`. Satu spreadsheet `Master_Data_Titik_Tapak` mencatat setiap objek beserta wilayah dan tautan berkasnya. Lihat *Google Drive (pasang sekali)*.
    - Wilayah diambil dari **akun pembuat data**: admin mengisi provinsi, kabupaten/kota, kecamatan, dan kelurahan/desa saat membuat akun kader (wajib) di **Admin > Akun**, dan bisa melengkapi atau mengubahnya untuk akun lama. Data yang direkam dicap dengan wilayah akunnya saat itu; data lama tanpa cap memakai wilayah akunnya saat diunggah, dan yang wilayahnya belum lengkap masuk folder `Wilayah_Belum_Diisi`.
    - **Tidak ada pengaturan Drive di aplikasi.** Unggahan berjalan otomatis saat ada internet dan ada antrean, ke alamat yang ditanam saat build. Halaman GDrive menampilkan folder dan nama berkas tujuan setiap data. Status **Tersinkron** hanya diberikan pada data yang dikonfirmasi tersimpan oleh Apps Script; penyimpanan idempoten (kirim ulang tidak menggandakan) dan dilindungi token. Bila nama atau wilayah data berubah, data dipindah ke berkas barunya.
 
@@ -33,7 +33,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
 
 ## Memasang Aplikasi (PWA)
 
-GeoKader bisa dipasang seperti aplikasi biasa (ikon di layar utama, layar penuh, jalan tanpa internet):
+Titik Tapak bisa dipasang seperti aplikasi biasa (ikon di layar utama, layar penuh, jalan tanpa internet):
 
 - **Android (Chrome, Edge, Samsung Internet):** ketuk **Instal** pada ajakan di Pustaka, menu **Instal aplikasi**, atau tombol di layar masuk. Bila tombol tidak memunculkan dialog, buka menu browser ⋮ → *Instal aplikasi*.
 - **iPhone/iPad (Safari):** ketuk **Bagikan** → **Tambahkan ke Layar Utama**. Aplikasi menampilkan panduan ini.
@@ -87,8 +87,8 @@ Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: alamat dan
 Penerima data adalah Google Apps Script di akun Google tujuan (`apps-script/Code.gs`). Pemasangan dilakukan **sekali** oleh pemilik Drive; setelah itu folder, spreadsheet, dan berkas dibuat otomatis.
 
 1. Buka [script.google.com](https://script.google.com) dengan akun Google tujuan > **Proyek baru**. Ganti isi `Code.gs` dengan `apps-script/Code.gs`. Di **Setelan proyek**, centang *Tampilkan file manifes "appsscript.json"* lalu ganti isinya dengan `apps-script/appsscript.json` (zona waktu Asia/Jakarta).
-2. Pilih fungsi **`pasangGeoKader`** > **Jalankan**, lalu izinkan aksesnya ke Drive dan Spreadsheet. Fungsi ini membuat folder `GeoKader_Database`, spreadsheet `Master_Data_GeoKader`, dan token; ketiganya tampil di **Log eksekusi**.
-3. **Terapkan > Deployment baru > Aplikasi web**: *Jalankan sebagai* **Saya**, *Yang memiliki akses* **Siapa saja**. Salin URL yang berakhiran `/exec` (membukanya di browser menampilkan "Penerima data GeoKader aktif").
+2. Pilih fungsi **`pasangTitikTapak`** > **Jalankan**, lalu izinkan aksesnya ke Drive dan Spreadsheet. Fungsi ini membuat folder `Titik_Tapak_Database`, spreadsheet `Master_Data_Titik_Tapak`, dan token; ketiganya tampil di **Log eksekusi**.
+3. **Terapkan > Deployment baru > Aplikasi web**: *Jalankan sebagai* **Saya**, *Yang memiliki akses* **Siapa saja**. Salin URL yang berakhiran `/exec` (membukanya di browser menampilkan "Penerima data Titik Tapak aktif").
 4. Isi `.env` di komputer/hosting yang membangun aplikasi:
    ```
    VITE_GDRIVE_URL=https://script.google.com/macros/s/xxxxx/exec
@@ -96,7 +96,7 @@ Penerima data adalah Google Apps Script di akun Google tujuan (`apps-script/Code
    ```
    lalu `npm run build` dan terbitkan ulang. Selesai; kader tidak perlu mengatur apa pun.
 
-Bila `Code.gs` berubah, tempel versi baru lalu **Terapkan > Kelola deployment > Edit > Versi baru** (URL tetap sama). Token tetap tersimpan di *Properti skrip* (`GEOKADER_TOKEN`). Token ikut tertanam di aplikasi, jadi bukan rahasia mutlak; fungsinya menolak kiriman dari orang yang hanya tahu URL.
+Bila `Code.gs` berubah, tempel versi baru lalu **Terapkan > Kelola deployment > Edit > Versi baru** (URL tetap sama). Token tetap tersimpan di *Properti skrip* (`TITIK_TAPAK_TOKEN`). Token ikut tertanam di aplikasi, jadi bukan rahasia mutlak; fungsinya menolak kiriman dari orang yang hanya tahu URL.
 
 ## Akun & Keamanan
 

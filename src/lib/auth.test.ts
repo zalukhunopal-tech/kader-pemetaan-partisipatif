@@ -265,7 +265,7 @@ describe("Google Authenticator (TOTP)", () => {
     const m = await mulaiPendaftaranTotp("budia@contoh.id", SANDI);
     expect(m.sukses).toBe(true);
     expect(m.uri).toContain(`secret=${m.rahasia}`);
-    expect(m.uri).toContain("issuer=GeoKader");
+    expect(m.uri).toContain("issuer=Titik%20Tapak");
     expect(base32Decode(m.rahasia!)!.length).toBe(20);
     expect(muatSemuaAkun()[0].totpRahasia).toBeUndefined(); // belum disimpan
 

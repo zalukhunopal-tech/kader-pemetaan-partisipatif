@@ -152,7 +152,7 @@ export async function daftarkanBiometrik(sesi: AkunSesi | null): Promise<HasilKu
     const kredensial = (await navigator.credentials.create({
       publicKey: {
         challenge: acak(32),
-        rp: { name: "GeoKader" },
+        rp: { name: "Titik Tapak" },
         user: { id: acak(16), name: akun.email, displayName: akun.nama },
         pubKeyCredParams: [
           { type: "public-key", alg: ALG_ES256 },
@@ -168,7 +168,7 @@ export async function daftarkanBiometrik(sesi: AkunSesi | null): Promise<HasilKu
     const spki = resp.getPublicKey?.();
     const alg = resp.getPublicKeyAlgorithm?.();
     if (!spki || (alg !== ALG_ES256 && alg !== ALG_RS256)) {
-      return { sukses: false, pesan: "Browser ini belum bisa memakai sidik jari/wajah untuk GeoKader. Gunakan PIN." };
+      return { sukses: false, pesan: "Browser ini belum bisa memakai sidik jari/wajah untuk Titik Tapak. Gunakan PIN." };
     }
     perbaruiKunciCepatAkun(akun.email, {
       biometrik: {

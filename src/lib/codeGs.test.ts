@@ -129,7 +129,7 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
 
   const root = new Folder("ROOT");
   const spreadsheet = new Map<string, Spreadsheet>();
-  const props = new Map<string, string>(token ? [["GEOKADER_TOKEN", token]] : []);
+  const props = new Map<string, string>(token ? [["TITIK_TAPAK_TOKEN", token]] : []);
   const ambil = (id: string) => {
     const x = semua.get(id);
     if (!x) throw new Error("tidak ada " + id);
@@ -178,7 +178,7 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
   const panggil = <T>(nama: string, ...arg: unknown[]) => (sandbox[nama] as (...a: unknown[]) => T)(...arg);
   const kirim = (body: unknown) =>
     JSON.parse(panggil<{ isi: string }>("doPost", { postData: { contents: JSON.stringify(body) } }).isi) as Record<string, unknown>;
-  const induk = () => root.cari("GeoKader_Database")!;
+  const induk = () => root.cari("Titik_Tapak_Database")!;
   const tabData = () => [...spreadsheet.values()][0].getSheetByName("Data_Spasial")!;
   const isiGeojson = (f: Folder | undefined, nama: string) => {
     const b = f?.berkasAktif().find((x) => x.nama === nama);
@@ -226,30 +226,30 @@ const FOTO = "data:image/jpeg;base64," + Buffer.from("JPEGDATA").toString("base6
 const desaJambi = (L: ReturnType<typeof buatLingkungan>) => L.induk().cari("Jambi", "Kabupaten Merangin", "Bangko", "Rantau Panjang");
 
 describe("Code.gs: pemasangan dan token", () => {
-  it("pasangGeoKader membuat folder induk, spreadsheet di dalamnya, dan token; dijalankan ulang tidak menggandakan", () => {
+  it("pasangTitikTapak membuat folder induk, spreadsheet di dalamnya, dan token; dijalankan ulang tidak menggandakan", () => {
     const L = buatLingkungan({ token: null });
-    const hasil = L.panggil<{ token: string; folder: string; spreadsheet: string }>("pasangGeoKader");
+    const hasil = L.panggil<{ token: string; folder: string; spreadsheet: string }>("pasangTitikTapak");
     expect(hasil.token).toBe("1234abcd000040008000" + "0000000000ff");
-    expect(L.props.get("GEOKADER_TOKEN")).toBe(hasil.token);
+    expect(L.props.get("TITIK_TAPAK_TOKEN")).toBe(hasil.token);
     expect(L.induk()).toBeDefined();
     expect(
       L.induk()
         .berkasAktif()
         .map((b) => b.nama)
-    ).toEqual(["Master_Data_GeoKader"]);
+    ).toEqual(["Master_Data_Titik_Tapak"]);
     expect(L.tabData().baris[0]).toContain("Kelurahan_Desa");
     expect(L.log.logger.join("\n")).toMatch(/Token\s+: 1234abcd/);
 
-    L.panggil("pasangGeoKader");
-    expect(L.root.anak.filter((f) => f.nama === "GeoKader_Database")).toHaveLength(1);
+    L.panggil("pasangTitikTapak");
+    expect(L.root.anak.filter((f) => f.nama === "Titik_Tapak_Database")).toHaveLength(1);
     expect(L.spreadsheet.size).toBe(1);
-    expect(L.props.get("GEOKADER_TOKEN")).toBe(hasil.token);
+    expect(L.props.get("TITIK_TAPAK_TOKEN")).toBe(hasil.token);
   });
 
-  it("token belum diatur: ditolak dengan petunjuk menjalankan pasangGeoKader", () => {
+  it("token belum diatur: ditolak dengan petunjuk menjalankan pasangTitikTapak", () => {
     const h = buatLingkungan({ token: null }).kirim(payload([rec("a")]));
     expect(h.sukses).toBe(false);
-    expect(h.pesan).toMatch(/pasangGeoKader/);
+    expect(h.pesan).toMatch(/pasangTitikTapak/);
   });
 
   it("token salah atau tidak ada ditolak tanpa membuat folder apa pun, dan lock tetap dilepas", () => {
@@ -260,13 +260,13 @@ describe("Code.gs: pemasangan dan token", () => {
     expect(L.log.lockLepas).toBe(2);
   });
 
-  it("tanpa pasangGeoKader (token diatur manual), folder induk dan spreadsheet dibuat saat data pertama masuk", () => {
+  it("tanpa pasangTitikTapak (token diatur manual), folder induk dan spreadsheet dibuat saat data pertama masuk", () => {
     const L = buatLingkungan();
     expect(L.kirim(payload([rec("a")]))).toMatchObject({ sukses: true, diterima: ["a"], jumlah: 1 });
     expect(
       L.induk()
         .berkasAktif()
-        .some((b) => b.nama === "Master_Data_GeoKader")
+        .some((b) => b.nama === "Master_Data_Titik_Tapak")
     ).toBe(true);
   });
 

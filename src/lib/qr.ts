@@ -5,6 +5,8 @@ import qrcode from "qrcode-generator";
  * QR sungguhan (bisa dipindai) yang memuat data sertifikat. Bila VITE_URL_VERIFIKASI diisi,
  * isinya berupa tautan ke halaman verifikasi organisasi; selain itu berupa teks
  * "GEOKADER|nomor|idKader|tanggal" yang dapat dicocokkan dengan daftar sertifikat admin.
+ * Awalan GEOKADER (nama lama aplikasi) sengaja dipertahankan agar QR sertifikat yang sudah
+ * terbit tetap dikenali.
  */
 
 export interface DataQrSertifikat {

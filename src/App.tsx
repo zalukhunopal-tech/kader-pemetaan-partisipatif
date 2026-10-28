@@ -260,7 +260,7 @@ export const App: React.FC = () => {
     simpanSesiPengguna(null);
     setSesiPengguna(null);
     setBukaKeamanan(false);
-    tampilkanToast("Anda telah keluar dari aplikasi GeoKader.");
+    tampilkanToast("Anda telah keluar dari aplikasi Titik Tapak.");
   };
 
   // Switch Peran Pengguna (Admin vs User/Kader)

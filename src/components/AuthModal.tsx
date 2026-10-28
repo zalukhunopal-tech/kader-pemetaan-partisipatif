@@ -14,7 +14,7 @@ import {
 import { rahasiaUntukTampil } from "../lib/totp";
 import { KodeQrSvg } from "./KodeQrSvg";
 import { TombolInstal } from "./InstalAplikasi";
-import { AlertCircle, CheckCircle2, Compass, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone } from "lucide-react";
 
 interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
@@ -292,22 +292,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             textAlign: "center"
           }}
         >
-          <div
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.15)",
-              border: "2px solid #34d399",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 8
-            }}
-          >
-            <Compass size={26} color="#fbbf24" />
-          </div>
-          <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>GeoKader</h2>
+          <img src="./icon.svg" alt="" width={56} height={56} style={{ display: "block", margin: "0 auto 8px" }} />
+          <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>Titik Tapak</h2>
           <p style={{ margin: 0, fontSize: "0.78rem", color: "#a7f3d0" }}>Pemetaan Partisipatif Masyarakat</p>
         </div>
 
@@ -444,7 +430,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{emailLogin}</div>
               </div>
               <p style={{ margin: 0, fontSize: "0.82rem", color: "#334155", lineHeight: 1.5 }}>
-                Buka <strong>Google Authenticator</strong> di HP, lalu masukkan kode 6 digit untuk GeoKader.
+                Buka <strong>Google Authenticator</strong> di HP, lalu masukkan kode 6 digit untuk Titik Tapak.
               </p>
               <input
                 id="kode-totp"
@@ -486,7 +472,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 <li>
                   Pilih <strong>+</strong> lalu <strong>Pindai kode QR</strong> dan arahkan ke kode di bawah.
                 </li>
-                <li>Ketik kode 6 digit yang muncul untuk GeoKader, lalu tekan Aktifkan.</li>
+                <li>Ketik kode 6 digit yang muncul untuk Titik Tapak, lalu tekan Aktifkan.</li>
               </ol>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <div id="qr-totp">
@@ -777,7 +763,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
         </div>
         {(mode === "login" || mode === "setup_admin") && (
           <div className="auth-instal">
-            <TombolInstal className="auth-instal-tombol" label="Pasang GeoKader di HP ini" />
+            <TombolInstal className="auth-instal-tombol" label="Pasang Titik Tapak di HP ini" />
           </div>
         )}
       </div>

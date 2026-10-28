@@ -121,9 +121,9 @@ describe("rahasia dan tautan otpauth", () => {
     const u = new URL(uriOtpauth("siti@contoh.id", "JBSWY3DPEHPK3PXP"));
     expect(u.protocol).toBe("otpauth:");
     expect(u.host).toBe("totp");
-    expect(decodeURIComponent(u.pathname)).toBe("/GeoKader:siti@contoh.id");
+    expect(decodeURIComponent(u.pathname)).toBe("/Titik Tapak:siti@contoh.id");
     expect(u.searchParams.get("secret")).toBe("JBSWY3DPEHPK3PXP");
-    expect(u.searchParams.get("issuer")).toBe("GeoKader");
+    expect(u.searchParams.get("issuer")).toBe("Titik Tapak");
     expect(u.searchParams.get("algorithm")).toBe("SHA1");
     expect(u.searchParams.get("digits")).toBe("6");
     expect(u.searchParams.get("period")).toBe("30");
@@ -131,7 +131,9 @@ describe("rahasia dan tautan otpauth", () => {
 
   it("email dengan karakter khusus di-encode", () => {
     const u = uriOtpauth("a+b@contoh.id", "JBSWY3DPEHPK3PXP");
-    expect(u).toContain("GeoKader%3Aa%2Bb%40contoh.id");
+    expect(u).toContain("Titik%20Tapak%3Aa%2Bb%40contoh.id");
+    expect(u).toContain("issuer=Titik%20Tapak&");
+    expect(u).not.toContain("+");
   });
 
   it("rahasiaUntukTampil membagi per 4 huruf", () => {
