@@ -41,6 +41,7 @@ import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
+import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import {
@@ -292,19 +293,31 @@ export const App: React.FC = () => {
     );
   };
 
-  // Handler Impor Berkas: data impor selalu ditandai dan mulai dari status "lokal",
-  // sehingga baru dihitung ke capaian setelah admin menyatakannya sah
-  const handleImporDataSpasial = (items: DataSpasialItem[]) => {
-    if (items.length === 0) return;
-    const ditandai = items.map((d) => ({
-      ...d,
-      diimpor: true,
-      statusSinkron: "lokal" as StatusSinkron
-    }));
-    setDataSpasial((prev) => [...ditandai, ...prev]);
-    tampilkanToast(
-      `✓ ${items.length} objek diimpor. Dihitung ke capaian setelah diverifikasi admin.`
-    );
+  // Handler Impor Berkas (GeoJSON, KML, GPX): fitur divalidasi, yang tidak valid dilewati dan
+  // dilaporkan. Data impor ditandai dan baru dihitung ke capaian setelah diverifikasi admin.
+  const handleImporBerkas = (namaBerkas: string, isi: string): boolean => {
+    try {
+      const hasil = parseBerkas(namaBerkas, isi);
+      const konteks = {
+        idKader: profil.idKader,
+        namaKader: profil.nama,
+        desaWilayah: profil.desaWilayah
+      };
+      const items = hasil.fitur.map((f) => fiturKeDataSpasial(f, konteks));
+      const catatan = hasil.dilewati.length > 0 ? ` ${hasil.dilewati.length} dilewati: ${ringkasDilewati(hasil.dilewati)}.` : "";
+      if (items.length === 0) {
+        tampilkanToast(`⚠️ Tidak ada objek yang bisa diimpor dari ${namaBerkas}.${catatan}`);
+        return false;
+      }
+      setDataSpasial((prev) => [...items, ...prev]);
+      tampilkanToast(
+        `✓ ${items.length} objek ${hasil.format} diimpor.${catatan} Dihitung ke capaian setelah diverifikasi admin.`
+      );
+      return true;
+    } catch (err) {
+      tampilkanToast(`⚠️ ${err instanceof Error ? err.message : "Berkas tidak dapat dibaca."}`);
+      return false;
+    }
   };
 
   // Hapus area peta offline; tile yang tersimpan ikut dihapus (kecuali yang dipakai area lain)
@@ -791,7 +804,7 @@ export const App: React.FC = () => {
             onHapusLapisan={(id) =>
               setLapisanList((prev) => prev.filter((l) => l.id !== id))
             }
-            onImporDataSpasial={handleImporDataSpasial}
+            onImporBerkas={handleImporBerkas}
             onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
           />
         )}
@@ -805,7 +818,7 @@ export const App: React.FC = () => {
             onSimpanDataBaru={handleSimpanDataBaru}
             onTambahPembaruanObjek={handleTambahPembaruanObjek}
             onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-            onImporDataSpasial={handleImporDataSpasial}
+            onImporBerkas={handleImporBerkas}
             onBukaSmartwatch={() => setBukaSmartwatch(true)}
           />
         )}

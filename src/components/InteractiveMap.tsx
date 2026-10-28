@@ -84,7 +84,7 @@ interface InteractiveMapProps {
     fotoBase64?: string
   ) => boolean;
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
-  onImporDataSpasial: (items: DataSpasialItem[]) => void;
+  onImporBerkas: (namaBerkas: string, isi: string) => boolean;
   onBukaSmartwatch?: () => void;
 }
 
@@ -159,7 +159,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanDataBaru,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
-  onImporDataSpasial,
+  onImporBerkas,
   onBukaSmartwatch
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -747,68 +747,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const handleImporFileSpasial = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const text = String(reader.result || "");
-        const json = JSON.parse(text);
-        if (json.features && Array.isArray(json.features)) {
-          const hasilImpor: DataSpasialItem[] = json.features.map(
-            (f: Record<string, any>, idx: number) => {
-              const geomType = f.geometry?.type;
-              const simulasi = f.properties?.simulasi === true;
-              let jenis: JenisGeometri = "point";
-              let koord: KoordinatTitik[] = [];
-              if (geomType === "Point") {
-                jenis = "point";
-                const [lng, lat, ele] = f.geometry.coordinates;
-                koord = [{ lat, lng, elevasi: typeof ele === "number" ? ele : undefined }];
-              } else if (geomType === "LineString") {
-                jenis = "line";
-                koord = f.geometry.coordinates.map((c: number[]) => ({
-                  lat: c[1],
-                  lng: c[0],
-                  elevasi: typeof c[2] === "number" ? c[2] : undefined
-                }));
-              } else if (geomType === "Polygon") {
-                jenis = "polygon";
-                const ring = f.geometry.coordinates[0] || [];
-                koord = ring.slice(0, -1).map((c: number[]) => ({
-                  lat: c[1],
-                  lng: c[0],
-                  elevasi: typeof c[2] === "number" ? c[2] : undefined
-                }));
-              }
-              // Pertahankan penanda simulasi agar data hasil ekspor-impor tidak lolos hitungan capaian
-              if (simulasi) koord = koord.map((k) => ({ ...k, simulasi: true }));
-              return {
-                id: `IMP-${Date.now()}-${idx}`,
-                idKader: profil.idKader,
-                namaKader: profil.nama,
-                desaWilayah: profil.desaWilayah,
-                jenisGeometri: jenis,
-                kategori: (f.properties?.kategori as KategoriSurvei) || "Flora",
-                judul: f.properties?.judul || f.properties?.name || `Impor #${idx + 1}`,
-                namaLokal: f.properties?.namaLokal || "",
-                deskripsi: f.properties?.deskripsi || "Hasil impor file GeoJSON",
-                koordinat: koord,
-                panjangKm: jenis === "line" ? hitungPanjangGarisKm(koord) : 0,
-                luasHa: jenis === "polygon" ? hitungLuasPoligonHa(koord) : 0,
-                statusSinkron: "lokal",
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                riwayatPembaruan: []
-              };
-            }
-          );
-          onImporDataSpasial(hasilImpor);
-          setBukaMenuPeta(false);
-        }
-      } catch {
-        alert("Format file tidak dikenali. Gunakan file .geojson standar.");
-      }
+      if (onImporBerkas(file.name, String(reader.result || ""))) setBukaMenuPeta(false);
+      input.value = ""; // izinkan memilih berkas yang sama lagi
+    };
+    reader.onerror = () => {
+      onImporBerkas(file.name, "");
+      input.value = "";
     };
     reader.readAsText(file);
   };
@@ -1092,10 +1041,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 className="btn-outline-sm"
                 style={{ width: "100%", cursor: "pointer" }}
               >
-                <FileUp size={14} /> Impor GeoJSON
+                <FileUp size={14} /> Impor GeoJSON / KML / GPX
                 <input
                   type="file"
-                  accept=".geojson,.json"
+                  accept=".geojson,.json,.kml,.gpx"
                   style={{ display: "none" }}
                   onChange={handleImporFileSpasial}
                 />
