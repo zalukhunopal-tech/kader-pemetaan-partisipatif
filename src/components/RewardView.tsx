@@ -1,4 +1,5 @@
 import { matriksQr, payloadVerifikasi } from "../lib/qr";
+import { useMuatGambar } from "../lib/useMuatGambar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataSpasialItem,
@@ -348,7 +349,7 @@ function gambarDeretanLogoHeader(
   const radius = 37;
   const gap = 26;
   const totalW = logos.length * (radius * 2) + (logos.length - 1) * gap;
-  let startX = centerX - totalW / 2 + radius;
+  const startX = centerX - totalW / 2 + radius;
 
   const paletWarna = ["#eab308", "#f8fafc", "#16a34a", "#06b6d4", "#f97316"];
 
@@ -983,9 +984,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const inputFotoRef = useRef<HTMLInputElement | null>(null);
   const [bukaPengaturan, setBukaPengaturan] = useState(false);
   const [bukaAturSertifikat, setBukaAturSertifikat] = useState(false);
-  const [fotoElement, setFotoElement] = useState<HTMLImageElement | null>(null);
-  const [logoImagesMap, setLogoImagesMap] = useState<Record<string, HTMLImageElement>>({});
-  const [ttdImagesMap, setTtdImagesMap] = useState<Record<string, HTMLImageElement>>({});
 
   // Kemajuan yang terlihat kader memakai semua data; kelayakan sertifikat hanya dari data terverifikasi
   const capaian = useMemo(
@@ -1005,13 +1003,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const { levelSaatIni, persenProgresLevel } = peringkatGis;
 
   // State navigasi level ke kiri / ke kanan (1 s/d 20)
-  const [nomorLevelDilihat, setNomorLevelDilihat] = useState<number>(
-    levelSaatIni.level
-  );
-
-  useEffect(() => {
-    setNomorLevelDilihat(levelSaatIni.level);
-  }, [levelSaatIni.level]);
+  // Level yang dilihat (geser kiri/kanan) kembali ke level saat ini begitu kader naik level
+  const [levelDipilih, setLevelDipilih] = useState<{ untukLevel: number; nomor: number } | null>(null);
+  const nomorLevelDilihat =
+    levelDipilih && levelDipilih.untukLevel === levelSaatIni.level ? levelDipilih.nomor : levelSaatIni.level;
+  const setNomorLevelDilihat = (nomor: number) => setLevelDipilih({ untukLevel: levelSaatIni.level, nomor });
 
   const infoLevelDilihat =
     DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat) || levelSaatIni;
@@ -1072,82 +1068,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
     return DEFAULT_PENANDATANGAN_SERTIFIKAT;
   }, [profil.penandatanganList, sertifikatSaya?.penandatanganList]);
 
-  useEffect(() => {
-    if (!fotoSertifikatBase64) {
-      setFotoElement(null);
-      return;
-    }
-    const img = new Image();
-    img.onload = () => setFotoElement(img);
-    img.onerror = () => setFotoElement(null);
-    img.src = fotoSertifikatBase64;
-  }, [fotoSertifikatBase64]);
-
-  // Muat gambar logo custom ke HTMLImageElement
-  useEffect(() => {
-    let aktif = true;
-    const mapBaru: Record<string, HTMLImageElement> = {};
-    const denganGambar = logoListAktif.filter((l) => Boolean(l.imageBase64));
-    if (denganGambar.length === 0) {
-      setLogoImagesMap({});
-      return;
-    }
-    let selesai = 0;
-    denganGambar.forEach((l) => {
-      const img = new Image();
-      img.onload = () => {
-        mapBaru[l.id] = img;
-        selesai++;
-        if (aktif && selesai === denganGambar.length) {
-          setLogoImagesMap({ ...mapBaru });
-        }
-      };
-      img.onerror = () => {
-        selesai++;
-        if (aktif && selesai === denganGambar.length) {
-          setLogoImagesMap({ ...mapBaru });
-        }
-      };
-      img.src = l.imageBase64!;
-    });
-    return () => {
-      aktif = false;
-    };
-  }, [logoListAktif]);
-
-  // Muat gambar tanda tangan custom ke HTMLImageElement
-  useEffect(() => {
-    let aktif = true;
-    const mapBaru: Record<string, HTMLImageElement> = {};
-    const denganGambar = penandatanganListAktif.filter((p) =>
-      Boolean(p.tandaTanganBase64)
-    );
-    if (denganGambar.length === 0) {
-      setTtdImagesMap({});
-      return;
-    }
-    let selesai = 0;
-    denganGambar.forEach((p) => {
-      const img = new Image();
-      img.onload = () => {
-        mapBaru[p.id] = img;
-        selesai++;
-        if (aktif && selesai === denganGambar.length) {
-          setTtdImagesMap({ ...mapBaru });
-        }
-      };
-      img.onerror = () => {
-        selesai++;
-        if (aktif && selesai === denganGambar.length) {
-          setTtdImagesMap({ ...mapBaru });
-        }
-      };
-      img.src = p.tandaTanganBase64!;
-    });
-    return () => {
-      aktif = false;
-    };
-  }, [penandatanganListAktif]);
+  // Foto kader, logo, dan tanda tangan dimuat menjadi gambar untuk kanvas sertifikat
+  const gambarFoto = useMuatGambar([{ id: "foto", src: fotoSertifikatBase64 || undefined }]);
+  const fotoElement = gambarFoto.foto ?? null;
+  const logoImagesMap = useMuatGambar(logoListAktif.map((l) => ({ id: l.id, src: l.imageBase64 })));
+  const ttdImagesMap = useMuatGambar(penandatanganListAktif.map((p) => ({ id: p.id, src: p.tandaTanganBase64 })));
 
   const sertifikatTampil: SertifikatKader = useMemo(() => {
     const pejabatUtama = penandatanganListAktif[0];
@@ -1194,11 +1119,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
   }, [
     sertifikatSaya,
     profil,
-    sudahTersertifikasi,
     fotoSertifikatBase64,
     logoListAktif,
     penandatanganListAktif,
-    temaKegiatanAktif
+    temaKegiatanAktif,
+    capaianTerverifikasi.alasanSertifikat
   ]);
 
   useEffect(() => {

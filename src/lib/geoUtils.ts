@@ -312,7 +312,7 @@ export function eksporKeKML(daftar: DataSpasialItem[]): string {
       const coords = item.koordinat
         .map((p) => posisiKML(p))
         .join(" ");
-      let geomXml = "";
+      let geomXml: string;
       if (item.jenisGeometri === "point") {
         geomXml = `<Point><coordinates>${coords}</coordinates></Point>`;
       } else if (item.jenisGeometri === "line") {

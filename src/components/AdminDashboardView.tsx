@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   DataSpasialItem,
   JenisGeometri,
@@ -91,12 +91,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [katAnn] = useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
 
   // Form Penerbitan & Pengaturan Penandatangan Sertifikat
-  const [nomorSertBaru, setNomorSertBaru] = useState(() => nomorSertifikatBerikut(sertifikatList));
+  // Nomor berikutnya mengikuti jumlah sertifikat yang sudah terbit; nomor yang diketik admin berlaku
+  // sampai jumlah itu berubah (mis. setelah menerbitkan), lalu kembali ke nomor otomatis berikutnya
+  const [nomorDiketik, setNomorDiketik] = useState<{ untukJumlah: number; nilai: string } | null>(null);
+  const nomorSertBaru =
+    nomorDiketik && nomorDiketik.untukJumlah === sertifikatList.length
+      ? nomorDiketik.nilai
+      : nomorSertifikatBerikut(sertifikatList);
+  const setNomorSertBaru = (nilai: string) => setNomorDiketik({ untukJumlah: sertifikatList.length, nilai });
   const [pesanTerbit, setPesanTerbit] = useState<{ teks: string; ok: boolean } | null>(null);
-  // Nomor berikutnya mengikuti jumlah sertifikat yang sudah terbit
-  useEffect(() => {
-    setNomorSertBaru(nomorSertifikatBerikut(sertifikatList));
-  }, [sertifikatList.length]);
   const [penandatangan, setPenandatangan] = useState(
     profilKader.namaPenandatanganSertifikat || "Koordinator Program GIS"
   );

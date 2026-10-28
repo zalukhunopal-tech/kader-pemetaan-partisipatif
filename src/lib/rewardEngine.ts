@@ -499,8 +499,8 @@ export function hitungCapaianKader(
   const paketDariTracking = Math.floor(totalTrackingKm / TARGET_TRACKING_KM);
   const paketDariPoligon = Math.floor(totalPoligonHa / TARGET_POLIGON_HA);
 
-  let totalPaketSelesai = 0;
-  let progresPaketBerikutnyaPersen = 0;
+  let totalPaketSelesai: number;
+  let progresPaketBerikutnyaPersen: number;
 
   if (profil.modeKombinasiTarget === "gabungan_proporsional") {
     const totalFraksi =

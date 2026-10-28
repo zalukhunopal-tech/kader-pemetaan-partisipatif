@@ -39,11 +39,11 @@ function buatLingkungan({ token = "rahasia" as string | null, terikatSheet = tru
     appendRow(r: Baris) { this.baris.push([...r]); }
     getLastRow() { return this.baris.length; }
     getRange(r: number, c: number, nr = 1, nc = 1) {
-      const self = this;
+      const baris = this.baris; // larik yang sama dipakai appendRow, jadi perubahan terlihat di kedua arah
       return {
-        getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => (self.baris[r - 1 + i] || [])[c - 1 + j] ?? "")),
-        getValue: () => (self.baris[r - 1] || [])[c - 1] ?? "",
-        setValues: (v: Baris[]) => { v.forEach((row, i) => { self.baris[r - 1 + i] = [...row]; }); }
+        getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => (baris[r - 1 + i] || [])[c - 1 + j] ?? "")),
+        getValue: () => (baris[r - 1] || [])[c - 1] ?? "",
+        setValues: (v: Baris[]) => { v.forEach((row, i) => { baris[r - 1 + i] = [...row]; }); }
       };
     }
   }
@@ -65,7 +65,7 @@ function buatLingkungan({ token = "rahasia" as string | null, terikatSheet = tru
   vm.createContext(sandbox);
   vm.runInContext(KODE_GOOGLE_APPS_SCRIPT, sandbox);
   const kirim = (body: unknown) =>
-    JSON.parse(((sandbox.doPost as (e: unknown) => { isi: string })({ postData: { contents: JSON.stringify(body) } })).isi) as Record<string, any>;
+    JSON.parse(((sandbox.doPost as (e: unknown) => { isi: string })({ postData: { contents: JSON.stringify(body) } })).isi) as Record<string, unknown>;
   return { kirim, ss, root, log };
 }
 

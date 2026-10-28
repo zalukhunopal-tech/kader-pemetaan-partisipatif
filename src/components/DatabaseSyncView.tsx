@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { DataSpasialItem, KonfigurasiGDrive } from "../types";
-import {
-  eksporKeCSV,
-  eksporKeGeoJSON,
-  eksporKeGPX,
-  eksporKeKML,
-  keWKT
-} from "../lib/geoUtils";
+import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
 import { KODE_GOOGLE_APPS_SCRIPT, urlAppsScriptValid } from "../lib/gdriveSync";
 import {
   CloudUpload,
@@ -17,11 +11,9 @@ import {
   FolderGit2,
   Copy,
   Check,
-  Database,
   Image as ImageIcon,
   X,
-  MapPin,
-  ExternalLink
+  MapPin
 } from "lucide-react";
 
 interface DatabaseSyncViewProps {

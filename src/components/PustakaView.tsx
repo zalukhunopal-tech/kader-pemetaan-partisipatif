@@ -197,7 +197,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               <select
                 className="avenza-pill-select"
                 value={urutPeta}
-                onChange={(e) => setUrutPeta(e.target.value as any)}
+                onChange={(e) => setUrutPeta(e.target.value as typeof urutPeta)}
               >
                 <option value="baru_dilihat">Baru dilihat</option>
                 <option value="nama">Nama (A-Z)</option>
@@ -211,7 +211,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               <select
                 className="avenza-pill-select"
                 value={urutLapisan}
-                onChange={(e) => setUrutLapisan(e.target.value as any)}
+                onChange={(e) => setUrutLapisan(e.target.value as typeof urutLapisan)}
               >
                 <option value="terbaru">Terbaru</option>
                 <option value="nama">Nama (A-Z)</option>
@@ -225,7 +225,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             <select
               className="avenza-pill-select"
               value={filterItem}
-              onChange={(e) => setFilterItem(e.target.value as any)}
+              onChange={(e) => setFilterItem(e.target.value as typeof filterItem)}
             >
               <option value="semua">Semua item</option>
               <option value="geopdf">GeoPDF / Peta</option>

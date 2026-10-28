@@ -210,6 +210,18 @@ export function sisaMasaTotp(email: string | undefined | null, sekarang = Date.n
   }
 }
 
+/** Saat (ms) masa berlaku verifikasi Authenticator untuk email ini berakhir; null bila belum ada */
+export function waktuHabisTotp(email: string | undefined | null): number | null {
+  if (!email) return null;
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY_VERIFIKASI_TOTP) || "null") as { email?: string; pada?: number } | null;
+    if (!v || v.email !== email.trim().toLowerCase() || typeof v.pada !== "number") return null;
+    return v.pada + MASA_BERLAKU_TOTP_MS;
+  } catch {
+    return null;
+  }
+}
+
 /** Identitas baru saja dibuktikan dengan kode Authenticator: mulai masa 8 jam dan buka kunci aplikasi */
 function tandaiTerverifikasi(email: string): void {
   catatVerifikasiTotp(email);

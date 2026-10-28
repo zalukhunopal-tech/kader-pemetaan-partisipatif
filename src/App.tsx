@@ -200,7 +200,7 @@ export const App: React.FC = () => {
   );
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [pesanList, setPesanList] = useState<PesanKomunikasi[]>(() => muatPesan());
-  const [kaderAktifList, setKaderAktifList] = useState<KaderAktifPresence[]>(() =>
+  const [kaderAktifList] = useState<KaderAktifPresence[]>(() =>
     muatKaderAktif()
   );
   const [konfigGDrive, setKonfigGDrive] = useState<KonfigurasiGDrive>(() =>
@@ -619,15 +619,19 @@ export const App: React.FC = () => {
 
   // Sinkron otomatis: saat ada internet dan ada antrean. Satu percobaan per perubahan antrean
   // atau koneksi, jadi server yang gagal tidak membuat percobaan berulang tanpa henti.
+  const adaSesi = sesiPengguna !== null;
   useEffect(() => {
-    if (!sesiPengguna) return;
+    if (!adaSesi) return;
     if (!sedangOnline || !konfigGDrive.autoSyncSaatOnline) return;
     if (!urlAppsScriptValid(konfigGDrive.webAppUrl) || antreanLokalCount === 0) return;
     const t = window.setTimeout(() => {
       void handleSinkronkanSekarang(true);
     }, 2000);
     return () => window.clearTimeout(t);
-  }, [sedangOnline, konfigGDrive.autoSyncSaatOnline, konfigGDrive.webAppUrl, antreanLokalCount, !!sesiPengguna]);
+    // Sengaja hanya dipicu perubahan koneksi, pengaturan, dan antrean (bukan setiap render ulang),
+    // sehingga satu perubahan menghasilkan paling banyak satu percobaan sinkron otomatis.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedangOnline, konfigGDrive.autoSyncSaatOnline, konfigGDrive.webAppUrl, antreanLokalCount, adaSesi]);
 
   // Handler Fokus ke Titik Koordinat di Peta
   const handleFokusKePeta = (lat: number, lng: number, label: string) => {

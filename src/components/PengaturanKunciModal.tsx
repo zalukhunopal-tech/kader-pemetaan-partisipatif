@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Fingerprint, KeyRound, Lock, ShieldCheck, X } from "lucide-react";
-import { AkunSesi, sisaMasaTotp } from "../lib/auth";
+import { AkunSesi, sisaMasaTotp, waktuHabisTotp } from "../lib/auth";
 import { PANJANG_PIN, aturPin, daftarkanBiometrik, gantiPin, hapusBiometrik, metodeKunciCepat } from "../lib/kunciCepat";
 import { biometrikDidukung } from "../lib/webauthn";
 
@@ -71,7 +71,8 @@ export const PengaturanKunciModal: React.FC<PengaturanKunciModalProps> = ({ sesi
     }
   };
 
-  const berlakuSampai = new Date(Date.now() + sisa).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  const habisPada = waktuHabisTotp(sesi.email);
+  const berlakuSampai = habisPada ? new Date(habisPada).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "";
 
   return (
     <div className="modal-backdrop" onClick={onTutup}>

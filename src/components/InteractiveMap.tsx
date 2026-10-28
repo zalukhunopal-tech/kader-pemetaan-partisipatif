@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
   BasemapType,
@@ -238,7 +238,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // Simpan posisi peta (ditunda sedikit) dan pastikan tersimpan saat aplikasi ditutup/disembunyikan
   const posisiRef = useRef({ ...center, zoom, basemap });
-  posisiRef.current = { ...center, zoom, basemap };
+  // Diperbarui setelah render (bukan selama render); event roda yang datang sebelum render berikutnya
+  // menulis posisinya sendiri ke ref ini
+  useLayoutEffect(() => {
+    posisiRef.current = { ...center, zoom, basemap };
+  }, [center, zoom, basemap]);
   useEffect(() => {
     const t = window.setTimeout(() => simpanPosisiPeta(posisiRef.current), 300);
     return () => window.clearTimeout(t);
@@ -260,6 +264,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // Sinkronkan titik dari perekam latar belakang ke peta secara real-time
   useEffect(() => {
     if (rekamLatar.status !== "idle" && rekamLatar.jenis) {
+      // Menyalin state dari store perekam di luar React (yang tetap merekam saat peta tidak tampil)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModeRekam(rekamLatar.jenis);
       setTitikDraft(rekamLatar.titik);
       if (rekamLatar.posisiTerakhir && rekamLatar.autoGpsAktif && rekamLatar.status === "merekam") {
@@ -389,6 +395,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   useEffect(() => {
     if (fokusKoordinat) {
       sudahPusatRef.current = true; // lokasi yang dituju menang atas pemusatan GPS otomatis
+      // Permintaan fokus dari tab lain dipakai sekali lalu dikosongkan lewat onFokusDipakai
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCenter({ lat: fokusKoordinat.lat, lng: fokusKoordinat.lng });
       setZoom(16);
       if (fokusKoordinat.label) {
@@ -400,7 +408,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
       onFokusDipakai?.();
     }
-  }, [fokusKoordinat]);
+  }, [fokusKoordinat, onFokusDipakai]);
 
   useEffect(() => {
     if (sudahPusatRef.current || !perangkat.posisi || fokusKoordinat) return;
@@ -408,21 +416,19 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setCenter({ lat: perangkat.posisi.lat, lng: perangkat.posisi.lng });
   }, [perangkat.posisi, fokusKoordinat]);
 
-  const latLngToPixel = (
-    lat: number,
-    lng: number,
-    width: number,
-    height: number
-  ): { x: number; y: number } => {
-    const centerTx = lngToTileX(center.lng, zoom);
-    const centerTy = latToTileY(center.lat, zoom);
-    const ptTx = lngToTileX(lng, zoom);
-    const ptTy = latToTileY(lat, zoom);
-    return {
-      x: width / 2 + (ptTx - centerTx) * TILE_SIZE,
-      y: height / 2 + (ptTy - centerTy) * TILE_SIZE
-    };
-  };
+  const latLngToPixel = useCallback(
+    (lat: number, lng: number, width: number, height: number): { x: number; y: number } => {
+      const centerTx = lngToTileX(center.lng, zoom);
+      const centerTy = latToTileY(center.lat, zoom);
+      const ptTx = lngToTileX(lng, zoom);
+      const ptTy = latToTileY(lat, zoom);
+      return {
+        x: width / 2 + (ptTx - centerTx) * TILE_SIZE,
+        y: height / 2 + (ptTy - centerTy) * TILE_SIZE
+      };
+    },
+    [center, zoom]
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -717,6 +723,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }, [
     center,
     zoom,
+    latLngToPixel,
     tinggiPeta,
     versiGoogle,
     basemap,
@@ -966,7 +973,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   // Kotak wilayah = bagian peta yang terlihat di layar saat modal dibuka
-  const hitungKotakTerlihat = (): KotakWilayah => {
+  const hitungKotakTerlihat = useCallback((): KotakWilayah => {
     const rect = canvasRef.current?.getBoundingClientRect();
     const W = rect?.width || 360;
     const H = rect?.height || 480;
@@ -978,7 +985,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       maxLat: tileYToLat(cTy - H / 2 / TILE_SIZE, zoom),
       minLat: tileYToLat(cTy + H / 2 / TILE_SIZE, zoom)
     };
-  };
+  }, [center, zoom]);
 
   // Hak cipta citra Google mengikuti area yang tampil; diambil setelah peta berhenti bergerak
   useEffect(() => {
@@ -994,7 +1001,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       batal = true;
       window.clearTimeout(t);
     };
-  }, [basemap, center, zoom, versiGoogle]);
+  }, [basemap, zoom, versiGoogle, hitungKotakTerlihat]);
 
   const bukaModalUnduh = () => {
     setKotakUnduh(hitungKotakTerlihat());

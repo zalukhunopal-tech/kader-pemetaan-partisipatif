@@ -57,12 +57,14 @@ export const VerifikasiIdentitas: React.FC<VerifikasiIdentitasProps> = ({ sesi, 
     }
   };
 
-  // Sidik jari/wajah langsung ditawarkan sekali saat layar muncul
+  // Sidik jari/wajah langsung ditawarkan sekali saat layar muncul (ref menjaga agar hanya sekali)
   useEffect(() => {
     if (mode !== "cepat" || !metode.biometrik || sudahCobaBiometrik.current) return;
     sudahCobaBiometrik.current = true;
     void pakaiBiometrik(true);
-  }, [mode]);
+    // Sekali saja per tampilan layar; fungsi pakaiBiometrik dibuat ulang tiap render dan sengaja tidak jadi pemicu
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, metode.biometrik]);
 
   const kirimKode = (e: React.FormEvent) => {
     e.preventDefault();
