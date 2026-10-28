@@ -16,8 +16,9 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
 2. **Integrasi & Sinkronisasi Database Google Drive & Sheets**
    - Antrean *Offline-First* di memori perangkat (`Tersimpan di HP`, `Tersinkron ke GDrive`, `Terverifikasi Admin`).
    - Ekspor langsung ke format standar GIS: **GeoJSON (`.geojson`)**, **KML (`.kml`)**, **GPX (`.gpx`)**, dan **CSV Master Tabel (`.csv`)**.
-   - Dilengkapi generator kode backend **Google Apps Script (`Code.gs`)** siap pakai untuk membuat folder `Database_Pemetaan > Data_Spasial & Foto_Lapangan` otomatis di Google Drive.
-   - Status **Tersinkron** hanya diberikan pada data yang dikonfirmasi tersimpan oleh Apps Script. Tanpa URL Web App, tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil. Penyimpanan bersifat idempoten (kirim ulang tidak menggandakan baris) dan dilindungi token: isi `GEOKADER_TOKEN` di *Script Properties* dengan nilai yang sama seperti di Sinkronisasi > Konfigurasi > Token. Status online mengikuti koneksi browser, dan sinkron otomatis berjalan saat ada internet dan ada antrean. Pasang ulang `Code.gs` terbaru setiap kali berubah; Code.gs versi lama tetap bisa dipakai tetapi tanpa token dan tanpa penyimpanan idempoten.
+   - Semua data masuk ke **satu Google Drive milik pemilik aplikasi**, dengan folder per wilayah administrasi yang dibuat otomatis: `GeoKader_Database / Provinsi / Kabupaten atau Kota / Kecamatan / Kelurahan atau Desa`. Nama berkas mengikuti **akun pembuat, nama data, bulan, dan tahun perekaman**, mis. `budi_sebaran_anggrek_november_2026.geojson` (semua objek "Sebaran Anggrek" milik Budi pada November 2026 dalam satu berkas) dan fotonya `budi_sebaran_anggrek_november_2026_foto_1.jpg`. Satu spreadsheet `Master_Data_GeoKader` mencatat setiap objek beserta wilayah dan tautan berkasnya. Lihat *Google Drive (pasang sekali)*.
+   - Wilayah diambil dari **akun pembuat data**: admin mengisi provinsi, kabupaten/kota, kecamatan, dan kelurahan/desa saat membuat akun kader (wajib) di **Admin > Akun**, dan bisa melengkapi atau mengubahnya untuk akun lama. Data yang direkam dicap dengan wilayah akunnya saat itu; data lama tanpa cap memakai wilayah akunnya saat diunggah, dan yang wilayahnya belum lengkap masuk folder `Wilayah_Belum_Diisi`.
+   - **Tidak ada pengaturan Drive di aplikasi.** Unggahan berjalan otomatis saat ada internet dan ada antrean, ke alamat yang ditanam saat build. Halaman GDrive menampilkan folder dan nama berkas tujuan setiap data. Status **Tersinkron** hanya diberikan pada data yang dikonfirmasi tersimpan oleh Apps Script; penyimpanan idempoten (kirim ulang tidak menggandakan) dan dilindungi token. Bila nama atau wilayah data berubah, data dipindah ke berkas barunya.
 
 3. **Capaian & Sertifikat Kader**
    - **1 Paket Capaian**: **50 Titik Koordinat** ATAU **5,0 km Tracking Perjalanan** ATAU **5,0 Ha Pemetaan Poligon**.
@@ -79,7 +80,23 @@ npm run test:e2e # uji browser Playwright pada bundel produksi (lihat di bawah)
 
 Saat menambah atau menaikkan pustaka, jalankan `npm install <paket>` lalu commit `package.json` **dan** `package-lock.json` bersama-sama.
 
-Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: kunci peta satelit (`VITE_GOOGLE_MAPS_API_KEY`, `VITE_ESRI_API_KEY`), sumber tile (`VITE_TILE_*`), tautan verifikasi sertifikat (`VITE_URL_VERIFIKASI`), dan kode aktivasi admin (`VITE_KODE_ADMIN`).
+Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: alamat dan token Google Drive (`VITE_GDRIVE_URL`, `VITE_GDRIVE_TOKEN`), kunci peta satelit (`VITE_GOOGLE_MAPS_API_KEY`, `VITE_ESRI_API_KEY`), sumber tile (`VITE_TILE_*`), tautan verifikasi sertifikat (`VITE_URL_VERIFIKASI`), dan kode aktivasi admin (`VITE_KODE_ADMIN`). Berkas `.env` diabaikan git; jangan commit token asli karena repositori ini publik.
+
+## Google Drive (pasang sekali)
+
+Penerima data adalah Google Apps Script di akun Google tujuan (`apps-script/Code.gs`). Pemasangan dilakukan **sekali** oleh pemilik Drive; setelah itu folder, spreadsheet, dan berkas dibuat otomatis.
+
+1. Buka [script.google.com](https://script.google.com) dengan akun Google tujuan > **Proyek baru**. Ganti isi `Code.gs` dengan `apps-script/Code.gs`. Di **Setelan proyek**, centang *Tampilkan file manifes "appsscript.json"* lalu ganti isinya dengan `apps-script/appsscript.json` (zona waktu Asia/Jakarta).
+2. Pilih fungsi **`pasangGeoKader`** > **Jalankan**, lalu izinkan aksesnya ke Drive dan Spreadsheet. Fungsi ini membuat folder `GeoKader_Database`, spreadsheet `Master_Data_GeoKader`, dan token; ketiganya tampil di **Log eksekusi**.
+3. **Terapkan > Deployment baru > Aplikasi web**: *Jalankan sebagai* **Saya**, *Yang memiliki akses* **Siapa saja**. Salin URL yang berakhiran `/exec` (membukanya di browser menampilkan "Penerima data GeoKader aktif").
+4. Isi `.env` di komputer/hosting yang membangun aplikasi:
+   ```
+   VITE_GDRIVE_URL=https://script.google.com/macros/s/xxxxx/exec
+   VITE_GDRIVE_TOKEN=token-dari-log
+   ```
+   lalu `npm run build` dan terbitkan ulang. Selesai; kader tidak perlu mengatur apa pun.
+
+Bila `Code.gs` berubah, tempel versi baru lalu **Terapkan > Kelola deployment > Edit > Versi baru** (URL tetap sama). Token tetap tersimpan di *Properti skrip* (`GEOKADER_TOKEN`). Token ikut tertanam di aplikasi, jadi bukan rahasia mutlak; fungsinya menolak kiriman dari orang yang hanya tahu URL.
 
 ## Akun & Keamanan
 
@@ -103,4 +120,4 @@ Data aplikasi disimpan di **IndexedDB** (bukan localStorage yang hanya ±5 MB) d
 - **Keamanan sisi klien ada batasnya.** Sandi dan Authenticator menahan orang yang tidak memegang perangkat, tetapi siapa pun yang dapat membaca atau mengubah penyimpanan peramban di perangkat yang sama masih dapat melewatinya.
 - Peta offline hanya aktif untuk penyedia tile berlisensi yang Anda pasang sendiri; sumber bawaan hanya untuk dilihat online. Alamat tile Sentinel-2 EOX diambil dari katalog layanan publik dan belum bisa diuji dari lingkungan pengembangan; aplikasi otomatis mencoba jalur cadangan bila jalur utama gagal.
 - Geser kiri/kanan di area konten berpindah tab sesuai urutan bilah bawah; di atas peta, geseran tetap menggeser peta.
-- Skrip Google Apps Script diuji terhadap tiruan layanan Google, belum di Apps Script sungguhan. Sensor GPS dan kompas diuji dengan lokasi/event buatan, belum di HP.
+- Skrip Google Apps Script (`apps-script/Code.gs`) diuji terhadap tiruan layanan Google (Drive, Spreadsheet, Properties), belum di Apps Script sungguhan. Sensor GPS dan kompas diuji dengan lokasi/event buatan, belum di HP.

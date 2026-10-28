@@ -1,15 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sinkronkanDataKeGDrive, tafsirkanBalasan, urlAppsScriptValid } from "./gdriveSync";
-import { DataSpasialItem, KonfigurasiGDrive } from "../types";
+import { OpsiSinkron, gdriveTerpasang, sinkronkanDataKeGDrive, tafsirkanBalasan, tujuanDrive, urlAppsScriptValid } from "./gdriveSync";
+import { DataSpasialItem, WilayahAdministrasi } from "../types";
 
 const URL_OK = "https://script.google.com/macros/s/AKfycbx123/exec";
-const konfig = (over: Partial<KonfigurasiGDrive> = {}): KonfigurasiGDrive => ({
-  webAppUrl: URL_OK,
-  folderIdDatabase: "Database_Pemetaan",
-  spreadsheetIdMaster: "Master_Spasial",
-  autoSyncSaatOnline: true,
-  tokenBersama: "rahasia",
-  ...over
+const JAMBI: WilayahAdministrasi = { provinsi: "Jambi", kabupaten: "Kabupaten Merangin", kecamatan: "Bangko", desa: "Rantau Panjang" };
+/** Koneksi uji dan wilayah akun KDR-1 seperti yang diisi admin */
+const konfig = (koneksi: Partial<OpsiSinkron["koneksi"]> = {}, wilayahAkun: WilayahAdministrasi | undefined = JAMBI): OpsiSinkron => ({
+  koneksi: { url: URL_OK, token: "rahasia", ...koneksi },
+  cariWilayah: (id) => (id === "KDR-1" ? wilayahAkun : undefined)
 });
 
 const item = (id: string, status: DataSpasialItem["statusSinkron"] = "lokal"): DataSpasialItem => ({
@@ -25,7 +23,7 @@ const item = (id: string, status: DataSpasialItem["statusSinkron"] = "lokal"): D
   panjangKm: 0,
   luasHa: 0,
   statusSinkron: status,
-  createdAt: "2026-10-01T00:00:00Z",
+  createdAt: "2026-11-14T03:00:00Z",
   updatedAt: "",
   riwayatPembaruan: []
 });
@@ -76,6 +74,15 @@ describe("tafsirkanBalasan", () => {
   });
 });
 
+describe("tujuanDrive", () => {
+  it("cap wilayah pada data dipakai lebih dulu, lalu wilayah akun, lalu nama desa lama", () => {
+    const lain = { ...JAMBI, desa: "Pulau Rengas" };
+    expect(tujuanDrive({ ...item("a"), wilayah: lain }, () => JAMBI).wilayah).toEqual(lain);
+    expect(tujuanDrive(item("a"), () => JAMBI).wilayah).toEqual(JAMBI);
+    expect(tujuanDrive(item("a"), () => undefined).wilayah).toEqual({ provinsi: "", kabupaten: "", kecamatan: "", desa: "Desa A" });
+  });
+});
+
 describe("sinkronkanDataKeGDrive", () => {
   it("tidak ada antrean: sukses tanpa mengirim apa pun", async () => {
     const f = vi.fn();
@@ -85,12 +92,21 @@ describe("sinkronkanDataKeGDrive", () => {
     expect(f).not.toHaveBeenCalled();
   });
 
-  it("URL belum diisi/tidak valid: tidak mengirim dan tidak melaporkan berhasil", async () => {
+  it("Google Drive belum dipasang di build (URL atau token kosong): tidak mengirim dan tidak melaporkan berhasil", async () => {
     const f = vi.fn();
     vi.stubGlobal("fetch", f);
-    const h = await sinkronkanDataKeGDrive([item("a"), item("b")], konfig({ webAppUrl: "" }));
-    expect(h).toMatchObject({ sukses: false, belumDiatur: true, idTersinkron: [], jumlahGagal: 2 });
+    for (const koneksi of [{ url: "" }, { token: "" }, { url: "https://contoh.com/exec" }]) {
+      const h = await sinkronkanDataKeGDrive([item("a"), item("b")], konfig(koneksi));
+      expect(h).toMatchObject({ sukses: false, belumDiatur: true, idTersinkron: [], jumlahGagal: 2 });
+      expect(h.pesan).toMatch(/belum aktif/);
+    }
     expect(f).not.toHaveBeenCalled();
+    expect(gdriveTerpasang({ url: URL_OK, token: "t" })).toBe(true);
+    expect(gdriveTerpasang({ url: URL_OK, token: "" })).toBe(false);
+  });
+
+  it("build uji tanpa VITE_GDRIVE_*: unggahan tidak aktif", () => {
+    expect(gdriveTerpasang()).toBe(false);
   });
 
   it("berhasil: hanya data berstatus lokal dikirim, lengkap dengan token dan WKT", async () => {
@@ -100,15 +116,25 @@ describe("sinkronkanDataKeGDrive", () => {
     expect(h).toMatchObject({ sukses: true, idTersinkron: ["a", "b"], jumlahGagal: 0 });
     expect(f).toHaveBeenCalledTimes(1);
     const body = JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
-    expect(body).toMatchObject({
-      action: "sync_spatial_batch",
-      token: "rahasia",
-      folderId: "Database_Pemetaan",
-      spreadsheetId: "Master_Spasial"
-    });
+    expect(body).toMatchObject({ action: "sync_spatial_batch", versi: 2, token: "rahasia" });
+    expect(body).not.toHaveProperty("folderId");
     expect(body.records.map((r: { id: string }) => r.id)).toEqual(["a", "b"]);
     expect(body.records[0].wkt).toBe("POINT(100.400000 -0.900000)"); // WKT: bujur lalu lintang, 6 desimal;
     expect(JSON.parse(body.geojsonBundle).features).toHaveLength(2);
+  });
+
+  it("setiap data membawa wilayah tujuan dan nama berkas akun_data_bulan_tahun", async () => {
+    const f = vi.fn(async () => balas({ diterima: ["a"], gagal: [] }));
+    vi.stubGlobal("fetch", f);
+    await sinkronkanDataKeGDrive([{ ...item("a"), namaKader: "Budi", judul: "Sebaran Anggrek" }], konfig());
+    const body = JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.records[0]).toMatchObject({ wilayah: JAMBI, namaBerkas: "budi_sebaran_anggrek_november_2026" });
+    expect(JSON.parse(body.geojsonBundle).features[0].properties).toMatchObject({
+      provinsi: "Jambi",
+      kabupatenKota: "Kabupaten Merangin",
+      kecamatan: "Bangko",
+      kelurahanDesa: "Rantau Panjang"
+    });
   });
 
   it("konfirmasi sebagian: hanya yang dikonfirmasi berubah status; sisanya dilaporkan", async () => {

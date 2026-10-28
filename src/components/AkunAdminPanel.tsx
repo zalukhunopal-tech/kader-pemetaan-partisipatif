@@ -1,7 +1,16 @@
 import React, { useState } from "react";
 import { Copy, KeyRound, UserPlus } from "lucide-react";
-import { AkunSesi, aturUlangAuthenticatorOlehAdmin, aturUlangSandiOlehAdmin, buatAkunOlehAdmin, muatSemuaAkun } from "../lib/auth";
-import { DataSpasialItem, PeranPengguna, SertifikatKader } from "../types";
+import {
+  AkunSesi,
+  aturUlangAuthenticatorOlehAdmin,
+  aturUlangSandiOlehAdmin,
+  buatAkunOlehAdmin,
+  muatSemuaAkun,
+  ubahWilayahAkunOlehAdmin
+} from "../lib/auth";
+import { DataSpasialItem, PeranPengguna, SertifikatKader, WilayahAdministrasi } from "../types";
+import { WILAYAH_KOSONG, teksWilayah, wilayahLengkap } from "../lib/wilayah";
+import { IsianWilayah } from "./IsianWilayah";
 
 interface AkunAdminPanelProps {
   sesiAdmin: AkunSesi | null;
@@ -10,7 +19,7 @@ interface AkunAdminPanelProps {
   sertifikatList?: SertifikatKader[];
 }
 
-const FORM_KOSONG = { nama: "", email: "", desaWilayah: "", noHp: "", kelompokMasyarakat: "", peran: "kader" as PeranPengguna };
+const FORM_KOSONG = { nama: "", email: "", wilayah: WILAYAH_KOSONG, noHp: "", kelompokMasyarakat: "", peran: "kader" as PeranPengguna };
 
 /**
  * Akun di perangkat ini. Tidak ada pendaftaran mandiri: admin membuat akun (sandi sementara tampil sekali),
@@ -25,6 +34,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   const [form, setForm] = useState(FORM_KOSONG);
   const [sibuk, setSibuk] = useState(false);
   const [detailEmail, setDetailEmail] = useState<string | null>(null);
+  const [ubahWilayah, setUbahWilayah] = useState<{ email: string; nilai: WilayahAdministrasi } | null>(null);
   const akun = muatSemuaAkun(); // dibaca ulang setiap render agar status terbaru tampil
   void versi;
 
@@ -51,6 +61,19 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     } finally {
       setSibuk(false);
     }
+  };
+
+  const simpanWilayah = () => {
+    if (!ubahWilayah) return;
+    bersihkan();
+    const r = ubahWilayahAkunOlehAdmin(sesiAdmin, ubahWilayah.email, ubahWilayah.nilai);
+    if (!r.sukses) {
+      setGalat(r.pesan);
+      return;
+    }
+    setInfo(r.pesan + " Data yang belum terunggah ikut masuk ke folder wilayah baru.");
+    setUbahWilayah(null);
+    setVersi((v) => v + 1);
   };
 
   const aturUlangSandi = async (email: string, nama: string) => {
@@ -119,22 +142,22 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
             />
           </div>
         </div>
+        <p className="text-muted" style={{ margin: "10px 0 4px", fontSize: "0.8rem" }}>
+          Wilayah tugas menentukan folder Google Drive tempat data akun ini disimpan (Provinsi › Kabupaten/Kota › Kecamatan ›
+          Kelurahan/Desa).
+        </p>
+        <IsianWilayah
+          idAwalan="akun"
+          nilai={form.wilayah}
+          onUbah={(wilayah) => setForm({ ...form, wilayah })}
+          saran={akun.map((a) => a.wilayah)}
+          wajib={form.peran === "kader"}
+        />
         <div className="form-row-2">
-          <div>
-            <label htmlFor="akun-desa">Desa / wilayah</label>
-            <input
-              id="akun-desa"
-              className="form-input"
-              value={form.desaWilayah}
-              onChange={(e) => setForm({ ...form, desaWilayah: e.target.value })}
-            />
-          </div>
           <div>
             <label htmlFor="akun-hp">No. HP</label>
             <input id="akun-hp" className="form-input" value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} />
           </div>
-        </div>
-        <div className="form-row-2">
           <div>
             <label htmlFor="akun-kelompok">Kelompok / organisasi</label>
             <input
@@ -144,6 +167,8 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               onChange={(e) => setForm({ ...form, kelompokMasyarakat: e.target.value })}
             />
           </div>
+        </div>
+        <div className="form-row-2">
           <div>
             <label htmlFor="akun-peran">Peran</label>
             <select
@@ -272,8 +297,18 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                               <dd>{a.idKader}</dd>
                             </div>
                             <div>
-                              <dt>Desa / wilayah</dt>
-                              <dd>{a.desaWilayah}</dd>
+                              <dt>Wilayah tugas</dt>
+                              <dd>
+                                {a.wilayah ? teksWilayah(a.wilayah) : `${a.desaWilayah} (belum lengkap)`}{" "}
+                                <button
+                                  type="button"
+                                  className="btn-outline-sm"
+                                  style={{ padding: "1px 8px", fontSize: "0.72rem" }}
+                                  onClick={() => setUbahWilayah({ email: a.email, nilai: { ...WILAYAH_KOSONG, ...a.wilayah } })}
+                                >
+                                  Ubah
+                                </button>
+                              </dd>
                             </div>
                             <div>
                               <dt>No. HP</dt>
@@ -306,6 +341,31 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                               <dd>{sert ? sert.nomorSertifikat : "Belum diterbitkan"}</dd>
                             </div>
                           </dl>
+                          {ubahWilayah?.email === a.email && (
+                            <div className="ubah-wilayah" style={{ marginTop: 10 }}>
+                              <IsianWilayah
+                                idAwalan="ubah-wilayah"
+                                nilai={ubahWilayah.nilai}
+                                onUbah={(nilai) => setUbahWilayah({ email: a.email, nilai })}
+                                saran={akun.map((x) => x.wilayah)}
+                                wajib
+                              />
+                              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                                <button
+                                  type="button"
+                                  className="btn-primary-sm"
+                                  id="simpan-wilayah"
+                                  disabled={!wilayahLengkap(ubahWilayah.nilai)}
+                                  onClick={simpanWilayah}
+                                >
+                                  Simpan wilayah
+                                </button>
+                                <button type="button" className="btn-outline-sm" onClick={() => setUbahWilayah(null)}>
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}

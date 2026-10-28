@@ -2,12 +2,12 @@ import {
   AreaPetaOffline,
   DataSpasialItem,
   KaderAktifPresence,
-  KonfigurasiGDrive,
   LapisanSpasial,
   PengumumanBroadcast,
   PesanKomunikasi,
   ProfilKader,
   SertifikatKader,
+  StatusGDrive,
   TugasPemetaan
 } from "../types";
 import { unikkanId } from "./id";
@@ -139,13 +139,12 @@ export const simpanPesan = (v: PesanKomunikasi[]) => simpanJson(KEY_PESAN, v);
 export const muatKaderAktif = () => bacaJson<KaderAktifPresence[]>(KEY_KADER_AKTIF, KADER_AKTIF_AWAL);
 export const simpanKaderAktif = (v: KaderAktifPresence[]) => simpanJson(KEY_KADER_AKTIF, v);
 
-export const muatKonfigGDrive = () =>
-  bacaJson<KonfigurasiGDrive>(KEY_GDRIVE, {
-    webAppUrl: "",
-    folderIdDatabase: "",
-    spreadsheetIdMaster: "",
-    autoSyncSaatOnline: true,
-    tokenBersama: "",
-    terakhirSinkron: ""
-  });
-export const simpanKonfigGDrive = (v: KonfigurasiGDrive) => simpanJson(KEY_GDRIVE, v);
+/**
+ * Hanya waktu sinkron terakhir. Alamat dan token Google Drive kini diisi saat build; nilai lama
+ * (URL, token, nama folder) yang pernah diketik di Konfigurasi dibuang saat status disimpan lagi.
+ */
+export const muatStatusGDrive = (): StatusGDrive => {
+  const v = bacaJson<StatusGDrive>(KEY_GDRIVE, {});
+  return v.terakhirSinkron ? { terakhirSinkron: v.terakhirSinkron } : {};
+};
+export const simpanStatusGDrive = (v: StatusGDrive) => simpanJson(KEY_GDRIVE, { terakhirSinkron: v.terakhirSinkron ?? "" });

@@ -1,30 +1,19 @@
 import React, { useState } from "react";
-import { DataSpasialItem, KonfigurasiGDrive } from "../types";
+import { DataSpasialItem } from "../types";
 import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
-import { KODE_GOOGLE_APPS_SCRIPT, urlAppsScriptValid } from "../lib/gdriveSync";
-import {
-  CloudUpload,
-  CheckCircle2,
-  Clock,
-  Download,
-  FileCode2,
-  FolderGit2,
-  Copy,
-  Check,
-  Image as ImageIcon,
-  X,
-  MapPin
-} from "lucide-react";
+import { gdriveTerpasang, tujuanDrive } from "../lib/gdriveSync";
+import { muatSemuaAkun } from "../lib/auth";
+import { teksWilayah, wilayahLengkap } from "../lib/wilayah";
+import { CloudUpload, CheckCircle2, Clock, Download, Folder, Image as ImageIcon, X, MapPin } from "lucide-react";
 
 interface DatabaseSyncViewProps {
   dataSpasial: DataSpasialItem[];
-  konfigGDrive: KonfigurasiGDrive;
+  terakhirSinkron?: string;
   sedangSinkron: boolean;
   pesanSinkron: string | null;
   pesanSinkronGagal: boolean;
   sedangOnline: boolean;
   onSinkronkanSekarang: () => void;
-  onSimpanKonfigGDrive: (k: KonfigurasiGDrive) => void;
   onFokusKePeta: (lat: number, lng: number, label: string) => void;
 }
 
@@ -42,29 +31,21 @@ function unduhBerkasTeks(namaFile: string, isi: string, mimeType: string) {
 
 export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   dataSpasial,
-  konfigGDrive,
+  terakhirSinkron,
   sedangSinkron,
   pesanSinkron,
   pesanSinkronGagal,
   sedangOnline,
   onSinkronkanSekarang,
-  onSimpanKonfigGDrive,
   onFokusKePeta
 }) => {
-  const [webAppUrl, setWebAppUrl] = useState(konfigGDrive.webAppUrl);
-  const [folderId, setFolderId] = useState(konfigGDrive.folderIdDatabase);
-  const [sheetId, setSheetId] = useState(konfigGDrive.spreadsheetIdMaster);
-  const [token, setToken] = useState(konfigGDrive.tokenBersama ?? "");
-  const [autoSync, setAutoSync] = useState(konfigGDrive.autoSyncSaatOnline);
-  const [tampilKodeGas, setTampilKodeGas] = useState(false);
-  const [tersalin, setTersalin] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("semua");
 
   // Modal Lightbox Preview Gambar
   const [previewFoto, setPreviewFoto] = useState<DataSpasialItem | null>(null);
 
   const jmlLokal = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
-  const sudahTersambung = urlAppsScriptValid(konfigGDrive.webAppUrl);
+  const sudahTersambung = gdriveTerpasang();
   const jmlTersinkron = dataSpasial.filter((d) => d.statusSinkron === "tersinkron").length;
   const jmlVerif = dataSpasial.filter((d) => d.statusSinkron === "terverifikasi").length;
 
@@ -73,11 +54,10 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   // Kumpulkan semua item yang memiliki foto
   const dataDenganFoto = dataSpasial.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl));
 
-  const salinKodeGas = () => {
-    navigator.clipboard.writeText(KODE_GOOGLE_APPS_SCRIPT);
-    setTersalin(true);
-    setTimeout(() => setTersalin(false), 2000);
-  };
+  // Folder wilayah dan nama berkas tujuan di Drive, dari wilayah akun pembuat (diisi admin)
+  const wilayahPerAkun = new Map(muatSemuaAkun().map((a) => [a.idKader, a.wilayah]));
+  const tujuan = (d: DataSpasialItem) => tujuanDrive(d, (id) => wilayahPerAkun.get(id));
+  const antreanTanpaWilayah = dataSpasial.filter((d) => d.statusSinkron === "lokal" && !wilayahLengkap(tujuan(d).wilayah)).length;
 
   return (
     <div className="page-container" style={{ gap: "14px" }}>
@@ -87,10 +67,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           <div>
             <h2 style={{ fontSize: "1.25rem", margin: "0 0 4px" }}>☁️ Sinkronisasi</h2>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.86rem" }}>
-              {konfigGDrive.autoSyncSaatOnline
-                ? "Data tersimpan di perangkat lalu diunggah otomatis saat ada internet."
-                : "Data tersimpan di perangkat dan diunggah saat Anda menekan tombol."}
-              {konfigGDrive.terakhirSinkron ? ` Terakhir berhasil: ${konfigGDrive.terakhirSinkron}.` : ""}
+              Data tersimpan di HP lalu diunggah otomatis ke Google Drive saat ada internet, ke folder Provinsi › Kabupaten/Kota › Kecamatan
+              › Kelurahan/Desa milik akun pembuatnya.
+              {terakhirSinkron ? ` Terakhir berhasil: ${terakhirSinkron}.` : ""}
             </p>
           </div>
           <button
@@ -106,8 +85,22 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         </div>
 
         {!sudahTersambung && (
-          <div className="alert-banner-success" style={{ marginTop: 12, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}>
-            Belum tersambung ke Google Drive. Data hanya tersimpan di HP sampai URL Web App dan token diisi di bagian Konfigurasi di bawah.
+          <div
+            id="gdrive-belum-aktif"
+            className="alert-banner-success"
+            style={{ marginTop: 12, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
+          >
+            Unggahan ke Google Drive belum aktif di aplikasi ini. Data tetap aman di HP; hubungi admin.
+          </div>
+        )}
+        {antreanTanpaWilayah > 0 && (
+          <div
+            id="peringatan-wilayah"
+            className="alert-banner-success"
+            style={{ marginTop: 12, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
+          >
+            {antreanTanpaWilayah} data belum punya wilayah lengkap dan akan masuk folder Wilayah_Belum_Diisi. Admin dapat melengkapi wilayah
+            akun di Admin › Akun.
           </div>
         )}
         {sudahTersambung && !sedangOnline && (
@@ -352,6 +345,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                     <td>
                       <strong>{d.judul}</strong>
                       <div className="text-xs text-muted">{d.deskripsi}</div>
+                      <div className="text-xs text-muted tujuan-drive" title="Folder dan nama berkas di Google Drive">
+                        <Folder size={11} /> {teksWilayah(tujuan(d).wilayah)} / {tujuan(d).namaBerkas}
+                      </div>
                     </td>
                     <td>
                       {d.fotoBase64 || d.driveFileUrl ? (
@@ -496,96 +492,6 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* 5. KONFIGURASI GOOGLE APPS SCRIPT WEB APP */}
-      <div className="section-card">
-        <div className="section-header-flex">
-          <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <FolderGit2 size={18} color="#0d7344" /> Konfigurasi
-            </h3>
-            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-              Koneksikan ke Web App Google Apps Script organisasi Anda
-            </p>
-          </div>
-          <button type="button" className="btn-outline-sm" onClick={() => setTampilKodeGas((v) => !v)}>
-            <FileCode2 size={14} /> {tampilKodeGas ? "Tutup Kode" : "Salin Code.gs"}
-          </button>
-        </div>
-
-        <div className="form-row-3" style={{ marginTop: "12px" }}>
-          <div>
-            <label>URL Google Apps Script Web App</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="https://script.google.com/macros/s/.../exec"
-              value={webAppUrl}
-              onChange={(e) => setWebAppUrl(e.target.value)}
-            />
-          </div>
-          <div>
-            <label>Folder Google Drive</label>
-            <input type="text" className="form-input" value={folderId} onChange={(e) => setFolderId(e.target.value)} />
-          </div>
-          <div>
-            <label>Nama Tab Spreadsheet</label>
-            <input type="text" className="form-input" value={sheetId} onChange={(e) => setSheetId(e.target.value)} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: "12px" }}>
-          <label>Token bersama</label>
-          <input
-            type="password"
-            className="form-input"
-            autoComplete="off"
-            placeholder="Sama dengan GEOKADER_TOKEN di Script Properties"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-          <small className="text-muted">
-            Token mencegah orang yang hanya tahu URL menulis ke database. Token tersimpan di HP ini, jadi bukan pengganti login.
-          </small>
-        </div>
-
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: "0.86rem" }}>
-          <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
-          Unggah otomatis saat ada internet
-        </label>
-
-        <div style={{ marginTop: "12px" }}>
-          <button
-            type="button"
-            className="btn-primary-sm"
-            onClick={() =>
-              onSimpanKonfigGDrive({
-                ...konfigGDrive,
-                webAppUrl: webAppUrl.trim(),
-                folderIdDatabase: folderId.trim() || "Database_Pemetaan",
-                spreadsheetIdMaster: sheetId.trim() || "Master_Spasial",
-                tokenBersama: token.trim(),
-                autoSyncSaatOnline: autoSync
-              })
-            }
-          >
-            Simpan Konfigurasi
-          </button>
-        </div>
-
-        {tampilKodeGas && (
-          <div className="code-box-wrapper" style={{ marginTop: 12 }}>
-            <div className="code-box-header">
-              <span>Backend Google Apps Script (Code.gs)</span>
-              <button type="button" className="btn-outline-sm" onClick={salinKodeGas}>
-                {tersalin ? <Check size={14} /> : <Copy size={14} />}
-                {tersalin ? "Tersalin!" : "Salin Kode"}
-              </button>
-            </div>
-            <pre className="code-block">{KODE_GOOGLE_APPS_SCRIPT}</pre>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

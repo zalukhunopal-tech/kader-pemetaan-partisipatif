@@ -15,4 +15,6 @@ interface ImportMetaEnv {
   readonly VITE_URL_VERIFIKASI?: string;
   readonly VITE_AKUN_UJI?: string;
   readonly VITE_KODE_ADMIN?: string;
+  readonly VITE_GDRIVE_URL?: string;
+  readonly VITE_GDRIVE_TOKEN?: string;
 }

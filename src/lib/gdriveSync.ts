@@ -1,5 +1,23 @@
-import { DataSpasialItem, KonfigurasiGDrive } from "../types";
+import { DataSpasialItem, WilayahAdministrasi } from "../types";
 import { eksporKeGeoJSON, keWKT } from "./geoUtils";
+import { wilayahAkun } from "./auth";
+import { namaBerkasData, wilayahUntukData } from "./wilayah";
+
+/**
+ * Unggahan data spasial ke Google Drive pemilik aplikasi lewat Web App Apps Script (apps-script/Code.gs).
+ * Alamat dan token diisi saat build (VITE_GDRIVE_URL, VITE_GDRIVE_TOKEN), tidak bisa diubah dari aplikasi.
+ * Code.gs menyimpan setiap data di folder Provinsi/Kabupaten/Kecamatan/Desa milik akun pembuatnya,
+ * dalam berkas bernama akun_data_bulan_tahun (mis. budi_sebaran_anggrek_november_2026).
+ */
+export interface KoneksiGDrive {
+  url: string;
+  token: string;
+}
+
+export const KONEKSI_GDRIVE: KoneksiGDrive = {
+  url: (import.meta.env.VITE_GDRIVE_URL ?? "").trim(),
+  token: (import.meta.env.VITE_GDRIVE_TOKEN ?? "").trim()
+};
 
 export interface HasilSinkron {
   /** true hanya bila SEMUA data yang dikirim dikonfirmasi tersimpan oleh Apps Script */
@@ -8,7 +26,7 @@ export interface HasilSinkron {
   /** Hanya data yang dikonfirmasi tersimpan; data lain tetap berstatus "lokal" */
   idTersinkron: string[];
   jumlahGagal: number;
-  /** true bila URL Apps Script belum diisi atau tidak valid (tidak ada yang dikirim) */
+  /** true bila Google Drive belum dipasang di build ini (tidak ada yang dikirim) */
   belumDiatur?: boolean;
 }
 
@@ -19,6 +37,22 @@ const WAKTU_TUNGGU_MS = 90_000;
 export function urlAppsScriptValid(url: string | undefined): boolean {
   const u = (url ?? "").trim();
   return u.startsWith("https://script.google.com/") && /\/exec(\?.*)?$/.test(u);
+}
+
+/** true bila build ini memuat alamat Web App dan token Google Drive */
+export const gdriveTerpasang = (koneksi: KoneksiGDrive = KONEKSI_GDRIVE): boolean =>
+  urlAppsScriptValid(koneksi.url) && koneksi.token !== "";
+
+export type CariWilayahAkun = (idKader: string) => Partial<WilayahAdministrasi> | undefined;
+
+/** Folder wilayah dan nama berkas tujuan sebuah data di Google Drive */
+export function tujuanDrive(d: DataSpasialItem, cariWilayah: CariWilayahAkun = wilayahAkun) {
+  return { wilayah: wilayahUntukData(d, cariWilayah(d.idKader)), namaBerkas: namaBerkasData(d) };
+}
+
+export interface OpsiSinkron {
+  koneksi?: KoneksiGDrive;
+  cariWilayah?: CariWilayahAkun;
 }
 
 interface BalasanDiterima {
@@ -90,19 +124,21 @@ function pesanGalat(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function kirimBatch(url: string, konfig: KonfigurasiGDrive, batch: DataSpasialItem[]): Promise<BalasanDiterima> {
+async function kirimBatch(koneksi: KoneksiGDrive, batch: DataSpasialItem[], cariWilayah: CariWilayahAkun): Promise<BalasanDiterima> {
+  const tujuan = batch.map((d) => tujuanDrive(d, cariWilayah));
   const payload = {
     action: "sync_spatial_batch",
-    token: konfig.tokenBersama ?? "",
-    folderId: konfig.folderIdDatabase,
-    spreadsheetId: konfig.spreadsheetIdMaster,
+    versi: 2,
+    token: koneksi.token,
     timestamp: new Date().toISOString(),
-    geojsonBundle: eksporKeGeoJSON(batch),
-    records: batch.map((d) => ({
+    geojsonBundle: eksporKeGeoJSON(batch.map((d, i) => ({ ...d, wilayah: tujuan[i].wilayah }))),
+    records: batch.map((d, i) => ({
       id: d.id,
       idKader: d.idKader,
       namaKader: d.namaKader,
       desaWilayah: d.desaWilayah,
+      wilayah: tujuan[i].wilayah,
+      namaBerkas: tujuan[i].namaBerkas,
       jenisGeometri: d.jenisGeometri,
       kategori: d.kategori,
       judul: d.judul,
@@ -116,8 +152,6 @@ async function kirimBatch(url: string, konfig: KonfigurasiGDrive, batch: DataSpa
       panjangKm: d.panjangKm,
       luasHa: d.luasHa,
       fotoBase64: d.fotoBase64 || "",
-      namaFileFoto:
-        d.namaFileFoto || `${d.kategori.toUpperCase().replace(/\W+/g, "_")}_${d.idKader}_${d.createdAt.slice(0, 10).replace(/-/g, "")}.jpg`,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt
     }))
@@ -126,7 +160,7 @@ async function kirimBatch(url: string, konfig: KonfigurasiGDrive, batch: DataSpa
   const pengendali = new AbortController();
   const pewaktu = setTimeout(() => pengendali.abort(), WAKTU_TUNGGU_MS);
   try {
-    const resp = await fetch(url, {
+    const resp = await fetch(koneksi.url, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
@@ -151,10 +185,12 @@ async function kirimBatch(url: string, konfig: KonfigurasiGDrive, batch: DataSpa
 
 /**
  * Mengirim antrean data spasial ke Google Drive & Google Sheets lewat Google Apps Script
- * Web App. Status data hanya berubah untuk id yang dikonfirmasi tersimpan; tanpa URL yang
- * valid tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil.
+ * Web App. Status data hanya berubah untuk id yang dikonfirmasi tersimpan; tanpa Google Drive
+ * yang terpasang di build ini tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil.
  */
-export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], konfig: KonfigurasiGDrive): Promise<HasilSinkron> {
+export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], opsi: OpsiSinkron = {}): Promise<HasilSinkron> {
+  const koneksi = opsi.koneksi ?? KONEKSI_GDRIVE;
+  const cariWilayah = opsi.cariWilayah ?? wilayahAkun;
   const belumSinkron = itemList.filter((d) => d.statusSinkron === "lokal");
   if (belumSinkron.length === 0) {
     return {
@@ -165,11 +201,10 @@ export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], konfig
     };
   }
 
-  const url = (konfig.webAppUrl ?? "").trim();
-  if (!urlAppsScriptValid(url)) {
+  if (!gdriveTerpasang(koneksi)) {
     return {
       sukses: false,
-      pesan: "Belum tersambung ke Google Drive. Isi URL Web App (berakhiran /exec) dan token di bagian Konfigurasi. Data tetap aman di HP.",
+      pesan: "Unggahan ke Google Drive belum aktif di aplikasi ini. Data tetap aman di HP.",
       idTersinkron: [],
       jumlahGagal: belumSinkron.length,
       belumDiatur: true
@@ -182,7 +217,7 @@ export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], konfig
 
   for (const batch of bagiBatch(belumSinkron)) {
     try {
-      const hasil = await kirimBatch(url, konfig, batch);
+      const hasil = await kirimBatch(koneksi, batch, cariWilayah);
       idTersinkron.push(...hasil.diterima);
       gagal.push(...hasil.gagal);
     } catch (err) {
@@ -209,175 +244,3 @@ export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], konfig
       : `Gagal mengunggah ke Google Drive: ${alasan}. Data tetap aman di memori HP.`;
   return { sukses: false, pesan, idTersinkron, jumlahGagal };
 }
-
-/**
- * Kode Google Apps Script (Code.gs) siap pakai untuk dipasang di Google Spreadsheet / Drive Organisasi
- */
-export const KODE_GOOGLE_APPS_SCRIPT = `/**
- * BACKEND OTOMATIS GEOKADER - DATABASE PEMETAAN PARTISIPATIF
- * Pasang di: Google Sheets -> Extensions -> Apps Script -> Deploy as Web App (Anyone)
- *
- * WAJIB: Project Settings -> Script Properties -> tambah GEOKADER_TOKEN
- * berisi kata sandi bersama, lalu isi nilai yang sama di aplikasi
- * (Sinkronisasi -> Konfigurasi -> Token). Permintaan tanpa token yang cocok ditolak.
- *
- * Penyimpanan idempoten: data dengan ID yang sama diperbarui, bukan digandakan,
- * sehingga pengiriman ulang setelah gangguan jaringan aman.
- *
- * Struktur Folder Otomatis di Google Drive:
- * Database_Pemetaan/
- *   ├── Data_Spasial/
- *   │     └── [Tahun-Bulan]/
- *   │           └── [Nama_Kader]/Batch_xxx.geojson
- *   └── Foto_Lapangan/
- *         └── FLORA_KADER01_20261027.jpg
- */
-
-var KOLOM = [
-  "ID_Data", "ID_Kader", "Nama_Kader", "Desa_Wilayah", "Jenis_Geometri",
-  "Kategori", "Judul", "Nama_Lokal", "Nama_Ilmiah", "Jumlah_Individu",
-  "Panjang_Km", "Luas_Ha", "Koordinat_WKT", "Tautan_Foto_Drive",
-  "Status_Verifikasi", "Waktu_Rekam", "Waktu_Sinkron"
-];
-var KOL_FOTO = 14;
-var KOL_STATUS = 15;
-
-function doPost(e) {
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
-    var body = JSON.parse(e.postData.contents);
-
-    var tokenTersimpan = PropertiesService.getScriptProperties().getProperty("GEOKADER_TOKEN");
-    if (!tokenTersimpan) {
-      return balas_({ sukses: false, pesan: "GEOKADER_TOKEN belum diatur di Script Properties." });
-    }
-    if (body.token !== tokenTersimpan) {
-      return balas_({ sukses: false, pesan: "Token tidak cocok. Periksa token di Konfigurasi aplikasi." });
-    }
-
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (!ss) {
-      return balas_({ sukses: false, pesan: "Skrip harus dipasang dari dalam Google Spreadsheet." });
-    }
-
-    var rootFolder = siapkanFolderRoot_(body.folderId || "Database_Pemetaan");
-    var folderSpasial = dapatkanAtauBuatFolder_(rootFolder, "Data_Spasial");
-    var folderFoto = dapatkanAtauBuatFolder_(rootFolder, "Foto_Lapangan");
-
-    var namaTab = body.spreadsheetId || "Master_Spasial";
-    var sheet = ss.getSheetByName(namaTab);
-    if (!sheet) {
-      sheet = ss.insertSheet(namaTab);
-      sheet.appendRow(KOLOM);
-    }
-
-    var barisAda = {};
-    var jmlBaris = sheet.getLastRow();
-    if (jmlBaris > 1) {
-      var idAda = sheet.getRange(2, 1, jmlBaris - 1, 1).getValues();
-      for (var i = 0; i < idAda.length; i++) barisAda[String(idAda[i][0])] = i + 2;
-    }
-
-    var records = body.records || [];
-    var nowIso = new Date().toISOString();
-    var diterima = [];
-    var gagal = [];
-
-    for (var j = 0; j < records.length; j++) {
-      var r = records[j];
-      try {
-        var baris = barisAda[String(r.id)];
-        var fotoUrl = "";
-        var status = "Tersinkron_GDrive";
-        if (baris) {
-          var lama = sheet.getRange(baris, 1, 1, KOLOM.length).getValues()[0];
-          fotoUrl = String(lama[KOL_FOTO - 1] || "");
-          status = String(lama[KOL_STATUS - 1] || status);
-        }
-        if (!fotoUrl && r.fotoBase64 && r.fotoBase64.indexOf("base64,") !== -1) {
-          var parts = r.fotoBase64.split("base64,");
-          var bytes = Utilities.base64Decode(parts[1]);
-          var blob = Utilities.newBlob(bytes, "image/jpeg", r.namaFileFoto || (r.id + ".jpg"));
-          fotoUrl = folderFoto.createFile(blob).getUrl();
-        }
-
-        var nilai = [
-          r.id, r.idKader, r.namaKader, r.desaWilayah, r.jenisGeometri,
-          r.kategori, r.judul, r.namaLokal, r.namaIlmiah, r.jumlahIndividu,
-          r.panjangKm, r.luasHa, r.wkt, fotoUrl,
-          status, r.createdAt, nowIso
-        ];
-        if (baris) {
-          sheet.getRange(baris, 1, 1, nilai.length).setValues([nilai]);
-        } else {
-          sheet.appendRow(nilai);
-          barisAda[String(r.id)] = sheet.getLastRow();
-        }
-        diterima.push(r.id);
-      } catch (err) {
-        gagal.push({ id: r.id, pesan: String(err) });
-      }
-    }
-
-    if (body.geojsonBundle && diterima.length > 0) {
-      try {
-        simpanGeojsonPerKader_(folderSpasial, body.geojsonBundle, diterima, nowIso);
-      } catch (err2) {
-        // Arsip GeoJSON bersifat tambahan; data utama sudah tersimpan di Spreadsheet
-      }
-    }
-
-    return balas_({ sukses: gagal.length === 0, diterima: diterima, gagal: gagal, jumlah: diterima.length });
-  } catch (err) {
-    return balas_({ sukses: false, pesan: String(err) });
-  } finally {
-    try { lock.releaseLock(); } catch (ignored) {}
-  }
-}
-
-function simpanGeojsonPerKader_(folderSpasial, geojsonBundle, idDiterima, nowIso) {
-  var bundle = JSON.parse(geojsonBundle);
-  var diterimaSet = {};
-  for (var i = 0; i < idDiterima.length; i++) diterimaSet[String(idDiterima[i])] = true;
-
-  var perKader = {};
-  var fitur = bundle.features || [];
-  for (var j = 0; j < fitur.length; j++) {
-    var f = fitur[j];
-    if (!diterimaSet[String(f.id)]) continue;
-    var nama = (f.properties && f.properties.namaKader) || "Kader";
-    if (!perKader[nama]) perKader[nama] = [];
-    perKader[nama].push(f);
-  }
-
-  var subBulan = dapatkanAtauBuatFolder_(folderSpasial, nowIso.slice(0, 7));
-  for (var nm in perKader) {
-    var folderKader = dapatkanAtauBuatFolder_(subBulan, String(nm).replace(/[^A-Za-z0-9 _.-]/g, "_"));
-    folderKader.createFile(
-      "Batch_" + Date.now() + ".geojson",
-      JSON.stringify({ type: "FeatureCollection", features: perKader[nm] }),
-      MimeType.PLAIN_TEXT
-    );
-  }
-}
-
-function balas_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function siapkanFolderRoot_(nilai) {
-  if (/^[A-Za-z0-9_-]{25,}$/.test(nilai)) {
-    try { return DriveApp.getFolderById(nilai); } catch (e) {}
-  }
-  return dapatkanAtauBuatFolder_(null, nilai);
-}
-
-function dapatkanAtauBuatFolder_(induk, nama) {
-  var parent = induk || DriveApp.getRootFolder();
-  var iter = parent.getFoldersByName(nama);
-  if (iter.hasNext()) return iter.next();
-  return parent.createFolder(nama);
-}
-`;
