@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -38,7 +38,7 @@ import {
   simpanTugas
 } from "./lib/storage";
 import { AkunSesi, aksesAdminSah, muatSesiPengguna, simpanSesiPengguna, sisaMasaTotp } from "./lib/auth";
-import { BATAS_DIAM_MS, catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
+import { catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
 import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi, useVersiKunciAplikasi } from "./lib/kunciAplikasi";
 import { metodeKunciCepat } from "./lib/kunciCepat";
 import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
@@ -47,9 +47,9 @@ import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
-import { formatUkuranByte, perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
+import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
-import { perekamLatar, usePerekamLatar, durasiRekamMs, formatDurasi, ringkasanRekam } from "./lib/perekamLatar";
+import { usePerekamLatar } from "./lib/perekamLatar";
 import { AuthModal } from "./components/AuthModal";
 import { PustakaView } from "./components/PustakaView";
 import { PemberitahuanView } from "./components/PemberitahuanView";
@@ -65,30 +65,10 @@ import { GantiSandiModal } from "./components/GantiSandiModal";
 import { GerbangAdminView } from "./components/GerbangAdminView";
 import { KunciAplikasiView } from "./components/KunciAplikasiView";
 import { PengaturanKunciModal } from "./components/PengaturanKunciModal";
-import { BannerInstal, TombolInstal } from "./components/InstalAplikasi";
-import {
-  Award,
-  Bell,
-  CloudUpload,
-  Folder,
-  Map,
-  MessageSquare,
-  MoreVertical,
-  Share,
-  ShieldCheck,
-  UserCheck,
-  Wifi,
-  WifiOff,
-  User,
-  Shield,
-  LogOut,
-  Radio,
-  Pause,
-  Play,
-  Watch,
-  KeyRound,
-  Fingerprint
-} from "lucide-react";
+import { BannerInstal } from "./components/InstalAplikasi";
+import { MenuAtas } from "./components/app/MenuAtas";
+import { BannerModeAdmin, BannerPenyimpanan, BannerPerekaman } from "./components/app/BannerAplikasi";
+import { NavigasiBawah } from "./components/app/NavigasiBawah";
 
 export const App: React.FC = () => {
   // Sesi Pengguna Login
@@ -300,21 +280,6 @@ export const App: React.FC = () => {
       tampilkanToast("👤 Beralih ke Akun Kader Lapangan (User).");
     }
   };
-
-  // Tinggi bilah bawah yang sebenarnya (membesar bila ukuran huruf HP diperbesar) dipakai CSS untuk
-  // ruang bawah halaman, tombol mengambang, dan tinggi peta, supaya tidak ada yang tertutup bilah bawah.
-  const roNavRef = useRef<ResizeObserver | null>(null);
-  const ukurBilahBawah = useCallback((el: HTMLElement | null) => {
-    roNavRef.current?.disconnect();
-    roNavRef.current = null;
-    if (!el) return;
-    const atur = () => document.documentElement.style.setProperty("--tinggi-nav", `${Math.ceil(el.getBoundingClientRect().height)}px`);
-    atur();
-    if (typeof ResizeObserver !== "undefined") {
-      roNavRef.current = new ResizeObserver(atur);
-      roNavRef.current.observe(el);
-    }
-  }, []);
 
   // Geser kiri/kanan di area konten untuk berpindah tab (mengikuti urutan bilah navigasi bawah)
   const urutanTab: MenuTab[] =
@@ -639,16 +604,6 @@ export const App: React.FC = () => {
     </>
   );
 
-  const judulHalamanUtama: Record<MenuTab, string> = {
-    pustaka: "Pustaka",
-    peta: "Temukan",
-    data_sync: "Sinkronisasi",
-    reward: "Sertifikat",
-    tugas: "Tugas",
-    komunikasi: "Diskusi",
-    admin: "Admin"
-  };
-
   if (bukaPemberitahuan) {
     return denganKunci(
       <PemberitahuanView
@@ -680,247 +635,52 @@ export const App: React.FC = () => {
       onKeyDownCapture={catatAktivitas}
     >
       {/* TOPBAR BERSIH: JUDUL TUNGGAL DI KIRI, TOOLBAR DISEMBUNYIKAN HINGGA DIKLIK AGAR TIDAK MENIMPA TEKS */}
-      <header className="avenza-topbar">
-        <div className="avenza-topbar-left">
-          <h1 className="avenza-topbar-title" onClick={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}>
-            {judulHalamanUtama[tabAktif]}
-          </h1>
-        </div>
-
-        <div className="avenza-topbar-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className={`avenza-toolbar-toggle-btn ${bukaMenuTitikTiga ? "active" : ""}`}
-            onClick={() => setBukaMenuTitikTiga((v) => !v)}
-            title="Buka Toolbar"
-          >
-            <MoreVertical size={19} strokeWidth={2.2} />
-            <span>Menu</span>
-          </button>
-
-          {bukaMenuTitikTiga && (
-            <div className="avenza-overflow-menu toolbar-popover">
-              {/* BARIS CHIP KONEKSI & PERAN DI DALAM TOOLBAR POPOVER */}
-              <div className="toolbar-popover-chips">
-                <button
-                  type="button"
-                  className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
-                  onClick={() => setModeOfflineManual((m) => !m)}
-                  title={jaringanTersedia ? "Ketuk untuk beralih mode offline manual (tidak mengunggah)" : "Tidak ada koneksi internet"}
-                >
-                  {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                  <span>{!jaringanTersedia ? "Offline" : modeOfflineManual ? "Offline (manual)" : "Online"}</span>
-                </button>
-
-                {adalahAkunAdmin && (
-                  <button
-                    type="button"
-                    className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
-                    onClick={() => {
-                      setBukaMenuTitikTiga(false);
-                      gantiPeranAkun(peran === "admin" ? "kader" : "admin");
-                    }}
-                  >
-                    {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
-                    <span>{peran === "admin" ? "Admin" : "User"}</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="avenza-overflow-divider" />
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setBukaSmartwatch(true);
-                }}
-              >
-                <Watch size={16} /> Smartwatch
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setTabAktif("reward");
-                }}
-              >
-                <UserCheck size={16} /> Sertifikat
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setBukaPemberitahuan(true);
-                }}
-              >
-                <Bell size={16} /> Pemberitahuan
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setBukaPengaturanEkspor(true);
-                }}
-              >
-                <Share size={16} /> Ekspor
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setTabAktif("pustaka");
-                  setModePilihPustaka(true);
-                }}
-              >
-                <Folder size={16} /> Pilih
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setTabAktif("data_sync");
-                }}
-              >
-                <CloudUpload size={16} /> Sinkronisasi
-              </button>
-
-              <div className="avenza-overflow-divider" />
-
-              {adalahAkunAdmin && (
-                <button
-                  type="button"
-                  className="avenza-overflow-item"
-                  style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    gantiPeranAkun(peran === "kader" ? "admin" : "kader");
-                  }}
-                >
-                  {peran === "kader" ? "🛡️ Mode Admin" : "👤 Mode User"}
-                </button>
-              )}
-
-              <TombolInstal className="avenza-overflow-item" onSelesai={tampilkanToast} />
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setBukaKeamanan(true);
-                }}
-              >
-                <Fingerprint size={16} /> PIN & sidik jari
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  setBukaGantiSandi(true);
-                }}
-              >
-                <KeyRound size={16} /> Kata sandi
-              </button>
-
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                style={{ color: "#dc2626", fontWeight: 700 }}
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  handleLogout();
-                }}
-              >
-                <LogOut size={16} /> Keluar
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <MenuAtas
+        tabAktif={tabAktif}
+        setTabAktif={setTabAktif}
+        peran={peran}
+        adalahAkunAdmin={adalahAkunAdmin}
+        gantiPeranAkun={gantiPeranAkun}
+        bukaMenuTitikTiga={bukaMenuTitikTiga}
+        setBukaMenuTitikTiga={setBukaMenuTitikTiga}
+        sedangOnline={sedangOnline}
+        jaringanTersedia={jaringanTersedia}
+        modeOfflineManual={modeOfflineManual}
+        setModeOfflineManual={setModeOfflineManual}
+        tampilkanToast={tampilkanToast}
+        onBukaSmartwatch={() => setBukaSmartwatch(true)}
+        onBukaPemberitahuan={() => setBukaPemberitahuan(true)}
+        onBukaEkspor={() => setBukaPengaturanEkspor(true)}
+        onModePilihPustaka={() => setModePilihPustaka(true)}
+        onBukaKeamanan={() => setBukaKeamanan(true)}
+        onBukaGantiSandi={() => setBukaGantiSandi(true)}
+        onKeluar={handleLogout}
+      />
 
       {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
       {aksesAdmin && (
-        <div className="banner-mode-admin" role="status">
-          <ShieldCheck size={14} aria-hidden="true" />
-          <span>Mode Administrator · terkunci bila {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas</span>
-          <button
-            type="button"
-            onClick={() => {
-              kunciGerbangAdmin();
-              tampilkanToast("🔒 Mode admin dikunci.");
-            }}
-          >
-            Kunci
-          </button>
-        </div>
+        <BannerModeAdmin
+          onKunci={() => {
+            kunciGerbangAdmin();
+            tampilkanToast("🔒 Mode admin dikunci.");
+          }}
+        />
       )}
 
       {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (MUNCUL DI SEMUA TAB) */}
       {rekamLatar.status !== "idle" && (
-        <div className={`global-rec-banner ${rekamLatar.status === "dijeda" ? "paused" : ""}`} data-tick={detikRekamTick}>
-          <div className="global-rec-left" onClick={() => setTabAktif("peta")}>
-            <span className="global-rec-pulse-dot" />
-            <Radio size={15} />
-            <div className="global-rec-text">
-              <strong>{rekamLatar.status === "merekam" ? "SEDANG MEREKAM DI LATAR BELAKANG" : "PEREKAMAN LATAR DIJEDA"}</strong>
-              <span>
-                {formatDurasi(durasiRekamMs(rekamLatar))} • {ringkasanRekam(rekamLatar)}
-              </span>
-            </div>
-          </div>
-
-          <div className="global-rec-actions">
-            <button
-              type="button"
-              className="global-rec-btn"
-              onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
-            >
-              {rekamLatar.status === "merekam" ? (
-                <>
-                  <Pause size={13} /> Jeda
-                </>
-              ) : (
-                <>
-                  <Play size={13} /> Lanjut
-                </>
-              )}
-            </button>
-            {tabAktif !== "peta" && (
-              <button type="button" className="global-rec-btn primary" onClick={() => setTabAktif("peta")}>
-                Buka Peta
-              </button>
-            )}
-          </div>
-        </div>
+        <BannerPerekaman
+          rekamLatar={rekamLatar}
+          detikRekamTick={detikRekamTick}
+          petaTerbuka={tabAktif === "peta"}
+          onBukaPeta={() => setTabAktif("peta")}
+        />
       )}
 
       {tabAktif === "pustaka" && <BannerInstal onSelesai={tampilkanToast} />}
 
       {/* PERINGATAN PENYIMPANAN: data baru yang tidak tersimpan harus terlihat, bukan hilang senyap */}
-      {(statusPenyimpanan.galat || (ruangPenyimpanan && ruangPenyimpanan.persen >= 80)) && (
-        <div className="banner-penyimpanan" role="alert">
-          <strong>⚠ {statusPenyimpanan.galat ? "Data terbaru mungkin belum tersimpan" : "Penyimpanan perangkat hampir penuh"}</strong>
-          <span>
-            {statusPenyimpanan.galat ??
-              `Terpakai ${formatUkuranByte(ruangPenyimpanan!.pakaiByte)} dari ${formatUkuranByte(ruangPenyimpanan!.kuotaByte)} (${Math.round(ruangPenyimpanan!.persen)}%).`}{" "}
-            Ekspor atau sinkronkan data sekarang, lalu hapus peta offline atau objek yang tidak diperlukan.
-          </span>
-        </div>
-      )}
+      <BannerPenyimpanan statusPenyimpanan={statusPenyimpanan} ruangPenyimpanan={ruangPenyimpanan} />
 
       {/* TOAST FEEDBACK */}
       {notifToast && <div className="avenza-toast">{notifToast.pesan}</div>}
@@ -1106,96 +866,13 @@ export const App: React.FC = () => {
       )}
 
       {/* BOTTOM NAVIGATION: BERBEDA UNTUK AKUN ADMIN DAN AKUN USER */}
-      <nav className="avenza-bottom-nav" ref={ukurBilahBawah}>
-        {peran === "kader" ? (
-          // NAVIGASI KHUSUS AKUN USER (KADER)
-          <>
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "pustaka" ? "active" : ""}`}
-              onClick={() => setTabAktif("pustaka")}
-            >
-              <Folder size={20} fill={tabAktif === "pustaka" ? "#0d7344" : "none"} />
-              <span>Pustaka</span>
-            </button>
-
-            <button type="button" className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`} onClick={() => setTabAktif("peta")}>
-              <Map size={20} />
-              <span>Temukan</span>
-            </button>
-
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "data_sync" ? "active" : ""}`}
-              onClick={() => setTabAktif("data_sync")}
-            >
-              <div className="nav-icon-wrap">
-                <CloudUpload size={20} />
-                {antreanLokalCount > 0 && <span className="nav-badge">{antreanLokalCount}</span>}
-              </div>
-              <span>GDrive</span>
-            </button>
-
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "reward" ? "active" : ""}`}
-              onClick={() => setTabAktif("reward")}
-            >
-              <Award size={20} />
-              <span>Sertifikat</span>
-            </button>
-
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
-              onClick={() => setTabAktif("komunikasi")}
-            >
-              <MessageSquare size={20} />
-              <span>Diskusi</span>
-            </button>
-          </>
-        ) : (
-          // NAVIGASI KHUSUS AKUN ADMIN
-          <>
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "admin" ? "active" : ""}`}
-              onClick={() => setTabAktif("admin")}
-            >
-              <ShieldCheck size={20} color={tabAktif === "admin" ? "#0284c7" : "#64748b"} />
-              <span style={{ color: tabAktif === "admin" ? "#0284c7" : "#64748b" }}>Admin</span>
-            </button>
-
-            <button type="button" className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`} onClick={() => setTabAktif("peta")}>
-              <Map size={20} />
-              <span>Temukan</span>
-            </button>
-
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "data_sync" ? "active" : ""}`}
-              onClick={() => setTabAktif("data_sync")}
-            >
-              <CloudUpload size={20} />
-              <span>GDrive</span>
-            </button>
-
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
-              onClick={() => setTabAktif("komunikasi")}
-            >
-              <MessageSquare size={20} />
-              <span>Diskusi</span>
-            </button>
-
-            <button type="button" className="avenza-nav-item" onClick={() => gantiPeranAkun("kader")} style={{ color: "#0d7344" }}>
-              <User size={20} />
-              <span>Mode User</span>
-            </button>
-          </>
-        )}
-      </nav>
+      <NavigasiBawah
+        peran={peran}
+        tabAktif={tabAktif}
+        setTabAktif={setTabAktif}
+        antreanLokalCount={antreanLokalCount}
+        onModeUser={() => gantiPeranAkun("kader")}
+      />
     </div>
   );
 };
