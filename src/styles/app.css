@@ -426,14 +426,19 @@ body {
 .avenza-basemap-banner {
   position: relative;
   width: 100%;
-  height: 118px;
-  border-radius: 16px;
+  /* Rasio ilustrasi dijaga; tinggi dibatasi agar tidak terlalu pendek di HP atau terlalu tinggi di PC */
+  aspect-ratio: 640 / 220;
+  min-height: 150px;
+  max-height: 260px;
+  border-radius: 18px;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  background: #13627a;
+  box-shadow: 0 8px 22px rgba(11, 58, 83, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  isolation: isolate;
 }
 
 .avenza-basemap-svg {
@@ -441,26 +446,103 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 .avenza-buka-peta-btn {
   position: relative;
   z-index: 2;
-  background: var(--avenza-green);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(13, 115, 68, 0.94);
   color: #ffffff;
-  border: none;
+  border: 2px solid rgba(255, 255, 255, 0.85);
   border-radius: 999px;
   padding: 10px 22px;
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(13, 115, 68, 0.32);
+  box-shadow: 0 6px 18px rgba(4, 47, 46, 0.45);
+  backdrop-filter: blur(2px);
   transition: transform 0.12s ease, background 0.12s ease;
 }
 
 .avenza-buka-peta-btn:hover {
   background: var(--avenza-green-dark);
-  transform: scale(1.02);
+  transform: scale(1.03);
+}
+
+.avenza-buka-peta-btn:focus-visible {
+  outline: 3px solid #fde68a;
+  outline-offset: 2px;
+}
+
+/* Gerak halus ilustrasi peta dasar (mati bila perangkat meminta gerak minimal) */
+.latar-peta-dasar .pd-sinar {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pd-putar 48s linear infinite;
+}
+
+.latar-peta-dasar .pd-denyut {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pd-denyut 2.2s ease-out infinite;
+}
+
+.latar-peta-dasar .pd-jarum {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pd-jarum 7s ease-in-out infinite;
+}
+
+.latar-peta-dasar .pd-sinyal {
+  animation: pd-sinyal 1.8s ease-in-out infinite;
+}
+
+@keyframes pd-putar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pd-denyut {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes pd-jarum {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes pd-sinyal {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .latar-peta-dasar * {
+    animation: none !important;
+  }
 }
 
 /* Daftar Peta Offline / GeoPDF (Screenshot 1) */
@@ -3815,4 +3897,350 @@ label {
   color: #92400e;
   font-size: 12px;
   line-height: 1.4;
+}
+
+/* Atribusi sumber peta (wajib menurut lisensi penyedia) */
+.map-atribusi {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 13;
+  /* sisakan ruang untuk tombol "Rekam Lokasi" di kanan bawah */
+  max-width: min(calc(100% - 190px), 460px);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #1f2937;
+  font-size: 10px;
+  line-height: 1.3;
+  text-decoration: none;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.map-atribusi:hover,
+.map-atribusi:focus-visible {
+  -webkit-line-clamp: unset;
+  text-decoration: underline;
+}
+
+.map-lisensi-info {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #475569;
+}
+
+/* Sub-menu Admin: HP 3 + 2 (tanpa tombol yatim), tablet 5 kolom, PC ikon di samping teks */
+.admin-subnav {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.admin-subnav-btn {
+  grid-column: span 2;
+  min-width: 0;
+  min-height: 60px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-subnav-btn:nth-child(4),
+.admin-subnav-btn:nth-child(5) {
+  grid-column: span 3;
+}
+
+.admin-subnav-btn svg {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.admin-subnav-btn span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-subnav-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.admin-subnav-btn.aktif {
+  border: 2px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.admin-subnav-btn:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+@media (min-width: 560px) {
+  .admin-subnav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .admin-subnav-btn,
+  .admin-subnav-btn:nth-child(4),
+  .admin-subnav-btn:nth-child(5) {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 900px) {
+  .admin-subnav-btn {
+    flex-direction: row;
+    min-height: 46px;
+    gap: 7px;
+    font-size: 0.82rem;
+  }
+}
+
+/* Penanda mode administrator (pemisah jelas dari mode user) */
+.banner-mode-admin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, #0c4a6e, #075985);
+  color: #e0f2fe;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.banner-mode-admin span {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-mode-admin button {
+  border: 1px solid rgba(224, 242, 254, 0.7);
+  background: transparent;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Layar kunci mode admin */
+.gerbang-admin {
+  max-width: 420px;
+  margin: 24px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.gerbang-admin h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.gerbang-admin-ikon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gerbang-admin-teks {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.gerbang-admin-input {
+  text-align: center;
+  font-size: 1.2rem;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+
+.gerbang-admin-galat {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
+.gerbang-admin-tombol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* Detail akun user yang dapat dilihat admin */
+.detail-akun {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px 14px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.detail-akun dt {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.detail-akun dd {
+  margin: 0 0 4px;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+/* Pindah tab dengan geser: pudar masuk singkat. Hanya opacity: transform pada .app-main akan
+   memindahkan tombol + yang position: fixed selama animasi. */
+.app-main.geser-kiri,
+.app-main.geser-kanan {
+  animation: geser-pudar 0.22s ease-out;
+}
+
+@keyframes geser-pudar {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main.geser-kiri,
+  .app-main.geser-kanan {
+    animation: none;
+  }
+}
+
+/* Ajakan memasang aplikasi (PWA) */
+.banner-instal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 16px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ecfdf5, #e0f2fe);
+  border: 1px solid #a7f3d0;
+}
+
+.banner-instal-ikon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #0d7344;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.banner-instal-teks {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: #334155;
+}
+
+.banner-instal-teks strong {
+  font-size: 0.84rem;
+  color: #064e3b;
+}
+
+.banner-instal-tombol {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.banner-instal-tutup {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.panduan-instal-langkah {
+  margin: 4px 0 10px;
+  padding-left: 20px;
+  font-size: 0.86rem;
+  line-height: 1.7;
+  color: #1f2937;
+}
+
+.panduan-instal-langkah svg {
+  vertical-align: -2px;
+}
+
+.panduan-instal-catatan {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.auth-instal {
+  padding: 0 18px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-instal-tombol {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px dashed #86efac;
+  background: #f0fdf4;
+  color: #0d7344;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
 }

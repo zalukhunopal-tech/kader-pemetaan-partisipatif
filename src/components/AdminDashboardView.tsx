@@ -26,7 +26,8 @@ import {
   Trash2,
   Battery,
   Radio,
-  Compass
+  Compass,
+  UserCog
 } from "lucide-react";
 
 interface AdminDashboardViewProps {
@@ -190,128 +191,32 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* 4 TAB SUB-NAVIGASI ADMIN */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: 8,
-            marginTop: 14
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setSubTabAdmin("kader_aktif")}
-            style={{
-              padding: "10px 10px",
-              borderRadius: "10px",
-              border: subTabAdmin === "kader_aktif" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
-              background: subTabAdmin === "kader_aktif" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
-              color: "#ffffff",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6
-            }}
-          >
-            <Radio size={15} color="#38bdf8" />
-            <span>Monitor</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTabAdmin("kelola_data")}
-            style={{
-              padding: "10px 10px",
-              borderRadius: "10px",
-              border: subTabAdmin === "kelola_data" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
-              background: subTabAdmin === "kelola_data" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
-              color: "#ffffff",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6
-            }}
-          >
-            <Edit3 size={15} color="#38bdf8" />
-            <span>Data ({dataSpasial.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTabAdmin("tugas_survei")}
-            style={{
-              padding: "10px 10px",
-              borderRadius: "10px",
-              border: subTabAdmin === "tugas_survei" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
-              background: subTabAdmin === "tugas_survei" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
-              color: "#ffffff",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6
-            }}
-          >
-            <PlusCircle size={15} color="#38bdf8" />
-            <span>Tugas ({tugasList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTabAdmin("sertifikat")}
-            style={{
-              padding: "10px 10px",
-              borderRadius: "10px",
-              border: subTabAdmin === "sertifikat" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
-              background: subTabAdmin === "sertifikat" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
-              color: "#ffffff",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6
-            }}
-          >
-            <Award size={15} color="#38bdf8" />
-            <span>Sertifikat</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTabAdmin("akun")}
-            style={{
-              padding: "10px 10px",
-              borderRadius: "10px",
-              border: subTabAdmin === "akun" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
-              background: subTabAdmin === "akun" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
-              color: "#ffffff",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6
-            }}
-          >
-            <Compass size={15} color="#38bdf8" />
-            <span>Akun</span>
-          </button>
-        </div>
+        {/* SUB-NAVIGASI ADMIN */}
+        <nav className="admin-subnav" aria-label="Menu admin">
+          {(
+            [
+              { id: "kader_aktif", label: "Monitor", Ikon: Radio },
+              { id: "kelola_data", label: `Data (${dataSpasial.length})`, Ikon: Edit3 },
+              { id: "tugas_survei", label: `Tugas (${tugasList.length})`, Ikon: PlusCircle },
+              { id: "sertifikat", label: "Sertifikat", Ikon: Award },
+              { id: "akun", label: "Akun", Ikon: UserCog }
+            ] as const
+          ).map(({ id, label, Ikon }) => (
+            <button
+              key={id}
+              type="button"
+              className={`admin-subnav-btn ${subTabAdmin === id ? "aktif" : ""}`}
+              aria-pressed={subTabAdmin === id}
+              onClick={() => setSubTabAdmin(id)}
+            >
+              <Ikon size={16} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} />}
+      {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} dataSpasial={dataSpasial} sertifikatList={sertifikatList} />}
 
       {/* 2. TAB A: MONITOR KADER AKTIF */}
       {subTabAdmin === "kader_aktif" && (

@@ -26,6 +26,7 @@ import {
 import { JEDA_PEMBARUAN_JAM } from "../lib/rewardEngine";
 import { buatId } from "../lib/id";
 import { kompresFoto, perkiraBytesDataUrl } from "../lib/foto";
+import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta } from "../lib/posisiPeta";
 import {
   BATAS_TILE_PER_AREA,
   KotakWilayah,
@@ -36,6 +37,8 @@ import {
   hitungJumlahTile,
   isiTemplateTile,
   muatGambarTile,
+  laporHasilTile,
+  zoomSumber,
   penyimpananTileDidukung,
   perkiraanUkuranMb,
   ukuranPenyimpanan,
@@ -77,6 +80,8 @@ interface InteractiveMapProps {
   profil: ProfilKader;
   areaOffline: AreaPetaOffline[];
   fokusKoordinat?: { lat: number; lng: number; label?: string } | null;
+  /** Dipanggil setelah fokus dipakai, agar fokus lama tidak menimpa posisi terakhir saat peta dibuka lagi */
+  onFokusDipakai?: () => void;
   onSimpanDataBaru: (item: DataSpasialItem) => void;
   onTambahPembaruanObjek: (
     idData: string,
@@ -90,6 +95,7 @@ interface InteractiveMapProps {
 }
 
 const TILE_SIZE = 256;
+
 
 function lngToTileX(lng: number, zoom: number): number {
   return ((lng + 180) / 360) * Math.pow(2, zoom);
@@ -157,6 +163,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   profil,
   areaOffline,
   fokusKoordinat,
+  onFokusDipakai,
   onSimpanDataBaru,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
@@ -166,12 +173,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
 
-  const [center, setCenter] = useState<{ lat: number; lng: number }>({
-    lat: -0.9475,
-    lng: 100.4192
-  });
-  const [zoom, setZoom] = useState<number>(15);
-  const [basemap, setBasemap] = useState<BasemapType>("satelit");
+  // Peta dibuka di posisi, zoom, dan basemap terakhir (bukan lokasi bawaan)
+  const [posisiTersimpan] = useState(() => bacaPosisiPeta());
+  const [center, setCenter] = useState<{ lat: number; lng: number }>(() =>
+    posisiTersimpan ? { lat: posisiTersimpan.lat, lng: posisiTersimpan.lng } : POSISI_AWAL_PETA
+  );
+  const [zoom, setZoom] = useState<number>(() => posisiTersimpan?.zoom ?? 15);
+  const [basemap, setBasemap] = useState<BasemapType>(() => posisiTersimpan?.basemap ?? "satelit");
   const [formatKoord, setFormatKoord] = useState<FormatKoordinat>("DD");
   const [renderTick, setRenderTick] = useState<number>(0);
 
@@ -204,6 +212,27 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   );
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
   const [detikTick, setDetikTick] = useState<number>(0);
+
+  // Simpan posisi peta (ditunda sedikit) dan pastikan tersimpan saat aplikasi ditutup/disembunyikan
+  const posisiRef = useRef({ ...center, zoom, basemap });
+  posisiRef.current = { ...center, zoom, basemap };
+  useEffect(() => {
+    const t = window.setTimeout(() => simpanPosisiPeta(posisiRef.current), 300);
+    return () => window.clearTimeout(t);
+  }, [center, zoom, basemap]);
+  useEffect(() => {
+    const simpan = () => simpanPosisiPeta(posisiRef.current);
+    const saatTersembunyi = () => {
+      if (document.visibilityState === "hidden") simpan();
+    };
+    window.addEventListener("pagehide", simpan);
+    document.addEventListener("visibilitychange", saatTersembunyi);
+    return () => {
+      simpan();
+      window.removeEventListener("pagehide", simpan);
+      document.removeEventListener("visibilitychange", saatTersembunyi);
+    };
+  }, []);
 
   // Sinkronkan titik dari perekam latar belakang ke peta secara real-time
   useEffect(() => {
@@ -275,8 +304,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     moved: false
   });
 
+  // Hanya pada pemakaian pertama (belum ada posisi tersimpan): pindahkan peta ke fix GPS pertama.
+  // Setelah itu peta selalu dibuka di posisi terakhir; tombol "Pusatkan ke GPS" tetap tersedia.
+  const sudahPusatRef = useRef(posisiTersimpan !== null);
   useEffect(() => {
     if (fokusKoordinat) {
+      sudahPusatRef.current = true; // lokasi yang dituju menang atas pemusatan GPS otomatis
       setCenter({ lat: fokusKoordinat.lat, lng: fokusKoordinat.lng });
       setZoom(16);
       if (fokusKoordinat.label) {
@@ -286,11 +319,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           judul: fokusKoordinat.label
         });
       }
+      onFokusDipakai?.();
     }
   }, [fokusKoordinat]);
 
-  // Fix GPS pertama: pindahkan peta ke posisi kader (kecuali sedang diarahkan ke lokasi tugas)
-  const sudahPusatRef = useRef(false);
   useEffect(() => {
     if (sudahPusatRef.current || !perangkat.posisi || fokusKoordinat) return;
     sudahPusatRef.current = true;
@@ -345,34 +377,41 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     ctx.fillRect(0, 0, W, H);
 
     // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo
-    const centerTx = lngToTileX(center.lng, zoom);
-    const centerTy = latToTileY(center.lat, zoom);
-    const startTileX = Math.floor(centerTx - W / (2 * TILE_SIZE)) - 1;
-    const endTileX = Math.ceil(centerTx + W / (2 * TILE_SIZE)) + 1;
-    const startTileY = Math.floor(centerTy - H / (2 * TILE_SIZE)) - 1;
-    const endTileY = Math.ceil(centerTy + H / (2 * TILE_SIZE)) + 1;
-
+    // Di atas zoom maksimum penyedia (mis. Sentinel-2 sampai z13), tile zoom tertinggi diperbesar
     if (basemap !== "taktis") {
+      const zTile = zoomSumber(basemap, zoom);
+      const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
+      const centerTx = lngToTileX(center.lng, zTile);
+      const centerTy = latToTileY(center.lat, zTile);
+      const startTileX = Math.floor(centerTx - W / (2 * ukuranTile)) - 1;
+      const endTileX = Math.ceil(centerTx + W / (2 * ukuranTile)) + 1;
+      const startTileY = Math.floor(centerTy - H / (2 * ukuranTile)) - 1;
+      const endTileY = Math.ceil(centerTy + H / (2 * ukuranTile)) + 1;
       for (let tx = startTileX; tx <= endTileX; tx++) {
         for (let ty = startTileY; ty <= endTileY; ty++) {
-          const url = urlTile(basemap, zoom, tx, ty);
+          const url = urlTile(basemap, zTile, tx, ty);
           if (!url) continue;
-          const drawX = Math.round(W / 2 + (tx - centerTx) * TILE_SIZE);
-          const drawY = Math.round(H / 2 + (ty - centerTy) * TILE_SIZE);
+          const drawX = Math.round(W / 2 + (tx - centerTx) * ukuranTile);
+          const drawY = Math.round(H / 2 + (ty - centerTy) * ukuranTile);
+          const sisi = Math.ceil(ukuranTile);
 
           const cached = tileCacheRef.current.get(url);
           if (cached && cached !== "loading" && cached !== "error") {
-            ctx.drawImage(cached, drawX, drawY, TILE_SIZE, TILE_SIZE);
+            ctx.drawImage(cached, drawX, drawY, sisi, sisi);
           } else if (!cached) {
             tileCacheRef.current.set(url, "loading");
             // Tile yang sudah diunduh dibaca dari penyimpanan offline; selain itu dari jaringan
+            const basemapTile = basemap;
             muatGambarTile(url).then(
               (img) => {
                 tileCacheRef.current.set(url, img);
+                laporHasilTile(basemapTile, true);
                 setRenderTick((t) => t + 1);
               },
               () => {
                 tileCacheRef.current.set(url, "error");
+                // Templat cadangan dipakai bila templat utama terus gagal walau online
+                if (laporHasilTile(basemapTile, false)) setRenderTick((t) => t + 1);
                 // Coba lagi pada penggambaran berikutnya (mis. setelah koneksi kembali)
                 window.setTimeout(() => {
                   if (tileCacheRef.current.get(url) === "error") tileCacheRef.current.delete(url);
@@ -910,6 +949,19 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* KANVAS PETA INTERAKTIF FULL-VIEW DAN CLEAN DI MOBILE */}
       <div className="map-canvas-container clean-canvas">
+        {/* Atribusi sumber peta wajib tampil menurut lisensi/ketentuan penyedia */}
+        {basemap !== "taktis" && (
+          <a
+            id="atribusi-peta"
+            className="map-atribusi"
+            href={SUMBER_TILE[basemap].tautanLisensi || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={SUMBER_TILE[basemap].lisensi}
+          >
+            {SUMBER_TILE[basemap].atribusi}
+          </a>
+        )}
         <canvas
           ref={canvasRef}
           className="map-canvas"
@@ -1015,9 +1067,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             <div className="map-basemap-grid">
               {(
                 [
-                  { id: "satelit", label: "🛰️ Satelit" },
-                  { id: "topo", label: "⛰️ Topografi" },
-                  { id: "osm", label: "🗺️ OSM" },
+                  { id: "satelit", label: `🛰️ ${SUMBER_TILE.satelit.nama}` },
+                  { id: "topo", label: `⛰️ ${SUMBER_TILE.topo.nama}` },
+                  { id: "osm", label: `🗺️ ${SUMBER_TILE.osm.nama}` },
                   { id: "taktis", label: "🧭 Kontur" }
                 ] as { id: BasemapType; label: string }[]
               ).map((b) => (
@@ -1034,6 +1086,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 </button>
               ))}
             </div>
+            {basemap !== "taktis" && (
+              <p className="map-lisensi-info" id="info-lisensi-peta">
+                <strong>Lisensi:</strong> {SUMBER_TILE[basemap].lisensi}
+              </p>
+            )}
 
             <div className="map-popover-actions">
               <button

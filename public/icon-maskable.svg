@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#065f46"/>
+      <stop offset="100%" stop-color="#042f2e"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#bg)"/>
+  <!-- isi diperkecil ke zona aman maskable (lingkaran 80%) -->
+  <g transform="translate(64 64) scale(0.74) translate(-64 -64)">
+    <circle cx="64" cy="64" r="46" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="6 4" opacity="0.45"/>
+    <path d="M26 88 L48 56 L72 74 L98 42" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M64 22 C47 22 34 35 34 52 C34 74 64 104 64 104 C64 104 94 74 94 52 C94 35 81 22 64 22 Z" fill="url(#pin)" opacity="0.92"/>
+    <circle cx="64" cy="50" r="12" fill="#042f2e"/>
+    <circle cx="64" cy="50" r="5" fill="#fbbf24"/>
+  </g>
+</svg>

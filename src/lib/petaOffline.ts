@@ -17,7 +17,20 @@ const PARALEL_UNDUH = 4;
 export type BasemapTile = Exclude<BasemapType, "taktis">;
 
 export interface SumberTile {
+  /** Nama yang tampil di pilihan peta */
+  nama: string;
+  /** Templat URL utama, dengan {z}, {x}, {y} */
   template: string;
+  /** Templat cadangan yang dicoba bila templat utama terus gagal (mis. jalur layanan berubah) */
+  templateCadangan?: string[];
+  /** Atribusi yang WAJIB tampil di peta menurut lisensi/ketentuan penyedia */
+  atribusi: string;
+  /** Tautan ketentuan/lisensi penyedia */
+  tautanLisensi: string;
+  /** Ringkasan lisensi untuk pengguna */
+  lisensi: string;
+  /** Zoom tertinggi yang disediakan; di atasnya tile dari zoom ini diperbesar */
+  zoomMaks: number;
   /** true bila pengunduhan massal untuk pemakaian offline diizinkan oleh penyedia */
   bolehUnduh: boolean;
   alasanTidakBoleh?: string;
@@ -27,30 +40,85 @@ export interface SumberTile {
 
 const env = import.meta.env;
 
+/** Sentinel-2 cloudless 2016 dari EOX: CC BY 4.0, boleh dipakai komersial maupun non-komersial dengan atribusi */
+const EOX_S2_2016 = [
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg",
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"
+];
+
+function sumberSatelit(): SumberTile {
+  const kustom = env.VITE_TILE_URL_SATELIT;
+  if (kustom) {
+    return {
+      nama: "Satelit",
+      template: kustom,
+      atribusi: env.VITE_TILE_ATRIBUSI_SATELIT || "Sumber citra: penyedia tile milik organisasi",
+      tautanLisensi: "",
+      lisensi: "Ditentukan oleh penyedia tile yang Anda pasang.",
+      zoomMaks: Number(env.VITE_TILE_ZOOM_MAKS_SATELIT) || 19,
+      bolehUnduh: env.VITE_TILE_UNDUH_SATELIT === "true",
+      alasanTidakBoleh: "Unduhan offline belum dinyatakan diizinkan untuk penyedia tile ini.",
+      rataKbPerTile: 22
+    };
+  }
+  const kunciEsri = (env.VITE_ESRI_API_KEY ?? "").trim();
+  if (kunciEsri) {
+    // ArcGIS Location Platform: gratis sampai kuota bulanan dengan akun dan kunci API; wajib atribusi
+    return {
+      nama: "Satelit Esri",
+      template: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(kunciEsri)}`,
+      atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, dan GIS User Community",
+      tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
+      lisensi: "Ketentuan Esri (akun ArcGIS Location Platform). Hanya untuk dilihat online.",
+      zoomMaks: 19,
+      bolehUnduh: false,
+      alasanTidakBoleh: "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
+      rataKbPerTile: 22
+    };
+  }
+  return {
+    nama: "Satelit Sentinel-2",
+    template: EOX_S2_2016[0],
+    templateCadangan: EOX_S2_2016.slice(1),
+    atribusi: "Sentinel-2 cloudless – s2maps.eu oleh EOX IT Services GmbH (data Copernicus Sentinel 2016 yang dimodifikasi)",
+    tautanLisensi: "https://s2maps.eu",
+    lisensi: "CC BY 4.0 (citra 2016, resolusi 10 m). Gratis dengan atribusi; layanan EOX hanya untuk dipakai online.",
+    zoomMaks: 13,
+    bolehUnduh: false,
+    alasanTidakBoleh: "Layanan tile EOX diizinkan untuk dipakai langsung secara online, bukan untuk diunduh massal.",
+    rataKbPerTile: 22
+  };
+}
+
 /**
- * Sumber tile. Tiga layanan publik bawaan hanya untuk dilihat online. Untuk unduhan offline,
- * pasang penyedia tile yang lisensinya mengizinkan (mis. server tile sendiri) lewat
- * VITE_TILE_URL_* dan nyatakan izinnya dengan VITE_TILE_UNDUH_*=true.
+ * Sumber tile. Bawaan hanya memakai layanan gratis yang ketentuannya mengizinkan dipakai di aplikasi
+ * dengan atribusi, dan semuanya untuk dilihat online. Untuk unduhan offline, pasang penyedia tile
+ * yang lisensinya mengizinkan (mis. tile buatan sendiri dari data terbuka) lewat VITE_TILE_URL_* dan
+ * nyatakan izinnya dengan VITE_TILE_UNDUH_*=true.
  */
 export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
-  satelit: {
-    template:
-      env.VITE_TILE_URL_SATELIT ||
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    bolehUnduh: env.VITE_TILE_UNDUH_SATELIT === "true",
-    alasanTidakBoleh:
-      "Layanan citra publik bawaan tidak menjamin izin menyimpan tile untuk dipakai offline.",
-    rataKbPerTile: 22
-  },
+  satelit: sumberSatelit(),
   osm: {
+    nama: "OpenStreetMap",
     template: env.VITE_TILE_URL_OSM || "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    atribusi: (env.VITE_TILE_URL_OSM && env.VITE_TILE_ATRIBUSI_OSM) || "© Kontributor OpenStreetMap",
+    tautanLisensi: "https://www.openstreetmap.org/copyright",
+    lisensi: "Data ODbL. Server tile OSM boleh dipakai untuk melihat peta dengan atribusi, tidak untuk diunduh massal.",
+    zoomMaks: 19,
     bolehUnduh: env.VITE_TILE_UNDUH_OSM === "true",
     alasanTidakBoleh:
       "Kebijakan tile OpenStreetMap melarang pengunduhan massal dari tile.openstreetmap.org.",
     rataKbPerTile: 14
   },
   topo: {
+    nama: "OpenTopoMap",
     template: env.VITE_TILE_URL_TOPO || "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+    atribusi: env.VITE_TILE_URL_TOPO
+      ? env.VITE_TILE_ATRIBUSI_TOPO || "© Kontributor OpenStreetMap"
+      : "Data peta: © Kontributor OpenStreetMap, SRTM | Gaya peta: © OpenTopoMap (CC-BY-SA)",
+    tautanLisensi: "https://opentopomap.org/about",
+    lisensi: "CC-BY-SA dengan atribusi. Untuk dilihat online; pemakaian besar perlu menghubungi OpenTopoMap.",
+    zoomMaks: 17,
     bolehUnduh: env.VITE_TILE_UNDUH_TOPO === "true",
     alasanTidakBoleh:
       "Layanan OpenTopoMap publik tidak menjamin izin pengunduhan massal untuk pemakaian offline.",
@@ -122,9 +190,60 @@ export function isiTemplateTile(template: string, z: number, x: number, y: numbe
   return template.replace("{z}", String(z)).replace("{x}", String(xNorm)).replace("{y}", String(y));
 }
 
+/* ---------- Templat aktif dan cadangan ---------- */
+
+const indeksTemplate: Partial<Record<BasemapTile, number>> = {};
+const hitungGagal: Partial<Record<BasemapTile, { gagal: number; berhasil: number }>> = {};
+/** Templat diganti bila tile beruntun gagal sebanyak ini tanpa satu pun berhasil (saat online) */
+const BATAS_GAGAL_GANTI_TEMPLAT = 6;
+
+const daftarTemplat = (b: BasemapTile) => [SUMBER_TILE[b].template, ...(SUMBER_TILE[b].templateCadangan ?? [])];
+
+export function templateAktif(basemap: BasemapTile): string {
+  const daftar = daftarTemplat(basemap);
+  return daftar[Math.min(indeksTemplate[basemap] ?? 0, daftar.length - 1)];
+}
+
+/**
+ * Dicatat oleh penggambar peta setiap kali tile selesai dimuat. Bila templat utama terus gagal
+ * padahal online (mis. penyedia mengubah jalur layanan), templat cadangan dipakai. Mengembalikan
+ * true bila templat berganti sehingga peta perlu digambar ulang.
+ */
+export function laporHasilTile(basemap: BasemapType, berhasil: boolean, online = typeof navigator === "undefined" || navigator.onLine): boolean {
+  if (basemap === "taktis") return false;
+  const c = (hitungGagal[basemap] ??= { gagal: 0, berhasil: 0 });
+  if (berhasil) {
+    c.berhasil++;
+    c.gagal = 0;
+    return false;
+  }
+  if (!online || c.berhasil > 0) return false;
+  c.gagal++;
+  const daftar = daftarTemplat(basemap);
+  const i = indeksTemplate[basemap] ?? 0;
+  if (c.gagal >= BATAS_GAGAL_GANTI_TEMPLAT && i < daftar.length - 1) {
+    indeksTemplate[basemap] = i + 1;
+    c.gagal = 0;
+    return true;
+  }
+  return false;
+}
+
+/** Hanya untuk pengujian */
+export function setelUlangTemplatUntukUji(): void {
+  for (const k of Object.keys(indeksTemplate)) delete indeksTemplate[k as BasemapTile];
+  for (const k of Object.keys(hitungGagal)) delete hitungGagal[k as BasemapTile];
+}
+
 export function urlTile(basemap: BasemapType, z: number, x: number, y: number): string | null {
   if (basemap === "taktis") return null;
-  return isiTemplateTile(SUMBER_TILE[basemap].template, z, x, y);
+  return isiTemplateTile(templateAktif(basemap), z, x, y);
+}
+
+/** Zoom tile yang benar-benar diminta untuk zoom tampilan (tidak melebihi zoom maksimum penyedia) */
+export function zoomSumber(basemap: BasemapType, zoomTampil: number): number {
+  if (basemap === "taktis") return zoomTampil;
+  return Math.min(zoomTampil, SUMBER_TILE[basemap].zoomMaks);
 }
 
 export const perkiraanUkuranMb = (jumlahTile: number, basemap: BasemapTile) =>

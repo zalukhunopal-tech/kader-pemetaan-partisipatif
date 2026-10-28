@@ -9,6 +9,7 @@ import {
   periksaTotp,
   uriOtpauth
 } from "./totp";
+import { bukaGerbangAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
 
 /**
  * AUTENTIKASI SISI KLIEN
@@ -326,6 +327,9 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
   if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
   const sesi = keSesi(akun);
   simpanSesiPengguna(sesi);
+  // Kewenangan admin hanya dari verifikasi kode barusan, tidak dari sesi yang tersimpan
+  if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
+  else kunciGerbangAdmin();
   return {
     sukses: true,
     pesan: hasil.pemulihan
@@ -409,11 +413,50 @@ export async function buatAdminPertama(data: DataDaftar, kodeAktivasi = ""): Pro
   return { sukses, pesan: sukses ? "Administrator dibuat. Lanjutkan dengan mendaftarkan Google Authenticator." : pesan, perluDaftarTotp: sukses };
 }
 
-/** Sesi hanya sah untuk akun admin yang masih ada, sama dengan data akun */
+/**
+ * Pemeriksaan dua lapis untuk setiap aksi admin:
+ * 1. sesi harus cocok dengan akun admin yang masih ada di data akun (peran dan ID sama), dan
+ * 2. gerbang admin di memori harus terbuka (kode Authenticator diverifikasi di halaman ini dan belum diam terlalu lama).
+ */
 function adminSah(adminSesi: AkunSesi | null): AkunPengguna | null {
   const akunAdmin = muatSemuaAkun().find((a) => a.email.toLowerCase() === (adminSesi?.email ?? "").toLowerCase());
   if (!adminSesi || !akunAdmin || akunAdmin.peran !== "admin" || akunAdmin.idKader !== adminSesi.idKader) return null;
+  if (!akunAdmin.totpRahasia || !gerbangAdminTerbuka(akunAdmin.email)) return null;
   return akunAdmin;
+}
+
+/** Untuk lapisan aplikasi: sesi admin yang sah menurut data akun TERKINI dan gerbang admin yang terbuka */
+export function aksesAdminSah(adminSesi: AkunSesi | null): boolean {
+  if (!adminSesi) return false;
+  const terkini = muatSesiPengguna(); // dibaca ulang dari penyimpanan, bukan dari state aplikasi
+  if (!terkini || terkini.email.toLowerCase() !== adminSesi.email.toLowerCase() || terkini.idKader !== adminSesi.idKader) return false;
+  return adminSah(terkini) !== null;
+}
+
+/**
+ * Membuka kembali gerbang admin (setelah terkunci karena diam, muat ulang, atau Mode User) dengan kode
+ * Google Authenticator atau kode pemulihan. Hanya untuk akun yang perannya admin di data akun.
+ */
+export function bukaGerbangAdminDenganKode(adminSesi: AkunSesi | null, kode: string): { sukses: boolean; pesan: string } {
+  const emailBersih = (adminSesi?.email ?? "").trim().toLowerCase();
+  const tunggu = detikTertahan(emailBersih);
+  if (tunggu > 0) return { sukses: false, pesan: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
+  const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
+  if (!adminSesi || !akun || akun.peran !== "admin" || akun.idKader !== adminSesi.idKader || !akun.totpRahasia) {
+    return { sukses: false, pesan: "Akun ini tidak memiliki akses Administrator." };
+  }
+  const hasil = periksaKodeMasuk(akun, kode);
+  if (!hasil.ok) {
+    catatGagal(emailBersih);
+    return { sukses: false, pesan: PESAN_KODE_SALAH };
+  }
+  hapusGagal(emailBersih);
+  if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
+  bukaGerbangAdmin(akun.email);
+  return {
+    sukses: true,
+    pesan: hasil.pemulihan ? `Mode admin dibuka dengan kode pemulihan; sisa ${hasil.sisa}.` : "Mode admin dibuka."
+  };
 }
 
 /**
@@ -425,7 +468,7 @@ export async function buatAkunOlehAdmin(
   adminSesi: AkunSesi | null,
   data: DataAkunBaru & { peran?: PeranPengguna }
 ): Promise<{ sukses: boolean; pesan: string; sandiSementara?: string; akun?: AkunSesi }> {
-  if (!adminSah(adminSesi)) return { sukses: false, pesan: "Hanya administrator yang dapat membuat akun." };
+  if (!adminSah(adminSesi)) return { sukses: false, pesan: "Hanya administrator dengan mode admin terbuka yang dapat membuat akun." };
   const sandiSementara = buatSandiSementara();
   const r = await buatAkun(data, sandiSementara, data.peran === "admin" ? "admin" : "kader", { wajibGantiSandi: true });
   if (!r.sukses || !r.akun) return { sukses: false, pesan: r.pesan };
@@ -486,6 +529,8 @@ export async function selesaikanPendaftaranTotp(
     return { sukses: false, pesan: PESAN_KODE_SALAH };
   }
   hapusGagal(akun.email);
+  if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
+  else kunciGerbangAdmin();
   const kodePemulihan = buatKodePemulihan();
   simpanPerubahanAkun(akun.email, {
     totpRahasia: rahasia,
