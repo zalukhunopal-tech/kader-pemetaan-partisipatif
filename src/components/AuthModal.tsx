@@ -16,7 +16,9 @@ import {
   Mail,
   User,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  ArrowRight
 } from "lucide-react";
 
 interface AuthModalProps {
@@ -77,6 +79,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
     setTimeout(() => {
       onLoginSukses(res.akun!);
     }, 350);
+  };
+
+  const handleQuickLogin = (email: string, pass: string) => {
+    setEmailLogin(email);
+    setPasswordLogin(pass);
+    resetAlert();
+    const res = autentikasiLogin(email, pass);
+    if (!res.sukses || !res.akun) {
+      setPesanError(res.pesan);
+      return;
+    }
+    setPesanSukses(`✓ Berhasil masuk sebagai ${res.akun.nama}`);
+    setTimeout(() => {
+      onLoginSukses(res.akun!);
+    }, 250);
   };
 
   const handleDaftar = (e: React.FormEvent) => {
@@ -409,6 +426,150 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               >
                 Masuk
               </button>
+
+              {/* KARTU AKUN DUMMY / UJI COBA CEPAT */}
+              <div
+                style={{
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: "1px dashed #cbd5e1"
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: "#475569",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <KeyRound size={14} color="#0d7344" />
+                  <span>Akun Dummy Untuk Uji Coba Masuk:</span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                  {/* AKUN DUMMY USER / KADER */}
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin("kader@geokader.id", "kader123")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      background: "#f0fdf4",
+                      border: "1.5px solid #86efac",
+                      cursor: "pointer",
+                      textAlign: "left"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          background: "#dcfce7",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#166534",
+                          flexShrink: 0
+                        }}
+                      >
+                        <User size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#166534" }}>
+                          Akun Kader (User Lapangan)
+                        </div>
+                        <div style={{ fontSize: "0.72rem", color: "#15803d" }}>
+                          kader@geokader.id • Sandi: <strong>kader123</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        background: "#166534",
+                        color: "#ffffff",
+                        padding: "5px 9px",
+                        borderRadius: 6,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4
+                      }}
+                    >
+                      Masuk <ArrowRight size={12} />
+                    </span>
+                  </button>
+
+                  {/* AKUN DUMMY ADMIN */}
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin("admin@geokader.id", "admin123")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      background: "#f0f9ff",
+                      border: "1.5px solid #7dd3fc",
+                      cursor: "pointer",
+                      textAlign: "left"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          background: "#e0f2fe",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#0369a1",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Shield size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#0369a1" }}>
+                          Akun Administrator GIS
+                        </div>
+                        <div style={{ fontSize: "0.72rem", color: "#0284c7" }}>
+                          admin@geokader.id • Sandi: <strong>admin123</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        background: "#0284c7",
+                        color: "#ffffff",
+                        padding: "5px 9px",
+                        borderRadius: 6,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4
+                      }}
+                    >
+                      Masuk <ArrowRight size={12} />
+                    </span>
+                  </button>
+                </div>
+              </div>
             </form>
           )}
 

@@ -16,16 +16,57 @@ export interface AkunPengguna {
 const KEY_ACCOUNTS = "geokader_accounts_v5";
 const KEY_SESSION = "geokader_current_session_v5";
 
-// Tidak ada akun contoh/dummy bawaan
-export const AKUN_DEFAULT: AkunPengguna[] = [];
+// Akun Dummy Bawaan untuk Uji Coba Masuk (Kader & Admin)
+export const AKUN_DEFAULT: AkunPengguna[] = [
+  {
+    idKader: "KDR-001",
+    nama: "Budi Santoso (Kader Lapangan)",
+    email: "kader@geokader.id",
+    password: "kader123",
+    peran: "kader",
+    desaWilayah: "Desa Rimba Hijau",
+    noHp: "081234567890",
+    kelompokMasyarakat: "Kelompok Tani Hutan Harapan",
+    namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
+    createdAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
+    idKader: "ADM-001",
+    nama: "Siti Rahma (GIS Administrator)",
+    email: "admin@geokader.id",
+    password: "admin123",
+    peran: "admin",
+    desaWilayah: "Kantor Balai Spasial",
+    noHp: "081987654321",
+    kelompokMasyarakat: "Tim Verifikasi & Data Spasial",
+    namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
+    createdAt: "2026-01-01T00:00:00.000Z"
+  }
+];
 
 export function muatSemuaAkun(): AkunPengguna[] {
   try {
     const raw = localStorage.getItem(KEY_ACCOUNTS);
-    if (!raw) return [];
-    return JSON.parse(raw) as AkunPengguna[];
+    if (!raw) {
+      simpanSemuaAkun(AKUN_DEFAULT);
+      return AKUN_DEFAULT;
+    }
+    const accounts = JSON.parse(raw) as AkunPengguna[];
+    
+    // Pastikan akun dummy default selalu tersedia untuk testing
+    let adaPerubahan = false;
+    for (const def of AKUN_DEFAULT) {
+      if (!accounts.some((a) => a.email.toLowerCase() === def.email.toLowerCase())) {
+        accounts.push(def);
+        adaPerubahan = true;
+      }
+    }
+    if (adaPerubahan) {
+      simpanSemuaAkun(accounts);
+    }
+    return accounts;
   } catch {
-    return [];
+    return AKUN_DEFAULT;
   }
 }
 
