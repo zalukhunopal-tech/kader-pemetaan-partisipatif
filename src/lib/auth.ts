@@ -65,9 +65,8 @@ export const konfigUji = { iterasi: ITERASI_PBKDF2 };
 export const MIN_PANJANG_SANDI = 8;
 export const NAMA_ORGANISASI_BAWAAN = "Sertifikat Kader Pemetaan Partisipatif";
 
-/** Akun uji hanya tersedia di build pengembangan, atau bila VITE_AKUN_UJI=true */
-export const AKUN_UJI_AKTIF: boolean =
-  import.meta.env.DEV === true || import.meta.env.VITE_AKUN_UJI === "true";
+/** Akun uji dinonaktifkan untuk aplikasi produksi/publikasi (hanya aktif di lingkungan pengujian unit vitest) */
+export const AKUN_UJI_AKTIF: boolean = import.meta.env.MODE === "test";
 
 /** Rahasia TOTP tetap untuk akun uji, supaya kartu cepat-masuk bisa menghitung kodenya sendiri. Hanya di build uji. */
 export const RAHASIA_TOTP_UJI = "KRSXG5DSNFXGOIDUN5ZGK43FMQQHEZLB";
@@ -688,5 +687,24 @@ export function setelUlangLangkahUji(email: string): void {
 /** Dipanggil sekali sebelum aplikasi dirender */
 export async function siapkanAutentikasi(): Promise<void> {
   await migrasiAkunLama();
-  await siapkanAkunUji();
+  // Pembersihan akun dummy bawaan uji dari penyimpanan lokal untuk kesiapan publikasi
+  try {
+    const accounts = muatSemuaAkun();
+    const akunBersih = accounts.filter(
+      (a) =>
+        !(
+          (a.email.toLowerCase() === "kader@geokader.id" && a.idKader === "KDR-001") ||
+          (a.email.toLowerCase() === "admin@geokader.id" && (a.idKader === "ADM-001" || a.totpRahasia === RAHASIA_TOTP_UJI))
+        )
+    );
+    if (akunBersih.length !== accounts.length) {
+      simpanSemuaAkun(akunBersih);
+      const sesi = muatSesiPengguna();
+      if (sesi && (sesi.email.toLowerCase() === "kader@geokader.id" || sesi.email.toLowerCase() === "admin@geokader.id")) {
+        localStorage.removeItem(KEY_SESSION);
+      }
+    }
+  } catch {
+    // abaikan jika gagal
+  }
 }

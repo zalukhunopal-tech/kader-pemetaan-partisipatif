@@ -1,25 +1,21 @@
 import React, { useState } from "react";
 import {
-  AKUN_UJI_AKTIF,
   AkunSesi,
   MIN_PANJANG_SANDI,
-  RAHASIA_TOTP_UJI,
   adaAdmin,
   autentikasiLogin,
   buatAdminPertama,
   mulaiPendaftaranTotp,
   muatSemuaAkun,
   selesaikanPendaftaranTotp,
-  setelUlangLangkahUji,
   simpanSesiPengguna,
   ubahKataSandi
 } from "../lib/auth";
-import { hitungTotp, rahasiaUntukTampil } from "../lib/totp";
+import { rahasiaUntukTampil } from "../lib/totp";
 import { KodeQrSvg } from "./KodeQrSvg";
 import { TombolInstal } from "./InstalAplikasi";
 import {
   AlertCircle,
-  ArrowRight,
   CheckCircle2,
   Compass,
   Copy,
@@ -28,10 +24,8 @@ import {
   KeyRound,
   Lock,
   Mail,
-  Shield,
   ShieldCheck,
-  Smartphone,
-  User
+  Smartphone
 } from "lucide-react";
 
 interface AuthModalProps {
@@ -171,19 +165,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
     setSedangProses(true);
     try {
       await lanjutDariSandi(emailLogin, passwordLogin, kode);
-    } finally {
-      setSedangProses(false);
-    }
-  };
-
-  const handleQuickLogin = async (email: string, pass: string) => {
-    setEmailLogin(email);
-    setPasswordLogin(pass);
-    resetAlert();
-    setSedangProses(true);
-    try {
-      setelUlangLangkahUji(email); // hanya build uji: izinkan beberapa kali masuk dalam satu langkah 30 detik
-      await lanjutDariSandi(email, pass, hitungTotp(RAHASIA_TOTP_UJI) ?? "");
     } finally {
       setSedangProses(false);
     }
@@ -407,62 +388,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 <button type="button" id="buka-setup-admin" onClick={() => pindah("setup_admin")} style={{ ...gayaTautan, color: "#0369a1" }}>
                   Perangkat ini belum punya Administrator: buat Administrator pertama
                 </button>
-              )}
-
-              {/* KARTU AKUN UJI: hanya ada di build pengembangan */}
-              {AKUN_UJI_AKTIF && (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed #cbd5e1" }}>
-                  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                    <KeyRound size={14} color="#0d7344" />
-                    <span>Akun uji (build pengembangan):</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => void handleQuickLogin("kader@geokader.id", "kader123")}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 10, background: "#f0fdf4", border: "1.5px solid #86efac", cursor: "pointer", textAlign: "left" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", color: "#166534", flexShrink: 0 }}>
-                          <User size={18} />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#166534" }}>Akun Kader (User Lapangan)</div>
-                          <div style={{ fontSize: "0.72rem", color: "#15803d" }}>
-                            kader@geokader.id • Sandi: <strong>kader123</strong>
-                          </div>
-                        </div>
-                      </div>
-                      <span style={{ fontSize: "0.72rem", fontWeight: 700, background: "#166534", color: "#ffffff", padding: "5px 9px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                        Masuk <ArrowRight size={12} />
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleQuickLogin("admin@geokader.id", "admin123")}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 10, background: "#f0f9ff", border: "1.5px solid #7dd3fc", cursor: "pointer", textAlign: "left" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e0f2fe", display: "flex", alignItems: "center", justifyContent: "center", color: "#0369a1", flexShrink: 0 }}>
-                          <Shield size={18} />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#0369a1" }}>Akun Administrator GIS</div>
-                          <div style={{ fontSize: "0.72rem", color: "#0284c7" }}>
-                            admin@geokader.id • Sandi: <strong>admin123</strong>
-                          </div>
-                        </div>
-                      </div>
-                      <span style={{ fontSize: "0.72rem", fontWeight: 700, background: "#0284c7", color: "#ffffff", padding: "5px 9px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                        Masuk <ArrowRight size={12} />
-                      </span>
-                    </button>
-                  </div>
-                  <div style={{ marginTop: 8, fontSize: "0.7rem", color: "#64748b" }}>
-                    Kode Authenticator akun uji dihitung otomatis.
-                  </div>
-                </div>
               )}
             </form>
           )}
