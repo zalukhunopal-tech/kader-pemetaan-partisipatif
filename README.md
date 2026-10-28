@@ -71,7 +71,10 @@ npm run dev      # server pengembangan (terbuka ke jaringan lokal di port 3000)
 npm run build    # bangun versi produksi (PWA)
 npm test         # tes Vitest (lib/*: koordinat, skor, impor, sertifikat, QR, auth, PIN dan sidik jari, penyimpanan, sinkronisasi, Code.gs, peta)
 npm run lint     # pemeriksaan tipe (tsc --noEmit)
+npm run test:e2e # uji browser Playwright pada bundel produksi (lihat di bawah)
 ```
+
+**Uji browser** (`e2e/`, Playwright + Chromium) menjalankan alur nyata pada bundel produksi: penyiapan admin dan Google Authenticator, masa 8 jam, PIN, sidik jari dengan autentikator virtual, gerbang admin, cubit dan roda zoom, tata letak dengan huruf besar, rekam titik, Satelit Google/Esri (jaringan Google ditiru), dan penerbitan sertifikat dengan QR yang dipindai. `npm run test:e2e` membangun dua bundel (`dist/` dan `dist-e2e/` dengan kunci API palsu dari `.env.e2e`), menyalakan `vite preview`, lalu menjalankan tes. Pertama kali di komputer baru, pasang browsernya dengan `npx playwright install chromium`.
 
 Saat menambah atau menaikkan pustaka, jalankan `npm install <paket>` lalu commit `package.json` **dan** `package-lock.json` bersama-sama.
 
