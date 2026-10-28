@@ -11,7 +11,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 
 export const PERIODE_TOTP_DETIK = 30;
 export const DIGIT_TOTP = 6;
-export const NAMA_PENERBIT_TOTP = "GeoKader";
+export const NAMA_PENERBIT_TOTP = "Titik Tapak";
 const ALFABET_BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 /** Tanpa 0/O/1/I agar mudah dibaca dan diketik */
 const ALFABET_PEMULIHAN = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -132,7 +132,8 @@ export function uriOtpauth(email: string, rahasiaBase32: string): string {
     digits: String(DIGIT_TOTP),
     period: String(PERIODE_TOTP_DETIK)
   });
-  return `otpauth://totp/${label}?${params.toString()}`;
+  // Spasi pada nama penerbit ("Titik Tapak") ditulis %20 sesuai format kunci Google Authenticator, bukan "+"
+  return `otpauth://totp/${label}?${params.toString().replace(/\+/g, "%20")}`;
 }
 
 /** Rahasia dalam kelompok 4 huruf agar mudah diketik manual */

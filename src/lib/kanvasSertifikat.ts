@@ -312,7 +312,8 @@ function gambarSatuBlokPenandatangan(
   ctx.fillText(`★ ${labelStempel} ★`, 0, -24);
   ctx.fillText("TERVERIFIKASI RESMI", 0, 29);
   ctx.font = "900 8.5px system-ui, sans-serif";
-  ctx.fillText("GEOKADER", 0, 3);
+  ctx.fillText("TITIK", 0, -1);
+  ctx.fillText("TAPAK", 0, 8);
   ctx.restore();
 
   // 3. Tanda Tangan (Gambar Unggahan atau Garis Penandatangan Fisik)

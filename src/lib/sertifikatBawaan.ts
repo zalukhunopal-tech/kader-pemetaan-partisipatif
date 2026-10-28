@@ -21,7 +21,7 @@ export const DEFAULT_LOGO_SERTIFIKAT: LogoSertifikatItem[] = [
   },
   {
     id: "logo-4",
-    nama: "GEOKADER ID",
+    nama: "TITIK TAPAK ID",
     warnaAksen: "#a855f7"
   }
 ];

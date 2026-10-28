@@ -64,7 +64,7 @@ export const SiapkanKunciCepat: React.FC<{ sesi: AkunSesi; onSelesai: (pesan: st
   return (
     <form id="form-siapkan-pin" className="verifikasi-identitas" onSubmit={simpan}>
       <p className="verifikasi-teks">
-        Buat <strong>PIN {PANJANG_PIN} angka</strong> untuk membuka GeoKader. Kode Google Authenticator cukup dimasukkan sekali setiap{" "}
+        Buat <strong>PIN {PANJANG_PIN} angka</strong> untuk membuka Titik Tapak. Kode Google Authenticator cukup dimasukkan sekali setiap{" "}
         <strong>8 jam</strong>; di antaranya aplikasi dibuka dengan PIN
         {bioDidukung ? " atau sidik jari / pengenalan wajah" : ""}.
       </p>
@@ -145,7 +145,7 @@ export const KunciAplikasiView: React.FC<KunciAplikasiViewProps> = ({ sesi, mode
         <div className="layar-kunci-logo">
           <Compass size={24} color="#fbbf24" aria-hidden="true" />
         </div>
-        <h2 id="judul-layar-kunci">{mode === "siapkan" ? "Amankan GeoKader" : "GeoKader terkunci"}</h2>
+        <h2 id="judul-layar-kunci">{mode === "siapkan" ? "Amankan Titik Tapak" : "Titik Tapak terkunci"}</h2>
         <p>
           {sesi.nama} · {sesi.email}
         </p>

@@ -14,7 +14,7 @@ const PanduanInstal: React.FC<{ status: StatusInstal; onTutup: () => void }> = (
       onClick={(e) => e.stopPropagation()}
     >
       <div className="modal-header">
-        <h3 id="judul-panduan-instal">📲 Pasang GeoKader</h3>
+        <h3 id="judul-panduan-instal">📲 Pasang Titik Tapak</h3>
         <button type="button" className="btn-icon-close" onClick={onTutup} aria-label="Tutup">
           <X size={18} />
         </button>
@@ -50,12 +50,12 @@ const PanduanInstal: React.FC<{ status: StatusInstal; onTutup: () => void }> = (
           </li>
           <li>
             Klik ikon <strong>Instal</strong> <Download size={14} aria-label="ikon Instal" /> di ujung kanan bilah alamat, atau menu{" "}
-            <strong>⋮ → Simpan dan bagikan → Instal GeoKader</strong>.
+            <strong>⋮ → Simpan dan bagikan → Instal Titik Tapak</strong>.
           </li>
         </ol>
       )}
       <p className="panduan-instal-catatan">
-        Setelah terpasang, GeoKader terbuka seperti aplikasi biasa dari layar utama dan tetap bisa dipakai tanpa internet. Pemasangan
+        Setelah terpasang, Titik Tapak terbuka seperti aplikasi biasa dari layar utama dan tetap bisa dipakai tanpa internet. Pemasangan
         memerlukan alamat <strong>https://</strong>.
       </p>
     </div>
@@ -74,7 +74,7 @@ export const TombolInstal: React.FC<{ className?: string; label?: string; onSele
   const klik = async () => {
     if (status.bisaPrompt) {
       const r = await mintaInstal();
-      if (r === "diterima") onSelesai?.("✓ GeoKader sedang dipasang di perangkat ini.");
+      if (r === "diterima") onSelesai?.("✓ Titik Tapak sedang dipasang di perangkat ini.");
       else if (r === "tidak_tersedia") setPanduan(true);
       return;
     }
@@ -101,7 +101,7 @@ export const BannerInstal: React.FC<{ onSelesai?: (pesan: string) => void }> = (
         <Smartphone size={20} aria-hidden="true" />
       </div>
       <div className="banner-instal-teks">
-        <strong>Pasang GeoKader di HP</strong>
+        <strong>Pasang Titik Tapak di HP</strong>
         <span>Buka langsung dari layar utama, layar penuh, dan tetap jalan tanpa internet.</span>
       </div>
       <TombolInstal className="btn-primary-sm banner-instal-tombol" label="Instal" onSelesai={onSelesai} />

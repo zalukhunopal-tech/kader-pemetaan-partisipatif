@@ -1,16 +1,16 @@
 /**
- * GEOKADER - PENERIMA DATA DI GOOGLE DRIVE (Code.gs)
+ * TITIK TAPAK - PENERIMA DATA DI GOOGLE DRIVE (Code.gs)
  *
  * Dipasang SEKALI oleh pemilik Google Drive tujuan (langkah lengkap di README, bagian "Google Drive"):
  *   1. Buka script.google.com > Proyek baru, tempel berkas ini sebagai Code.gs dan appsscript.json.
- *   2. Pilih fungsi pasangGeoKader > Jalankan, lalu izinkan aksesnya. Log menampilkan token.
+ *   2. Pilih fungsi pasangTitikTapak > Jalankan, lalu izinkan aksesnya. Log menampilkan token.
  *   3. Terapkan > Deployment baru > Aplikasi web: Jalankan sebagai "Saya", Akses "Siapa saja".
  *   4. Isi URL berakhiran /exec ke VITE_GDRIVE_URL dan token ke VITE_GDRIVE_TOKEN, lalu build ulang aplikasi.
  *
  * Setelah itu tidak ada lagi yang perlu diatur. Folder dibuat otomatis saat data masuk:
  *
- * GeoKader_Database/
- *   Master_Data_GeoKader                     Spreadsheet, satu baris per objek
+ * Titik_Tapak_Database/
+ *   Master_Data_Titik_Tapak                     Spreadsheet, satu baris per objek
  *   <Provinsi>/<Kabupaten atau Kota>/<Kecamatan>/<Kelurahan atau Desa>/
  *     budi_sebaran_anggrek_november_2026.geojson      semua objek "Sebaran Anggrek" milik Budi, November 2026
  *     budi_sebaran_anggrek_november_2026_foto_1.jpg
@@ -22,8 +22,8 @@
  * setelah gangguan jaringan aman. Bila nama atau wilayah data berubah, data dipindah ke berkas barunya.
  */
 
-var NAMA_FOLDER_INDUK = "GeoKader_Database";
-var NAMA_SPREADSHEET = "Master_Data_GeoKader";
+var NAMA_FOLDER_INDUK = "Titik_Tapak_Database";
+var NAMA_SPREADSHEET = "Master_Data_Titik_Tapak";
 var NAMA_TAB = "Data_Spasial";
 var BELUM_DIISI = "Wilayah_Belum_Diisi";
 var NAMA_BULAN = [
@@ -70,14 +70,14 @@ var K = {};
 for (var k = 0; k < KOLOM.length; k++) K[KOLOM[k]] = k;
 
 /** Jalankan sekali dari editor: membuat folder induk, spreadsheet, dan token, lalu menampilkannya di Log */
-function pasangGeoKader() {
+function pasangTitikTapak() {
   var props = PropertiesService.getScriptProperties();
   var induk = folderInduk_();
   var ss = spreadsheetInduk_(induk);
-  var token = props.getProperty("GEOKADER_TOKEN");
+  var token = props.getProperty("TITIK_TAPAK_TOKEN");
   if (!token) {
     token = Utilities.getUuid().replace(/-/g, "");
-    props.setProperty("GEOKADER_TOKEN", token);
+    props.setProperty("TITIK_TAPAK_TOKEN", token);
   }
   Logger.log("Folder data : " + induk.getUrl());
   Logger.log("Spreadsheet : " + ss.getUrl());
@@ -91,7 +91,7 @@ function pasangGeoKader() {
 
 /** Membuka URL Web App di browser menampilkan status, untuk memeriksa pemasangan */
 function doGet() {
-  return balas_({ sukses: true, pesan: "Penerima data GeoKader aktif." });
+  return balas_({ sukses: true, pesan: "Penerima data Titik Tapak aktif." });
 }
 
 function doPost(e) {
@@ -100,12 +100,15 @@ function doPost(e) {
     lock.waitLock(30000);
     var body = JSON.parse(e.postData.contents);
 
-    var tokenTersimpan = PropertiesService.getScriptProperties().getProperty("GEOKADER_TOKEN");
+    var tokenTersimpan = PropertiesService.getScriptProperties().getProperty("TITIK_TAPAK_TOKEN");
     if (!tokenTersimpan) {
-      return balas_({ sukses: false, pesan: "GEOKADER_TOKEN belum diatur. Jalankan fungsi pasangGeoKader sekali di editor Apps Script." });
+      return balas_({
+        sukses: false,
+        pesan: "TITIK_TAPAK_TOKEN belum diatur. Jalankan fungsi pasangTitikTapak sekali di editor Apps Script."
+      });
     }
     if (body.token !== tokenTersimpan) {
-      return balas_({ sukses: false, pesan: "Token tidak cocok. Samakan VITE_GDRIVE_TOKEN aplikasi dengan token dari pasangGeoKader." });
+      return balas_({ sukses: false, pesan: "Token tidak cocok. Samakan VITE_GDRIVE_TOKEN aplikasi dengan token dari pasangTitikTapak." });
     }
 
     var induk = folderInduk_();
@@ -321,7 +324,7 @@ function nomorFotoBerikut_(folder, nama) {
 
 function folderInduk_() {
   var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty("GEOKADER_FOLDER_ID");
+  var id = props.getProperty("TITIK_TAPAK_FOLDER_ID");
   if (id) {
     try {
       var tersimpan = DriveApp.getFolderById(id);
@@ -329,13 +332,13 @@ function folderInduk_() {
     } catch (e) {}
   }
   var folder = dapatkanAtauBuatFolder_(DriveApp.getRootFolder(), NAMA_FOLDER_INDUK);
-  props.setProperty("GEOKADER_FOLDER_ID", folder.getId());
+  props.setProperty("TITIK_TAPAK_FOLDER_ID", folder.getId());
   return folder;
 }
 
 function spreadsheetInduk_(induk) {
   var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty("GEOKADER_SPREADSHEET_ID");
+  var id = props.getProperty("TITIK_TAPAK_SPREADSHEET_ID");
   if (id) {
     try {
       if (!DriveApp.getFileById(id).isTrashed()) return SpreadsheetApp.openById(id);
@@ -352,7 +355,7 @@ function spreadsheetInduk_(induk) {
     tabAwal.setName(NAMA_TAB);
     tabAwal.appendRow(KOLOM);
   }
-  props.setProperty("GEOKADER_SPREADSHEET_ID", ss.getId());
+  props.setProperty("TITIK_TAPAK_SPREADSHEET_ID", ss.getId());
   return ss;
 }
 

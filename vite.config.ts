@@ -12,13 +12,13 @@ export default defineConfig({
       includeAssets: ["icon.svg", "favicon-48.png", "apple-touch-icon.png"],
       manifest: {
         id: "./",
-        name: "GeoKader: Survei & Pemetaan Partisipatif",
-        short_name: "GeoKader",
+        name: "Titik Tapak: Survei & Pemetaan Partisipatif",
+        short_name: "Titik Tapak",
         description:
           "Aplikasi survei keanekaragaman hayati & pemetaan partisipatif kader masyarakat (Offline-First GIS, Google Drive Sync, Sertifikat Kader)",
         lang: "id",
         dir: "ltr",
-        theme_color: "#064e3b",
+        theme_color: "#042f2e",
         background_color: "#061411",
         display: "standalone",
         display_override: ["standalone", "minimal-ui"],
@@ -34,7 +34,7 @@ export default defineConfig({
         ],
         screenshots: [
           { src: "screenshot-hp.jpg", sizes: "540x1170", type: "image/jpeg", form_factor: "narrow", label: "Pustaka peta di HP" },
-          { src: "screenshot-pc.jpg", sizes: "1280x800", type: "image/jpeg", form_factor: "wide", label: "GeoKader di tablet dan PC" }
+          { src: "screenshot-pc.jpg", sizes: "1280x800", type: "image/jpeg", form_factor: "wide", label: "Titik Tapak di tablet dan PC" }
         ],
         shortcuts: [
           { name: "Peta", short_name: "Peta", url: "./?tab=peta", icons: [{ src: "icon-192.png", sizes: "192x192" }] },

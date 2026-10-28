@@ -111,7 +111,7 @@ export async function teksToast(p: Page): Promise<string> {
   return (await t.count()) ? ((await t.first().textContent()) ?? "") : "";
 }
 
-/** Membuat PIN di layar "Amankan GeoKader" (sidik jari tidak diaktifkan) */
+/** Membuat PIN di layar "Amankan Titik Tapak" (sidik jari tidak diaktifkan) */
 export async function buatPin(p: Page, pin = PIN): Promise<void> {
   expect(await sampai(async () => (await p.locator("#form-siapkan-pin").count()) === 1)).toBe(true);
   await p.locator("#pin-baru").fill(pin);
