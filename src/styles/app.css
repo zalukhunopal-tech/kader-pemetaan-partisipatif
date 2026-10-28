@@ -30,9 +30,11 @@ body {
   overflow-x: hidden;
 }
 
-/* Lebar bingkai aplikasi; satu sumber untuk shell, bilah bawah, dan tombol mengambang */
+/* Lebar bingkai aplikasi; satu sumber untuk shell, bilah bawah, dan tombol mengambang.
+   --tinggi-nav diukur dari bilah bawah yang sebenarnya (App.tsx), jadi ikut membesar saat huruf HP diperbesar. */
 :root {
   --app-w: 640px;
+  --tinggi-nav: 64px;
 }
 
 .app-shell {
@@ -42,7 +44,7 @@ body {
   background: #ffffff;
   display: flex;
   flex-direction: column;
-  padding-bottom: 72px;
+  padding-bottom: calc(var(--tinggi-nav) + 8px);
   box-shadow: 0 0 28px rgba(0, 0, 0, 0.06);
   position: relative;
 }
@@ -219,7 +221,7 @@ body {
 
 .avenza-toast {
   position: fixed;
-  bottom: 78px;
+  bottom: calc(var(--tinggi-nav) + 14px);
   left: 50%;
   transform: translateX(-50%);
   background: #1e293b;
@@ -699,14 +701,14 @@ body {
 .avenza-fab-orange.export-fab {
   position: fixed;
   right: max(16px, calc((100% - var(--app-w)) / 2 + 16px));
-  bottom: 80px;
+  bottom: calc(var(--tinggi-nav) + 16px);
   z-index: 55;
 }
 
 .avenza-fab-stack {
   position: fixed;
   right: max(16px, calc((100% - var(--app-w)) / 2 + 16px));
-  bottom: 80px;
+  bottom: calc(var(--tinggi-nav) + 16px);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -995,20 +997,20 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: var(--app-w);
-  height: 64px;
+  min-height: 64px;
   background: #ffffff;
   border-top: 1px solid #d5dcd8;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 0 4px;
+  padding: 2px 4px calc(2px + env(safe-area-inset-bottom, 0px));
   z-index: 60;
 }
 
 .avenza-nav-item {
   flex: 1;
   min-width: 0;
-  height: 56px;
+  min-height: 56px;
   border: none;
   background: transparent;
   color: #78807c;
@@ -1020,7 +1022,8 @@ body {
   font-size: 0.72rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0 2px;
+  padding: 4px 2px;
+  line-height: 1.2;
 }
 
 .avenza-nav-item span {
@@ -1955,13 +1958,6 @@ body {
   margin-bottom: 12px;
 }
 
-.certificate-action-btns {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .certificate-canvas-stage {
   width: 100%;
   background: #f1f5f9;
@@ -2464,8 +2460,8 @@ label {
   }
 
   .avenza-bottom-nav {
-    height: 60px;
-    padding: 0 2px;
+    min-height: 60px;
+    padding: 2px 2px calc(2px + env(safe-area-inset-bottom, 0px));
   }
 
   .avenza-nav-item {
@@ -2510,13 +2506,6 @@ label {
     padding: 6px;
     border-radius: 10px;
   }
-
-  .certificate-action-btns {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
 }
 
 /* =========================================================
@@ -2527,7 +2516,7 @@ label {
   .avenza-bottom-nav,
   .reward-gis-hero-card,
   .reward-targets-grid,
-  .certificate-action-btns,
+  .sertifikat-aksi,
   .certificate-status-footnote {
     display: none !important;
   }
@@ -3420,11 +3409,6 @@ label {
     white-space: nowrap;
   }
 
-  .certificate-action-btns .btn-outline-sm,
-  .certificate-action-btns .btn-primary-sm {
-    font-size: 0.68rem;
-    padding: 5px 9px;
-  }
 }
 
 /* ============================================================================
@@ -3819,36 +3803,6 @@ label {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-
-  .certificate-action-btns {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .certificate-action-btns button,
-  .certificate-action-btns label {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-  }
-
-  /* Khusus tombol Unduh di HP/Mobile: dibuat panjang (lebar penuh) dan teks ditengahkan */
-  .certificate-action-btns .btn-unduh-sertifikat {
-    grid-column: 1 / -1 !important;
-    width: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    padding: 12px 20px !important;
-    font-size: 0.9rem !important;
-    font-weight: 800 !important;
-    border-radius: 99px !important;
-    box-shadow: 0 4px 14px rgba(13, 115, 68, 0.28) !important;
-    letter-spacing: 0.02em !important;
-  }
 }
 
 .banner-penyimpanan {
@@ -4046,22 +4000,6 @@ label {
   color: #475569;
 }
 
-.gerbang-admin-input {
-  text-align: center;
-  font-size: 1.2rem;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-}
-
-.gerbang-admin-galat {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.8rem;
-}
-
 .gerbang-admin-tombol {
   display: inline-flex;
   align-items: center;
@@ -4209,4 +4147,485 @@ label {
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* Atribusi citra Google: logo resmi (tidak boleh tertutup atau diubah) lalu teks hak cipta dari Google */
+.map-atribusi.map-atribusi-google {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 10px 10px 5px 4px;
+  background: transparent;
+  overflow: visible;
+}
+
+.map-logo-google {
+  display: block;
+  height: 18px;
+  width: auto;
+}
+
+.map-logo-google-teks {
+  color: #ffffff;
+  font: 700 15px/18px Arial, sans-serif;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+.map-atribusi-google a {
+  max-width: 100%;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1f2937;
+  font-size: 10px;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.map-catatan-pakai {
+  display: block;
+  margin-top: 4px;
+  color: #92400e;
+}
+
+.map-galat-sumber {
+  display: block;
+  margin-top: 4px;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+/* Aksi sertifikat: tombol sama lebar dalam satu baris (ikon di atas label) + Unduh selebar kartu.
+   Rapi di HP sempit maupun saat ukuran huruf diperbesar: label boleh turun baris, tombol tidak meluber. */
+.sertifikat-aksi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sertifikat-aksi-baris {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.sertifikat-aksi-tombol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 62px;
+  padding: 8px 4px;
+  border: 1px solid #b7d4c4;
+  border-radius: 12px;
+  background: #f4faf6;
+  color: var(--avenza-green);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.sertifikat-aksi-tombol span {
+  overflow-wrap: anywhere;
+}
+
+.sertifikat-aksi-tombol:hover:not(:disabled) {
+  background: #e6f4ec;
+}
+
+.sertifikat-aksi-tombol.bahaya {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.sertifikat-aksi-tombol:disabled,
+.sertifikat-unduh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary-sm.sertifikat-unduh {
+  width: 100%;
+  min-height: 46px;
+  gap: 8px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+@media (min-width: 640px) {
+  .sertifikat-aksi {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .sertifikat-aksi-baris {
+    flex: 2;
+  }
+
+  .btn-primary-sm.sertifikat-unduh {
+    flex: 1;
+    width: auto;
+    min-height: 62px;
+  }
+}
+
+/* Kartu cincin capaian: cincin mengecil mengikuti lebar kartu supaya tiga kartu tidak meluber */
+.visual-ring-card {
+  min-width: 0;
+}
+
+.visual-ring-svg-wrap {
+  width: min(84px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.visual-ring-svg-wrap > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.visual-ring-val {
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   KUNCI APLIKASI: PIN, SIDIK JARI / WAJAH, KODE AUTHENTICATOR
+   ========================================================= */
+/* Pembungkus isi aplikasi: tanpa kotak sendiri, hanya untuk menonaktifkan isi saat terkunci */
+.bungkus-terkunci {
+  display: contents;
+}
+
+.layar-kunci {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, #022c22 0%, #064e3b 50%, #042f2e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.layar-kunci-kartu {
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.layar-kunci-kepala {
+  background: linear-gradient(135deg, #064e3b, #0d7344);
+  color: #ffffff;
+  text-align: center;
+  padding: 18px 16px 16px;
+}
+
+.layar-kunci-logo {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 6px;
+  border-radius: 50%;
+  border: 2px solid #34d399;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layar-kunci-kepala h2 {
+  margin: 0 0 2px;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.layar-kunci-kepala p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #a7f3d0;
+  overflow-wrap: anywhere;
+}
+
+.layar-kunci-isi {
+  padding: 18px;
+}
+
+.layar-kunci-rekam {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-size: 0.76rem;
+  color: #b45309;
+}
+
+.layar-kunci-keluar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.verifikasi-identitas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.verifikasi-identitas form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.verifikasi-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.verifikasi-teks {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.pin-input {
+  width: 100%;
+  height: 52px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.5em;
+  padding-left: 0.5em; /* imbangi letter-spacing agar titik tetap di tengah */
+  color: #0f172a;
+}
+
+.pin-input:focus,
+.kode-verifikasi-input:focus {
+  outline: none;
+  border-color: var(--avenza-green);
+  box-shadow: 0 0 0 3px rgba(13, 115, 68, 0.15);
+}
+
+.pin-input-kecil {
+  height: 44px;
+  font-size: 1.1rem;
+  letter-spacing: 0.3em;
+}
+
+.pin-input-kecil::placeholder {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.kode-verifikasi-input {
+  height: 48px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.btn-biometrik {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  border-radius: 12px;
+  border: 1.5px solid var(--avenza-green);
+  background: #f0fdf4;
+  color: var(--avenza-green);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.verifikasi-tombol {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.verifikasi-tombol:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.verifikasi-galat {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.verifikasi-tautan {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: #0d7344;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.verifikasi-catatan {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.verifikasi-centang {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.verifikasi-centang input {
+  margin-top: 2px;
+}
+
+.gerbang-admin .verifikasi-identitas {
+  text-align: left;
+}
+
+/* Menu Keamanan */
+.keamanan-status {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.keamanan-status li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.keamanan-status svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--avenza-green);
+}
+
+.keamanan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.86rem;
+}
+
+.keamanan-form .btn-primary-sm {
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.keamanan-tombol {
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+}
+
+.keamanan-catatan {
+  margin: 4px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+/* Baris bawah peta: atribusi di kiri, tombol/panel rekam di kanan. wrap-reverse: bila tidak muat,
+   tombol naik ke baris di atas atribusi (tidak pernah saling menutupi), termasuk saat huruf HP besar. */
+.map-bawah {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  z-index: 14;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: flex-start; /* pada wrap-reverse = rata bawah */
+  justify-content: space-between;
+  gap: 6px 8px;
+  pointer-events: none;
+}
+
+.map-bawah > * {
+  pointer-events: auto;
+}
+
+.map-bawah .map-atribusi {
+  position: static;
+  flex: 1 1 150px;
+  min-width: 0;
+  max-width: 460px;
+  max-height: calc(3 * 1.3em + 4px);
+}
+
+.map-bawah .map-atribusi.map-atribusi-google {
+  flex: 0 1 auto;
+  max-height: none;
+}
+
+.map-bawah .map-clean-bottom-bar {
+  position: static;
+  flex: 0 1 auto;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.map-bawah .recording-active-bar {
+  position: static;
+  flex: 1 1 100%;
 }
