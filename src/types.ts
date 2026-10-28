@@ -93,6 +93,21 @@ export type BasemapType = "satelit" | "osm" | "topo" | "taktis";
 
 export type FormatKoordinat = "DD" | "DMS" | "UTM";
 
+export interface LogoSertifikatItem {
+  id: string;
+  nama: string;
+  warnaAksen?: string;
+  imageBase64?: string;
+}
+
+export interface PenandatanganSertifikatItem {
+  id: string;
+  jabatan: string;
+  instansi: string;
+  nama: string;
+  tandaTanganBase64?: string;
+}
+
 export interface ProfilKader {
   idKader: string;
   nama: string;
@@ -104,6 +119,8 @@ export interface ProfilKader {
   fotoKaderBase64?: string;
   namaPenandatanganSertifikat?: string;
   jabatanPenandatanganSertifikat?: string;
+  logoSertifikatList?: LogoSertifikatItem[];
+  penandatanganList?: PenandatanganSertifikatItem[];
 }
 
 export interface SertifikatKader {
@@ -119,6 +136,8 @@ export interface SertifikatKader {
   ditandatanganiOleh: string;
   jabatanPenandatangan: string;
   fotoKaderBase64?: string;
+  logoSertifikatList?: LogoSertifikatItem[];
+  penandatanganList?: PenandatanganSertifikatItem[];
 }
 
 export interface PengumumanBroadcast {
