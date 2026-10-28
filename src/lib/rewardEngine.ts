@@ -1,4 +1,4 @@
-import { DataSpasialItem, ProfilKader } from "../types";
+import { DataSpasialItem, PesanKomunikasi, ProfilKader, TugasPemetaan } from "../types";
 
 export const TARGET_TITIK = 50;
 export const TARGET_TRACKING_KM = 5.0;
@@ -22,6 +22,346 @@ export interface HasilPerhitunganCapaian {
   alasanSertifikat: string;
   jumlahHakUpahHok: number;
   paketMenujuUpahBerikutnya: number;
+}
+
+export interface InfoLevelGis {
+  level: number;
+  namaLevel: string;
+  kategoriTier: string;
+  ikon: string;
+  minSkor: number;
+  deskripsiSingkat: string;
+}
+
+export interface RincianSkorGis {
+  skorVolumeData: number;
+  skorVariasiData: number;
+  skorDiskusi: number;
+  skorKualitasData: number;
+  skorTugas: number;
+  detailStatistik: {
+    totalObjek: number;
+    kategoriUnik: number;
+    geometriUnik: number;
+    pesanDiskusi: number;
+    pinDibagikan: number;
+    dataBerfoto: number;
+    dataTerverifikasi: number;
+    tugasSelesai: number;
+  };
+}
+
+export interface HasilPeringkatGis20 {
+  levelSaatIni: InfoLevelGis;
+  levelBerikutnya: InfoLevelGis | null;
+  levelSebelumnya: InfoLevelGis | null;
+  jumlahLevelDiBawah: number;
+  jumlahLevelKeAtas: number;
+  totalLevelMaksimal: number;
+  skorTotal: number;
+  skorMenujuLevelBerikutnya: number;
+  persenProgresLevel: number;
+  rincianSkor: RincianSkorGis;
+}
+
+export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
+  {
+    level: 1,
+    namaLevel: "Penjelajah Dasar",
+    kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
+    ikon: "🌱",
+    minSkor: 0,
+    deskripsiSingkat: "Memulai orientasi alat GPS dan pengenalan peta dasar wilayah desa."
+  },
+  {
+    level: 2,
+    namaLevel: "Pencatat Titik Lapangan",
+    kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
+    ikon: "📍",
+    minSkor: 40,
+    deskripsiSingkat: "Aktif mengambil titik koordinat awal (waypoint) objek penting masyarakat."
+  },
+  {
+    level: 3,
+    namaLevel: "Perintis Sketsa Desa",
+    kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
+    ikon: "🧭",
+    minSkor: 90,
+    deskripsiSingkat: "Mengenali arah kompas dan mulai memetakan lebih dari satu kategori objek."
+  },
+  {
+    level: 4,
+    namaLevel: "Pengamat Flora & Fauna",
+    kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
+    ikon: "🌿",
+    minSkor: 150,
+    deskripsiSingkat: "Mendokumentasikan keanekaragaman hayati lokal beserta manfaatnya bagi warga."
+  },
+  {
+    level: 5,
+    namaLevel: "Surveyor Jejak Komunitas",
+    kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
+    ikon: "🥾",
+    minSkor: 220,
+    deskripsiSingkat: "Terbiasa merekam jalur perjalanan (tracking) dan berbagi informasi lapangan."
+  },
+  {
+    level: 6,
+    namaLevel: "Pemeta Sumber Daya Desa",
+    kategoriTier: "Tier 2 • Kader Terampil (Lv 6–10)",
+    ikon: "💧",
+    minSkor: 300,
+    deskripsiSingkat: "Memetakan mata air, kebun, dan objek vital desa dengan variasi geometri."
+  },
+  {
+    level: 7,
+    namaLevel: "Fasilitator Diskusi Spasial",
+    kategoriTier: "Tier 2 • Kader Terampil (Lv 6–10)",
+    ikon: "💬",
+    minSkor: 400,
+    deskripsiSingkat: "Aktif berdiskusi, berbagi pin lokasi temuan, dan berkoordinasi antar-kader."
+  },
+  {
+    level: 8,
+    namaLevel: "Kader Geotagging Terampil",
+    kategoriTier: "Tier 2 • Kader Terampil (Lv 6–10)",
+    ikon: "📸",
+    minSkor: 520,
+    deskripsiSingkat: "Melengkapi rekaman koordinat dengan bukti foto lapangan dan atribut lengkap."
+  },
+  {
+    level: 9,
+    namaLevel: "Penjaga Batas Wilayah",
+    kategoriTier: "Tier 2 • Kader Terampil (Lv 6–10)",
+    ikon: "🪧",
+    minSkor: 650,
+    deskripsiSingkat: "Konsisten memetakan tanda batas alam, sungai, dan kesepakatan sempadan."
+  },
+  {
+    level: 10,
+    namaLevel: "Kader Pemetaan Tersertifikasi",
+    kategoriTier: "Tier 2 • Kader Terampil (Lv 6–10)",
+    ikon: "🏅",
+    minSkor: 800,
+    deskripsiSingkat: "Menguasai pengambilan titik, jalur, dan poligon sesuai standar sertifikasi."
+  },
+  {
+    level: 11,
+    namaLevel: "Analis Transek Lapangan",
+    kategoriTier: "Tier 3 • Kader Mahir (Lv 11–15)",
+    ikon: "📐",
+    minSkor: 970,
+    deskripsiSingkat: "Mampu melakukan survei lintas blok hutan dan memperbarui kondisi data berkala."
+  },
+  {
+    level: 12,
+    namaLevel: "Spesialis Poligon Ulayat",
+    kategoriTier: "Tier 3 • Kader Mahir (Lv 11–15)",
+    ikon: "🗺️",
+    minSkor: 1160,
+    deskripsiSingkat: "Terampil menghitung luas poligon wilayah kelola masyarakat dan agroforestri."
+  },
+  {
+    level: 13,
+    namaLevel: "Verifikator Data Komunitas",
+    kategoriTier: "Tier 3 • Kader Mahir (Lv 11–15)",
+    ikon: "🛡️",
+    minSkor: 1370,
+    deskripsiSingkat: "Menghasilkan data berakurasi tinggi yang lolos verifikasi GIS organisasi."
+  },
+  {
+    level: 14,
+    namaLevel: "Penggerak Pemetaan Partisipatif",
+    kategoriTier: "Tier 3 • Kader Mahir (Lv 11–15)",
+    ikon: "🤝",
+    minSkor: 1600,
+    deskripsiSingkat: "Menjadi motor kolaborasi survei lapangan dan diskusi lintas dusun/desa."
+  },
+  {
+    level: 15,
+    namaLevel: "Kartografer Muda Desa",
+    kategoriTier: "Tier 3 • Kader Mahir (Lv 11–15)",
+    ikon: "✒️",
+    minSkor: 1850,
+    deskripsiSingkat: "Mengintegrasikan seluruh kategori survei menjadi basis data spasial desa."
+  },
+  {
+    level: 16,
+    namaLevel: "Koordinator Spasial Wilayah",
+    kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
+    ikon: "📡",
+    minSkor: 2120,
+    deskripsiSingkat: "Memimpin penugasan pemetaan blok wilayah dan pemantauan kondisi lapangan."
+  },
+  {
+    level: 17,
+    namaLevel: "Pakar Biodiversitas & Lahan",
+    kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
+    ikon: "🌳",
+    minSkor: 2420,
+    deskripsiSingkat: "Memiliki rekam jejak kaya dalam inventarisasi flora, fauna, hidrologi & lahan."
+  },
+  {
+    level: 18,
+    namaLevel: "Mentor GIS Masyarakat",
+    kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
+    ikon: "🎓",
+    minSkor: 2750,
+    deskripsiSingkat: "Membimbing sesama kader dalam diskusi teknis, akurasi GPS, dan validasi data."
+  },
+  {
+    level: 19,
+    namaLevel: "Arsitek Kedaulatan Ruang",
+    kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
+    ikon: "🏛️",
+    minSkor: 3120,
+    deskripsiSingkat: "Menyusun data spasial komprehensif untuk perlindungan wilayah adat & desa."
+  },
+  {
+    level: 20,
+    namaLevel: "Maestro GIS Partisipatif Nusantara",
+    kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
+    ikon: "👑",
+    minSkor: 3500,
+    deskripsiSingkat: "Puncak kompetensi kader pemetaan partisipatif dengan kontribusi paripurna."
+  }
+];
+
+/**
+ * Menghitung posisi level kader dari 20 Level GIS berdasarkan:
+ * 1. Banyak data yang diambil (Titik, Jalur Tracking km, Poligon Ha, Pembaruan objek)
+ * 2. Variasi data (Keberagaman kategori survei & jenis geometri)
+ * 3. Keaktifan dalam diskusi (Pesan terkirim, berbagi pin koordinat, pesan suara)
+ * 4. Kualitas & kelengkapan data (Foto geotagging, atribut lokal/ilmiah, akurasi GPS, verifikasi)
+ * 5. Penyelesaian penugasan pemetaan lapangan
+ */
+export function hitungPeringkatGis20Level(
+  semuaData: DataSpasialItem[],
+  profil: ProfilKader,
+  pesanList: PesanKomunikasi[] = [],
+  tugasList: TugasPemetaan[] = []
+): HasilPeringkatGis20 {
+  const dataKader = semuaData.filter(
+    (d) => d.idKader === profil.idKader && d.statusSinkron !== "ditolak"
+  );
+
+  // 1. Skor Volume Data
+  const jmlTitik = dataKader.filter((d) => d.jenisGeometri === "point").length;
+  const jmlPembaruan = dataKader.reduce(
+    (acc, d) => acc + (d.riwayatPembaruan ? d.riwayatPembaruan.length : 0),
+    0
+  );
+  const totalKm = dataKader
+    .filter((d) => d.jenisGeometri === "line")
+    .reduce((acc, d) => acc + (d.panjangKm || 0), 0);
+  const totalHa = dataKader
+    .filter((d) => d.jenisGeometri === "polygon")
+    .reduce((acc, d) => acc + (d.luasHa || 0), 0);
+
+  const skorVolumeData = Math.round(
+    jmlTitik * 10 + jmlPembaruan * 8 + totalKm * 25 + totalHa * 25
+  );
+
+  // 2. Skor Variasi Data (Kategori Unik & Geometri Unik)
+  const kategoriSet = new Set(dataKader.map((d) => d.kategori));
+  const geometriSet = new Set(dataKader.map((d) => d.jenisGeometri));
+  const kategoriUnik = kategoriSet.size;
+  const geometriUnik = geometriSet.size;
+  const skorVariasiData = kategoriUnik * 35 + geometriUnik * 45;
+
+  // 3. Skor Keaktifan Diskusi & Koordinasi
+  const pesanKader = pesanList.filter(
+    (m) => m.idPengirim === profil.idKader || m.namaPengirim === profil.nama
+  );
+  const pesanDiskusi = pesanKader.length;
+  const pinDibagikan = pesanKader.filter((m) => Boolean(m.pinKoordinat)).length;
+  const pesanSuara = pesanKader.filter((m) => Boolean(m.durasiSuaraDetik)).length;
+  const skorDiskusi = pesanDiskusi * 15 + pinDibagikan * 20 + pesanSuara * 15;
+
+  // 4. Skor Kualitas & Validasi Data
+  const dataBerfoto = dataKader.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl)).length;
+  const dataAtributLengkap = dataKader.filter((d) =>
+    Boolean((d.namaLokal && d.namaLokal !== "-") || d.namaIlmiah || d.manfaatMasyarakat)
+  ).length;
+  const dataAkuratGps = dataKader.filter(
+    (d) => d.koordinat[0]?.akurasi !== undefined && d.koordinat[0].akurasi <= 5
+  ).length;
+  const dataTersinkron = dataKader.filter((d) => d.statusSinkron === "tersinkron").length;
+  const dataTerverifikasi = dataKader.filter((d) => d.statusSinkron === "terverifikasi").length;
+
+  const skorKualitasData =
+    dataBerfoto * 15 +
+    dataAtributLengkap * 10 +
+    dataAkuratGps * 8 +
+    dataTersinkron * 10 +
+    dataTerverifikasi * 25;
+
+  // 5. Skor Ketuntasan Tugas Pemetaan
+  const tugasSelesai = tugasList.filter((t) => t.status === "selesai").length;
+  const skorTugas = tugasSelesai * 60;
+
+  const skorTotal =
+    skorVolumeData + skorVariasiData + skorDiskusi + skorKualitasData + skorTugas;
+
+  // Tentukan level saat ini dari 20 level
+  let idxLevel = 0;
+  for (let i = 0; i < DAFTAR_20_LEVEL_GIS.length; i++) {
+    if (skorTotal >= DAFTAR_20_LEVEL_GIS[i].minSkor) {
+      idxLevel = i;
+    } else {
+      break;
+    }
+  }
+
+  const levelSaatIni = DAFTAR_20_LEVEL_GIS[idxLevel];
+  const levelBerikutnya =
+    idxLevel + 1 < DAFTAR_20_LEVEL_GIS.length ? DAFTAR_20_LEVEL_GIS[idxLevel + 1] : null;
+  const levelSebelumnya = idxLevel > 0 ? DAFTAR_20_LEVEL_GIS[idxLevel - 1] : null;
+
+  const jumlahLevelDiBawah = levelSaatIni.level - 1;
+  const jumlahLevelKeAtas = DAFTAR_20_LEVEL_GIS.length - levelSaatIni.level;
+
+  let skorMenujuLevelBerikutnya = 0;
+  let persenProgresLevel = 100;
+
+  if (levelBerikutnya) {
+    const rentangLevel = levelBerikutnya.minSkor - levelSaatIni.minSkor;
+    const capaianDiLevelIni = skorTotal - levelSaatIni.minSkor;
+    skorMenujuLevelBerikutnya = Math.max(0, levelBerikutnya.minSkor - skorTotal);
+    persenProgresLevel = Math.min(
+      99,
+      Math.max(0, Math.round((capaianDiLevelIni / Math.max(1, rentangLevel)) * 100))
+    );
+  }
+
+  return {
+    levelSaatIni,
+    levelBerikutnya,
+    levelSebelumnya,
+    jumlahLevelDiBawah,
+    jumlahLevelKeAtas,
+    totalLevelMaksimal: DAFTAR_20_LEVEL_GIS.length,
+    skorTotal,
+    skorMenujuLevelBerikutnya,
+    persenProgresLevel,
+    rincianSkor: {
+      skorVolumeData,
+      skorVariasiData,
+      skorDiskusi,
+      skorKualitasData,
+      skorTugas,
+      detailStatistik: {
+        totalObjek: dataKader.length,
+        kategoriUnik,
+        geometriUnik,
+        pesanDiskusi,
+        pinDibagikan,
+        dataBerfoto,
+        dataTerverifikasi,
+        tugasSelesai
+      }
+    }
+  };
 }
 
 /**
@@ -89,9 +429,19 @@ export function hitungCapaianKader(
     );
   }
 
-  const persenTitik = Math.min(100, Math.round(((totalPoinTitik % TARGET_TITIK) / TARGET_TITIK) * 100)) || (paketDariTitik > 0 ? 100 : 0);
-  const persenTracking = Math.min(100, Math.round(((totalTrackingKm % TARGET_TRACKING_KM) / TARGET_TRACKING_KM) * 100)) || (paketDariTracking > 0 ? 100 : 0);
-  const persenPoligon = Math.min(100, Math.round(((totalPoligonHa % TARGET_POLIGON_HA) / TARGET_POLIGON_HA) * 100)) || (paketDariPoligon > 0 ? 100 : 0);
+  const persenTitik =
+    Math.min(100, Math.round(((totalPoinTitik % TARGET_TITIK) / TARGET_TITIK) * 100)) ||
+    (paketDariTitik > 0 ? 100 : 0);
+  const persenTracking =
+    Math.min(
+      100,
+      Math.round(((totalTrackingKm % TARGET_TRACKING_KM) / TARGET_TRACKING_KM) * 100)
+    ) || (paketDariTracking > 0 ? 100 : 0);
+  const persenPoligon =
+    Math.min(
+      100,
+      Math.round(((totalPoligonHa % TARGET_POLIGON_HA) / TARGET_POLIGON_HA) * 100)
+    ) || (paketDariPoligon > 0 ? 100 : 0);
 
   const berhakSertifikat = totalPaketSelesai >= 1;
   const alasanList: string[] = [];
@@ -99,7 +449,9 @@ export function hitungCapaianKader(
   if (paketDariTracking >= 1) alasanList.push(`${totalTrackingKm} km Tracking Survei`);
   if (paketDariPoligon >= 1) alasanList.push(`${totalPoligonHa} Ha Pemetaan Poligon`);
   if (alasanList.length === 0 && berhakSertifikat) {
-    alasanList.push(`Kombinasi Capaian (${totalPoinTitik} titik, ${totalTrackingKm} km, ${totalPoligonHa} Ha)`);
+    alasanList.push(
+      `Kombinasi Capaian (${totalPoinTitik} titik, ${totalTrackingKm} km, ${totalPoligonHa} Ha)`
+    );
   }
 
   // Perhitungan Siklus Upah Harian (1 HOK setiap 2x Paket Capaian)

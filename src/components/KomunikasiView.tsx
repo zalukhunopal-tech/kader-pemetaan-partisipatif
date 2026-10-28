@@ -7,13 +7,9 @@ import {
   Users,
   ShieldAlert,
   Paperclip,
-  Smile,
   CheckCheck,
   Clock,
   Search,
-  Phone,
-  MoreVertical,
-  Volume2,
   Play,
   Pause,
   AlertTriangle,
@@ -106,6 +102,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
 
   return (
     <div
+      className="komunikasi-wrapper"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -115,29 +112,40 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         borderRadius: "16px",
         overflow: "hidden",
         border: "1px solid #d1d7db",
-        margin: "10px 12px",
+        margin: "8px 10px",
         boxShadow: "0 4px 16px rgba(0,0,0,0.08)"
       }}
     >
       {/* 1. WHATSAPP/TELEGRAM TOPBAR HEADER */}
       <div
+        className="komunikasi-topbar"
         style={{
           background: "#075e54",
           color: "#ffffff",
-          padding: "10px 16px",
+          padding: "10px 12px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: "8px",
+          flexWrap: "wrap",
           boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
           zIndex: 10
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            minWidth: 0,
+            flex: "1 1 180px"
+          }}
+        >
           {/* Avatar Chat */}
           <div
             style={{
-              width: 42,
-              height: 42,
+              width: 38,
+              height: 38,
               borderRadius: "50%",
               background: saluranAktif === "komunitas" ? "#128c7e" : "#0f766e",
               color: "#ffffff",
@@ -149,33 +157,58 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               flexShrink: 0
             }}
           >
-            {saluranAktif === "komunitas" ? <Users size={22} /> : <ShieldAlert size={22} />}
+            {saluranAktif === "komunitas" ? <Users size={19} /> : <ShieldAlert size={19} />}
           </div>
 
-          <div>
-            <div style={{ fontWeight: 700, fontSize: "1rem", lineHeight: 1.2 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: "0.92rem",
+                lineHeight: 1.25,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}
+            >
               {saluranAktif === "komunitas"
                 ? "Grup Koordinasi Kader Lapangan"
                 : "Helpdesk Admin & Verifikasi GIS"}
             </div>
-            <div style={{ fontSize: "0.75rem", color: "#a7f3d0", display: "flex", alignItems: "center", gap: 5 }}>
+            <div
+              style={{
+                fontSize: "0.72rem",
+                color: "#a7f3d0",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}
+            >
               <span
                 style={{
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
                   background: sedangOnline ? "#22c55e" : "#eab308",
-                  display: "inline-block"
+                  display: "inline-block",
+                  flexShrink: 0
                 }}
               />
-              {sedangOnline
-                ? saluranAktif === "komunitas" ? "3 Kader online di wilayah" : "Admin standby (Respons Cepat)"
-                : "Mode Offline (Antrean Otomatis)"}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {sedangOnline
+                  ? saluranAktif === "komunitas"
+                    ? "3 Kader online di wilayah"
+                    : "Admin standby (Respons Cepat)"
+                  : "Mode Offline (Antrean Otomatis)"}
+              </span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
           <button
             type="button"
             onClick={() => setTampilCari((v) => !v)}
@@ -183,24 +216,25 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               background: "transparent",
               border: "none",
               color: "#ffffff",
-              width: 36,
-              height: 36,
+              width: 34,
+              height: 34,
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              cursor: "pointer"
+              cursor: "pointer",
+              flexShrink: 0
             }}
             title="Cari Pesan"
           >
-            <Search size={18} />
+            <Search size={17} />
           </button>
 
           {/* Tab Selector Pill WA */}
           <div
             style={{
               display: "flex",
-              background: "rgba(0,0,0,0.2)",
+              background: "rgba(0,0,0,0.22)",
               borderRadius: 99,
               padding: 2
             }}
@@ -213,8 +247,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 color: saluranAktif === "komunitas" ? "#075e54" : "#ffffff",
                 border: "none",
                 borderRadius: 99,
-                padding: "4px 10px",
-                fontSize: "0.74rem",
+                padding: "4px 9px",
+                fontSize: "0.72rem",
                 fontWeight: 700,
                 cursor: "pointer"
               }}
@@ -229,8 +263,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 color: saluranAktif === "admin" ? "#075e54" : "#ffffff",
                 border: "none",
                 borderRadius: 99,
-                padding: "4px 10px",
-                fontSize: "0.74rem",
+                padding: "4px 9px",
+                fontSize: "0.72rem",
                 fontWeight: 700,
                 cursor: "pointer"
               }}
@@ -262,8 +296,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
           style={{
             background: "#fef3c7",
             color: "#92400e",
-            fontSize: "0.78rem",
-            padding: "5px 14px",
+            fontSize: "0.76rem",
+            padding: "5px 12px",
             textAlign: "center",
             display: "flex",
             alignItems: "center",
@@ -271,7 +305,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             gap: 6
           }}
         >
-          <Clock size={13} /> Sinyal terputus. Pesan disimpan di memori HP dan otomatis terkirim saat online.
+          <Clock size={13} style={{ flexShrink: 0 }} />
+          <span>Sinyal terputus. Pesan disimpan di memori HP dan otomatis terkirim saat online.</span>
         </div>
       )}
 
@@ -280,7 +315,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "14px 16px",
+          padding: "12px 12px",
           display: "flex",
           flexDirection: "column",
           gap: "10px",
@@ -311,7 +346,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               margin: "auto",
               textAlign: "center",
               background: "rgba(255,255,255,0.85)",
-              padding: "18px 24px",
+              padding: "18px 20px",
               borderRadius: "14px",
               maxWidth: 320,
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -342,11 +377,11 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               >
                 <div
                   style={{
-                    maxWidth: "82%",
-                    minWidth: "120px",
+                    maxWidth: "86%",
+                    minWidth: "110px",
                     background: adalahSaya ? "#d9fdd3" : "#ffffff",
                     borderRadius: adalahSaya ? "14px 4px 14px 14px" : "4px 14px 14px 14px",
-                    padding: "8px 12px 6px",
+                    padding: "8px 11px 6px",
                     boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
                     position: "relative"
                   }}
@@ -356,18 +391,19 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                     <div
                       style={{
                         fontWeight: 700,
-                        fontSize: "0.78rem",
+                        fontSize: "0.76rem",
                         color: m.peranPengirim === "admin" ? "#0284c7" : "#0f766e",
-                        marginBottom: 3,
+                        marginBottom: 4,
                         display: "flex",
                         alignItems: "center",
-                        gap: 6
+                        flexWrap: "wrap",
+                        gap: 5
                       }}
                     >
                       <span>{m.namaPengirim}</span>
                       <span
                         style={{
-                          fontSize: "0.65rem",
+                          fontSize: "0.64rem",
                           fontWeight: 600,
                           padding: "1px 6px",
                           borderRadius: 99,
@@ -381,7 +417,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                   )}
 
                   {/* Message Text */}
-                  <div style={{ fontSize: "0.92rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>
+                  <div style={{ fontSize: "0.88rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {m.teks}
                   </div>
 
@@ -394,7 +430,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                         gap: 10,
                         background: adalahSaya ? "rgba(255,255,255,0.7)" : "#f0f2f5",
                         borderRadius: 99,
-                        padding: "6px 12px",
+                        padding: "6px 10px",
                         marginTop: 6
                       }}
                     >
@@ -404,8 +440,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                           setAudioMemutar(audioMemutar === m.id ? null : m.id)
                         }
                         style={{
-                          width: 32,
-                          height: 32,
+                          width: 30,
+                          height: 30,
                           borderRadius: "50%",
                           background: "#075e54",
                           color: "#ffffff",
@@ -413,12 +449,13 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          cursor: "pointer"
+                          cursor: "pointer",
+                          flexShrink: 0
                         }}
                       >
-                        {audioMemutar === m.id ? <Pause size={14} /> : <Play size={14} style={{ marginLeft: 2 }} />}
+                        {audioMemutar === m.id ? <Pause size={13} /> : <Play size={13} style={{ marginLeft: 2 }} />}
                       </button>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
                           {[6, 14, 22, 10, 18, 24, 12, 16, 20, 8, 14].map((h, i) => (
                             <span
@@ -434,7 +471,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                           ))}
                         </div>
                       </div>
-                      <span style={{ fontSize: "0.72rem", color: "#54656f", fontWeight: 600 }}>
+                      <span style={{ fontSize: "0.7rem", color: "#54656f", fontWeight: 600, flexShrink: 0 }}>
                         0:{m.durasiSuaraDetik < 10 ? `0${m.durasiSuaraDetik}` : m.durasiSuaraDetik}
                       </span>
                     </div>
@@ -453,7 +490,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                     >
                       <div
                         style={{
-                          height: 65,
+                          height: 60,
                           background: "linear-gradient(135deg, #064e3b, #0d7344)",
                           position: "relative",
                           display: "flex",
@@ -462,13 +499,13 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                           color: "#ffffff"
                         }}
                       >
-                        <MapPin size={28} color="#fbbf24" />
+                        <MapPin size={26} color="#fbbf24" />
                         <span
                           style={{
                             position: "absolute",
                             bottom: 4,
                             right: 8,
-                            fontSize: "0.68rem",
+                            fontSize: "0.66rem",
                             background: "rgba(0,0,0,0.5)",
                             padding: "2px 6px",
                             borderRadius: 4
@@ -478,10 +515,10 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                         </span>
                       </div>
                       <div style={{ padding: "8px 10px" }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#181a19" }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.84rem", color: "#181a19", wordBreak: "break-word" }}>
                           {m.pinKoordinat.label}
                         </div>
-                        <div style={{ fontSize: "0.74rem", color: "#64748b", fontFamily: "monospace" }}>
+                        <div style={{ fontSize: "0.72rem", color: "#64748b", fontFamily: "monospace" }}>
                           {m.pinKoordinat.lat.toFixed(5)}°, {m.pinKoordinat.lng.toFixed(5)}°
                         </div>
                         <button
@@ -497,7 +534,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                           style={{
                             marginTop: 6,
                             width: "100%",
-                            padding: "4px 8px",
+                            padding: "5px 8px",
                             fontSize: "0.75rem",
                             display: "flex",
                             alignItems: "center",
@@ -519,7 +556,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                       justifyContent: "flex-end",
                       gap: 4,
                       marginTop: 3,
-                      fontSize: "0.68rem",
+                      fontSize: "0.66rem",
                       color: "#667781"
                     }}
                   >
@@ -548,10 +585,10 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
           style={{
             background: "#ffffff",
             borderTop: "1px solid #d1d7db",
-            padding: "12px 16px",
+            padding: "10px 12px",
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "10px"
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: "8px"
           }}
         >
           <button
@@ -565,17 +602,18 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               background: "#f0fdf4",
               border: "1px solid #86efac",
               borderRadius: "12px",
-              padding: "10px 8px",
+              padding: "8px 6px",
               color: "#166534",
               cursor: "pointer",
-              fontSize: "0.76rem",
-              fontWeight: 700
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              textAlign: "center"
             }}
           >
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 34,
+                height: 34,
                 borderRadius: "50%",
                 background: "#0d7344",
                 color: "#ffffff",
@@ -584,7 +622,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 justifyContent: "center"
               }}
             >
-              <MapPin size={18} />
+              <MapPin size={17} />
             </div>
             Kirim Pin Lokasi
           </button>
@@ -600,17 +638,18 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               background: "#eff6ff",
               border: "1px solid #93c5fd",
               borderRadius: "12px",
-              padding: "10px 8px",
+              padding: "8px 6px",
               color: "#1e40af",
               cursor: "pointer",
-              fontSize: "0.76rem",
-              fontWeight: 700
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              textAlign: "center"
             }}
           >
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 34,
+                height: 34,
                 borderRadius: "50%",
                 background: "#2563eb",
                 color: "#ffffff",
@@ -619,7 +658,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 justifyContent: "center"
               }}
             >
-              <Mic size={18} />
+              <Mic size={17} />
             </div>
             Pesan Suara
           </button>
@@ -635,17 +674,18 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               background: "#fffbeb",
               border: "1px solid #fde68a",
               borderRadius: "12px",
-              padding: "10px 8px",
+              padding: "8px 6px",
               color: "#92400e",
               cursor: "pointer",
-              fontSize: "0.76rem",
-              fontWeight: 700
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              textAlign: "center"
             }}
           >
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 34,
+                height: 34,
                 borderRadius: "50%",
                 background: "#d97706",
                 color: "#ffffff",
@@ -654,7 +694,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 justifyContent: "center"
               }}
             >
-              <AlertTriangle size={18} />
+              <AlertTriangle size={17} />
             </div>
             Peringatan Siaga
           </button>
@@ -666,7 +706,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         <div
           style={{
             background: "#ffffff",
-            padding: "12px 16px",
+            padding: "12px 14px",
             borderTop: "1px solid #d1d7db",
             boxShadow: "0 -4px 10px rgba(0,0,0,0.06)"
           }}
@@ -680,7 +720,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               <input
                 type="text"
                 className="form-input"
-                style={{ height: 32, fontSize: "0.8rem" }}
+                style={{ height: 34, fontSize: "0.8rem" }}
                 value={labelPin}
                 onChange={(e) => setLabelPin(e.target.value)}
               />
@@ -690,7 +730,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               <input
                 type="text"
                 className="form-input"
-                style={{ height: 32, fontSize: "0.8rem" }}
+                style={{ height: 34, fontSize: "0.8rem" }}
                 value={latPin}
                 onChange={(e) => setLatPin(e.target.value)}
               />
@@ -700,7 +740,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
               <input
                 type="text"
                 className="form-input"
-                style={{ height: 32, fontSize: "0.8rem" }}
+                style={{ height: 34, fontSize: "0.8rem" }}
                 value={lngPin}
                 onChange={(e) => setLngPin(e.target.value)}
               />
@@ -730,7 +770,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         onSubmit={handleSubmit}
         style={{
           background: "#f0f2f5",
-          padding: "8px 12px",
+          padding: "8px 10px",
           display: "flex",
           alignItems: "center",
           gap: "8px",
@@ -744,17 +784,18 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             background: menuLampiranTerbuka ? "#d9fdd3" : "transparent",
             border: "none",
             color: "#54656f",
-            width: 38,
-            height: 38,
+            width: 36,
+            height: 36,
             borderRadius: "50%",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: "pointer"
+            cursor: "pointer",
+            flexShrink: 0
           }}
           title="Lampirkan Lokasi GPS / Suara"
         >
-          <Paperclip size={20} />
+          <Paperclip size={19} />
         </button>
 
         <input
@@ -764,16 +805,17 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
           placeholder={
             saluranAktif === "komunitas"
               ? "Ketik pesan ke grup kader..."
-              : "Tulis pertanyaan / laporan ke Admin GIS..."
+              : "Tulis pertanyaan ke Admin GIS..."
           }
           style={{
             flex: 1,
-            height: 42,
+            minWidth: 0,
+            height: 40,
             borderRadius: 99,
             border: "none",
             background: "#ffffff",
-            padding: "0 16px",
-            fontSize: "0.92rem",
+            padding: "0 14px",
+            fontSize: "0.88rem",
             color: "#111b21",
             boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
             outline: "none"
@@ -783,8 +825,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         <button
           type="submit"
           style={{
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             borderRadius: "50%",
             background: "#00a884",
             color: "#ffffff",
@@ -798,7 +840,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
           }}
           title={teksPesan.trim() ? "Kirim Pesan" : "Rekam Pesan Suara"}
         >
-          {teksPesan.trim() ? <Send size={18} /> : <Mic size={18} />}
+          {teksPesan.trim() ? <Send size={17} /> : <Mic size={17} />}
         </button>
       </form>
     </div>
