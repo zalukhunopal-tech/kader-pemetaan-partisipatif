@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataSpasialItem,
   KlaimUpahHOK,
+  PeranPengguna,
   PesanKomunikasi,
   ProfilKader,
   SertifikatKader,
@@ -10,7 +11,6 @@ import {
 import {
   hitungCapaianKader,
   hitungPeringkatGis20Level,
-  HasilPeringkatGis20,
   TARGET_POLIGON_HA,
   TARGET_TITIK,
   TARGET_TRACKING_KM
@@ -27,18 +27,172 @@ import {
   MessageSquare,
   CheckCircle2,
   Database,
-  Camera
+  Camera,
+  UserCheck,
+  Trash2,
+  PenTool
 } from "lucide-react";
 
 interface RewardViewProps {
   dataSpasial: DataSpasialItem[];
   profil: ProfilKader;
+  peran?: PeranPengguna;
   sertifikatList: SertifikatKader[];
   klaimUpahList: KlaimUpahHOK[];
   pesanList?: PesanKomunikasi[];
   tugasList?: TugasPemetaan[];
   onUbahProfil: (p: ProfilKader) => void;
+  onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
   onAjukanKlaimUpah: (paketKe: number, rincian: string) => void;
+}
+
+/**
+ * Komponen SVG Siluet Orang (Menggantikan ikon tanaman pada Avatar Kader)
+ */
+export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
+  size = 34,
+  warna = "#fde68a"
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 64 64"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <circle cx="32" cy="21" r="12" fill={warna} />
+    <path
+      d="M12 54C12 42.954 20.954 35 32 35C43.046 35 52 42.954 52 54V56H12V54Z"
+      fill={warna}
+    />
+  </svg>
+);
+
+/**
+ * Menggambar Siluet Orang di dalam Bingkai Foto pada Kanvas Sertifikat
+ * ketika kader belum mengunggah foto.
+ */
+function gambarSiluetOrangCanvas(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  ctx.save();
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  // Latar bingkai hijau zamrud gelap
+  const bg = ctx.createLinearGradient(x, y, x, y + h);
+  bg.addColorStop(0, "#064e3b");
+  bg.addColorStop(1, "#022c22");
+  ctx.fillStyle = bg;
+  ctx.fillRect(x, y, w, h);
+
+  // Kepala siluet orang
+  ctx.fillStyle = "rgba(253, 230, 138, 0.85)";
+  ctx.beginPath();
+  ctx.arc(cx, cy - 22, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bahu & badan siluet orang
+  ctx.beginPath();
+  ctx.arc(cx, cy + 58, 52, Math.PI * 1.12, Math.PI * 1.88, false);
+  ctx.lineTo(cx + 46, y + h);
+  ctx.lineTo(cx - 46, y + h);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * Menggambar Bingkai Foto Kader (Passfoto Resmi) di atas Kanvas Sertifikat
+ */
+function gambarBingkaiFotoKaderCanvas(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fotoImg: HTMLImageElement | null
+) {
+  ctx.save();
+
+  // Bayangan lembut
+  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+
+  // Kotak luar emas
+  ctx.fillStyle = "#042f2e";
+  ctx.strokeStyle = "#fbbf24";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowColor = "transparent";
+
+  // Area dalam foto (clip)
+  const pad = 8;
+  const ix = x + pad;
+  const iy = y + pad;
+  const iw = w - pad * 2;
+  const ih = h - pad * 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(ix, iy, iw, ih, 9);
+  ctx.clip();
+
+  if (fotoImg && fotoImg.complete && fotoImg.naturalWidth > 0) {
+    // Hitung crop proporsional (object-fit: cover)
+    const imgRatio = fotoImg.naturalWidth / fotoImg.naturalHeight;
+    const boxRatio = iw / ih;
+    let sx = 0;
+    let sy = 0;
+    let sw = fotoImg.naturalWidth;
+    let sh = fotoImg.naturalHeight;
+
+    if (imgRatio > boxRatio) {
+      sw = fotoImg.naturalHeight * boxRatio;
+      sx = (fotoImg.naturalWidth - sw) / 2;
+    } else {
+      sh = fotoImg.naturalWidth / boxRatio;
+      sy = (fotoImg.naturalHeight - sh) / 2;
+    }
+    ctx.drawImage(fotoImg, sx, sy, sw, sh, ix, iy, iw, ih);
+  } else {
+    gambarSiluetOrangCanvas(ctx, ix, iy, iw, ih);
+  }
+  ctx.restore();
+
+  // Garis aksen tipis di dalam foto
+  ctx.strokeStyle = "rgba(253, 230, 138, 0.55)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(ix, iy, iw, ih, 9);
+  ctx.stroke();
+
+  // Pita label bawah bingkai foto
+  ctx.fillStyle = "#022c22";
+  ctx.strokeStyle = "#fbbf24";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x + 14, y + h - 16, w - 28, 28, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#fde68a";
+  ctx.font = "bold 13px system-ui, sans-serif";
+  ctx.fillText("FOTO KADER", x + w / 2, y + h + 3);
+
+  ctx.restore();
 }
 
 /**
@@ -112,7 +266,7 @@ function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: n
 }
 
 /**
- * Menggambar Kartu Visual Medali Capaian di dalam Sertifikat
+ * Menggambar Kartu Visual Medali Capaian di dalam Sertifikat (Tanpa Level User)
  */
 function gambarKartuMedaliCanvas(
   ctx: CanvasRenderingContext2D,
@@ -121,7 +275,7 @@ function gambarKartuMedaliCanvas(
   w: number,
   h: number,
   warnaAksen: string,
-  simbol: "pin" | "shield" | "poly",
+  simbol: "pin" | "route" | "poly",
   nilaiUtama: string,
   labelBawah: string
 ) {
@@ -158,15 +312,14 @@ function gambarKartuMedaliCanvas(
     ctx.lineTo(icX, icY + 13);
     ctx.lineTo(icX + 7, icY - 2);
     ctx.stroke();
-  } else if (simbol === "shield") {
+  } else if (simbol === "route") {
     ctx.beginPath();
-    ctx.moveTo(icX, icY - 14);
-    ctx.lineTo(icX + 12, icY - 8);
-    ctx.lineTo(icX + 10, icY + 6);
-    ctx.lineTo(icX, icY + 15);
-    ctx.lineTo(icX - 10, icY + 6);
-    ctx.lineTo(icX - 12, icY - 8);
-    ctx.closePath();
+    ctx.arc(icX - 9, icY + 8, 4, 0, Math.PI * 2);
+    ctx.arc(icX + 9, icY - 8, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(icX - 6, icY + 6);
+    ctx.quadraticCurveTo(icX, icY - 10, icX + 6, icY - 6);
     ctx.stroke();
   } else {
     ctx.beginPath();
@@ -192,12 +345,12 @@ function gambarKartuMedaliCanvas(
 
 /**
  * Menggambar Segel Pita Bintang Emas di Bawah Tengah Sertifikat
+ * (Tidak menuliskan level user, cukup SERTIFIKAT RESMI)
  */
 function gambarSegelBintangEmas(
   ctx: CanvasRenderingContext2D,
   cx: number,
-  cy: number,
-  levelGis: number
+  cy: number
 ) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -254,31 +407,33 @@ function gambarSegelBintangEmas(
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#fbbf24";
-  ctx.font = "bold 14px system-ui, sans-serif";
-  ctx.fillText("★ GIS VERIFIED ★", 0, -16);
+  ctx.font = "bold 13px system-ui, sans-serif";
+  ctx.fillText("★ SERTIFIKAT ★", 0, -16);
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "900 22px system-ui, sans-serif";
-  ctx.fillText(`LV. ${levelGis}`, 0, 10);
+  ctx.font = "900 20px system-ui, sans-serif";
+  ctx.fillText("RESMI", 0, 8);
 
   ctx.fillStyle = "#6ee7b7";
-  ctx.font = "bold 12px system-ui, sans-serif";
-  ctx.fillText("KADER NUSANTARA", 0, 29);
+  ctx.font = "bold 11px system-ui, sans-serif";
+  ctx.fillText("KADER PEMETAAN", 0, 27);
 
   ctx.restore();
 }
 
 /**
  * Merender Sertifikat Bergambar & Clean ke Canvas (1600 x 1131 px - A4 Landscape)
- * Dijamin 100% identik di Layar PC, Layar HP, Cetak PDF, dan Unduh PNG
+ * - TIDAK menuliskan level user pada sertifikat (cukup Sertifikat saja)
+ * - Menampilkan Foto Kader (atau Siluet Orang jika belum ada foto)
+ * - Menampilkan Nama & Jabatan Penandatangan yang dapat diubah oleh Admin
  */
 function lukisSertifikatKeCanvas(
   canvas: HTMLCanvasElement,
   sert: SertifikatKader,
-  peringkat: HasilPeringkatGis20,
   totalPoin: number,
   totalKm: number,
-  totalHa: number
+  totalHa: number,
+  fotoImg: HTMLImageElement | null
 ) {
   const W = 1600;
   const H = 1131;
@@ -341,48 +496,52 @@ function lukisSertifikatKeCanvas(
   });
 
   // 3. Emblem Kompas Emas di Tengah Atas
-  gambarEmblemKompasEmas(ctx, W / 2, 145);
+  gambarEmblemKompasEmas(ctx, W / 2, 142);
 
-  // 4. Judul Singkat & Bersih
+  // 4. Judul Singkat & Bersih (Tanpa Menuliskan Level User)
   ctx.textAlign = "center";
   ctx.fillStyle = "#fde68a";
   ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
   ctx.fillText(
     (sert.namaOrganisasi || "KONSORSIUM PEMETAAN PARTISIPATIF").toUpperCase(),
     W / 2,
-    235
+    232
   );
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 56px Georgia, 'Times New Roman', serif";
-  ctx.fillText("SERTIFIKAT KOMPETENSI GIS", W / 2, 302);
+  ctx.font = "bold 60px Georgia, 'Times New Roman', serif";
+  ctx.fillText("SERTIFIKAT", W / 2, 300);
 
   ctx.fillStyle = "#6ee7b7";
   ctx.font = "600 18px ui-monospace, SFMono-Regular, Consolas, monospace";
-  ctx.fillText(`NO. REG: ${sert.nomorSertifikat}`, W / 2, 338);
+  ctx.fillText(`NO. REG: ${sert.nomorSertifikat}`, W / 2, 336);
 
-  // 5. Nama Penerima (Besar & Menonjol)
+  // 5. BINGKAI FOTO KADER DI SISI KIRI ATAS NAMA PENERIMA
+  gambarBingkaiFotoKaderCanvas(ctx, 145, 342, 158, 198, fotoImg);
+
+  // 6. Nama Penerima (Besar & Menonjol)
+  ctx.textAlign = "center";
   ctx.fillStyle = "#cbd5e1";
   ctx.font = "italic 22px Georgia, serif";
-  ctx.fillText("Diberikan kepada:", W / 2, 398);
+  ctx.fillText("Diberikan kepada:", W / 2, 396);
 
   const namaTampil = sert.namaKader || "Kader Pemetaan";
-  let fontNama = 64;
+  let fontNama = 62;
   ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
-  while (ctx.measureText(namaTampil).width > 1240 && fontNama > 36) {
+  while (ctx.measureText(namaTampil).width > 900 && fontNama > 34) {
     fontNama -= 4;
     ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
   }
   ctx.fillStyle = "#fbbf24";
-  ctx.fillText(namaTampil, W / 2, 476);
+  ctx.fillText(namaTampil, W / 2, 472);
 
   // Garis aksen bawah nama
-  const wNama = Math.min(960, Math.max(380, ctx.measureText(namaTampil).width + 60));
+  const wNama = Math.min(860, Math.max(360, ctx.measureText(namaTampil).width + 60));
   ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(W / 2 - wNama / 2, 496);
-  ctx.lineTo(W / 2 + wNama / 2, 496);
+  ctx.moveTo(W / 2 - wNama / 2, 492);
+  ctx.lineTo(W / 2 + wNama / 2, 492);
   ctx.stroke();
 
   ctx.fillStyle = "#a7f3d0";
@@ -390,15 +549,15 @@ function lukisSertifikatKeCanvas(
   ctx.fillText(
     `${sert.idKader}   •   Wilayah: ${sert.desaWilayah}`,
     W / 2,
-    535
+    532
   );
 
-  // 6. TIGA KARTU VISUAL BERGAMBAR (MENGGANTIKAN KALIMAT PANJANG)
+  // 7. TIGA KARTU VISUAL CAPAIAN SURVEI (TANPA LEVEL USER)
   const cardW = 370;
   const cardH = 104;
   const gap = 34;
   const startX = (W - (cardW * 3 + gap * 2)) / 2;
-  const cardY = 578;
+  const cardY = 582;
 
   gambarKartuMedaliCanvas(
     ctx,
@@ -419,9 +578,9 @@ function lukisSertifikatKeCanvas(
     cardW,
     cardH,
     "#fbbf24",
-    "shield",
-    `Level ${peringkat.levelSaatIni.level} / 20`,
-    peringkat.levelSaatIni.namaLevel
+    "route",
+    `${totalKm.toFixed(1)} km Jalur`,
+    "Tracking Pemetaan"
   );
 
   gambarKartuMedaliCanvas(
@@ -432,11 +591,11 @@ function lukisSertifikatKeCanvas(
     cardH,
     "#38bdf8",
     "poly",
-    `${totalKm.toFixed(1)} km • ${totalHa.toFixed(1)} Ha`,
-    "Jalur & Poligon Wilayah"
+    `${totalHa.toFixed(1)} Ha Poligon`,
+    "Pemetaan Wilayah"
   );
 
-  // 7. Footer: Tanggal (Kiri), Segel Emas Bergambar (Tengah), Tanda Tangan (Kanan)
+  // 8. Footer: Tanggal (Kiri), Segel Emas Bergambar (Tengah), Tanda Tangan (Kanan)
   const yFoot = 835;
 
   // Kiri
@@ -458,35 +617,39 @@ function lukisSertifikatKeCanvas(
 
   ctx.fillStyle = "#6ee7b7";
   ctx.font = "bold 18px ui-monospace, monospace";
-  ctx.fillText(`Skor Kompetensi: ${peringkat.skorTotal} XP`, 130, yFoot + 84);
+  ctx.fillText("Status: SERTIFIKAT RESMI", 130, yFoot + 84);
 
-  // Tengah: Segel Pita Bintang Emas
-  gambarSegelBintangEmas(ctx, W / 2, yFoot + 30, peringkat.levelSaatIni.level);
+  // Tengah: Segel Pita Bintang Emas (Tanpa Level)
+  gambarSegelBintangEmas(ctx, W / 2, yFoot + 30);
 
-  // Kanan
+  // Kanan: Penandatangan Sertifikat
+  const namaPenandatangan = sert.ditandatanganiOleh || "Koordinator Program GIS";
+  const jabatanPenandatangan =
+    sert.jabatanPenandatangan || "Koordinator Verifikasi Spasial";
+
   ctx.textAlign = "right";
   ctx.fillStyle = "#94a3b8";
   ctx.font = "600 18px system-ui, sans-serif";
-  ctx.fillText("PENGESAHAN RESMI", W - 130, yFoot);
+  ctx.fillText("DITANDATANGANI OLEH", W - 130, yFoot);
 
   ctx.fillStyle = "#fde68a";
-  ctx.font = "italic 34px Georgia, serif";
-  ctx.fillText(sert.ditandatanganiOleh.split(",")[0], W - 145, yFoot + 46);
+  ctx.font = "italic 32px Georgia, serif";
+  ctx.fillText(namaPenandatangan.split(",")[0], W - 145, yFoot + 46);
 
   ctx.strokeStyle = "#fbbf24";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(W - 490, yFoot + 62);
+  ctx.moveTo(W - 510, yFoot + 62);
   ctx.lineTo(W - 130, yFoot + 62);
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 22px system-ui, sans-serif";
-  ctx.fillText(sert.ditandatanganiOleh, W - 130, yFoot + 92);
+  ctx.fillText(namaPenandatangan, W - 130, yFoot + 92);
 
   ctx.fillStyle = "#a7f3d0";
   ctx.font = "17px system-ui, sans-serif";
-  ctx.fillText(sert.jabatanPenandatangan, W - 130, yFoot + 118);
+  ctx.fillText(jabatanPenandatangan, W - 130, yFoot + 118);
 }
 
 /**
@@ -540,18 +703,53 @@ const CincinProgresSvg: React.FC<{
   );
 };
 
+/**
+ * Mengecilkan ukuran foto yang diunggah agar ringan disimpan di localStorage
+ */
+function kompresFotoKeDataUrl(file: File, maxDim = 480): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Gagal membaca file foto"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Format gambar tidak valid"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext("2d");
+        if (!ctx) {
+          resolve(String(reader.result));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL("image/jpeg", 0.86));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export const RewardView: React.FC<RewardViewProps> = ({
   dataSpasial,
   profil,
+  peran = "kader",
   sertifikatList,
   klaimUpahList,
   pesanList = [],
   tugasList = [],
   onUbahProfil,
+  onUbahPenandatanganSertifikat,
   onAjukanKlaimUpah
 }) => {
   const certCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const inputFotoRef = useRef<HTMLInputElement | null>(null);
   const [bukaPengaturan, setBukaPengaturan] = useState(false);
+  const [fotoElement, setFotoElement] = useState<HTMLImageElement | null>(null);
 
   const capaian = useMemo(
     () => hitungCapaianKader(dataSpasial, profil, false),
@@ -570,8 +768,38 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const totalHa = capaian.totalPoligonHa;
   const sudahTersertifikasi = Boolean(sertifikatSaya) || capaian.berhakSertifikat;
 
+  const fotoSertifikatBase64 =
+    sertifikatSaya?.fotoKaderBase64 || profil.fotoKaderBase64 || "";
+
+  useEffect(() => {
+    if (!fotoSertifikatBase64) {
+      setFotoElement(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => setFotoElement(img);
+    img.onerror = () => setFotoElement(null);
+    img.src = fotoSertifikatBase64;
+  }, [fotoSertifikatBase64]);
+
   const sertifikatTampil: SertifikatKader = useMemo(() => {
-    if (sertifikatSaya) return sertifikatSaya;
+    const namaPenandatangan =
+      sertifikatSaya?.ditandatanganiOleh ||
+      profil.namaPenandatanganSertifikat ||
+      "Koordinator Program GIS";
+    const jabatanPenandatangan =
+      sertifikatSaya?.jabatanPenandatangan ||
+      profil.jabatanPenandatanganSertifikat ||
+      "Koordinator Verifikasi Spasial";
+
+    if (sertifikatSaya) {
+      return {
+        ...sertifikatSaya,
+        ditandatanganiOleh: namaPenandatangan,
+        jabatanPenandatangan,
+        fotoKaderBase64: fotoSertifikatBase64 || undefined
+      };
+    }
     return {
       id: `CERT-${profil.idKader}`,
       nomorSertifikat: `001/SERT-KPP/${new Date().getFullYear()}`,
@@ -583,23 +811,43 @@ export const RewardView: React.FC<RewardViewProps> = ({
       tanggalTerbit: new Date().toISOString().slice(0, 10),
       alasanCapaian: "Kompetensi Survei & Pemetaan Partisipatif",
       status: sudahTersertifikasi ? "diterbitkan" : "menunggu_admin",
-      ditandatanganiOleh: "Koordinator Program GIS",
-      jabatanPenandatangan: "Koordinator Verifikasi Spasial"
+      ditandatanganiOleh: namaPenandatangan,
+      jabatanPenandatangan,
+      fotoKaderBase64: fotoSertifikatBase64 || undefined
     };
-  }, [sertifikatSaya, profil, sudahTersertifikasi]);
+  }, [sertifikatSaya, profil, sudahTersertifikasi, fotoSertifikatBase64]);
 
   useEffect(() => {
     if (certCanvasRef.current) {
       lukisSertifikatKeCanvas(
         certCanvasRef.current,
         sertifikatTampil,
-        peringkatGis,
         totalPoin,
         totalKm,
-        totalHa
+        totalHa,
+        fotoElement
       );
     }
-  }, [sertifikatTampil, peringkatGis, totalPoin, totalKm, totalHa]);
+  }, [sertifikatTampil, totalPoin, totalKm, totalHa, fotoElement]);
+
+  const handlePilihFotoSertifikat = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await kompresFotoKeDataUrl(file, 480);
+      onUbahProfil({ ...profil, fotoKaderBase64: dataUrl });
+    } catch {
+      alert("Gagal memuat foto. Silakan pilih file gambar lain.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleHapusFotoSertifikat = () => {
+    onUbahProfil({ ...profil, fotoKaderBase64: undefined });
+  };
 
   const handleUnduhSertifikatPng = () => {
     const canvas = certCanvasRef.current;
@@ -607,10 +855,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
-      peringkatGis,
       totalPoin,
       totalKm,
-      totalHa
+      totalHa,
+      fotoElement
     );
     const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
@@ -625,10 +873,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
-      peringkatGis,
       totalPoin,
       totalKm,
-      totalHa
+      totalHa,
+      fotoElement
     );
     const dataUrl = canvas.toDataURL("image/png");
 
@@ -695,14 +943,39 @@ export const RewardView: React.FC<RewardViewProps> = ({
 
   return (
     <div className="page-container reward-page-clean">
-      {/* 1. VISUAL HERO: PERINGKAT 20 LEVEL GIS (GAMBAR & GRAFIK VISUAL, MINIM TEKS) */}
+      {/* INPUT FILE TERSEMBUNYI UNTUK FOTO KADER DI SERTIFIKAT */}
+      <input
+        ref={inputFotoRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handlePilihFotoSertifikat}
+      />
+
+      {/* 1. VISUAL HERO: AVATAR SILUET ORANG / FOTO KADER & PERINGKAT 20 LEVEL GIS */}
       <div className="section-card reward-gis-hero-card">
-        {/* Baris Identitas Singkat */}
+        {/* Baris Identitas Singkat dengan Avatar Siluet Orang (Bukan Tanaman) */}
         <div className="visual-profile-bar">
           <div className="visual-profile-left">
-            <div className="visual-avatar-emblem">
-              <span>{levelSaatIni.ikon}</span>
-            </div>
+            <button
+              type="button"
+              className="visual-avatar-emblem avatar-silhouette-btn"
+              onClick={() => inputFotoRef.current?.click()}
+              title="Ketuk untuk mengunggah foto kader ke sertifikat"
+            >
+              {fotoSertifikatBase64 ? (
+                <img
+                  src={fotoSertifikatBase64}
+                  alt={profil.nama}
+                  className="visual-avatar-photo"
+                />
+              ) : (
+                <SiluetOrangSvg size={34} warna="#fde68a" />
+              )}
+              <span className="visual-avatar-cam-badge">
+                <Camera size={11} />
+              </span>
+            </button>
             <div>
               <div className="visual-profile-badges">
                 <span className="visual-pill-id">{profil.idKader}</span>
@@ -721,7 +994,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             type="button"
             className="visual-icon-gear-btn"
             onClick={() => setBukaPengaturan((v) => !v)}
-            title="Pengaturan Profil"
+            title="Pengaturan Profil & Foto Sertifikat"
           >
             <Settings size={18} />
           </button>
@@ -751,7 +1024,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
                     <stop offset="100%" stopColor="#d97706" />
                   </linearGradient>
                 </defs>
-                {/* Cincin Progres Level */}
                 <circle
                   cx="50"
                   cy="50"
@@ -774,7 +1046,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
                   }
                   transform="rotate(-90 50 50)"
                 />
-                {/* Lencana Dalam */}
                 <circle cx="50" cy="50" r="34" fill="url(#goldMedal)" />
                 <text
                   x="50"
@@ -817,7 +1088,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </div>
         </div>
 
-        {/* 5 IKON BADGE VISUAL SKOR XP (TANPA KALIMAT PANJANG) */}
+        {/* 5 IKON BADGE VISUAL SKOR XP */}
         <div className="visual-xp-badges-row">
           <div className="visual-xp-mini">
             <Database size={16} />
@@ -889,15 +1160,33 @@ export const RewardView: React.FC<RewardViewProps> = ({
         />
       </div>
 
-      {/* 3. PREVIEW SERTIFIKAT BERGAMBAR (100% IDENTIK DI PC, HP & CETAK) */}
+      {/* 3. PREVIEW SERTIFIKAT BERGAMBAR + TOMBOL TAMBAH FOTO SERTIFIKAT */}
       <div className="section-card certificate-section-card">
         <div className="certificate-header-bar">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Award size={20} color="#0d7344" />
-            <h3 style={{ margin: 0, fontSize: "1rem" }}>Piagam Sertifikat Kader</h3>
+            <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat Kader</h3>
           </div>
 
           <div className="certificate-action-btns">
+            <button
+              type="button"
+              className="btn-outline-sm"
+              onClick={() => inputFotoRef.current?.click()}
+              title="Tambahkan atau ganti foto kader pada sertifikat"
+            >
+              <Camera size={14} /> {fotoSertifikatBase64 ? "Ganti Foto" : "+ Foto Sertifikat"}
+            </button>
+            {fotoSertifikatBase64 && (
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={handleHapusFotoSertifikat}
+                title="Hapus foto dari sertifikat"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
             <button
               type="button"
               className="btn-outline-sm"
@@ -922,6 +1211,58 @@ export const RewardView: React.FC<RewardViewProps> = ({
             aria-label={`Sertifikat ${sertifikatTampil.namaKader}`}
           />
         </div>
+
+        {/* KONTROL CEPAT ADMIN UNTUK MENGUBAH NAMA PENANDATANGAN SERTIFIKAT */}
+        {peran === "admin" && (
+          <div className="cert-admin-signer-box">
+            <div className="cert-admin-signer-title">
+              <PenTool size={15} color="#0284c7" />
+              <strong>Pengaturan Penandatangan Sertifikat (Mode Admin)</strong>
+            </div>
+            <div className="form-row-2">
+              <div>
+                <label>Nama Pejabat Penandatangan</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Dr. Budi Santoso, M.Sc"
+                  value={sertifikatTampil.ditandatanganiOleh}
+                  onChange={(e) => {
+                    const namaBaru = e.target.value;
+                    onUbahProfil({
+                      ...profil,
+                      namaPenandatanganSertifikat: namaBaru
+                    });
+                    onUbahPenandatanganSertifikat?.(
+                      namaBaru,
+                      sertifikatTampil.jabatanPenandatangan
+                    );
+                  }}
+                />
+              </div>
+              <div>
+                <label>Jabatan Penandatangan</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Koordinator Program GIS"
+                  value={sertifikatTampil.jabatanPenandatangan}
+                  onChange={(e) => {
+                    const jabatanBaru = e.target.value;
+                    onUbahProfil({
+                      ...profil,
+                      jabatanPenandatanganSertifikat: jabatanBaru
+                    });
+                    onUbahPenandatanganSertifikat?.(
+                      sertifikatTampil.ditandatanganiOleh,
+                      jabatanBaru
+                    );
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4. VOUCHER VISUAL INSENTIF 1 HOK */}
@@ -973,10 +1314,12 @@ export const RewardView: React.FC<RewardViewProps> = ({
         </div>
       )}
 
-      {/* 5. MODAL/DRAWER PENGATURAN PROFIL (DISEMBUNYIKAN KECUALI DIKLIK IKON RODA GIGI) */}
+      {/* 5. DRAWER PENGATURAN IDENTITAS & FOTO SERTIFIKAT */}
       {bukaPengaturan && (
         <div className="section-card">
-          <h4 style={{ margin: "0 0 10px", fontSize: "0.94rem" }}>⚙️ Identitas Sertifikat</h4>
+          <h4 style={{ margin: "0 0 10px", fontSize: "0.94rem", display: "flex", alignItems: "center", gap: 6 }}>
+            <UserCheck size={16} color="#0d7344" /> Identitas & Foto Sertifikat
+          </h4>
           <div className="form-row-3">
             <div>
               <label>Nama di Sertifikat</label>
@@ -1005,6 +1348,25 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 onChange={(e) => onUbahProfil({ ...profil, namaOrganisasi: e.target.value })}
               />
             </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn-primary-sm"
+              onClick={() => inputFotoRef.current?.click()}
+            >
+              <Camera size={14} /> {fotoSertifikatBase64 ? "Ubah Foto Sertifikat" : "Pilih Foto untuk Sertifikat"}
+            </button>
+            {fotoSertifikatBase64 && (
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={handleHapusFotoSertifikat}
+              >
+                <Trash2 size={14} /> Hapus Foto
+              </button>
+            )}
           </div>
         </div>
       )}

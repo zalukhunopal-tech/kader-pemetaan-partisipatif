@@ -468,7 +468,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                       cursor: "pointer"
                     }}
                   >
-                    🌿 Kader Lapangan
+                    👤 Kader Lapangan
                   </button>
 
                   <button

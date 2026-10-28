@@ -18,6 +18,12 @@ import {
   namaArahKompas
 } from "../lib/geoUtils";
 import {
+  perekamLatar,
+  usePerekamLatar,
+  durasiRekamMs,
+  formatDurasi
+} from "../lib/perekamLatar";
+import {
   Crosshair,
   Download,
   FileUp,
@@ -25,6 +31,7 @@ import {
   MapPin,
   Navigation,
   Play,
+  Pause,
   Plus,
   Route,
   Square,
@@ -32,7 +39,8 @@ import {
   X,
   Camera,
   RefreshCw,
-  Eye
+  Eye,
+  Radio
 } from "lucide-react";
 
 interface InteractiveMapProps {
@@ -140,11 +148,40 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     judul: string;
   } | null>(null);
 
-  // Mode Perekaman Spasial
-  const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(null);
-  const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>([]);
-  const [autoTrackingAktif, setAutoTrackingAktif] = useState<boolean>(false);
+  // Mode Perekaman Spasial (terhubung dengan Perekam Latar Belakang)
+  const rekamLatar = usePerekamLatar();
+  const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() =>
+    rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : null
+  );
+  const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() =>
+    rekamLatar.status !== "idle" ? rekamLatar.titik : []
+  );
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
+  const [detikTick, setDetikTick] = useState<number>(0);
+
+  // Sinkronkan titik dari perekam latar belakang ke peta secara real-time
+  useEffect(() => {
+    if (rekamLatar.status !== "idle" && rekamLatar.jenis) {
+      setModeRekam(rekamLatar.jenis);
+      setTitikDraft(rekamLatar.titik);
+      if (rekamLatar.posisiTerakhir) {
+        setGpsPos(rekamLatar.posisiTerakhir);
+        if (rekamLatar.autoGpsAktif && rekamLatar.status === "merekam") {
+          setCenter({
+            lat: rekamLatar.posisiTerakhir.lat,
+            lng: rekamLatar.posisiTerakhir.lng
+          });
+        }
+      }
+    }
+  }, [rekamLatar]);
+
+  // Detak timer durasi saat sedang merekam
+  useEffect(() => {
+    if (rekamLatar.status !== "merekam") return;
+    const t = window.setInterval(() => setDetikTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [rekamLatar.status]);
 
   // State Form Atribut Survei
   const [kategoriInput, setKategoriInput] = useState<KategoriSurvei>("Flora");
@@ -196,29 +233,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
     }
   }, [fokusKoordinat]);
-
-  useEffect(() => {
-    if (!autoTrackingAktif || modeRekam === null) return;
-    const timer = window.setInterval(() => {
-      setGpsPos((prev) => {
-        const nextLat = prev.lat + (Math.random() - 0.35) * 0.00045;
-        const nextLng = prev.lng + (Math.random() - 0.3) * 0.00045;
-        const nextElev = Math.round((prev.elevasi || 410) + (Math.random() - 0.45) * 4);
-        const ptBaru: KoordinatTitik = {
-          lat: nextLat,
-          lng: nextLng,
-          elevasi: nextElev,
-          akurasi: Number((2.2 + Math.random() * 1.5).toFixed(1)),
-          timestamp: new Date().toISOString()
-        };
-        setTitikDraft((old) => [...old, ptBaru]);
-        setCenter({ lat: nextLat, lng: nextLng });
-        return ptBaru;
-      });
-      setKompasDerajat((d) => (d + Math.round((Math.random() - 0.5) * 20) + 360) % 360);
-    }, 1800);
-    return () => clearInterval(timer);
-  }, [autoTrackingAktif, modeRekam]);
 
   const latLngToPixel = (
     lat: number,
@@ -575,7 +589,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setTitikDraft([pt]);
       setBukaModalForm(true);
     } else {
-      setTitikDraft((prev) => [...prev, pt]);
+      perekamLatar.tambahTitik(pt);
     }
   };
 
@@ -583,29 +597,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setObjekTerpilih(null);
     setModeRekam(jenis);
     setBukaAlatRekam(false);
-    setAutoTrackingAktif(false);
+    const ptAwal: KoordinatTitik = {
+      lat: Number(center.lat.toFixed(6)),
+      lng: Number(center.lng.toFixed(6)),
+      elevasi: gpsPos.elevasi || 420,
+      akurasi: gpsPos.akurasi || 2.8,
+      timestamp: new Date().toISOString()
+    };
     if (jenis === "point") {
-      const pt: KoordinatTitik = {
-        lat: Number(center.lat.toFixed(6)),
-        lng: Number(center.lng.toFixed(6)),
-        elevasi: gpsPos.elevasi || 420,
-        akurasi: gpsPos.akurasi || 2.8,
-        timestamp: new Date().toISOString()
-      };
-      setTitikDraft([pt]);
+      setTitikDraft([ptAwal]);
       setKategoriInput("Flora");
       setBukaModalForm(true);
     } else {
-      setTitikDraft([
-        {
-          lat: Number(center.lat.toFixed(6)),
-          lng: Number(center.lng.toFixed(6)),
-          elevasi: gpsPos.elevasi || 420,
-          akurasi: gpsPos.akurasi || 2.8,
-          timestamp: new Date().toISOString()
-        }
-      ]);
+      setTitikDraft([ptAwal]);
       setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Flora");
+      // Mulai perekaman di latar belakang agar tetap merekam walaupun pindah tab
+      perekamLatar.mulai(jenis, [ptAwal], true);
     }
   };
 
@@ -657,10 +664,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     };
 
     onSimpanDataBaru(itemBaru);
+    perekamLatar.selesai();
     setBukaModalForm(false);
     setModeRekam(null);
     setTitikDraft([]);
-    setAutoTrackingAktif(false);
     setJudulInput("");
     setNamaLokalInput("");
     setNamaIlmiahInput("");
@@ -935,12 +942,25 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         )}
 
-        {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON */}
+        {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON (LATAR BELAKANG) */}
         {modeRekam && modeRekam !== "point" && (
           <div className="recording-active-bar">
             <div className="recording-metrics">
-              <span className="rec-dot" />
+              <span
+                className={`rec-dot ${rekamLatar.status === "dijeda" ? "paused" : ""}`}
+              />
               <div>
+                <div className="rec-status-badge-inline">
+                  <Radio size={12} />
+                  <span>
+                    {rekamLatar.status === "dijeda"
+                      ? "REKAMAN DIJEDA"
+                      : "SEDANG MEREKAM (LATAR BELAKANG)"}
+                  </span>
+                  <span className="rec-timer-chip" data-tick={detikTick}>
+                    {formatDurasi(durasiRekamMs(rekamLatar))}
+                  </span>
+                </div>
                 <strong>
                   {modeRekam === "line"
                     ? `Jalur (${titikDraft.length} titik • ${panjangDraftKm} km)`
@@ -954,15 +974,36 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 type="button"
                 className="btn-tool"
                 onClick={tambahTitikBidikan}
+                title="Tambah titik dari bidikan tengah peta"
               >
                 <Plus size={14} /> +Titik
               </button>
               <button
                 type="button"
-                className={`btn-tool ${autoTrackingAktif ? "active-walk" : ""}`}
-                onClick={() => setAutoTrackingAktif((a) => !a)}
+                className={`btn-tool ${rekamLatar.status === "merekam" ? "active-walk" : ""}`}
+                onClick={() =>
+                  rekamLatar.status === "merekam"
+                    ? perekamLatar.jeda()
+                    : perekamLatar.lanjutkan()
+                }
               >
-                <Play size={14} /> {autoTrackingAktif ? "Jeda" : "Auto GPS"}
+                {rekamLatar.status === "merekam" ? (
+                  <>
+                    <Pause size={14} /> Jeda
+                  </>
+                ) : (
+                  <>
+                    <Play size={14} /> Lanjut
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className={`btn-tool ${rekamLatar.autoGpsAktif ? "active-walk" : ""}`}
+                onClick={() => perekamLatar.toggleAutoGps()}
+                title="Rekam titik GPS otomatis di latar belakang walau pindah menu"
+              >
+                <Radio size={14} /> {rekamLatar.autoGpsAktif ? "Auto ON" : "Auto OFF"}
               </button>
               <button
                 type="button"
@@ -979,10 +1020,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 type="button"
                 className="btn-danger-sm"
                 onClick={() => {
+                  perekamLatar.batal();
                   setModeRekam(null);
                   setTitikDraft([]);
-                  setAutoTrackingAktif(false);
                 }}
+                title="Batalkan perekaman"
               >
                 <X size={14} />
               </button>

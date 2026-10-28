@@ -41,6 +41,13 @@ import {
 } from "./lib/storage";
 import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
+import {
+  perekamLatar,
+  usePerekamLatar,
+  durasiRekamMs,
+  formatDurasi,
+  ringkasanRekam
+} from "./lib/perekamLatar";
 import { AuthModal } from "./components/AuthModal";
 import { PustakaView } from "./components/PustakaView";
 import { PemberitahuanView } from "./components/PemberitahuanView";
@@ -66,7 +73,10 @@ import {
   WifiOff,
   User,
   Shield,
-  LogOut
+  LogOut,
+  Radio,
+  Pause,
+  Play
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -143,6 +153,16 @@ export const App: React.FC = () => {
   const [sedangSinkron, setSedangSinkron] = useState<boolean>(false);
   const [pesanSinkron, setPesanSinkron] = useState<string | null>(null);
 
+  // Status Perekaman Data di Latar Belakang (Global di Semua Tab)
+  const rekamLatar = usePerekamLatar();
+  const [detikRekamTick, setDetikRekamTick] = useState<number>(0);
+
+  useEffect(() => {
+    if (rekamLatar.status !== "merekam") return;
+    const t = window.setInterval(() => setDetikRekamTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [rekamLatar.status]);
+
   // Simpan perubahan ke LocalStorage (Offline-First)
   useEffect(() => simpanProfil(profil), [profil]);
   useEffect(() => simpanDataSpasial(dataSpasial), [dataSpasial]);
@@ -212,8 +232,27 @@ export const App: React.FC = () => {
       tampilkanToast("🛡️ Beralih ke Akun Administrator GIS.");
     } else {
       setTabAktif("pustaka");
-      tampilkanToast("🌿 Beralih ke Akun Kader Lapangan (User).");
+      tampilkanToast("👤 Beralih ke Akun Kader Lapangan (User).");
     }
+  };
+
+  // Handler Ubah Nama & Jabatan Penandatangan Sertifikat oleh Admin
+  const handleUbahPenandatanganSertifikat = (
+    namaPenandatangan: string,
+    jabatanPenandatangan: string
+  ) => {
+    setProfil((prev) => ({
+      ...prev,
+      namaPenandatanganSertifikat: namaPenandatangan,
+      jabatanPenandatanganSertifikat: jabatanPenandatangan
+    }));
+    setSertifikatList((prev) =>
+      prev.map((s) => ({
+        ...s,
+        ditandatanganiOleh: namaPenandatangan,
+        jabatanPenandatangan
+      }))
+    );
   };
 
   // Handler Simpan Data Spasial Baru dari Peta (User Feature)
@@ -420,16 +459,14 @@ export const App: React.FC = () => {
 
         {/* 5 IKON AKSI KANAN ATAS: REWARD, NOTIF, SHARE, LOGOUT, TITIK TIGA */}
         <div className="avenza-topbar-actions">
-          {peran === "kader" && (
-            <button
-              type="button"
-              className={`avenza-icon-btn ${tabAktif === "reward" ? "active" : ""}`}
-              onClick={() => setTabAktif("reward")}
-              title="Akun Kader & Sertifikat"
-            >
-              <UserCheck size={20} strokeWidth={2} />
-            </button>
-          )}
+          <button
+            type="button"
+            className={`avenza-icon-btn ${tabAktif === "reward" ? "active" : ""}`}
+            onClick={() => setTabAktif("reward")}
+            title="Sertifikat & Profil Kader"
+          >
+            <UserCheck size={20} strokeWidth={2} />
+          </button>
 
           <button
             type="button"
@@ -516,7 +553,7 @@ export const App: React.FC = () => {
                     gantiPeranAkun(peran === "kader" ? "admin" : "kader");
                   }}
                 >
-                  {peran === "kader" ? "🛡️ Beralih ke Akun Admin" : "🌿 Beralih ke Akun User"}
+                  {peran === "kader" ? "🛡️ Beralih ke Akun Admin" : "👤 Beralih ke Akun User"}
                 </button>
                 <button
                   type="button"
@@ -534,6 +571,60 @@ export const App: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (MUNCUL DI SEMUA TAB) */}
+      {rekamLatar.status !== "idle" && (
+        <div
+          className={`global-rec-banner ${rekamLatar.status === "dijeda" ? "paused" : ""}`}
+          data-tick={detikRekamTick}
+        >
+          <div className="global-rec-left" onClick={() => setTabAktif("peta")}>
+            <span className="global-rec-pulse-dot" />
+            <Radio size={15} />
+            <div className="global-rec-text">
+              <strong>
+                {rekamLatar.status === "merekam"
+                  ? "SEDANG MEREKAM DI LATAR BELAKANG"
+                  : "PEREKAMAN LATAR DIJEDA"}
+              </strong>
+              <span>
+                {formatDurasi(durasiRekamMs(rekamLatar))} • {ringkasanRekam(rekamLatar)}
+              </span>
+            </div>
+          </div>
+
+          <div className="global-rec-actions">
+            <button
+              type="button"
+              className="global-rec-btn"
+              onClick={() =>
+                rekamLatar.status === "merekam"
+                  ? perekamLatar.jeda()
+                  : perekamLatar.lanjutkan()
+              }
+            >
+              {rekamLatar.status === "merekam" ? (
+                <>
+                  <Pause size={13} /> Jeda
+                </>
+              ) : (
+                <>
+                  <Play size={13} /> Lanjut
+                </>
+              )}
+            </button>
+            {tabAktif !== "peta" && (
+              <button
+                type="button"
+                className="global-rec-btn primary"
+                onClick={() => setTabAktif("peta")}
+              >
+                Buka Peta
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* TOAST FEEDBACK */}
       {notifToast && <div className="avenza-toast">{notifToast}</div>}
@@ -609,11 +700,13 @@ export const App: React.FC = () => {
           <RewardView
             dataSpasial={dataSpasial}
             profil={profil}
+            peran={peran}
             sertifikatList={sertifikatList}
             klaimUpahList={klaimUpahList}
             pesanList={pesanList}
             tugasList={tugasList}
             onUbahProfil={setProfil}
+            onUbahPenandatanganSertifikat={handleUbahPenandatanganSertifikat}
             onAjukanKlaimUpah={(paketKe, rincian) => {
               const klaimBaru: KlaimUpahHOK = {
                 id: `HOK-${Date.now().toString().slice(-4)}`,
@@ -675,6 +768,10 @@ export const App: React.FC = () => {
             onTerbitkanSertifikat={(sert) =>
               setSertifikatList((prev) => [sert, ...prev])
             }
+            onUbahPenandatanganSertifikat={(nama, jabatan) => {
+              handleUbahPenandatanganSertifikat(nama, jabatan);
+              tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
+            }}
             onUpdateStatusKlaimHok={(id, status, catatanAdmin) =>
               setKlaimUpahList((prev) =>
                 prev.map((k) => (k.id === id ? { ...k, status, catatanAdmin } : k))

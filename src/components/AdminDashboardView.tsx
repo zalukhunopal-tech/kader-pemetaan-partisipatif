@@ -36,6 +36,7 @@ interface AdminDashboardViewProps {
   onUbahDataSpasial: (data: DataSpasialItem) => void;
   onHapusDataSpasial: (id: string) => void;
   onTerbitkanSertifikat: (sert: SertifikatKader) => void;
+  onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
   onUpdateStatusKlaimHok: (
     id: string,
     status: KlaimUpahHOK["status"],
@@ -59,6 +60,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onUbahDataSpasial,
   onHapusDataSpasial,
   onTerbitkanSertifikat,
+  onUbahPenandatanganSertifikat,
   onUpdateStatusKlaimHok,
   onTambahPengumuman,
   onTambahTugas,
@@ -89,11 +91,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [isiAnn, setIsiAnn] = useState("");
   const [katAnn] = useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
 
-  // Form Penerbitan Sertifikat
+  // Form Penerbitan & Pengaturan Penandatangan Sertifikat
   const [nomorSertBaru, setNomorSertBaru] = useState(
     `001/SERT-KPP/${new Date().getFullYear()}`
   );
-  const [penandatangan, setPenandatangan] = useState("Koordinator Program GIS");
+  const [penandatangan, setPenandatangan] = useState(
+    profilKader.namaPenandatanganSertifikat || "Koordinator Program GIS"
+  );
+  const [jabatanPenandatangan, setJabatanPenandatangan] = useState(
+    profilKader.jabatanPenandatanganSertifikat || "Koordinator Verifikasi Spasial"
+  );
 
   const handleBuatTugas = (e: React.FormEvent) => {
     e.preventDefault();
@@ -691,10 +698,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div className="section-card">
             <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Award size={18} color="#0d7344" /> Penerbitan Sertifikat Resmi
+              <Award size={18} color="#0d7344" /> Pengaturan Penandatangan & Penerbitan Sertifikat
             </h3>
 
-            <div className="form-row-2">
+            <div className="form-row-3">
               <div>
                 <label>Nomor Sertifikat</label>
                 <input
@@ -705,38 +712,101 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 />
               </div>
               <div>
-                <label>Pejabat Penandatangan</label>
+                <label>Nama Pejabat Penandatangan</label>
                 <input
                   type="text"
                   className="form-input"
+                  placeholder="Nama yang menandatangani sertifikat"
                   value={penandatangan}
-                  onChange={(e) => setPenandatangan(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPenandatangan(val);
+                    onUbahPenandatanganSertifikat?.(val, jabatanPenandatangan);
+                  }}
+                />
+              </div>
+              <div>
+                <label>Jabatan Penandatangan</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Jabatan pejabat penandatangan"
+                  value={jabatanPenandatangan}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setJabatanPenandatangan(val);
+                    onUbahPenandatanganSertifikat?.(penandatangan, val);
+                  }}
                 />
               </div>
             </div>
 
-            <button
-              type="button"
-              className="btn-primary"
-              style={{ marginTop: 12, width: "100%" }}
-              onClick={() =>
-                onTerbitkanSertifikat({
-                  id: `CERT-${Date.now().toString().slice(-4)}`,
-                  nomorSertifikat: nomorSertBaru,
-                  idKader: profilKader.idKader,
-                  namaKader: profilKader.nama,
-                  desaWilayah: profilKader.desaWilayah,
-                  namaOrganisasi: profilKader.namaOrganisasi,
-                  tanggalTerbit: new Date().toISOString().slice(0, 10),
-                  alasanCapaian: "1 Paket Survei & Pemetaan Partisipatif",
-                  status: "diterbitkan",
-                  ditandatanganiOleh: penandatangan,
-                  jabatanPenandatangan: "Koordinator Program GIS"
-                })
-              }
-            >
-              🏅 Terbitkan Sertifikat ({sertifikatList.length} Terbit)
-            </button>
+            <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ flex: "1 1 200px" }}
+                onClick={() =>
+                  onUbahPenandatanganSertifikat?.(penandatangan, jabatanPenandatangan)
+                }
+              >
+                ✍️ Simpan Nama Penandatangan Sertifikat
+              </button>
+
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ flex: "1 1 220px" }}
+                onClick={() =>
+                  onTerbitkanSertifikat({
+                    id: `CERT-${Date.now().toString().slice(-4)}`,
+                    nomorSertifikat: nomorSertBaru,
+                    idKader: profilKader.idKader,
+                    namaKader: profilKader.nama,
+                    desaWilayah: profilKader.desaWilayah,
+                    namaOrganisasi: profilKader.namaOrganisasi,
+                    tanggalTerbit: new Date().toISOString().slice(0, 10),
+                    alasanCapaian: "Sertifikat Pemetaan Partisipatif",
+                    status: "diterbitkan",
+                    ditandatanganiOleh: penandatangan,
+                    jabatanPenandatangan,
+                    fotoKaderBase64: profilKader.fotoKaderBase64
+                  })
+                }
+              >
+                🏅 Terbitkan Sertifikat ({sertifikatList.length} Terbit)
+              </button>
+            </div>
+
+            {sertifikatList.length > 0 && (
+              <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                {sertifikatList.map((s) => (
+                  <div
+                    key={s.id}
+                    style={{
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      fontSize: "0.84rem"
+                    }}
+                  >
+                    <div>
+                      <strong>{s.nomorSertifikat}</strong> — {s.namaKader}
+                      <div style={{ color: "#047857", fontSize: "0.78rem" }}>
+                        Ditandatangani oleh: <strong>{s.ditandatanganiOleh}</strong> ({s.jabatanPenandatangan})
+                      </div>
+                    </div>
+                    <span className="badge-sync status-terverifikasi">TERBIT</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="section-card">

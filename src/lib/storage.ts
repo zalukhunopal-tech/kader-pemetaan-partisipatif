@@ -54,7 +54,9 @@ export const PROFIL_BAWAAN: ProfilKader = {
   namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
   tarifHokRupiah: 150000,
   modePerhitunganUpah: "kumulatif",
-  modeKombinasiTarget: "per_kategori"
+  modeKombinasiTarget: "per_kategori",
+  namaPenandatanganSertifikat: "Koordinator Program GIS",
+  jabatanPenandatanganSertifikat: "Koordinator Verifikasi Spasial"
 };
 
 // Seluruh data awal dimulai kosong (tanpa data contoh/dummy)

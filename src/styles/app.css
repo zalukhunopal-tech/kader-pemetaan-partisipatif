@@ -3009,3 +3009,193 @@ label {
     font-size: 0.66rem;
   }
 }
+
+/* ============================================================================
+   PEREKAMAN LATAR BELAKANG (GLOBAL BANNER & BADGE SEDANG MEREKAM)
+   ============================================================================ */
+.global-rec-banner {
+  background: linear-gradient(90deg, #991b1b 0%, #dc2626 55%, #b91c1c 100%);
+  color: #ffffff;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.28);
+  z-index: 50;
+}
+
+.global-rec-banner.paused {
+  background: linear-gradient(90deg, #92400e 0%, #d97706 100%);
+}
+
+.global-rec-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 0;
+  flex: 1;
+}
+
+.global-rec-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.85);
+  animation: pulseRecWhite 1.3s infinite;
+  flex-shrink: 0;
+}
+
+.global-rec-banner.paused .global-rec-pulse-dot {
+  animation: none;
+  background: #fde68a;
+}
+
+@keyframes pulseRecWhite {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.85);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+.global-rec-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.global-rec-text strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.global-rec-text span {
+  font-size: 0.74rem;
+  color: #fee2e2;
+  font-weight: 600;
+}
+
+.global-rec-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.global-rec-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.global-rec-btn.primary {
+  background: #ffffff;
+  color: #991b1b;
+  border-color: #ffffff;
+}
+
+.rec-status-badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #dc2626;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.rec-timer-chip {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-weight: 800;
+}
+
+.rec-dot.paused {
+  background: #f59e0b;
+  animation: none;
+}
+
+/* ============================================================================
+   AVATAR SILUET ORANG, FOTO KADER & PENGATURAN PENANDATANGAN SERTIFIKAT
+   ============================================================================ */
+.avatar-silhouette-btn {
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.visual-avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.visual-avatar-cam-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fbbf24;
+  color: #022c22;
+  border: 2px solid #042f2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cert-admin-signer-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #f0f9ff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 12px;
+}
+
+.cert-admin-signer-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: #0369a1;
+  margin-bottom: 10px;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: var(--avenza-green);
+  border: 1.5px solid var(--avenza-green);
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 9px 16px;
+  border-radius: 99px;
+  cursor: pointer;
+}

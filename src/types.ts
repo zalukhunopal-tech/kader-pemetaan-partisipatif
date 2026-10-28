@@ -103,6 +103,9 @@ export interface ProfilKader {
   tarifHokRupiah: number;
   modePerhitunganUpah: "kumulatif" | "reset_setelah_sertifikat";
   modeKombinasiTarget: "per_kategori" | "gabungan_proporsional";
+  fotoKaderBase64?: string;
+  namaPenandatanganSertifikat?: string;
+  jabatanPenandatanganSertifikat?: string;
 }
 
 export interface SertifikatKader {
@@ -117,6 +120,7 @@ export interface SertifikatKader {
   status: "menunggu_admin" | "diterbitkan";
   ditandatanganiOleh: string;
   jabatanPenandatangan: string;
+  fotoKaderBase64?: string;
 }
 
 export interface KlaimUpahHOK {

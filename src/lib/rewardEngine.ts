@@ -69,7 +69,7 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
     level: 1,
     namaLevel: "Penjelajah Dasar",
     kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
-    ikon: "🌱",
+    ikon: "👤",
     minSkor: 0,
     deskripsiSingkat: "Memulai orientasi alat GPS dan pengenalan peta dasar wilayah desa."
   },
