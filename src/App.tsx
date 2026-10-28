@@ -37,7 +37,7 @@ import {
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
+import { AkunSesi, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
@@ -62,6 +62,7 @@ import { TugasPengumumanView } from "./components/TugasPengumumanView";
 import { KomunikasiView } from "./components/KomunikasiView";
 import { AdminDashboardView } from "./components/AdminDashboardView";
 import { SmartwatchModal } from "./components/SmartwatchModal";
+import { GantiSandiModal } from "./components/GantiSandiModal";
 import {
   Award,
   Bell,
@@ -81,12 +82,13 @@ import {
   Radio,
   Pause,
   Play,
-  Watch
+  Watch,
+  KeyRound
 } from "lucide-react";
 
 export const App: React.FC = () => {
   // Sesi Pengguna Login
-  const [sesiPengguna, setSesiPengguna] = useState<AkunPengguna | null>(() =>
+  const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() =>
     muatSesiPengguna()
   );
 
@@ -112,6 +114,7 @@ export const App: React.FC = () => {
   const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
   const [bukaSmartwatch, setBukaSmartwatch] = useState<boolean>(false);
+  const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const [notifToast, setNotifToast] = useState<string | null>(null);
 
@@ -219,7 +222,7 @@ export const App: React.FC = () => {
   };
 
   // Handler Login Berhasil
-  const handleLoginSukses = (akun: AkunPengguna) => {
+  const handleLoginSukses = (akun: AkunSesi) => {
     setSesiPengguna(akun);
     setPeranTampilan(akun.peran);
     setProfil((prev) => ({
@@ -704,6 +707,17 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
+                  setBukaGantiSandi(true);
+                }}
+              >
+                <KeyRound size={16} /> Kata sandi
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
                 style={{ color: "#dc2626", fontWeight: 700 }}
                 onClick={() => {
                   setBukaMenuTitikTiga(false);
@@ -880,6 +894,7 @@ export const App: React.FC = () => {
             sertifikatList={sertifikatList}
             tugasList={tugasList}
             kaderAktifList={kaderAktifList}
+            sesiAdmin={sesiPengguna}
             onVerifikasiData={(id: string, status: StatusSinkron, catatan?: string) =>
               setDataSpasial((prev) =>
                 prev.map((d) =>
@@ -914,6 +929,17 @@ export const App: React.FC = () => {
           />
         )}
       </main>
+
+      {bukaGantiSandi && sesiPengguna && (
+        <GantiSandiModal
+          email={sesiPengguna.email}
+          onTutup={() => setBukaGantiSandi(false)}
+          onSukses={() => {
+            setBukaGantiSandi(false);
+            tampilkanToast("✓ Kata sandi berhasil diganti.");
+          }}
+        />
+      )}
 
       {/* MODAL SMARTWATCH BLUETOOTH */}
       {bukaSmartwatch && (

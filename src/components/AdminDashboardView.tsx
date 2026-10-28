@@ -11,6 +11,8 @@ import {
   TugasPemetaan
 } from "../types";
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
+import { AkunSesi } from "../lib/auth";
+import { AkunAdminPanel } from "./AkunAdminPanel";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import {
@@ -32,6 +34,7 @@ interface AdminDashboardViewProps {
   sertifikatList: SertifikatKader[];
   tugasList: TugasPemetaan[];
   kaderAktifList: KaderAktifPresence[];
+  sesiAdmin: AkunSesi | null;
   onVerifikasiData: (id: string, status: StatusSinkron, catatan?: string) => void;
   onUbahDataSpasial: (data: DataSpasialItem) => void;
   onHapusDataSpasial: (id: string) => void;
@@ -50,6 +53,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   sertifikatList,
   tugasList,
   kaderAktifList,
+  sesiAdmin,
   onVerifikasiData,
   onUbahDataSpasial,
   onHapusDataSpasial,
@@ -61,7 +65,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onFokusKePeta
 }) => {
   const [subTabAdmin, setSubTabAdmin] = useState<
-    "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat"
+    "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun"
   >("kader_aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
@@ -281,8 +285,32 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <Award size={15} color="#38bdf8" />
             <span>Sertifikat</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTabAdmin("akun")}
+            style={{
+              padding: "10px 10px",
+              borderRadius: "10px",
+              border: subTabAdmin === "akun" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
+              background: subTabAdmin === "akun" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
+              color: "#ffffff",
+              fontSize: "0.78rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6
+            }}
+          >
+            <Compass size={15} color="#38bdf8" />
+            <span>Akun</span>
+          </button>
         </div>
       </div>
+
+      {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} />}
 
       {/* 2. TAB A: MONITOR KADER AKTIF */}
       {subTabAdmin === "kader_aktif" && (
