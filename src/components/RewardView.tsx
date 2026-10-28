@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataSpasialItem,
+  LogoSertifikatItem,
+  PenandatanganSertifikatItem,
   PeranPengguna,
   PesanKomunikasi,
   ProfilKader,
@@ -27,7 +29,9 @@ import {
   PenTool,
   ChevronLeft,
   ChevronRight,
-  Lock
+  Lock,
+  Plus,
+  Image as ImageIcon
 } from "lucide-react";
 
 interface RewardViewProps {
@@ -42,11 +46,66 @@ interface RewardViewProps {
 }
 
 /**
- * Komponen SVG Siluet Orang (Avatar Kader)
+ * Daftar Logo Default pada Header Sertifikat (Dapat Diatur, Ditambah, Diubah & Dihapus)
+ */
+export const DEFAULT_LOGO_SERTIFIKAT: LogoSertifikatItem[] = [
+  {
+    id: "logo-1",
+    nama: "BALAI SPASIAL",
+    warnaAksen: "#facc15"
+  },
+  {
+    id: "logo-2",
+    nama: "DESA MANDIRI",
+    warnaAksen: "#38bdf8"
+  },
+  {
+    id: "logo-3",
+    nama: "RIMBA LESTARI",
+    warnaAksen: "#22c55e"
+  },
+  {
+    id: "logo-4",
+    nama: "GEOKADER ID",
+    warnaAksen: "#a855f7"
+  }
+];
+
+/**
+ * Daftar Penandatangan Default pada Sertifikat (Dapat Diatur, Ditambah, Diubah & Dihapus)
+ */
+export const DEFAULT_PENANDATANGAN_SERTIFIKAT: PenandatanganSertifikatItem[] = [
+  {
+    id: "sign-1",
+    jabatan: "Koordinator Wilayah",
+    instansi: "Balai Pemetaan Spasial Desa",
+    nama: "Dr. Ir. Jonni Marwa, S.Hut., M.Si."
+  },
+  {
+    id: "sign-2",
+    jabatan: "Ketua Pelaksana",
+    instansi: "Jaringan Kader Geospasial",
+    nama: "Dr. Hj. Farah Diba, S.Hut., M.Si."
+  },
+  {
+    id: "sign-3",
+    jabatan: "Kepala Divisi Verifikasi",
+    instansi: "Pusat Data Geospasial Komunitas",
+    nama: "Dr. Ir. Rudi Hartono, S.Hut., M.Si."
+  },
+  {
+    id: "sign-4",
+    jabatan: "Ketua Umum",
+    instansi: "Indonesia Mapping Community",
+    nama: "Zulfikar Mardiyadi, S.Hut., M.Si."
+  }
+];
+
+/**
+ * Komponen SVG Siluet Orang bergaya WhatsApp Default Avatar
  */
 export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
-  size = 34,
-  warna = "#fde68a"
+  size = 38
 }) => (
   <svg
     width={size}
@@ -56,11 +115,22 @@ export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden="true"
   >
-    <circle cx="32" cy="21" r="12" fill={warna} />
-    <path
-      d="M12 54C12 42.954 20.954 35 32 35C43.046 35 52 42.954 52 54V56H12V54Z"
-      fill={warna}
-    />
+    <defs>
+      <clipPath id="waAvatarClip">
+        <circle cx="32" cy="32" r="30" />
+      </clipPath>
+    </defs>
+    {/* Latar abu-biru khas avatar kosong WhatsApp */}
+    <circle cx="32" cy="32" r="30" fill="#6b7c85" />
+    <g clipPath="url(#waAvatarClip)">
+      {/* Kepala bulat halus khas WhatsApp */}
+      <circle cx="32" cy="23" r="11.5" fill="#cfd8dc" />
+      {/* Bahu melengkung kubah khas WhatsApp */}
+      <path
+        d="M10 58C10 44.5 19.5 38 32 38C44.5 38 54 44.5 54 58V64H10V58Z"
+        fill="#cfd8dc"
+      />
+    </g>
   </svg>
 );
 
@@ -106,10 +176,10 @@ const KunciLevelSvg: React.FC<{ size?: number; warna?: string }> = ({
 );
 
 /**
- * Menggambar Siluet Orang di dalam Bingkai Foto pada Kanvas Sertifikat
+ * Menggambar Siluet Orang bergaya WhatsApp di dalam Bingkai Passfoto Sertifikat
  * ketika kader belum mengunggah foto.
  */
-function gambarSiluetOrangCanvas(
+function gambarSiluetWhatsAppCanvas(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -117,24 +187,48 @@ function gambarSiluetOrangCanvas(
   h: number
 ) {
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+
+  // Latar belakang abu-slate khas WhatsApp default profile
+  ctx.fillStyle = "#6b7c85";
+  ctx.fillRect(x, y, w, h);
+
   const cx = x + w / 2;
   const cy = y + h / 2;
 
-  const bg = ctx.createLinearGradient(x, y, x, y + h);
-  bg.addColorStop(0, "#262626");
-  bg.addColorStop(1, "#171717");
-  ctx.fillStyle = bg;
-  ctx.fillRect(x, y, w, h);
-
-  ctx.fillStyle = "#f4b342";
+  // Lingkaran halus di tengah seperti ikon kontak WhatsApp
+  ctx.fillStyle = "#5c6d75";
   ctx.beginPath();
-  ctx.arc(cx, cy - 18, 22, 0, Math.PI * 2);
+  ctx.arc(cx, cy, Math.min(w, h) * 0.44, 0, Math.PI * 2);
   ctx.fill();
 
+  // Kepala bulat putih-abu khas WhatsApp
+  const headR = w * 0.21;
+  ctx.fillStyle = "#dfe5e7";
   ctx.beginPath();
-  ctx.arc(cx, cy + 50, 44, Math.PI * 1.12, Math.PI * 1.88, false);
-  ctx.lineTo(cx + 38, y + h);
-  ctx.lineTo(cx - 38, y + h);
+  ctx.arc(cx, cy - h * 0.11, headR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bahu kubah mulus khas WhatsApp
+  const shoulderW = w * 0.42;
+  const shoulderTopY = cy + h * 0.08;
+  const shoulderBottomY = y + h;
+  ctx.beginPath();
+  ctx.moveTo(cx - shoulderW, shoulderBottomY);
+  ctx.quadraticCurveTo(
+    cx - shoulderW,
+    shoulderTopY,
+    cx,
+    shoulderTopY
+  );
+  ctx.quadraticCurveTo(
+    cx + shoulderW,
+    shoulderTopY,
+    cx + shoulderW,
+    shoulderBottomY
+  );
   ctx.closePath();
   ctx.fill();
 
@@ -142,7 +236,7 @@ function gambarSiluetOrangCanvas(
 }
 
 /**
- * Menggambar Bingkai Foto Kader (Passfoto Resmi) di atas Kanvas Sertifikat
+ * Menggambar Passfoto Kader di Tengah Bawah Sertifikat (dengan 4 Siku Sudut seperti Referensi)
  */
 function gambarBingkaiFotoKaderCanvas(
   ctx: CanvasRenderingContext2D,
@@ -154,29 +248,23 @@ function gambarBingkaiFotoKaderCanvas(
 ) {
   ctx.save();
 
-  ctx.shadowColor = "rgba(0, 0, 0, 0.14)";
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 5;
-
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#f4b342";
-  ctx.lineWidth = 3.5;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 10);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.shadowColor = "transparent";
-
-  const pad = 7;
+  const pad = 6;
   const ix = x + pad;
   const iy = y + pad;
   const iw = w - pad * 2;
   const ih = h - pad * 2;
 
+  // Bayangan lembut di belakang foto
+  ctx.shadowColor = "rgba(15, 23, 42, 0.18)";
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(ix, iy, iw, ih);
+  ctx.shadowColor = "transparent";
+
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(ix, iy, iw, ih, 6);
+  ctx.rect(ix, iy, iw, ih);
   ctx.clip();
 
   if (fotoImg && fotoImg.complete && fotoImg.naturalWidth > 0) {
@@ -196,328 +284,386 @@ function gambarBingkaiFotoKaderCanvas(
     }
     ctx.drawImage(fotoImg, sx, sy, sw, sh, ix, iy, iw, ih);
   } else {
-    gambarSiluetOrangCanvas(ctx, ix, iy, iw, ih);
+    gambarSiluetWhatsAppCanvas(ctx, ix, iy, iw, ih);
   }
   ctx.restore();
 
-  ctx.strokeStyle = "#262626";
-  ctx.lineWidth = 1.5;
+  // Garis tepi tipis foto
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(ix, iy, iw, ih);
+
+  // 4 Siku Sudut Biru Navy (Corner Brackets) persis seperti pada Referensi Foto
+  const cornerLen = 22;
+  ctx.strokeStyle = "#1e3a8a";
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = "square";
+
+  // Kiri Atas
   ctx.beginPath();
-  ctx.roundRect(ix, iy, iw, ih, 6);
+  ctx.moveTo(x, y + cornerLen);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x + cornerLen, y);
+  ctx.stroke();
+
+  // Kanan Atas
+  ctx.beginPath();
+  ctx.moveTo(x + w - cornerLen, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + cornerLen);
+  ctx.stroke();
+
+  // Kiri Bawah
+  ctx.beginPath();
+  ctx.moveTo(x, y + h - cornerLen);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x + cornerLen, y + h);
+  ctx.stroke();
+
+  // Kanan Bawah
+  ctx.beginPath();
+  ctx.moveTo(x + w - cornerLen, y + h);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x + w, y + h - cornerLen);
   ctx.stroke();
 
   ctx.restore();
 }
 
 /**
- * Menggambar Logo Perisai Kader Pemetaan di Pojok Kiri Atas Sertifikat
+ * Menggambar Barisan Logo di dalam Header V-Chevron Biru Navy (Sesuai Referensi)
  */
-function gambarLogoPerisaiKiriAtas(
+function gambarDeretanLogoHeader(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  yCenter: number,
+  logos: LogoSertifikatItem[],
+  logoImagesMap: Record<string, HTMLImageElement>
+) {
+  if (!logos.length) return;
+  ctx.save();
+
+  const radius = 37;
+  const gap = 26;
+  const totalW = logos.length * (radius * 2) + (logos.length - 1) * gap;
+  let startX = centerX - totalW / 2 + radius;
+
+  const paletWarna = ["#eab308", "#f8fafc", "#16a34a", "#06b6d4", "#f97316"];
+
+  logos.forEach((logo, idx) => {
+    const cx = startX + idx * (radius * 2 + gap);
+    const cy = yCenter;
+    const warna = logo.warnaAksen || paletWarna[idx % paletWarna.length];
+    const img = logoImagesMap[logo.id];
+
+    // Lingkaran luar emblem
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = warna;
+    ctx.stroke();
+    ctx.restore();
+
+    if (img && img.complete && img.naturalWidth > 0) {
+      // Gambar logo yang diunggah user
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius - 4, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(
+        img,
+        cx - (radius - 4),
+        cy - (radius - 4),
+        (radius - 4) * 2,
+        (radius - 4) * 2
+      );
+      ctx.restore();
+    } else {
+      // Emblem vektor organisasi otomatis jika belum unggah gambar
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius - 5, 0, Math.PI * 2);
+      ctx.fillStyle = idx % 2 === 0 ? "#0f172a" : "#ffffff";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = warna;
+      ctx.stroke();
+
+      // Ornamen bintang/kompas kecil di tengah logo
+      ctx.fillStyle = warna;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 3, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = idx % 2 === 0 ? "#0f172a" : "#ffffff";
+      ctx.font = "900 9px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      const inisial = (logo.nama || "GIS")
+        .split(/\s+/)
+        .map((k) => k[0] || "")
+        .join("")
+        .slice(0, 3)
+        .toUpperCase();
+      ctx.fillText(inisial, cx, cy);
+
+      // Teks nama pendek di bagian bawah lingkaran logo
+      ctx.fillStyle = idx % 2 === 0 ? "#fde68a" : "#1e293b";
+      ctx.font = "bold 7.5px system-ui, sans-serif";
+      ctx.fillText((logo.nama || " MITRA ").slice(0, 12).toUpperCase(), cx, cy + 18);
+      ctx.restore();
+    }
+  });
+
+  ctx.restore();
+}
+
+/**
+ * Menggambar QR Code Verifikasi di Sisi Kanan Sertifikat (Sesuai Referensi)
+ */
+function gambarQrCodeVerifikasi(
   ctx: CanvasRenderingContext2D,
   x: number,
-  y: number
+  y: number,
+  size: number,
+  seedStr: string
 ) {
   ctx.save();
-  ctx.translate(x, y);
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(x - 8, y - 8, size + 16, size + 16);
+  ctx.strokeRect(x - 8, y - 8, size + 16, size + 16);
 
-  ctx.beginPath();
-  ctx.moveTo(0, -48);
-  ctx.lineTo(42, -32);
-  ctx.lineTo(42, 8);
-  ctx.quadraticCurveTo(42, 42, 0, 58);
-  ctx.quadraticCurveTo(-42, 42, -42, 8);
-  ctx.lineTo(-42, -32);
-  ctx.closePath();
-  ctx.fillStyle = "#262626";
-  ctx.fill();
-  ctx.lineWidth = 3.5;
-  ctx.strokeStyle = "#f4b342";
-  ctx.stroke();
+  const cells = 21;
+  const cellSize = size / cells;
 
-  ctx.fillStyle = "#f4b342";
-  ctx.fillRect(-35, -28, 70, 14);
-  ctx.fillStyle = "#171717";
-  ctx.font = "900 9px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("KADER PEMETAAN", 0, -18);
+  // Hash sederhana dari nomor sertifikat agar pola QR konsisten
+  let hash = 2166136261;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash ^= seedStr.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
 
-  ctx.strokeStyle = "#f4b342";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(0, 12, 18, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.fillStyle = "#f4b342";
-  ctx.beginPath();
-  ctx.moveTo(0, -4);
-  ctx.lineTo(5, 8);
-  ctx.lineTo(17, 12);
-  ctx.lineTo(5, 16);
-  ctx.lineTo(0, 28);
-  ctx.lineTo(-5, 16);
-  ctx.lineTo(-17, 12);
-  ctx.lineTo(-5, 8);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
-}
-
-/**
- * Menggambar Ornamen Segitiga Geometris sesuai Referensi PDF Sertifikat
- */
-function gambarOrnamenSegitigaReferensi(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number
-) {
-  ctx.save();
-
-  ctx.fillStyle = "#f6eadb";
-  ctx.beginPath();
-  ctx.moveTo(0, 180);
-  ctx.lineTo(680, 0);
-  ctx.lineTo(910, 420);
-  ctx.lineTo(240, H);
-  ctx.lineTo(0, H);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#f2e2ce";
-  ctx.beginPath();
-  ctx.moveTo(680, 0);
-  ctx.lineTo(1240, 0);
-  ctx.lineTo(910, 420);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#f7efe4";
-  ctx.beginPath();
-  ctx.moveTo(910, 420);
-  ctx.lineTo(W, 240);
-  ctx.lineTo(W, H);
-  ctx.lineTo(240, H);
-  ctx.closePath();
-  ctx.fill();
-
-  const gradGoldTop = ctx.createLinearGradient(640, 0, 1180, 290);
-  gradGoldTop.addColorStop(0, "#f7c55f");
-  gradGoldTop.addColorStop(1, "#f0a52b");
-  ctx.fillStyle = gradGoldTop;
-  ctx.beginPath();
-  ctx.moveTo(640, 0);
-  ctx.lineTo(1170, 0);
-  ctx.lineTo(905, 275);
-  ctx.closePath();
-  ctx.fill();
-
-  const gradDarkTop = ctx.createLinearGradient(1170, 0, W, 380);
-  gradDarkTop.addColorStop(0, "#1f1f1f");
-  gradDarkTop.addColorStop(1, "#383838");
-  ctx.fillStyle = gradDarkTop;
-  ctx.beginPath();
-  ctx.moveTo(1170, 0);
-  ctx.lineTo(W, 0);
-  ctx.lineTo(W, 390);
-  ctx.lineTo(1375, 205);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#262626";
-  ctx.beginPath();
-  ctx.moveTo(1170, 0);
-  ctx.lineTo(1375, 205);
-  ctx.lineTo(1038, 138);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#f4b342";
-  ctx.beginPath();
-  ctx.moveTo(1375, 205);
-  ctx.lineTo(W, 390);
-  ctx.lineTo(1235, 345);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#242424";
-  ctx.beginPath();
-  ctx.moveTo(1395, 505);
-  ctx.lineTo(1548, 352);
-  ctx.lineTo(W, 410);
-  ctx.lineTo(W, 650);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#f4b342";
-  ctx.beginPath();
-  ctx.moveTo(1395, 505);
-  ctx.lineTo(W, 650);
-  ctx.lineTo(W, 910);
-  ctx.lineTo(1245, 655);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#262626";
-  ctx.beginPath();
-  ctx.moveTo(W, 910);
-  ctx.lineTo(W, H);
-  ctx.lineTo(1465, H);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#f4b342";
-  ctx.beginPath();
-  ctx.moveTo(0, H - 170);
-  ctx.lineTo(170, H);
-  ctx.lineTo(0, H);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "#262626";
-  ctx.beginPath();
-  ctx.moveTo(0, H - 170);
-  ctx.lineTo(82, H - 88);
-  ctx.lineTo(0, H - 5);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = "#262626";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(350, 0);
-  ctx.lineTo(665, 315);
-  ctx.lineTo(980, 0);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(1090, 285);
-  ctx.lineTo(1245, 440);
-  ctx.lineTo(1400, 285);
-  ctx.closePath();
-  ctx.stroke();
-
-  ctx.strokeStyle = "#f4b342";
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(575, 0);
-  ctx.lineTo(905, 330);
-  ctx.lineTo(1235, 0);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(1090, 560);
-  ctx.lineTo(1375, 845);
-  ctx.lineTo(W, 560);
-  ctx.stroke();
-
-  const gambarChevronKembar = (cx: number, cy: number, warna: string) => {
-    ctx.fillStyle = warna;
-    for (let i = 0; i < 2; i++) {
-      const ox = cx + i * 22;
-      ctx.beginPath();
-      ctx.moveTo(ox, cy);
-      ctx.lineTo(ox + 16, cy);
-      ctx.lineTo(ox + 8, cy + 13);
-      ctx.closePath();
-      ctx.fill();
-    }
+  const isFinderPattern = (r: number, c: number) => {
+    const inTopLeft = r < 7 && c < 7;
+    const inTopRight = r < 7 && c >= cells - 7;
+    const inBottomLeft = r >= cells - 7 && c < 7;
+    return inTopLeft || inTopRight || inBottomLeft;
   };
-  gambarChevronKembar(578, 108, "#262626");
-  gambarChevronKembar(290, 650, "#f4b342");
-  gambarChevronKembar(1110, 748, "#262626");
+
+  const drawFinder = (r0: number, c0: number) => {
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(x + c0 * cellSize, y + r0 * cellSize, 7 * cellSize, 7 * cellSize);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(
+      x + (c0 + 1) * cellSize,
+      y + (r0 + 1) * cellSize,
+      5 * cellSize,
+      5 * cellSize
+    );
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(
+      x + (c0 + 2) * cellSize,
+      y + (r0 + 2) * cellSize,
+      3 * cellSize,
+      3 * cellSize
+    );
+  };
+
+  drawFinder(0, 0);
+  drawFinder(0, cells - 7);
+  drawFinder(cells - 7, 0);
+
+  ctx.fillStyle = "#111827";
+  for (let r = 0; r < cells; r++) {
+    for (let c = 0; c < cells; c++) {
+      if (isFinderPattern(r, c)) continue;
+      if (r === 6 || c === 6) {
+        if ((r + c) % 2 === 0) {
+          ctx.fillRect(
+            x + c * cellSize,
+            y + r * cellSize,
+            cellSize + 0.4,
+            cellSize + 0.4
+          );
+        }
+        continue;
+      }
+      const v = Math.abs(Math.sin(r * 13.37 + c * 7.91 + (hash & 0xffff))) * 100;
+      if (v > 47) {
+        ctx.fillRect(
+          x + c * cellSize,
+          y + r * cellSize,
+          cellSize + 0.4,
+          cellSize + 0.4
+        );
+      }
+    }
+  }
 
   ctx.restore();
 }
 
 /**
- * Menggambar Stempel & Tanda Tangan Resmi di Bagian Bawah Sertifikat (Sesuai Referensi PDF)
+ * Menggambar Blok Penandatangan (Jabatan, Instansi, Stempel + Tanda Tangan, Nama)
+ * seperti pada Referensi Sertifikat
  */
-function gambarStempelDanTandaTanganResmi(
+function gambarSatuBlokPenandatangan(
   ctx: CanvasRenderingContext2D,
   cx: number,
   yTop: number,
-  namaPenandatangan: string,
-  jabatanPenandatangan: string
+  item: PenandatanganSertifikatItem,
+  idx: number,
+  ttdImg?: HTMLImageElement
 ) {
   ctx.save();
-
-  const stampX = cx - 85;
-  const stampY = yTop + 62;
-  ctx.save();
-  ctx.translate(stampX, stampY);
-  ctx.rotate(-0.18);
-  ctx.strokeStyle = "rgba(55, 48, 163, 0.72)";
-  ctx.fillStyle = "rgba(55, 48, 163, 0.72)";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(0, 0, 50, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(0, 0, 43, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, 0, 18, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.font = "bold 9px system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("★ SERTIFIKAT KADER ★", 0, -25);
-  ctx.font = "bold 8px system-ui, sans-serif";
-  ctx.fillText("PEMETAAN PARTISIPATIF", 0, 31);
-  ctx.font = "900 10px system-ui, sans-serif";
-  ctx.fillText("TERVERIFIKASI", 0, 4);
-  ctx.restore();
 
-  ctx.save();
-  ctx.strokeStyle = "#1e293b";
-  ctx.lineWidth = 3.2;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  ctx.moveTo(cx - 65, yTop + 74);
-  ctx.bezierCurveTo(cx - 35, yTop + 15, cx - 5, yTop + 95, cx + 18, yTop + 32);
-  ctx.bezierCurveTo(cx + 35, yTop - 5, cx + 55, yTop + 82, cx + 88, yTop + 44);
-  ctx.stroke();
-
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(cx - 50, yTop + 82);
-  ctx.quadraticCurveTo(cx + 15, yTop + 66, cx + 105, yTop + 78);
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#171717";
-  ctx.font = "bold 25px system-ui, -apple-system, sans-serif";
-  ctx.fillText(namaPenandatangan, cx, yTop + 122);
-
-  const wSign = Math.max(260, ctx.measureText(namaPenandatangan).width + 36);
-  ctx.strokeStyle = "#262626";
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.moveTo(cx - wSign / 2, yTop + 132);
-  ctx.lineTo(cx + wSign / 2, yTop + 132);
-  ctx.stroke();
+  // 1. Jabatan & Instansi di atas
+  ctx.fillStyle = "#1e293b";
+  ctx.font = "bold 17px system-ui, -apple-system, sans-serif";
+  ctx.fillText(item.jabatan || "Pejabat Penandatangan", cx, yTop);
 
   ctx.fillStyle = "#334155";
-  ctx.font = "600 19px system-ui, -apple-system, sans-serif";
-  ctx.fillText(jabatanPenandatangan, cx, yTop + 158);
+  ctx.font = "600 16px system-ui, -apple-system, sans-serif";
+  ctx.fillText(item.instansi || "", cx, yTop + 23);
+
+  // 2. Stempel Resmi Melingkar di Kiri-Tengah Blok
+  const stampX = cx - 34;
+  const stampY = yTop + 76;
+  ctx.save();
+  ctx.translate(stampX, stampY);
+  ctx.rotate(-0.14 + idx * 0.05);
+  ctx.strokeStyle = "rgba(67, 56, 202, 0.58)";
+  ctx.fillStyle = "rgba(67, 56, 202, 0.58)";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, 48, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 41, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, 17, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const labelStempel = (item.instansi || "VERIFIKASI SPASIAL")
+    .toUpperCase()
+    .slice(0, 22);
+  ctx.font = "bold 7.5px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`★ ${labelStempel} ★`, 0, -24);
+  ctx.fillText("TERVERIFIKASI RESMI", 0, 29);
+  ctx.font = "900 8.5px system-ui, sans-serif";
+  ctx.fillText("GEOKADER", 0, 3);
+  ctx.restore();
+
+  // 3. Tanda Tangan (Gambar Unggahan atau Goresan Tanda Tangan Kaligrafi)
+  if (ttdImg && ttdImg.complete && ttdImg.naturalWidth > 0) {
+    const maxW = 160;
+    const maxH = 82;
+    const scale = Math.min(maxW / ttdImg.naturalWidth, maxH / ttdImg.naturalHeight);
+    const dw = ttdImg.naturalWidth * scale;
+    const dh = ttdImg.naturalHeight * scale;
+    ctx.drawImage(ttdImg, cx - dw / 2, yTop + 34 + (maxH - dh) / 2, dw, dh);
+  } else {
+    ctx.save();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const offsetVar = (idx % 3) * 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - 64, yTop + 88);
+    ctx.bezierCurveTo(
+      cx - 34,
+      yTop + 32 - offsetVar,
+      cx - 8,
+      yTop + 106,
+      cx + 14,
+      yTop + 46 + offsetVar
+    );
+    ctx.bezierCurveTo(
+      cx + 34,
+      yTop + 20,
+      cx + 48,
+      yTop + 96,
+      cx + 78,
+      yTop + 58
+    );
+    ctx.stroke();
+
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(cx - 46, yTop + 95);
+    ctx.quadraticCurveTo(cx + 12, yTop + 80, cx + 88, yTop + 88);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 4. Nama Lengkap & Gelar Penandatangan di Bawah
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 17.5px system-ui, -apple-system, sans-serif";
+  ctx.fillText(item.nama || "Pejabat Verifikasi", cx, yTop + 142);
 
   ctx.restore();
+}
+
+/**
+ * Format Tanggal Indonesia (mis. 2026-10-28 -> 28 Oktober 2026)
+ */
+function formatTanggalSertifikatIndo(isoDate: string): string {
+  const bulanIndo = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember"
+  ];
+  const parts = isoDate.split("-");
+  if (parts.length === 3) {
+    const thn = parts[0];
+    const blnIdx = parseInt(parts[1], 10) - 1;
+    const tgl = parseInt(parts[2], 10);
+    if (!isNaN(blnIdx) && blnIdx >= 0 && blnIdx < 12 && !isNaN(tgl)) {
+      return `${tgl} ${bulanIndo[blnIdx]} ${thn}`;
+    }
+  }
+  return isoDate;
 }
 
 /**
  * Merender Sertifikat ke Canvas (1600 x 1131 px - A4 Landscape)
- * Mengacu pada Referensi PDF Sertifikat User:
- * - Desain geometris segitiga kuning-emas & hitam elegan di atas latar putih gading bersih
- * - Tanpa kartu capaian (tidak perlu dibuat capaian)
- * - Judul kegiatan/program: "Sertifikat Kader Pemetaan Partisipatif"
+ * Mengacu langsung pada Gambar Referensi Sertifikat Baru:
+ * - Header V-Chevron Biru Navy Tua + Pita Emas Metalik + Sayap Perak
+ * - Deretan Logo di dalam V-Chevron (bisa diatur/ditambah)
+ * - Teks bebas redundansi kata
+ * - QR Code di sisi kanan
+ * - Passfoto 3x4 di tengah bawah (dengan siluet WhatsApp jika belum ada foto)
+ * - Barisan Penandatangan di sisi kiri & kanan foto (bisa diatur/ditambah)
  */
 function lukisSertifikatKeCanvas(
   canvas: HTMLCanvasElement,
   sert: SertifikatKader,
-  fotoImg: HTMLImageElement | null
+  fotoImg: HTMLImageElement | null,
+  logoImagesMap: Record<string, HTMLImageElement>,
+  ttdImagesMap: Record<string, HTMLImageElement>
 ) {
   const W = 1600;
   const H = 1131;
@@ -528,94 +674,249 @@ function lukisSertifikatKeCanvas(
 
   ctx.clearRect(0, 0, W, H);
 
-  ctx.fillStyle = "#fdfcf9";
+  // 1. Margin Luar Abu-Perak Halus (seperti bingkai luar pada gambar referensi)
+  const outerGrad = ctx.createLinearGradient(0, 0, W, H);
+  outerGrad.addColorStop(0, "#cbd5e1");
+  outerGrad.addColorStop(0.5, "#e2e8f0");
+  outerGrad.addColorStop(1, "#cbd5e1");
+  ctx.fillStyle = outerGrad;
   ctx.fillRect(0, 0, W, H);
 
-  gambarOrnamenSegitigaReferensi(ctx, W, H);
-  gambarLogoPerisaiKiriAtas(ctx, 118, 96);
+  const margin = 30;
+  const innerX = margin;
+  const innerY = margin;
+  const innerW = W - margin * 2;
+  const innerH = H - margin * 2;
 
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#475569";
-  ctx.font = "600 15px ui-monospace, SFMono-Regular, Consolas, monospace";
-  ctx.fillText(`No. Sertifikat: ${sert.nomorSertifikat}`, 180, 96);
-  ctx.fillText(`Tanggal: ${sert.tanggalTerbit}`, 180, 120);
+  // 2. Latar Dalam Putih-Perak Bersih
+  const bodyGrad = ctx.createLinearGradient(0, innerY + 200, 0, H - margin);
+  bodyGrad.addColorStop(0, "#e5eaf0");
+  bodyGrad.addColorStop(0.32, "#f8fafc");
+  bodyGrad.addColorStop(1, "#ffffff");
+  ctx.fillStyle = bodyGrad;
+  ctx.fillRect(innerX, innerY, innerW, innerH);
 
-  gambarBingkaiFotoKaderCanvas(ctx, 108, 220, 164, 212, fotoImg);
-
-  const centerX = 690;
+  // 3. Sayap Segitiga Abu-Perak di Kiri & Kanan Bawah Header (sesuai referensi)
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "900 84px Georgia, 'Times New Roman', serif";
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#f4b342";
-  ctx.strokeText("S E R T I F I K A T", centerX + 4, 264);
-  ctx.fillStyle = "#222222";
-  ctx.fillText("S E R T I F I K A T", centerX, 260);
+  ctx.beginPath();
+  ctx.rect(innerX, innerY, innerW, innerH);
+  ctx.clip();
+
+  ctx.fillStyle = "#cfd8e3";
+  ctx.beginPath();
+  ctx.moveTo(innerX, innerY + 150);
+  ctx.lineTo(W / 2, innerY + 318);
+  ctx.lineTo(innerX, innerY + 465);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(innerX + innerW, innerY + 150);
+  ctx.lineTo(W / 2, innerY + 318);
+  ctx.lineTo(innerX + innerW, innerY + 465);
+  ctx.closePath();
+  ctx.fill();
+
+  // 4. Pita V-Chevron Emas Metalik di Bawah Header Biru
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+
+  const goldRibbonGrad = ctx.createLinearGradient(innerX, 0, innerX + innerW, 0);
+  goldRibbonGrad.addColorStop(0, "#c8a95b");
+  goldRibbonGrad.addColorStop(0.3, "#e5ca82");
+  goldRibbonGrad.addColorStop(0.5, "#b38e3d");
+  goldRibbonGrad.addColorStop(0.7, "#e5ca82");
+  goldRibbonGrad.addColorStop(1, "#c09e4e");
+  ctx.fillStyle = goldRibbonGrad;
+  ctx.beginPath();
+  ctx.moveTo(innerX, innerY + 146);
+  ctx.lineTo(W / 2, innerY + 324);
+  ctx.lineTo(innerX + innerW, innerY + 146);
+  ctx.lineTo(innerX + innerW, innerY + 184);
+  ctx.lineTo(W / 2, innerY + 344);
+  ctx.lineTo(innerX, innerY + 184);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#262626";
-  ctx.font = "bold 30px Georgia, 'Times New Roman', serif";
-  ctx.fillText("Diberikan Kepada", centerX, 345);
+  // 5. Header V-Chevron Biru Navy Tua (Royal Navy Blue seperti referensi)
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.38)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
 
-  const namaTampil = (sert.namaKader || "Kader Pemetaan").replace(
+  const navyGrad = ctx.createLinearGradient(0, innerY, 0, innerY + 324);
+  navyGrad.addColorStop(0, "#003f7a");
+  navyGrad.addColorStop(0.55, "#002855");
+  navyGrad.addColorStop(1, "#001433");
+  ctx.fillStyle = navyGrad;
+  ctx.beginPath();
+  ctx.moveTo(innerX, innerY);
+  ctx.lineTo(innerX + innerW, innerY);
+  ctx.lineTo(innerX + innerW, innerY + 150);
+  ctx.lineTo(W / 2, innerY + 320);
+  ctx.lineTo(innerX, innerY + 150);
+  ctx.closePath();
+  ctx.fill();
+
+  // Aksen lipatan biru gelap di sisi kiri & kanan bawah header navy
+  ctx.fillStyle = "rgba(0, 12, 34, 0.55)";
+  ctx.beginPath();
+  ctx.moveTo(innerX, innerY + 112);
+  ctx.lineTo(W / 2, innerY + 320);
+  ctx.lineTo(innerX, innerY + 150);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(innerX + innerW, innerY + 112);
+  ctx.lineTo(W / 2, innerY + 320);
+  ctx.lineTo(innerX + innerW, innerY + 150);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore(); // end clip inner rect
+
+  // 6. Garis Bingkai Emas Metalik Mengelilingi Sertifikat
+  ctx.strokeStyle = "#bfa054";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(innerX, innerY, innerW, innerH);
+
+  // 7. Judul Utama 2 Baris di dalam Header Navy (Bebas Redundansi Kata)
+  const centerX = W / 2;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#e2e8f0";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+
+  ctx.font = "400 44px Georgia, 'Times New Roman', serif";
+  ctx.fillText("S E R T I F I K A T   P E N G H A R G A A N", centerX, innerY + 76);
+
+  ctx.font = "400 46px Georgia, 'Times New Roman', serif";
+  ctx.fillText("P E M E T A A N   W I L A Y A H   P A R T I S I P A T I F", centerX, innerY + 136);
+  ctx.restore();
+
+  // 8. Barisan Logo di dalam Bagian Bawah V-Chevron Biru Navy
+  const logos =
+    sert.logoSertifikatList && sert.logoSertifikatList.length > 0
+      ? sert.logoSertifikatList
+      : DEFAULT_LOGO_SERTIFIKAT;
+  gambarDeretanLogoHeader(ctx, centerX, innerY + 216, logos, logoImagesMap);
+
+  // 9. Teks "Diberikan Kepada"
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#111827";
+  ctx.font = "italic bold 27px Georgia, 'Times New Roman', serif";
+  ctx.fillText("D i b e r i k a n   K e p a d a", centerX, 430);
+
+  // 10. Nama Penerima + Garis Bawah Emas-Zaitun + Nomor Sertifikat di Bawah Garis
+  const namaBersih = (sert.namaKader || "Kader Spasial").replace(
     /\s*\(Kader Lapangan\)/i,
     ""
   );
-  let fontNama = 74;
-  ctx.font = `italic bold ${fontNama}px 'Brush Script MT', 'Segoe Script', 'Snell Roundhand', Georgia, serif`;
-  while (ctx.measureText(namaTampil).width > 820 && fontNama > 40) {
-    fontNama -= 4;
-    ctx.font = `italic bold ${fontNama}px 'Brush Script MT', 'Segoe Script', 'Snell Roundhand', Georgia, serif`;
+  let fontNama = 46;
+  ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
+  while (ctx.measureText(namaBersih).width > 960 && fontNama > 28) {
+    fontNama -= 2;
+    ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
   }
-  ctx.fillStyle = "#171717";
-  ctx.fillText(namaTampil, centerX, 465);
+  ctx.fillStyle = "#111827";
+  ctx.fillText(namaBersih, centerX, 518);
 
-  const wNama = Math.min(820, Math.max(420, ctx.measureText(namaTampil).width + 80));
-  ctx.strokeStyle = "#262626";
-  ctx.lineWidth = 2.8;
+  const wLine = Math.min(980, Math.max(580, ctx.measureText(namaBersih).width + 130));
+  ctx.strokeStyle = "#8c783c";
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.moveTo(centerX - wNama / 2, 488);
-  ctx.lineTo(centerX + wNama / 2, 488);
+  ctx.moveTo(centerX - wLine / 2, 534);
+  ctx.lineTo(centerX + wLine / 2, 534);
   ctx.stroke();
 
-  const judulProgram =
-    !sert.namaOrganisasi ||
-    sert.namaOrganisasi.toLowerCase().includes("konsorsium")
-      ? "Sertifikat Kader Pemetaan Partisipatif"
-      : sert.namaOrganisasi;
+  // Nomor Sertifikat tepat di bawah garis nama (seperti referensi)
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "italic bold 22px Georgia, 'Times New Roman', serif";
+  ctx.fillText(`Nomor: ${sert.nomorSertifikat}`, centerX, 568);
 
-  ctx.fillStyle = "#1f2937";
-  ctx.font = "bold 31px Georgia, 'Times New Roman', serif";
-  ctx.fillText("Sebagai Kader Pemetaan Partisipatif", centerX, 560);
-
-  ctx.fillStyle = "#334155";
-  ctx.font = "27px Georgia, 'Times New Roman', serif";
-  ctx.fillText("Dalam Kegiatan", centerX, 608);
+  // 11. Deskripsi Peran & Tema Kegiatan (Tanpa Pengulangan Kata)
+  const peranTeks = "Sebagai Kader Spasial Desa";
+  const temaKegiatan = `"Inventarisasi dan Verifikasi Data Geospasial Wilayah ${sert.desaWilayah}"`;
 
   ctx.fillStyle = "#111827";
-  ctx.font = "bold 34px Georgia, 'Times New Roman', serif";
-  ctx.fillText(judulProgram, centerX, 658);
+  ctx.font = "500 28px system-ui, -apple-system, sans-serif";
+  ctx.fillText(peranTeks, centerX, 636);
 
-  ctx.fillStyle = "#475569";
-  ctx.font = "600 23px system-ui, -apple-system, sans-serif";
-  ctx.fillText(
-    `ID Kader: ${sert.idKader}   •   Wilayah: ${sert.desaWilayah}`,
-    centerX,
-    706
-  );
+  ctx.font = "500 28px system-ui, -apple-system, sans-serif";
+  ctx.fillText(temaKegiatan, centerX, 678);
 
-  const namaPenandatangan = sert.ditandatanganiOleh || "Koordinator Program GIS";
-  const jabatanPenandatangan =
-    sert.jabatanPenandatangan || "Koordinator Pemetaan Partisipatif";
+  ctx.font = "500 24px system-ui, -apple-system, sans-serif";
+  ctx.fillText(formatTanggalSertifikatIndo(sert.tanggalTerbit), centerX, 742);
 
-  gambarStempelDanTandaTanganResmi(
+  // 12. QR Code Verifikasi di Sisi Kanan
+  gambarQrCodeVerifikasi(
     ctx,
-    centerX,
-    775,
-    namaPenandatangan,
-    jabatanPenandatangan
+    W - 235,
+    545,
+    132,
+    `${sert.nomorSertifikat}-${sert.idKader}-${sert.namaKader}`
   );
+
+  // 13. Passfoto 3x4 di Tengah Bawah (atau Siluet WhatsApp jika belum ada foto)
+  const photoW = 136;
+  const photoH = 182;
+  const photoX = centerX - photoW / 2;
+  const photoY = 826;
+  gambarBingkaiFotoKaderCanvas(ctx, photoX, photoY, photoW, photoH, fotoImg);
+
+  // 14. Barisan Penandatangan di Kiri & Kanan Passfoto
+  const signers =
+    sert.penandatanganList && sert.penandatanganList.length > 0
+      ? sert.penandatanganList
+      : DEFAULT_PENANDATANGAN_SERTIFIKAT;
+
+  const ySignTop = 852;
+  const leftCount = Math.ceil(signers.length / 2);
+  const leftSigners = signers.slice(0, leftCount);
+  const rightSigners = signers.slice(leftCount);
+
+  // Area kiri: antara x = 75 s/d photoX - 30
+  const leftAreaStart = 75;
+  const leftAreaEnd = photoX - 25;
+  const leftAreaW = leftAreaEnd - leftAreaStart;
+
+  leftSigners.forEach((sig, i) => {
+    const cx =
+      leftAreaStart + ((i + 0.5) / Math.max(1, leftSigners.length)) * leftAreaW;
+    gambarSatuBlokPenandatangan(
+      ctx,
+      cx,
+      ySignTop,
+      sig,
+      i,
+      ttdImagesMap[sig.id]
+    );
+  });
+
+  // Area kanan: antara photoX + photoW + 25 s/d W - 75
+  const rightAreaStart = photoX + photoW + 25;
+  const rightAreaEnd = W - 75;
+  const rightAreaW = rightAreaEnd - rightAreaStart;
+
+  rightSigners.forEach((sig, i) => {
+    const cx =
+      rightAreaStart + ((i + 0.5) / Math.max(1, rightSigners.length)) * rightAreaW;
+    gambarSatuBlokPenandatangan(
+      ctx,
+      cx,
+      ySignTop,
+      sig,
+      i + leftCount,
+      ttdImagesMap[sig.id]
+    );
+  });
 }
 
 /**
@@ -713,7 +1014,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const certCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputFotoRef = useRef<HTMLInputElement | null>(null);
   const [bukaPengaturan, setBukaPengaturan] = useState(false);
+  const [bukaAturSertifikat, setBukaAturSertifikat] = useState(false);
   const [fotoElement, setFotoElement] = useState<HTMLImageElement | null>(null);
+  const [logoImagesMap, setLogoImagesMap] = useState<Record<string, HTMLImageElement>>({});
+  const [ttdImagesMap, setTtdImagesMap] = useState<Record<string, HTMLImageElement>>({});
 
   const capaian = useMemo(
     () => hitungCapaianKader(dataSpasial, profil, false),
@@ -759,6 +1063,32 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const fotoSertifikatBase64 =
     sertifikatSaya?.fotoKaderBase64 || profil.fotoKaderBase64 || "";
 
+  const logoListAktif: LogoSertifikatItem[] = useMemo(() => {
+    if (profil.logoSertifikatList && profil.logoSertifikatList.length > 0) {
+      return profil.logoSertifikatList;
+    }
+    if (
+      sertifikatSaya?.logoSertifikatList &&
+      sertifikatSaya.logoSertifikatList.length > 0
+    ) {
+      return sertifikatSaya.logoSertifikatList;
+    }
+    return DEFAULT_LOGO_SERTIFIKAT;
+  }, [profil.logoSertifikatList, sertifikatSaya?.logoSertifikatList]);
+
+  const penandatanganListAktif: PenandatanganSertifikatItem[] = useMemo(() => {
+    if (profil.penandatanganList && profil.penandatanganList.length > 0) {
+      return profil.penandatanganList;
+    }
+    if (
+      sertifikatSaya?.penandatanganList &&
+      sertifikatSaya.penandatanganList.length > 0
+    ) {
+      return sertifikatSaya.penandatanganList;
+    }
+    return DEFAULT_PENANDATANGAN_SERTIFIKAT;
+  }, [profil.penandatanganList, sertifikatSaya?.penandatanganList]);
+
   useEffect(() => {
     if (!fotoSertifikatBase64) {
       setFotoElement(null);
@@ -770,50 +1100,132 @@ export const RewardView: React.FC<RewardViewProps> = ({
     img.src = fotoSertifikatBase64;
   }, [fotoSertifikatBase64]);
 
+  // Muat gambar logo custom ke HTMLImageElement
+  useEffect(() => {
+    let aktif = true;
+    const mapBaru: Record<string, HTMLImageElement> = {};
+    const denganGambar = logoListAktif.filter((l) => Boolean(l.imageBase64));
+    if (denganGambar.length === 0) {
+      setLogoImagesMap({});
+      return;
+    }
+    let selesai = 0;
+    denganGambar.forEach((l) => {
+      const img = new Image();
+      img.onload = () => {
+        mapBaru[l.id] = img;
+        selesai++;
+        if (aktif && selesai === denganGambar.length) {
+          setLogoImagesMap({ ...mapBaru });
+        }
+      };
+      img.onerror = () => {
+        selesai++;
+        if (aktif && selesai === denganGambar.length) {
+          setLogoImagesMap({ ...mapBaru });
+        }
+      };
+      img.src = l.imageBase64!;
+    });
+    return () => {
+      aktif = false;
+    };
+  }, [logoListAktif]);
+
+  // Muat gambar tanda tangan custom ke HTMLImageElement
+  useEffect(() => {
+    let aktif = true;
+    const mapBaru: Record<string, HTMLImageElement> = {};
+    const denganGambar = penandatanganListAktif.filter((p) =>
+      Boolean(p.tandaTanganBase64)
+    );
+    if (denganGambar.length === 0) {
+      setTtdImagesMap({});
+      return;
+    }
+    let selesai = 0;
+    denganGambar.forEach((p) => {
+      const img = new Image();
+      img.onload = () => {
+        mapBaru[p.id] = img;
+        selesai++;
+        if (aktif && selesai === denganGambar.length) {
+          setTtdImagesMap({ ...mapBaru });
+        }
+      };
+      img.onerror = () => {
+        selesai++;
+        if (aktif && selesai === denganGambar.length) {
+          setTtdImagesMap({ ...mapBaru });
+        }
+      };
+      img.src = p.tandaTanganBase64!;
+    });
+    return () => {
+      aktif = false;
+    };
+  }, [penandatanganListAktif]);
+
   const sertifikatTampil: SertifikatKader = useMemo(() => {
+    const pejabatUtama = penandatanganListAktif[0];
     const namaPenandatangan =
+      pejabatUtama?.nama ||
       sertifikatSaya?.ditandatanganiOleh ||
       profil.namaPenandatanganSertifikat ||
-      "Koordinator Program GIS";
+      "Dr. Ir. Jonni Marwa, S.Hut., M.Si.";
     const jabatanPenandatangan =
+      pejabatUtama?.jabatan ||
       sertifikatSaya?.jabatanPenandatangan ||
       profil.jabatanPenandatanganSertifikat ||
-      "Koordinator Verifikasi Spasial";
+      "Koordinator Wilayah";
 
     if (sertifikatSaya) {
       return {
         ...sertifikatSaya,
         ditandatanganiOleh: namaPenandatangan,
         jabatanPenandatangan,
-        fotoKaderBase64: fotoSertifikatBase64 || undefined
+        fotoKaderBase64: fotoSertifikatBase64 || undefined,
+        logoSertifikatList: logoListAktif,
+        penandatanganList: penandatanganListAktif
       };
     }
     return {
       id: `CERT-${profil.idKader}`,
-      nomorSertifikat: `001/SERT-KPP/${new Date().getFullYear()}`,
+      nomorSertifikat: `0115/SKPP-GIS/WILAYAH/X/${new Date().getFullYear()}`,
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
       namaOrganisasi:
         profil.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif",
       tanggalTerbit: new Date().toISOString().slice(0, 10),
-      alasanCapaian: "Sertifikat Kader Pemetaan Partisipatif",
+      alasanCapaian: "Dedikasi Survei Spasial Desa",
       status: sudahTersertifikasi ? "diterbitkan" : "menunggu_admin",
       ditandatanganiOleh: namaPenandatangan,
       jabatanPenandatangan,
-      fotoKaderBase64: fotoSertifikatBase64 || undefined
+      fotoKaderBase64: fotoSertifikatBase64 || undefined,
+      logoSertifikatList: logoListAktif,
+      penandatanganList: penandatanganListAktif
     };
-  }, [sertifikatSaya, profil, sudahTersertifikasi, fotoSertifikatBase64]);
+  }, [
+    sertifikatSaya,
+    profil,
+    sudahTersertifikasi,
+    fotoSertifikatBase64,
+    logoListAktif,
+    penandatanganListAktif
+  ]);
 
   useEffect(() => {
     if (certCanvasRef.current) {
       lukisSertifikatKeCanvas(
         certCanvasRef.current,
         sertifikatTampil,
-        fotoElement
+        fotoElement,
+        logoImagesMap,
+        ttdImagesMap
       );
     }
-  }, [sertifikatTampil, fotoElement]);
+  }, [sertifikatTampil, fotoElement, logoImagesMap, ttdImagesMap]);
 
   const handlePilihFotoSertifikat = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -834,13 +1246,105 @@ export const RewardView: React.FC<RewardViewProps> = ({
     onUbahProfil({ ...profil, fotoKaderBase64: undefined });
   };
 
+  // Handler Kelola Logo Sertifikat
+  const handleTambahLogo = () => {
+    const warnaPalet = ["#eab308", "#38bdf8", "#22c55e", "#a855f7", "#f97316"];
+    const itemBaru: LogoSertifikatItem = {
+      id: `logo-${Date.now()}`,
+      nama: `MITRA ${logoListAktif.length + 1}`,
+      warnaAksen: warnaPalet[logoListAktif.length % warnaPalet.length]
+    };
+    onUbahProfil({
+      ...profil,
+      logoSertifikatList: [...logoListAktif, itemBaru]
+    });
+  };
+
+  const handleUbahLogo = (
+    id: string,
+    patch: Partial<LogoSertifikatItem>
+  ) => {
+    const baru = logoListAktif.map((l) => (l.id === id ? { ...l, ...patch } : l));
+    onUbahProfil({ ...profil, logoSertifikatList: baru });
+  };
+
+  const handleUnggahGambarLogo = async (id: string, file?: File) => {
+    if (!file) return;
+    try {
+      const dataUrl = await kompresFotoKeDataUrl(file, 260);
+      handleUbahLogo(id, { imageBase64: dataUrl });
+    } catch {
+      alert("Gagal memuat gambar logo.");
+    }
+  };
+
+  const handleHapusLogo = (id: string) => {
+    if (logoListAktif.length <= 1) return;
+    const baru = logoListAktif.filter((l) => l.id !== id);
+    onUbahProfil({ ...profil, logoSertifikatList: baru });
+  };
+
+  // Handler Kelola Penandatangan Sertifikat
+  const handleTambahPenandatangan = () => {
+    const itemBaru: PenandatanganSertifikatItem = {
+      id: `sign-${Date.now()}`,
+      jabatan: "Koordinator Lapangan",
+      instansi: profil.desaWilayah || "Lembaga Pemetaan Desa",
+      nama: "Nama Pejabat, S.Hut., M.Si."
+    };
+    const baru = [...penandatanganListAktif, itemBaru];
+    onUbahProfil({
+      ...profil,
+      penandatanganList: baru
+    });
+  };
+
+  const handleUbahPenandatanganItem = (
+    id: string,
+    patch: Partial<PenandatanganSertifikatItem>
+  ) => {
+    const baru = penandatanganListAktif.map((p) =>
+      p.id === id ? { ...p, ...patch } : p
+    );
+    onUbahProfil({
+      ...profil,
+      penandatanganList: baru,
+      namaPenandatanganSertifikat: baru[0]?.nama,
+      jabatanPenandatanganSertifikat: baru[0]?.jabatan
+    });
+    if (baru[0]) {
+      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan);
+    }
+  };
+
+  const handleUnggahGambarTtd = async (id: string, file?: File) => {
+    if (!file) return;
+    try {
+      const dataUrl = await kompresFotoKeDataUrl(file, 360);
+      handleUbahPenandatanganItem(id, { tandaTanganBase64: dataUrl });
+    } catch {
+      alert("Gagal memuat gambar tanda tangan.");
+    }
+  };
+
+  const handleHapusPenandatangan = (id: string) => {
+    if (penandatanganListAktif.length <= 1) return;
+    const baru = penandatanganListAktif.filter((p) => p.id !== id);
+    onUbahProfil({
+      ...profil,
+      penandatanganList: baru
+    });
+  };
+
   const handleUnduhSertifikatPng = () => {
     const canvas = certCanvasRef.current;
     if (!canvas) return;
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
-      fotoElement
+      fotoElement,
+      logoImagesMap,
+      ttdImagesMap
     );
     const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
@@ -855,7 +1359,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
-      fotoElement
+      fotoElement,
+      logoImagesMap,
+      ttdImagesMap
     );
     const dataUrl = canvas.toDataURL("image/png");
 
@@ -885,7 +1391,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             html, body {
               width: 100%;
               height: 100%;
-              background: #fdfcf9;
+              background: #cbd5e1;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -938,7 +1444,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                   className="visual-avatar-photo"
                 />
               ) : (
-                <SiluetOrangSvg size={34} warna="#fde68a" />
+                <SiluetOrangSvg size={38} />
               )}
               <span className="visual-avatar-cam-badge">
                 <Camera size={11} />
@@ -1193,7 +1699,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
         />
       </div>
 
-      {/* 3. PREVIEW SERTIFIKAT BERGAMBAR + TOMBOL TAMBAH FOTO SERTIFIKAT */}
+      {/* 3. PREVIEW SERTIFIKAT BERGAMBAR + TOMBOL ATUR FOTO, LOGO & TANDA TANGAN */}
       <div className="section-card certificate-section-card">
         <div className="certificate-header-bar">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1202,6 +1708,14 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </div>
 
           <div className="certificate-action-btns">
+            <button
+              type="button"
+              className="btn-outline-sm"
+              onClick={() => setBukaAturSertifikat((v) => !v)}
+              title="Atur & Tambah Logo maupun Tanda Tangan Sertifikat"
+            >
+              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Pengaturan" : "Logo & TTD"}
+            </button>
             <button
               type="button"
               className="btn-outline-sm"
@@ -1245,53 +1759,187 @@ export const RewardView: React.FC<RewardViewProps> = ({
           />
         </div>
 
-        {/* KONTROL CEPAT ADMIN UNTUK MENGUBAH NAMA PENANDATANGAN SERTIFIKAT */}
-        {peran === "admin" && (
-          <div className="cert-admin-signer-box">
-            <div className="cert-admin-signer-title">
-              <PenTool size={15} color="#0284c7" />
-              <strong>Penandatangan</strong>
-            </div>
-            <div className="form-row-2">
-              <div>
-                <label>Nama Pejabat</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Nama penandatangan"
-                  value={sertifikatTampil.ditandatanganiOleh}
-                  onChange={(e) => {
-                    const namaBaru = e.target.value;
-                    onUbahProfil({
-                      ...profil,
-                      namaPenandatanganSertifikat: namaBaru
-                    });
-                    onUbahPenandatanganSertifikat?.(
-                      namaBaru,
-                      sertifikatTampil.jabatanPenandatangan
-                    );
-                  }}
-                />
+        {/* PANEL ATUR & TAMBAH LOGO SERTA TANDA TANGAN SERTIFIKAT */}
+        {(bukaAturSertifikat || peran === "admin") && (
+          <div className="cert-customizer-panel">
+            {/* A. PENGATURAN & TAMBAH LOGO SERTIFIKAT */}
+            <div className="cert-customizer-section">
+              <div className="cert-customizer-head">
+                <div className="cert-admin-signer-title" style={{ margin: 0 }}>
+                  <ImageIcon size={15} color="#0284c7" />
+                  <strong>Logo Header ({logoListAktif.length})</strong>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary-sm"
+                  onClick={handleTambahLogo}
+                >
+                  <Plus size={13} /> Tambah Logo
+                </button>
               </div>
-              <div>
-                <label>Jabatan</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Jabatan penandatangan"
-                  value={sertifikatTampil.jabatanPenandatangan}
-                  onChange={(e) => {
-                    const jabatanBaru = e.target.value;
-                    onUbahProfil({
-                      ...profil,
-                      jabatanPenandatanganSertifikat: jabatanBaru
-                    });
-                    onUbahPenandatanganSertifikat?.(
-                      sertifikatTampil.ditandatanganiOleh,
-                      jabatanBaru
-                    );
-                  }}
-                />
+
+              <div className="cert-logo-editor-grid">
+                {logoListAktif.map((logo, idx) => (
+                  <div key={logo.id} className="cert-logo-editor-item">
+                    <div className="cert-logo-preview-thumb">
+                      {logo.imageBase64 ? (
+                        <img src={logo.imageBase64} alt={logo.nama} />
+                      ) : (
+                        <span>{(logo.nama || `L${idx + 1}`).slice(0, 3).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Nama/Inisial Logo"
+                      value={logo.nama}
+                      onChange={(e) =>
+                        handleUbahLogo(logo.id, { nama: e.target.value })
+                      }
+                    />
+                    <label
+                      className="btn-outline-sm"
+                      style={{ margin: 0, cursor: "pointer" }}
+                      title="Unggah Gambar Logo"
+                    >
+                      <ImageIcon size={13} /> Gambar
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          handleUnggahGambarLogo(logo.id, e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {logoListAktif.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn-danger-sm"
+                        onClick={() => handleHapusLogo(logo.id)}
+                        title="Hapus Logo"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* B. PENGATURAN & TAMBAH TANDA TANGAN PEJABAT */}
+            <div className="cert-customizer-section" style={{ marginTop: 14 }}>
+              <div className="cert-customizer-head">
+                <div className="cert-admin-signer-title" style={{ margin: 0 }}>
+                  <PenTool size={15} color="#0284c7" />
+                  <strong>Tanda Tangan ({penandatanganListAktif.length})</strong>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary-sm"
+                  onClick={handleTambahPenandatangan}
+                >
+                  <Plus size={13} /> Tambah Tanda Tangan
+                </button>
+              </div>
+
+              <div className="cert-signer-editor-list">
+                {penandatanganListAktif.map((sig, idx) => (
+                  <div key={sig.id} className="cert-signer-editor-card">
+                    <div className="cert-signer-card-top">
+                      <strong>Penandatangan #{idx + 1}</strong>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <label
+                          className="btn-outline-sm"
+                          style={{ margin: 0, cursor: "pointer" }}
+                          title="Unggah Gambar Tanda Tangan / Stempel"
+                        >
+                          <PenTool size={12} />{" "}
+                          {sig.tandaTanganBase64 ? "Ganti TTD" : "Unggah TTD"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              handleUnggahGambarTtd(sig.id, e.target.files?.[0]);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        {sig.tandaTanganBase64 && (
+                          <button
+                            type="button"
+                            className="btn-outline-sm"
+                            onClick={() =>
+                              handleUbahPenandatanganItem(sig.id, {
+                                tandaTanganBase64: undefined
+                              })
+                            }
+                            title="Reset ke tanda tangan otomatis"
+                          >
+                            Reset
+                          </button>
+                        )}
+                        {penandatanganListAktif.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn-danger-sm"
+                            onClick={() => handleHapusPenandatangan(sig.id)}
+                            title="Hapus Penandatangan"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-row-3">
+                      <div>
+                        <label>Jabatan</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Mis. Dekan / Ketua Umum"
+                          value={sig.jabatan}
+                          onChange={(e) =>
+                            handleUbahPenandatanganItem(sig.id, {
+                              jabatan: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label>Instansi / Lembaga</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Mis. Indonesia Mapping Community"
+                          value={sig.instansi}
+                          onChange={(e) =>
+                            handleUbahPenandatanganItem(sig.id, {
+                              instansi: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label>Nama & Gelar</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Nama lengkap & gelar"
+                          value={sig.nama}
+                          onChange={(e) =>
+                            handleUbahPenandatanganItem(sig.id, {
+                              nama: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

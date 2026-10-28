@@ -3691,3 +3691,95 @@ label {
   border-color: #fca5a5;
   color: #ffffff;
 }
+
+/* ============================================================================
+   PANEL PENGATURAN & TAMBAH LOGO SERTA TANDA TANGAN SERTIFIKAT
+   ============================================================================ */
+.cert-customizer-panel {
+  margin-top: 14px;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cert-customizer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cert-customizer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cert-logo-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.cert-logo-editor-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.cert-logo-preview-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #fde68a;
+  border: 2px solid #eab308;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.cert-logo-preview-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cert-signer-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cert-signer-editor-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cert-signer-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #0f172a;
+}
