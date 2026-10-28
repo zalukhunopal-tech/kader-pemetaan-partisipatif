@@ -121,20 +121,20 @@ function gambarSiluetOrangCanvas(
   const cy = y + h / 2;
 
   const bg = ctx.createLinearGradient(x, y, x, y + h);
-  bg.addColorStop(0, "#064e3b");
-  bg.addColorStop(1, "#022c22");
+  bg.addColorStop(0, "#262626");
+  bg.addColorStop(1, "#171717");
   ctx.fillStyle = bg;
   ctx.fillRect(x, y, w, h);
 
-  ctx.fillStyle = "rgba(253, 230, 138, 0.85)";
+  ctx.fillStyle = "#f4b342";
   ctx.beginPath();
-  ctx.arc(cx, cy - 22, 26, 0, Math.PI * 2);
+  ctx.arc(cx, cy - 18, 22, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.beginPath();
-  ctx.arc(cx, cy + 58, 52, Math.PI * 1.12, Math.PI * 1.88, false);
-  ctx.lineTo(cx + 46, y + h);
-  ctx.lineTo(cx - 46, y + h);
+  ctx.arc(cx, cy + 50, 44, Math.PI * 1.12, Math.PI * 1.88, false);
+  ctx.lineTo(cx + 38, y + h);
+  ctx.lineTo(cx - 38, y + h);
   ctx.closePath();
   ctx.fill();
 
@@ -154,21 +154,21 @@ function gambarBingkaiFotoKaderCanvas(
 ) {
   ctx.save();
 
-  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 6;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.14)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
 
-  ctx.fillStyle = "#042f2e";
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 4;
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#f4b342";
+  ctx.lineWidth = 3.5;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 14);
+  ctx.roundRect(x, y, w, h, 10);
   ctx.fill();
   ctx.stroke();
 
   ctx.shadowColor = "transparent";
 
-  const pad = 8;
+  const pad = 7;
   const ix = x + pad;
   const iy = y + pad;
   const iw = w - pad * 2;
@@ -176,7 +176,7 @@ function gambarBingkaiFotoKaderCanvas(
 
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(ix, iy, iw, ih, 9);
+  ctx.roundRect(ix, iy, iw, ih, 6);
   ctx.clip();
 
   if (fotoImg && fotoImg.complete && fotoImg.naturalWidth > 0) {
@@ -200,251 +200,323 @@ function gambarBingkaiFotoKaderCanvas(
   }
   ctx.restore();
 
-  ctx.strokeStyle = "rgba(253, 230, 138, 0.55)";
+  ctx.strokeStyle = "#262626";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.roundRect(ix, iy, iw, ih, 9);
+  ctx.roundRect(ix, iy, iw, ih, 6);
   ctx.stroke();
-
-  ctx.fillStyle = "#022c22";
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(x + 14, y + h - 16, w - 28, 28, 8);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#fde68a";
-  ctx.font = "bold 13px system-ui, sans-serif";
-  ctx.fillText("FOTO KADER", x + w / 2, y + h + 3);
 
   ctx.restore();
 }
 
 /**
- * Menggambar emblem Kompas Emas di atas Kanvas Sertifikat
+ * Menggambar Logo Perisai Kader Pemetaan di Pojok Kiri Atas Sertifikat
  */
-function gambarEmblemKompasEmas(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
-  ctx.save();
-  ctx.translate(cx, cy);
-
-  const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, 62);
-  glow.addColorStop(0, "rgba(251, 191, 36, 0.35)");
-  glow.addColorStop(1, "rgba(251, 191, 36, 0)");
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(0, 0, 62, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(0, 2, 48, Math.PI * 0.2, Math.PI * 0.8, false);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, 2, 48, Math.PI * 1.2, Math.PI * 1.8, false);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(0, 0, 36, 0, Math.PI * 2);
-  ctx.fillStyle = "#042f2e";
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#fbbf24";
-  ctx.stroke();
-
-  const pts = [
-    [0, -30, 7, -7, 0, 0],
-    [30, 0, 7, 7, 0, 0],
-    [0, 30, -7, 7, 0, 0],
-    [-30, 0, -7, -7, 0, 0]
-  ];
-  ctx.fillStyle = "#fbbf24";
-  pts.forEach(([x1, y1, x2, y2]) => {
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.closePath();
-    ctx.fill();
-  });
-
-  ctx.fillStyle = "#fde68a";
-  pts.forEach(([x1, y1, x2, y2]) => {
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x1, y1);
-    ctx.lineTo(-x2, y2);
-    ctx.closePath();
-    ctx.fill();
-  });
-
-  ctx.beginPath();
-  ctx.arc(0, 0, 5, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
-  ctx.restore();
-}
-
-/**
- * Menggambar Kartu Visual Medali Capaian di dalam Sertifikat (Tanpa Level User)
- */
-function gambarKartuMedaliCanvas(
+function gambarLogoPerisaiKiriAtas(
   ctx: CanvasRenderingContext2D,
   x: number,
-  y: number,
-  w: number,
-  h: number,
-  warnaAksen: string,
-  simbol: "pin" | "route" | "poly",
-  nilaiUtama: string,
-  labelBawah: string
+  y: number
 ) {
   ctx.save();
-  ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
-  ctx.strokeStyle = warnaAksen;
-  ctx.lineWidth = 2;
+  ctx.translate(x, y);
+
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 20);
+  ctx.moveTo(0, -48);
+  ctx.lineTo(42, -32);
+  ctx.lineTo(42, 8);
+  ctx.quadraticCurveTo(42, 42, 0, 58);
+  ctx.quadraticCurveTo(-42, 42, -42, 8);
+  ctx.lineTo(-42, -32);
+  ctx.closePath();
+  ctx.fillStyle = "#262626";
   ctx.fill();
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = "#f4b342";
   ctx.stroke();
 
-  const icX = x + 52;
-  const icY = y + h / 2;
-  ctx.beginPath();
-  ctx.arc(icX, icY, 28, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(251, 191, 36, 0.16)";
-  ctx.fill();
-  ctx.strokeStyle = warnaAksen;
+  ctx.fillStyle = "#f4b342";
+  ctx.fillRect(-35, -28, 70, 14);
+  ctx.fillStyle = "#171717";
+  ctx.font = "900 9px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("KADER PEMETAAN", 0, -18);
+
+  ctx.strokeStyle = "#f4b342";
   ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 12, 18, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.fillStyle = warnaAksen;
-  ctx.strokeStyle = warnaAksen;
-  ctx.lineWidth = 2.5;
-  if (simbol === "pin") {
-    ctx.beginPath();
-    ctx.arc(icX, icY - 5, 8, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(icX - 7, icY - 2);
-    ctx.lineTo(icX, icY + 13);
-    ctx.lineTo(icX + 7, icY - 2);
-    ctx.stroke();
-  } else if (simbol === "route") {
-    ctx.beginPath();
-    ctx.arc(icX - 9, icY + 8, 4, 0, Math.PI * 2);
-    ctx.arc(icX + 9, icY - 8, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(icX - 6, icY + 6);
-    ctx.quadraticCurveTo(icX, icY - 10, icX + 6, icY - 6);
-    ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(icX - 10, icY - 8);
-    ctx.lineTo(icX + 10, icY - 11);
-    ctx.lineTo(icX + 13, icY + 9);
-    ctx.lineTo(icX - 8, icY + 11);
-    ctx.closePath();
-    ctx.stroke();
-  }
+  ctx.fillStyle = "#f4b342";
+  ctx.beginPath();
+  ctx.moveTo(0, -4);
+  ctx.lineTo(5, 8);
+  ctx.lineTo(17, 12);
+  ctx.lineTo(5, 16);
+  ctx.lineTo(0, 28);
+  ctx.lineTo(-5, 16);
+  ctx.lineTo(-17, 12);
+  ctx.lineTo(-5, 8);
+  ctx.closePath();
+  ctx.fill();
 
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 26px system-ui, -apple-system, sans-serif";
-  ctx.fillText(nilaiUtama, x + 94, y + h / 2 - 4);
-
-  ctx.fillStyle = "#a7f3d0";
-  ctx.font = "600 16px system-ui, -apple-system, sans-serif";
-  ctx.fillText(labelBawah, x + 94, y + h / 2 + 22);
   ctx.restore();
 }
 
 /**
- * Menggambar Segel Pita Bintang Emas di Bawah Tengah Sertifikat
+ * Menggambar Ornamen Segitiga Geometris sesuai Referensi PDF Sertifikat
  */
-function gambarSegelBintangEmas(
+function gambarOrnamenSegitigaReferensi(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number
+) {
+  ctx.save();
+
+  ctx.fillStyle = "#f6eadb";
+  ctx.beginPath();
+  ctx.moveTo(0, 180);
+  ctx.lineTo(680, 0);
+  ctx.lineTo(910, 420);
+  ctx.lineTo(240, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f2e2ce";
+  ctx.beginPath();
+  ctx.moveTo(680, 0);
+  ctx.lineTo(1240, 0);
+  ctx.lineTo(910, 420);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f7efe4";
+  ctx.beginPath();
+  ctx.moveTo(910, 420);
+  ctx.lineTo(W, 240);
+  ctx.lineTo(W, H);
+  ctx.lineTo(240, H);
+  ctx.closePath();
+  ctx.fill();
+
+  const gradGoldTop = ctx.createLinearGradient(640, 0, 1180, 290);
+  gradGoldTop.addColorStop(0, "#f7c55f");
+  gradGoldTop.addColorStop(1, "#f0a52b");
+  ctx.fillStyle = gradGoldTop;
+  ctx.beginPath();
+  ctx.moveTo(640, 0);
+  ctx.lineTo(1170, 0);
+  ctx.lineTo(905, 275);
+  ctx.closePath();
+  ctx.fill();
+
+  const gradDarkTop = ctx.createLinearGradient(1170, 0, W, 380);
+  gradDarkTop.addColorStop(0, "#1f1f1f");
+  gradDarkTop.addColorStop(1, "#383838");
+  ctx.fillStyle = gradDarkTop;
+  ctx.beginPath();
+  ctx.moveTo(1170, 0);
+  ctx.lineTo(W, 0);
+  ctx.lineTo(W, 390);
+  ctx.lineTo(1375, 205);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#262626";
+  ctx.beginPath();
+  ctx.moveTo(1170, 0);
+  ctx.lineTo(1375, 205);
+  ctx.lineTo(1038, 138);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f4b342";
+  ctx.beginPath();
+  ctx.moveTo(1375, 205);
+  ctx.lineTo(W, 390);
+  ctx.lineTo(1235, 345);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#242424";
+  ctx.beginPath();
+  ctx.moveTo(1395, 505);
+  ctx.lineTo(1548, 352);
+  ctx.lineTo(W, 410);
+  ctx.lineTo(W, 650);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f4b342";
+  ctx.beginPath();
+  ctx.moveTo(1395, 505);
+  ctx.lineTo(W, 650);
+  ctx.lineTo(W, 910);
+  ctx.lineTo(1245, 655);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#262626";
+  ctx.beginPath();
+  ctx.moveTo(W, 910);
+  ctx.lineTo(W, H);
+  ctx.lineTo(1465, H);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f4b342";
+  ctx.beginPath();
+  ctx.moveTo(0, H - 170);
+  ctx.lineTo(170, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#262626";
+  ctx.beginPath();
+  ctx.moveTo(0, H - 170);
+  ctx.lineTo(82, H - 88);
+  ctx.lineTo(0, H - 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = "#262626";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(350, 0);
+  ctx.lineTo(665, 315);
+  ctx.lineTo(980, 0);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(1090, 285);
+  ctx.lineTo(1245, 440);
+  ctx.lineTo(1400, 285);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.strokeStyle = "#f4b342";
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(575, 0);
+  ctx.lineTo(905, 330);
+  ctx.lineTo(1235, 0);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(1090, 560);
+  ctx.lineTo(1375, 845);
+  ctx.lineTo(W, 560);
+  ctx.stroke();
+
+  const gambarChevronKembar = (cx: number, cy: number, warna: string) => {
+    ctx.fillStyle = warna;
+    for (let i = 0; i < 2; i++) {
+      const ox = cx + i * 22;
+      ctx.beginPath();
+      ctx.moveTo(ox, cy);
+      ctx.lineTo(ox + 16, cy);
+      ctx.lineTo(ox + 8, cy + 13);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+  gambarChevronKembar(578, 108, "#262626");
+  gambarChevronKembar(290, 650, "#f4b342");
+  gambarChevronKembar(1110, 748, "#262626");
+
+  ctx.restore();
+}
+
+/**
+ * Menggambar Stempel & Tanda Tangan Resmi di Bagian Bawah Sertifikat (Sesuai Referensi PDF)
+ */
+function gambarStempelDanTandaTanganResmi(
   ctx: CanvasRenderingContext2D,
   cx: number,
-  cy: number
+  yTop: number,
+  namaPenandatangan: string,
+  jabatanPenandatangan: string
 ) {
   ctx.save();
-  ctx.translate(cx, cy);
 
-  ctx.fillStyle = "#d97706";
+  const stampX = cx - 85;
+  const stampY = yTop + 62;
+  ctx.save();
+  ctx.translate(stampX, stampY);
+  ctx.rotate(-0.18);
+  ctx.strokeStyle = "rgba(55, 48, 163, 0.72)";
+  ctx.fillStyle = "rgba(55, 48, 163, 0.72)";
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(-36, 40);
-  ctx.lineTo(-58, 108);
-  ctx.lineTo(-32, 94);
-  ctx.lineTo(-14, 114);
-  ctx.lineTo(-8, 45);
-  ctx.closePath();
-  ctx.fill();
-
+  ctx.arc(0, 0, 50, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(36, 40);
-  ctx.lineTo(58, 108);
-  ctx.lineTo(32, 94);
-  ctx.lineTo(14, 114);
-  ctx.lineTo(8, 45);
-  ctx.closePath();
-  ctx.fill();
-
-  const spikes = 24;
-  const outerR = 76;
-  const innerR = 68;
+  ctx.arc(0, 0, 43, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.beginPath();
-  for (let i = 0; i < spikes * 2; i++) {
-    const r = i % 2 === 0 ? outerR : innerR;
-    const angle = (i * Math.PI) / spikes;
-    const x = Math.cos(angle) * r;
-    const y = Math.sin(angle) * r;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  const sealGrad = ctx.createRadialGradient(0, -15, 10, 0, 0, outerR);
-  sealGrad.addColorStop(0, "#fde68a");
-  sealGrad.addColorStop(0.6, "#fbbf24");
-  sealGrad.addColorStop(1, "#b45309");
-  ctx.fillStyle = sealGrad;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(0, 0, 56, 0, Math.PI * 2);
-  ctx.fillStyle = "#022c22";
-  ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = "#fde68a";
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
   ctx.stroke();
 
+  ctx.font = "bold 9px system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillStyle = "#fbbf24";
-  ctx.font = "bold 13px system-ui, sans-serif";
-  ctx.fillText("★ SERTIFIKAT ★", 0, -16);
+  ctx.fillText("★ SERTIFIKAT KADER ★", 0, -25);
+  ctx.font = "bold 8px system-ui, sans-serif";
+  ctx.fillText("PEMETAAN PARTISIPATIF", 0, 31);
+  ctx.font = "900 10px system-ui, sans-serif";
+  ctx.fillText("TERVERIFIKASI", 0, 4);
+  ctx.restore();
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 20px system-ui, sans-serif";
-  ctx.fillText("RESMI", 0, 8);
+  ctx.save();
+  ctx.strokeStyle = "#1e293b";
+  ctx.lineWidth = 3.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(cx - 65, yTop + 74);
+  ctx.bezierCurveTo(cx - 35, yTop + 15, cx - 5, yTop + 95, cx + 18, yTop + 32);
+  ctx.bezierCurveTo(cx + 35, yTop - 5, cx + 55, yTop + 82, cx + 88, yTop + 44);
+  ctx.stroke();
 
-  ctx.fillStyle = "#6ee7b7";
-  ctx.font = "bold 11px system-ui, sans-serif";
-  ctx.fillText("KADER PEMETAAN", 0, 27);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 50, yTop + 82);
+  ctx.quadraticCurveTo(cx + 15, yTop + 66, cx + 105, yTop + 78);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#171717";
+  ctx.font = "bold 25px system-ui, -apple-system, sans-serif";
+  ctx.fillText(namaPenandatangan, cx, yTop + 122);
+
+  const wSign = Math.max(260, ctx.measureText(namaPenandatangan).width + 36);
+  ctx.strokeStyle = "#262626";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(cx - wSign / 2, yTop + 132);
+  ctx.lineTo(cx + wSign / 2, yTop + 132);
+  ctx.stroke();
+
+  ctx.fillStyle = "#334155";
+  ctx.font = "600 19px system-ui, -apple-system, sans-serif";
+  ctx.fillText(jabatanPenandatangan, cx, yTop + 158);
 
   ctx.restore();
 }
 
 /**
- * Merender Sertifikat Bergambar ke Canvas (1600 x 1131 px - A4 Landscape)
+ * Merender Sertifikat ke Canvas (1600 x 1131 px - A4 Landscape)
+ * Mengacu pada Referensi PDF Sertifikat User:
+ * - Desain geometris segitiga kuning-emas & hitam elegan di atas latar putih gading bersih
+ * - Tanpa kartu capaian (tidak perlu dibuat capaian)
+ * - Judul kegiatan/program: "Sertifikat Kader Pemetaan Partisipatif"
  */
 function lukisSertifikatKeCanvas(
   canvas: HTMLCanvasElement,
   sert: SertifikatKader,
-  totalPoin: number,
-  totalKm: number,
-  totalHa: number,
   fotoImg: HTMLImageElement | null
 ) {
   const W = 1600;
@@ -456,198 +528,94 @@ function lukisSertifikatKeCanvas(
 
   ctx.clearRect(0, 0, W, H);
 
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#022c22");
-  bg.addColorStop(0.5, "#064e3b");
-  bg.addColorStop(1, "#022019");
-  ctx.fillStyle = bg;
+  ctx.fillStyle = "#fdfcf9";
   ctx.fillRect(0, 0, W, H);
 
-  ctx.save();
-  ctx.strokeStyle = "rgba(52, 211, 153, 0.07)";
-  ctx.lineWidth = 2;
-  for (let r = 80; r <= 520; r += 45) {
-    ctx.beginPath();
-    ctx.arc(120, 120, r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(W - 120, H - 120, r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 7;
-  ctx.strokeRect(42, 42, W - 84, H - 84);
-
-  ctx.strokeStyle = "rgba(251, 191, 36, 0.4)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(60, 60, W - 120, H - 120);
-
-  const sudut = [
-    [42, 42, 1, 1],
-    [W - 42, 42, -1, 1],
-    [42, H - 42, 1, -1],
-    [W - 42, H - 42, -1, -1]
-  ];
-  ctx.fillStyle = "#fbbf24";
-  sudut.forEach(([sx, sy, dx, dy]) => {
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx + dx * 48, sy);
-    ctx.lineTo(sx + dx * 48, sy + dy * 10);
-    ctx.lineTo(sx + dx * 10, sy + dy * 10);
-    ctx.lineTo(sx + dx * 10, sy + dy * 48);
-    ctx.lineTo(sx, sy + dy * 48);
-    ctx.closePath();
-    ctx.fill();
-  });
-
-  gambarEmblemKompasEmas(ctx, W / 2, 142);
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#fde68a";
-  ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
-  ctx.fillText(
-    (sert.namaOrganisasi || "KONSORSIUM PEMETAAN PARTISIPATIF").toUpperCase(),
-    W / 2,
-    232
-  );
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 60px Georgia, 'Times New Roman', serif";
-  ctx.fillText("SERTIFIKAT", W / 2, 300);
-
-  ctx.fillStyle = "#6ee7b7";
-  ctx.font = "600 18px ui-monospace, SFMono-Regular, Consolas, monospace";
-  ctx.fillText(`NO. REG: ${sert.nomorSertifikat}`, W / 2, 336);
-
-  gambarBingkaiFotoKaderCanvas(ctx, 145, 342, 158, 198, fotoImg);
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#cbd5e1";
-  ctx.font = "italic 22px Georgia, serif";
-  ctx.fillText("Diberikan kepada:", W / 2, 396);
-
-  const namaTampil = sert.namaKader || "Kader Pemetaan";
-  let fontNama = 62;
-  ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
-  while (ctx.measureText(namaTampil).width > 900 && fontNama > 34) {
-    fontNama -= 4;
-    ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
-  }
-  ctx.fillStyle = "#fbbf24";
-  ctx.fillText(namaTampil, W / 2, 472);
-
-  const wNama = Math.min(860, Math.max(360, ctx.measureText(namaTampil).width + 60));
-  ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(W / 2 - wNama / 2, 492);
-  ctx.lineTo(W / 2 + wNama / 2, 492);
-  ctx.stroke();
-
-  ctx.fillStyle = "#a7f3d0";
-  ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
-  ctx.fillText(
-    `${sert.idKader}   •   Wilayah: ${sert.desaWilayah}`,
-    W / 2,
-    532
-  );
-
-  const cardW = 370;
-  const cardH = 104;
-  const gap = 34;
-  const startX = (W - (cardW * 3 + gap * 2)) / 2;
-  const cardY = 582;
-
-  gambarKartuMedaliCanvas(
-    ctx,
-    startX,
-    cardY,
-    cardW,
-    cardH,
-    "#34d399",
-    "pin",
-    `${totalPoin} Titik Lokasi`,
-    "Survei Koordinat GPS"
-  );
-
-  gambarKartuMedaliCanvas(
-    ctx,
-    startX + cardW + gap,
-    cardY,
-    cardW,
-    cardH,
-    "#fbbf24",
-    "route",
-    `${totalKm.toFixed(1)} km Jalur`,
-    "Tracking Pemetaan"
-  );
-
-  gambarKartuMedaliCanvas(
-    ctx,
-    startX + (cardW + gap) * 2,
-    cardY,
-    cardW,
-    cardH,
-    "#38bdf8",
-    "poly",
-    `${totalHa.toFixed(1)} Ha Poligon`,
-    "Pemetaan Wilayah"
-  );
-
-  const yFoot = 835;
+  gambarOrnamenSegitigaReferensi(ctx, W, H);
+  gambarLogoPerisaiKiriAtas(ctx, 118, 96);
 
   ctx.textAlign = "left";
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "600 18px system-ui, sans-serif";
-  ctx.fillText("TANGGAL DITERBITKAN", 130, yFoot);
+  ctx.fillStyle = "#475569";
+  ctx.font = "600 15px ui-monospace, SFMono-Regular, Consolas, monospace";
+  ctx.fillText(`No. Sertifikat: ${sert.nomorSertifikat}`, 180, 96);
+  ctx.fillText(`Tanggal: ${sert.tanggalTerbit}`, 180, 120);
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 26px system-ui, sans-serif";
-  ctx.fillText(sert.tanggalTerbit, 130, yFoot + 36);
+  gambarBingkaiFotoKaderCanvas(ctx, 108, 220, 164, 212, fotoImg);
 
-  ctx.strokeStyle = "rgba(251, 191, 36, 0.45)";
-  ctx.lineWidth = 2;
+  const centerX = 690;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = "900 84px Georgia, 'Times New Roman', serif";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#f4b342";
+  ctx.strokeText("S E R T I F I K A T", centerX + 4, 264);
+  ctx.fillStyle = "#222222";
+  ctx.fillText("S E R T I F I K A T", centerX, 260);
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#262626";
+  ctx.font = "bold 30px Georgia, 'Times New Roman', serif";
+  ctx.fillText("Diberikan Kepada", centerX, 345);
+
+  const namaTampil = (sert.namaKader || "Kader Pemetaan").replace(
+    /\s*\(Kader Lapangan\)/i,
+    ""
+  );
+  let fontNama = 74;
+  ctx.font = `italic bold ${fontNama}px 'Brush Script MT', 'Segoe Script', 'Snell Roundhand', Georgia, serif`;
+  while (ctx.measureText(namaTampil).width > 820 && fontNama > 40) {
+    fontNama -= 4;
+    ctx.font = `italic bold ${fontNama}px 'Brush Script MT', 'Segoe Script', 'Snell Roundhand', Georgia, serif`;
+  }
+  ctx.fillStyle = "#171717";
+  ctx.fillText(namaTampil, centerX, 465);
+
+  const wNama = Math.min(820, Math.max(420, ctx.measureText(namaTampil).width + 80));
+  ctx.strokeStyle = "#262626";
+  ctx.lineWidth = 2.8;
   ctx.beginPath();
-  ctx.moveTo(130, yFoot + 54);
-  ctx.lineTo(460, yFoot + 54);
+  ctx.moveTo(centerX - wNama / 2, 488);
+  ctx.lineTo(centerX + wNama / 2, 488);
   ctx.stroke();
 
-  ctx.fillStyle = "#6ee7b7";
-  ctx.font = "bold 18px ui-monospace, monospace";
-  ctx.fillText("Status: SERTIFIKAT RESMI", 130, yFoot + 84);
+  const judulProgram =
+    !sert.namaOrganisasi ||
+    sert.namaOrganisasi.toLowerCase().includes("konsorsium")
+      ? "Sertifikat Kader Pemetaan Partisipatif"
+      : sert.namaOrganisasi;
 
-  gambarSegelBintangEmas(ctx, W / 2, yFoot + 30);
+  ctx.fillStyle = "#1f2937";
+  ctx.font = "bold 31px Georgia, 'Times New Roman', serif";
+  ctx.fillText("Sebagai Kader Pemetaan Partisipatif", centerX, 560);
+
+  ctx.fillStyle = "#334155";
+  ctx.font = "27px Georgia, 'Times New Roman', serif";
+  ctx.fillText("Dalam Kegiatan", centerX, 608);
+
+  ctx.fillStyle = "#111827";
+  ctx.font = "bold 34px Georgia, 'Times New Roman', serif";
+  ctx.fillText(judulProgram, centerX, 658);
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "600 23px system-ui, -apple-system, sans-serif";
+  ctx.fillText(
+    `ID Kader: ${sert.idKader}   •   Wilayah: ${sert.desaWilayah}`,
+    centerX,
+    706
+  );
 
   const namaPenandatangan = sert.ditandatanganiOleh || "Koordinator Program GIS";
   const jabatanPenandatangan =
-    sert.jabatanPenandatangan || "Koordinator Verifikasi Spasial";
+    sert.jabatanPenandatangan || "Koordinator Pemetaan Partisipatif";
 
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "600 18px system-ui, sans-serif";
-  ctx.fillText("DITANDATANGANI OLEH", W - 130, yFoot);
-
-  ctx.fillStyle = "#fde68a";
-  ctx.font = "italic 32px Georgia, serif";
-  ctx.fillText(namaPenandatangan.split(",")[0], W - 145, yFoot + 46);
-
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(W - 510, yFoot + 62);
-  ctx.lineTo(W - 130, yFoot + 62);
-  ctx.stroke();
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 22px system-ui, sans-serif";
-  ctx.fillText(namaPenandatangan, W - 130, yFoot + 92);
-
-  ctx.fillStyle = "#a7f3d0";
-  ctx.font = "17px system-ui, sans-serif";
-  ctx.fillText(jabatanPenandatangan, W - 130, yFoot + 118);
+  gambarStempelDanTandaTanganResmi(
+    ctx,
+    centerX,
+    775,
+    namaPenandatangan,
+    jabatanPenandatangan
+  );
 }
 
 /**
@@ -827,9 +795,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
       namaOrganisasi:
-        profil.namaOrganisasi || "Konsorsium Pemetaan Partisipatif",
+        profil.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif",
       tanggalTerbit: new Date().toISOString().slice(0, 10),
-      alasanCapaian: "Sertifikat Pemetaan Partisipatif",
+      alasanCapaian: "Sertifikat Kader Pemetaan Partisipatif",
       status: sudahTersertifikasi ? "diterbitkan" : "menunggu_admin",
       ditandatanganiOleh: namaPenandatangan,
       jabatanPenandatangan,
@@ -842,13 +810,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
       lukisSertifikatKeCanvas(
         certCanvasRef.current,
         sertifikatTampil,
-        totalPoin,
-        totalKm,
-        totalHa,
         fotoElement
       );
     }
-  }, [sertifikatTampil, totalPoin, totalKm, totalHa, fotoElement]);
+  }, [sertifikatTampil, fotoElement]);
 
   const handlePilihFotoSertifikat = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -875,9 +840,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
-      totalPoin,
-      totalKm,
-      totalHa,
       fotoElement
     );
     const url = canvas.toDataURL("image/png");
@@ -893,9 +855,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
-      totalPoin,
-      totalKm,
-      totalHa,
       fotoElement
     );
     const dataUrl = canvas.toDataURL("image/png");
@@ -926,7 +885,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             html, body {
               width: 100%;
               height: 100%;
-              background: #022c22;
+              background: #fdfcf9;
               display: flex;
               align-items: center;
               justify-content: center;
