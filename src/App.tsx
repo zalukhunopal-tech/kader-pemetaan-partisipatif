@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -6,6 +6,7 @@ import {
   KonfigurasiGDrive,
   LapisanSpasial,
   MenuTab,
+  PembaruanObjek,
   PengumumanBroadcast,
   PeranPengguna,
   PesanKomunikasi,
@@ -36,8 +37,14 @@ import {
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
-import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
+import { AkunSesi, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
+import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
+import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
+import { buatId } from "./lib/id";
+import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
+import { hapusTileArea } from "./lib/petaOffline";
+import { formatUkuranByte, perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
+import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import {
   perekamLatar,
   usePerekamLatar,
@@ -56,6 +63,7 @@ import { TugasPengumumanView } from "./components/TugasPengumumanView";
 import { KomunikasiView } from "./components/KomunikasiView";
 import { AdminDashboardView } from "./components/AdminDashboardView";
 import { SmartwatchModal } from "./components/SmartwatchModal";
+import { GantiSandiModal } from "./components/GantiSandiModal";
 import {
   Award,
   Bell,
@@ -75,31 +83,43 @@ import {
   Radio,
   Pause,
   Play,
-  Watch
+  Watch,
+  KeyRound
 } from "lucide-react";
 
 export const App: React.FC = () => {
   // Sesi Pengguna Login
-  const [sesiPengguna, setSesiPengguna] = useState<AkunPengguna | null>(() =>
+  const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() =>
     muatSesiPengguna()
   );
 
   // Role & Session State
-  const [peran, setPeran] = useState<PeranPengguna>(() =>
+  // Admin boleh beralih ke tampilan kader, tetapi peran admin hanya berlaku untuk akun admin
+  const [peranTampilan, setPeranTampilan] = useState<PeranPengguna>(() =>
     sesiPengguna ? sesiPengguna.peran : "kader"
   );
+  const adalahAkunAdmin = sesiPengguna?.peran === "admin";
+  const peran: PeranPengguna = adalahAkunAdmin ? peranTampilan : "kader";
   const [tabAktif, setTabAktif] = useState<MenuTab>(() =>
     sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka"
   );
-  const [sedangOnline, setSedangOnline] = useState<boolean>(true);
+  // Status jaringan nyata dari browser; tombol "Online/Offline" hanya menambah mode offline manual
+  const [jaringanTersedia, setJaringanTersedia] = useState<boolean>(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const [modeOfflineManual, setModeOfflineManual] = useState<boolean>(false);
+  const sedangOnline = jaringanTersedia && !modeOfflineManual;
 
   // Sub-halaman penuh & menu
   const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
   const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
   const [bukaSmartwatch, setBukaSmartwatch] = useState<boolean>(false);
+  const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const [notifToast, setNotifToast] = useState<string | null>(null);
+  const statusPenyimpanan = useStatusPenyimpanan();
+  const [ruangPenyimpanan, setRuangPenyimpanan] = useState<PerkiraanPenyimpanan | null>(null);
 
   // Data Store
   const [profil, setProfil] = useState<ProfilKader>(() => {
@@ -149,6 +169,8 @@ export const App: React.FC = () => {
   } | null>(null);
   const [sedangSinkron, setSedangSinkron] = useState<boolean>(false);
   const [pesanSinkron, setPesanSinkron] = useState<string | null>(null);
+  const [pesanSinkronGagal, setPesanSinkronGagal] = useState<boolean>(false);
+  const sinkronBerjalanRef = useRef<boolean>(false);
 
   // Status Perekaman Data di Latar Belakang (Global di Semua Tab)
   const rekamLatar = usePerekamLatar();
@@ -161,6 +183,22 @@ export const App: React.FC = () => {
   }, [rekamLatar.status]);
 
   // Simpan perubahan ke LocalStorage (Offline-First)
+  // Pantau sisa ruang penyimpanan agar pengguna diperingatkan sebelum data baru tak bisa disimpan
+  useEffect(() => {
+    let aktif = true;
+    const periksa = () => {
+      perkiraanPenyimpanan().then((r) => {
+        if (aktif) setRuangPenyimpanan(r);
+      });
+    };
+    periksa();
+    const t = setInterval(periksa, 60_000);
+    return () => {
+      aktif = false;
+      clearInterval(t);
+    };
+  }, [statusPenyimpanan.kuotaPenuh]);
+
   useEffect(() => simpanProfil(profil), [profil]);
   useEffect(() => simpanDataSpasial(dataSpasial), [dataSpasial]);
   useEffect(() => simpanAreaOffline(areaOffline), [areaOffline]);
@@ -172,16 +210,17 @@ export const App: React.FC = () => {
   useEffect(() => simpanKaderAktif(kaderAktifList), [kaderAktifList]);
   useEffect(() => simpanKonfigGDrive(konfigGDrive), [konfigGDrive]);
 
-  // Saat online, kirim pesan antrean
+  // Ikuti perubahan koneksi dari browser
   useEffect(() => {
-    if (sedangOnline) {
-      setPesanList((prev) =>
-        prev.map((m) =>
-          m.statusKirim === "antrean_offline" ? { ...m, statusKirim: "terkirim" } : m
-        )
-      );
-    }
-  }, [sedangOnline]);
+    const naik = () => setJaringanTersedia(true);
+    const turun = () => setJaringanTersedia(false);
+    window.addEventListener("online", naik);
+    window.addEventListener("offline", turun);
+    return () => {
+      window.removeEventListener("online", naik);
+      window.removeEventListener("offline", turun);
+    };
+  }, []);
 
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
@@ -191,9 +230,9 @@ export const App: React.FC = () => {
   };
 
   // Handler Login Berhasil
-  const handleLoginSukses = (akun: AkunPengguna) => {
+  const handleLoginSukses = (akun: AkunSesi) => {
     setSesiPengguna(akun);
-    setPeran(akun.peran);
+    setPeranTampilan(akun.peran);
     setProfil((prev) => ({
       ...prev,
       idKader: akun.idKader,
@@ -222,7 +261,11 @@ export const App: React.FC = () => {
 
   // Switch Peran Pengguna (Admin vs User/Kader)
   const gantiPeranAkun = (peranBaru: PeranPengguna) => {
-    setPeran(peranBaru);
+    if (peranBaru === "admin" && !adalahAkunAdmin) {
+      tampilkanToast("Akun ini tidak memiliki akses Administrator GIS.");
+      return;
+    }
+    setPeranTampilan(peranBaru);
     if (peranBaru === "admin") {
       setTabAktif("admin");
       tampilkanToast("🛡️ Beralih ke Akun Administrator GIS.");
@@ -254,7 +297,50 @@ export const App: React.FC = () => {
   // Handler Simpan Data Spasial Baru dari Peta (User Feature)
   const handleSimpanDataBaru = (item: DataSpasialItem) => {
     setDataSpasial((prev) => [item, ...prev]);
-    tampilkanToast(`✓ "${item.judul}" disimpan ke Lapisan & memori HP.`);
+    tampilkanToast(
+      adalahDataSimulasi(item)
+        ? `✓ "${item.judul}" disimpan sebagai data simulasi (tidak dihitung ke capaian).`
+        : `✓ "${item.judul}" disimpan ke Lapisan & memori HP.`
+    );
+  };
+
+  // Handler Impor Berkas (GeoJSON, KML, GPX): fitur divalidasi, yang tidak valid dilewati dan
+  // dilaporkan. Data impor ditandai dan baru dihitung ke capaian setelah diverifikasi admin.
+  const handleImporBerkas = (namaBerkas: string, isi: string): boolean => {
+    try {
+      const hasil = parseBerkas(namaBerkas, isi);
+      const konteks = {
+        idKader: profil.idKader,
+        namaKader: profil.nama,
+        desaWilayah: profil.desaWilayah
+      };
+      const items = hasil.fitur.map((f) => fiturKeDataSpasial(f, konteks));
+      const catatan = hasil.dilewati.length > 0 ? ` ${hasil.dilewati.length} dilewati: ${ringkasDilewati(hasil.dilewati)}.` : "";
+      if (items.length === 0) {
+        tampilkanToast(`⚠️ Tidak ada objek yang bisa diimpor dari ${namaBerkas}.${catatan}`);
+        return false;
+      }
+      setDataSpasial((prev) => [...items, ...prev]);
+      tampilkanToast(
+        `✓ ${items.length} objek ${hasil.format} diimpor.${catatan} Dihitung ke capaian setelah diverifikasi admin.`
+      );
+      return true;
+    } catch (err) {
+      tampilkanToast(`⚠️ ${err instanceof Error ? err.message : "Berkas tidak dapat dibaca."}`);
+      return false;
+    }
+  };
+
+  // Hapus area peta offline; tile yang tersimpan ikut dihapus (kecuali yang dipakai area lain)
+  const handleHapusAreaOffline = (id: string) => {
+    const area = areaOffline.find((a) => a.id === id);
+    if (!area) return;
+    setAreaOffline((prev) => prev.filter((a) => a.id !== id));
+    if (area.unduhanNyata) {
+      void hapusTileArea(area, areaOffline).then((n) =>
+        tampilkanToast(`✓ Peta "${area.namaArea}" dihapus (${n} tile dibersihkan).`)
+      );
+    }
   };
 
   // Handler Update Kondisi pada Objek Existing
@@ -263,29 +349,52 @@ export const App: React.FC = () => {
     kondisiTerbaru: string,
     catatan: string,
     fotoBase64?: string
-  ) => {
+  ): boolean => {
+    const objek = dataSpasial.find((d) => d.id === idData);
+    if (!objek) return false;
+
+    // Satu pembaruan per objek per 24 jam, dan isinya harus berubah
+    const cek = cekPembaruanBaru(objek, kondisiTerbaru, catatan);
+    if (!cek.boleh) {
+      tampilkanToast(`⚠️ ${cek.alasan}`);
+      return false;
+    }
+
+    const pembaruan: PembaruanObjek = {
+      id: buatId("UPD"),
+      tanggal: new Date().toISOString(),
+      idKader: profil.idKader,
+      olehKader: profil.nama,
+      kondisiTerbaru,
+      catatan,
+      fotoBase64
+    };
+    const objekBaru: DataSpasialItem = {
+      ...objek,
+      riwayatPembaruan: [...objek.riwayatPembaruan, pembaruan]
+    };
+    const dapatPoin =
+      dihitungUntukCapaian(objek) &&
+      hitungPembaruanSah(objekBaru) > hitungPembaruanSah(objek);
+
     setDataSpasial((prev) =>
-      prev.map((d) => {
-        if (d.id !== idData) return d;
-        return {
-          ...d,
-          kondisiAncaman: kondisiTerbaru,
-          updatedAt: new Date().toISOString(),
-          riwayatPembaruan: [
-            ...d.riwayatPembaruan,
-            {
-              id: `UPD-${Date.now().toString().slice(-4)}`,
-              tanggal: new Date().toISOString(),
-              olehKader: profil.nama,
-              kondisiTerbaru,
-              catatan,
-              fotoBase64
+      prev.map((d) =>
+        d.id === idData
+          ? {
+              ...d,
+              kondisiAncaman: kondisiTerbaru,
+              updatedAt: pembaruan.tanggal,
+              riwayatPembaruan: [...d.riwayatPembaruan, pembaruan]
             }
-          ]
-        };
-      })
+          : d
+      )
     );
-    tampilkanToast("✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin).");
+    tampilkanToast(
+      dapatPoin
+        ? "✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin)."
+        : "✓ Pembaruan kondisi objek disimpan (tidak menambah poin)."
+    );
+    return true;
   };
 
   // Handler Ubah Data Spasial oleh Admin (Admin Feature)
@@ -309,7 +418,7 @@ export const App: React.FC = () => {
   // Handler Tambah Tugas Baru oleh Admin (Admin Feature)
   const handleTambahTugas = (tugasBaru: TugasPemetaan) => {
     setTugasList((prev) => [tugasBaru, ...prev]);
-    tampilkanToast(`✓ Tugas "${tugasBaru.judul}" dikirim ke peta kader.`);
+    tampilkanToast(`✓ Tugas "${tugasBaru.judul}" disimpan di perangkat ini.`);
   };
 
   // Handler Hapus Tugas
@@ -319,30 +428,68 @@ export const App: React.FC = () => {
   };
 
   // Handler Sinkronisasi ke Google Drive & Sheets
-  const handleSinkronkanSekarang = async () => {
+  const handleSinkronkanSekarang = async (otomatis: boolean = false) => {
+    if (sinkronBerjalanRef.current) return;
     if (!sedangOnline) {
-      setPesanSinkron(
-        "⚠️ Perangkat sedang dalam Mode Offline. Data tetap tersimpan aman di memori HP dan akan diunggah saat sinyal tersedia."
-      );
+      if (!otomatis) {
+        setPesanSinkronGagal(true);
+        setPesanSinkron(
+          jaringanTersedia
+            ? "⚠️ Mode offline manual aktif. Data tetap aman di HP; matikan mode offline untuk mengunggah."
+            : "⚠️ Tidak ada koneksi internet. Data tetap aman di HP dan akan diunggah saat sinyal tersedia."
+        );
+      }
       return;
     }
+    sinkronBerjalanRef.current = true;
     setSedangSinkron(true);
-    setPesanSinkron(null);
-    const res = await sinkronkanDataKeGDrive(dataSpasial, konfigGDrive);
-    if (res.sukses && res.idTersinkron.length > 0) {
-      setDataSpasial((prev) =>
-        prev.map((d) =>
-          res.idTersinkron.includes(d.id) ? { ...d, statusSinkron: "tersinkron" } : d
-        )
-      );
-      setKonfigGDrive((prev) => ({
-        ...prev,
-        terakhirSinkron: new Date().toLocaleString("id-ID")
-      }));
+    if (!otomatis) setPesanSinkron(null);
+    try {
+      const res = await sinkronkanDataKeGDrive(dataSpasial, konfigGDrive);
+      // Hanya data yang dikonfirmasi tersimpan oleh Apps Script yang berubah status
+      if (res.idTersinkron.length > 0) {
+        const diterima = new Set(res.idTersinkron);
+        setDataSpasial((prev) =>
+          prev.map((d) =>
+            diterima.has(d.id) && d.statusSinkron === "lokal"
+              ? { ...d, statusSinkron: "tersinkron" }
+              : d
+          )
+        );
+        setKonfigGDrive((prev) => ({
+          ...prev,
+          terakhirSinkron: new Date().toLocaleString("id-ID")
+        }));
+      }
+      // Sinkron otomatis diam bila belum diatur; hasil lain selalu ditampilkan
+      if (!(otomatis && res.belumDiatur)) {
+        setPesanSinkronGagal(!res.sukses);
+        setPesanSinkron(res.pesan);
+        if (otomatis) {
+          tampilkanToast(
+            res.sukses
+              ? `☁️ ${res.idTersinkron.length} data tersinkron otomatis.`
+              : "⚠️ Sinkronisasi otomatis belum berhasil. Data tetap aman di HP."
+          );
+        }
+      }
+    } finally {
+      sinkronBerjalanRef.current = false;
+      setSedangSinkron(false);
     }
-    setPesanSinkron(res.pesan);
-    setSedangSinkron(false);
   };
+
+  // Sinkron otomatis: saat ada internet dan ada antrean. Satu percobaan per perubahan antrean
+  // atau koneksi, jadi server yang gagal tidak membuat percobaan berulang tanpa henti.
+  useEffect(() => {
+    if (!sesiPengguna) return;
+    if (!sedangOnline || !konfigGDrive.autoSyncSaatOnline) return;
+    if (!urlAppsScriptValid(konfigGDrive.webAppUrl) || antreanLokalCount === 0) return;
+    const t = window.setTimeout(() => {
+      void handleSinkronkanSekarang(true);
+    }, 2000);
+    return () => window.clearTimeout(t);
+  }, [sedangOnline, konfigGDrive.autoSyncSaatOnline, konfigGDrive.webAppUrl, antreanLokalCount, !!sesiPengguna]);
 
   // Handler Fokus ke Titik Koordinat di Peta
   const handleFokusKePeta = (lat: number, lng: number, label: string) => {
@@ -358,7 +505,7 @@ export const App: React.FC = () => {
     durasiSuaraDetik?: number
   ) => {
     const msgBaru: PesanKomunikasi = {
-      id: `MSG-${Date.now().toString().slice(-5)}`,
+      id: buatId("MSG"),
       saluran,
       idPengirim: peran === "admin" ? "ADMIN-01" : profil.idKader,
       namaPengirim: peran === "admin" ? "Admin GIS Organisasi" : profil.nama,
@@ -366,7 +513,7 @@ export const App: React.FC = () => {
       desaPengirim: peran === "admin" ? "Pusat" : profil.desaWilayah,
       teks,
       waktu: new Date().toTimeString().slice(0, 5),
-      statusKirim: sedangOnline ? "terkirim" : "antrean_offline",
+      statusKirim: "tersimpan",
       pinKoordinat,
       durasiSuaraDetik
     };
@@ -452,23 +599,32 @@ export const App: React.FC = () => {
                 <button
                   type="button"
                   className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
-                  onClick={() => setSedangOnline((o) => !o)}
+                  onClick={() => setModeOfflineManual((m) => !m)}
+                  title={
+                    jaringanTersedia
+                      ? "Ketuk untuk beralih mode offline manual (tidak mengunggah)"
+                      : "Tidak ada koneksi internet"
+                  }
                 >
                   {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                  <span>{sedangOnline ? "Online" : "Offline"}</span>
+                  <span>
+                    {!jaringanTersedia ? "Offline" : modeOfflineManual ? "Offline (manual)" : "Online"}
+                  </span>
                 </button>
 
-                <button
-                  type="button"
-                  className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    gantiPeranAkun(peran === "admin" ? "kader" : "admin");
-                  }}
-                >
-                  {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
-                  <span>{peran === "admin" ? "Admin" : "User"}</span>
-                </button>
+                {adalahAkunAdmin && (
+                  <button
+                    type="button"
+                    className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
+                    onClick={() => {
+                      setBukaMenuTitikTiga(false);
+                      gantiPeranAkun(peran === "admin" ? "kader" : "admin");
+                    }}
+                  >
+                    {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
+                    <span>{peran === "admin" ? "Admin" : "User"}</span>
+                  </button>
+                )}
               </div>
 
               <div className="avenza-overflow-divider" />
@@ -542,16 +698,29 @@ export const App: React.FC = () => {
 
               <div className="avenza-overflow-divider" />
 
+              {adalahAkunAdmin && (
+                <button
+                  type="button"
+                  className="avenza-overflow-item"
+                  style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
+                  onClick={() => {
+                    setBukaMenuTitikTiga(false);
+                    gantiPeranAkun(peran === "kader" ? "admin" : "kader");
+                  }}
+                >
+                  {peran === "kader" ? "🛡️ Mode Admin" : "👤 Mode User"}
+                </button>
+              )}
+
               <button
                 type="button"
                 className="avenza-overflow-item"
-                style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
                 onClick={() => {
                   setBukaMenuTitikTiga(false);
-                  gantiPeranAkun(peran === "kader" ? "admin" : "kader");
+                  setBukaGantiSandi(true);
                 }}
               >
-                {peran === "kader" ? "🛡️ Mode Admin" : "👤 Mode User"}
+                <KeyRound size={16} /> Kata sandi
               </button>
 
               <button
@@ -624,6 +793,18 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {/* PERINGATAN PENYIMPANAN: data baru yang tidak tersimpan harus terlihat, bukan hilang senyap */}
+      {(statusPenyimpanan.galat || (ruangPenyimpanan && ruangPenyimpanan.persen >= 80)) && (
+        <div className="banner-penyimpanan" role="alert">
+          <strong>⚠ {statusPenyimpanan.galat ? "Data terbaru mungkin belum tersimpan" : "Penyimpanan perangkat hampir penuh"}</strong>
+          <span>
+            {statusPenyimpanan.galat ??
+              `Terpakai ${formatUkuranByte(ruangPenyimpanan!.pakaiByte)} dari ${formatUkuranByte(ruangPenyimpanan!.kuotaByte)} (${Math.round(ruangPenyimpanan!.persen)}%).`}{" "}
+            Ekspor atau sinkronkan data sekarang, lalu hapus peta offline atau objek yang tidak diperlukan.
+          </span>
+        </div>
+      )}
+
       {/* TOAST FEEDBACK */}
       {notifToast && <div className="avenza-toast">{notifToast}</div>}
 
@@ -649,9 +830,7 @@ export const App: React.FC = () => {
               setAreaOffline((prev) => [a, ...prev]);
               tampilkanToast(`✓ Peta "${a.namaArea}" ditambahkan ke Pustaka.`);
             }}
-            onHapusAreaOffline={(id) =>
-              setAreaOffline((prev) => prev.filter((a) => a.id !== id))
-            }
+            onHapusAreaOffline={handleHapusAreaOffline}
             onTambahLapisan={(l) => {
               setLapisanList((prev) => [l, ...prev]);
               tampilkanToast(`✓ "${l.nama}" berhasil dibuat.`);
@@ -659,10 +838,7 @@ export const App: React.FC = () => {
             onHapusLapisan={(id) =>
               setLapisanList((prev) => prev.filter((l) => l.id !== id))
             }
-            onImporDataSpasial={(items) => {
-              setDataSpasial((prev) => [...items, ...prev]);
-              tampilkanToast(`✓ ${items.length} objek spasial berhasil diimpor.`);
-            }}
+            onImporBerkas={handleImporBerkas}
             onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
           />
         )}
@@ -676,9 +852,7 @@ export const App: React.FC = () => {
             onSimpanDataBaru={handleSimpanDataBaru}
             onTambahPembaruanObjek={handleTambahPembaruanObjek}
             onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-            onImporDataSpasial={(items) =>
-              setDataSpasial((prev) => [...items, ...prev])
-            }
+            onImporBerkas={handleImporBerkas}
             onBukaSmartwatch={() => setBukaSmartwatch(true)}
           />
         )}
@@ -689,7 +863,9 @@ export const App: React.FC = () => {
             konfigGDrive={konfigGDrive}
             sedangSinkron={sedangSinkron}
             pesanSinkron={pesanSinkron}
-            onSinkronkanSekarang={handleSinkronkanSekarang}
+            pesanSinkronGagal={pesanSinkronGagal}
+            sedangOnline={sedangOnline}
+            onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
             onSimpanKonfigGDrive={setKonfigGDrive}
             onFokusKePeta={handleFokusKePeta}
           />
@@ -725,19 +901,19 @@ export const App: React.FC = () => {
           <KomunikasiView
             pesanList={pesanList}
             profil={profil}
-            sedangOnline={sedangOnline}
             onKirimPesan={handleKirimPesan}
             onLihatPinDiPeta={handleFokusKePeta}
           />
         )}
 
-        {tabAktif === "admin" && (
+        {tabAktif === "admin" && peran === "admin" && (
           <AdminDashboardView
             dataSpasial={dataSpasial}
             profilKader={profil}
             sertifikatList={sertifikatList}
             tugasList={tugasList}
             kaderAktifList={kaderAktifList}
+            sesiAdmin={sesiPengguna}
             onVerifikasiData={(id: string, status: StatusSinkron, catatan?: string) =>
               setDataSpasial((prev) =>
                 prev.map((d) =>
@@ -747,9 +923,19 @@ export const App: React.FC = () => {
             }
             onUbahDataSpasial={handleUbahDataSpasial}
             onHapusDataSpasial={handleHapusDataSpasial}
-            onTerbitkanSertifikat={(sert) =>
-              setSertifikatList((prev) => [sert, ...prev])
-            }
+            onTerbitkanSertifikat={(sert) => {
+              // Satu sertifikat per kader dan nomor tidak boleh kembar
+              if (
+                sertifikatList.some(
+                  (s) => s.idKader === sert.idKader || s.nomorSertifikat === sert.nomorSertifikat
+                )
+              ) {
+                tampilkanToast("⚠️ Sertifikat tidak diterbitkan: kader sudah punya sertifikat atau nomor kembar.");
+                return;
+              }
+              setSertifikatList((prev) => [sert, ...prev]);
+              tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
+            }}
             onUbahPenandatanganSertifikat={(nama, jabatan) => {
               handleUbahPenandatanganSertifikat(nama, jabatan);
               tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
@@ -762,6 +948,17 @@ export const App: React.FC = () => {
           />
         )}
       </main>
+
+      {bukaGantiSandi && sesiPengguna && (
+        <GantiSandiModal
+          email={sesiPengguna.email}
+          onTutup={() => setBukaGantiSandi(false)}
+          onSukses={() => {
+            setBukaGantiSandi(false);
+            tampilkanToast("✓ Kata sandi berhasil diganti.");
+          }}
+        />
+      )}
 
       {/* MODAL SMARTWATCH BLUETOOTH */}
       {bukaSmartwatch && (

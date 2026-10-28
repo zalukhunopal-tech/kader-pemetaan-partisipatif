@@ -23,11 +23,13 @@ export interface KoordinatTitik {
   elevasi?: number; // Z (mdpl)
   akurasi?: number; // meter
   timestamp?: string;
+  simulasi?: boolean; // true = titik acak dari mode simulasi, bukan GPS perangkat
 }
 
 export interface PembaruanObjek {
   id: string;
   tanggal: string;
+  idKader?: string; // pencatat pembaruan; entri lama hanya punya olehKader (nama)
   olehKader: string;
   kondisiTerbaru: string;
   catatan: string;
@@ -57,6 +59,7 @@ export interface DataSpasialItem {
   namaFileFoto?: string;
   driveFileUrl?: string;
   statusSinkron: StatusSinkron;
+  diimpor?: boolean; // true = berasal dari berkas luar, bukan rekaman lapangan kader
   catatanAdmin?: string;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +82,11 @@ export interface AreaPetaOffline {
   thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah";
   diunduhPada: string;
   jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";
+  /** true bila tile benar-benar tersimpan di perangkat; selain itu entri hanya catatan */
+  unduhanNyata?: boolean;
+  /** Templat URL tile saat diunduh (untuk menghapus tile area ini) */
+  templateTile?: string;
+  jumlahGagal?: number;
 }
 
 export interface LapisanSpasial {
@@ -177,7 +185,8 @@ export interface PesanKomunikasi {
   desaPengirim: string;
   teks: string;
   waktu: string;
-  statusKirim: "antrean_offline" | "terkirim";
+  /** Pesan hanya tersimpan di perangkat ini; belum ada server yang meneruskannya ke perangkat lain */
+  statusKirim: "tersimpan";
   pinKoordinat?: {
     lat: number;
     lng: number;
@@ -192,6 +201,7 @@ export interface KonfigurasiGDrive {
   folderIdDatabase: string;
   spreadsheetIdMaster: string;
   autoSyncSaatOnline: boolean;
+  tokenBersama?: string; // dicocokkan dengan GEOKADER_TOKEN di Script Properties Apps Script
   terakhirSinkron?: string;
 }
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { PesanKomunikasi, ProfilKader } from "../types";
+import { CatatanPerangkat } from "./CatatanPerangkat";
 import {
   MapPin,
   Mic,
@@ -7,8 +8,7 @@ import {
   Users,
   ShieldAlert,
   Paperclip,
-  CheckCheck,
-  Clock,
+  Check,
   Search,
   Play,
   Pause,
@@ -19,7 +19,6 @@ import {
 interface KomunikasiViewProps {
   pesanList: PesanKomunikasi[];
   profil: ProfilKader;
-  sedangOnline: boolean;
   onKirimPesan: (
     saluran: "komunitas" | "admin",
     teks: string,
@@ -32,7 +31,6 @@ interface KomunikasiViewProps {
 export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   pesanList,
   profil,
-  sedangOnline,
   onKirimPesan,
   onLihatPinDiPeta
 }) => {
@@ -187,19 +185,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 textOverflow: "ellipsis"
               }}
             >
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: sedangOnline ? "#22c55e" : "#eab308",
-                  display: "inline-block",
-                  flexShrink: 0
-                }}
-              />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                {sedangOnline ? "Online" : "Offline"}
-              </span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>Tersimpan di perangkat ini</span>
             </div>
           </div>
         </div>
@@ -286,25 +272,10 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         </div>
       )}
 
-      {/* OFFLINE INDICATOR BAR */}
-      {!sedangOnline && (
-        <div
-          style={{
-            background: "#fef3c7",
-            color: "#92400e",
-            fontSize: "0.76rem",
-            padding: "5px 12px",
-            textAlign: "center",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6
-          }}
-        >
-          <Clock size={13} style={{ flexShrink: 0 }} />
-          <span>Sinyal terputus. Pesan disimpan di memori HP dan otomatis terkirim saat online.</span>
-        </div>
-      )}
+      {/* Pesan tidak dikirim ke perangkat lain: jelaskan agar tidak dikira terkirim */}
+      <CatatanPerangkat style={{ borderRadius: 0, border: "none", borderBottom: "1px solid #bfdbfe" }}>
+        Diskusi ini hanya tersimpan di perangkat ini. Pesan belum sampai ke kader atau admin lain karena aplikasi belum memakai server.
+      </CatatanPerangkat>
 
       {/* 2. CHAT BUBBLE AREA (WHATSAPP PATTERN STYLE) */}
       <div
@@ -559,11 +530,9 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                     <span>{m.waktu}</span>
                     {adalahSaya && (
                       <span>
-                        {m.statusKirim === "antrean_offline" ? (
-                          <Clock size={12} color="#8696a0" />
-                        ) : (
-                          <CheckCheck size={14} color="#53bdeb" />
-                        )}
+                        <span title="Tersimpan di perangkat ini; belum dikirim ke kader lain">
+                          <Check size={14} color="#8696a0" />
+                        </span>
                       </span>
                     )}
                   </div>

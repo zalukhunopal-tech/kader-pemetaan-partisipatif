@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DataSpasialItem,
   JenisGeometri,
@@ -10,6 +10,12 @@ import {
   StatusSinkron,
   TugasPemetaan
 } from "../types";
+import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
+import { AkunSesi } from "../lib/auth";
+import { AkunAdminPanel } from "./AkunAdminPanel";
+import { CatatanPerangkat } from "./CatatanPerangkat";
+import { buatId } from "../lib/id";
+import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import {
   Check,
   Award,
@@ -29,6 +35,7 @@ interface AdminDashboardViewProps {
   sertifikatList: SertifikatKader[];
   tugasList: TugasPemetaan[];
   kaderAktifList: KaderAktifPresence[];
+  sesiAdmin: AkunSesi | null;
   onVerifikasiData: (id: string, status: StatusSinkron, catatan?: string) => void;
   onUbahDataSpasial: (data: DataSpasialItem) => void;
   onHapusDataSpasial: (id: string) => void;
@@ -47,6 +54,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   sertifikatList,
   tugasList,
   kaderAktifList,
+  sesiAdmin,
   onVerifikasiData,
   onUbahDataSpasial,
   onHapusDataSpasial,
@@ -58,7 +66,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onFokusKePeta
 }) => {
   const [subTabAdmin, setSubTabAdmin] = useState<
-    "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat"
+    "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun"
   >("kader_aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
@@ -82,9 +90,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [katAnn] = useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
 
   // Form Penerbitan & Pengaturan Penandatangan Sertifikat
-  const [nomorSertBaru, setNomorSertBaru] = useState(
-    `001/SERT-KPP/${new Date().getFullYear()}`
-  );
+  const [nomorSertBaru, setNomorSertBaru] = useState(() => nomorSertifikatBerikut(sertifikatList));
+  const [pesanTerbit, setPesanTerbit] = useState<{ teks: string; ok: boolean } | null>(null);
+  // Nomor berikutnya mengikuti jumlah sertifikat yang sudah terbit
+  useEffect(() => {
+    setNomorSertBaru(nomorSertifikatBerikut(sertifikatList));
+  }, [sertifikatList.length]);
   const [penandatangan, setPenandatangan] = useState(
     profilKader.namaPenandatanganSertifikat || "Koordinator Program GIS"
   );
@@ -96,7 +107,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     e.preventDefault();
     if (!judulTugas.trim()) return;
     onTambahTugas({
-      id: `TSK-${Date.now().toString().slice(-4)}`,
+      id: buatId("TSK"),
       judul: judulTugas.trim(),
       deskripsi: descTugas.trim() || "Penugasan survei lapangan.",
       targetWilayah: wilayahTugas.trim() || "-",
@@ -121,7 +132,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     e.preventDefault();
     if (!judulAnn.trim() || !isiAnn.trim()) return;
     onTambahPengumuman({
-      id: `ANN-${Date.now().toString().slice(-4)}`,
+      id: buatId("ANN"),
       judul: judulAnn.trim(),
       isi: isiAnn.trim(),
       kategori: katAnn,
@@ -141,7 +152,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     setItemDiedit(null);
   };
 
-  const jumlahOnline = kaderAktifList.filter((k) => k.status !== "offline").length;
+  const jumlahKaderTercatat = new Set(dataSpasial.map((d) => d.idKader)).size;
 
   return (
     <div className="page-container" style={{ gap: "14px" }}>
@@ -174,7 +185,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               Kendali
             </h2>
             <div style={{ fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
-              🟢 {jumlahOnline} Kader • {dataSpasial.length} Data
+              {jumlahKaderTercatat} kader • {dataSpasial.length} data di perangkat ini
             </div>
           </div>
         </div>
@@ -275,8 +286,32 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <Award size={15} color="#38bdf8" />
             <span>Sertifikat</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTabAdmin("akun")}
+            style={{
+              padding: "10px 10px",
+              borderRadius: "10px",
+              border: subTabAdmin === "akun" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.15)",
+              background: subTabAdmin === "akun" ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.06)",
+              color: "#ffffff",
+              fontSize: "0.78rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6
+            }}
+          >
+            <Compass size={15} color="#38bdf8" />
+            <span>Akun</span>
+          </button>
         </div>
       </div>
+
+      {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} />}
 
       {/* 2. TAB A: MONITOR KADER AKTIF */}
       {subTabAdmin === "kader_aktif" && (
@@ -326,7 +361,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
-              Belum ada kader yang aktif mengirimkan sinyal lokasi lapangan.
+              Pemantauan posisi kader secara langsung belum tersedia. Setiap perangkat menyimpan datanya sendiri dan belum ada server yang menyatukannya, jadi posisi dan status kader di perangkat lain tidak terlihat di sini.
             </div>
           )}
         </div>
@@ -338,6 +373,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
             ✏️ Data ({dataSpasial.length})
           </h3>
+          <CatatanPerangkat style={{ marginBottom: 10 }}>
+            Status verifikasi disimpan di perangkat ini. Data kader di perangkat lain baru bisa diverifikasi setelah masuk ke sini, misalnya lewat impor berkas atau pemakaian satu perangkat bersama.
+          </CatatanPerangkat>
 
           {dataSpasial.length > 0 ? (
             <div className="table-responsive">
@@ -359,6 +397,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       </td>
                       <td>
                         <span className="badge-kategori">{d.kategori}</span>{" "}
+                        {adalahDataImpor(d) && <span className="badge-kategori">IMPOR</span>}{" "}
+                        {adalahDataSimulasi(d) && <span className="badge-kategori">SIMULASI</span>}{" "}
                         <strong>{d.judul}</strong>
                       </td>
                       <td>
@@ -489,6 +529,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {/* 4. TAB C: TUGAS SURVEI */}
       {subTabAdmin === "tugas_survei" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <CatatanPerangkat>
+            Tugas dan pengumuman hanya tersimpan di perangkat ini. Kader di perangkat lain belum menerimanya karena aplikasi belum memakai server.
+          </CatatanPerangkat>
           <form onSubmit={handleBuatTugas} className="section-card">
             <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
               🗺️ Buat Tugas Pemetaan Baru
@@ -659,7 +702,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
 
           <form onSubmit={handleBuatPengumuman} className="section-card">
-            <h3 style={{ margin: "0 0 8px", fontSize: "1rem" }}>📢 Kirim Pengumuman</h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1rem" }}>📢 Buat Pengumuman</h3>
             <div className="form-row-2">
               <input
                 type="text"
@@ -677,7 +720,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               />
             </div>
             <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }}>
-              Kirim Broadcast
+              Simpan Pengumuman
             </button>
           </form>
         </div>
@@ -693,7 +736,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
             <div className="form-row-3">
               <div>
-                <label>Nomor Sertifikat</label>
+                <label>Nomor sertifikat berikutnya</label>
                 <input
                   type="text"
                   className="form-input"
@@ -743,30 +786,86 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 ✍️ Simpan Penandatangan
               </button>
 
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ flex: "1 1 220px" }}
-                onClick={() =>
-                  onTerbitkanSertifikat({
-                    id: `CERT-${Date.now().toString().slice(-4)}`,
-                    nomorSertifikat: nomorSertBaru,
-                    idKader: profilKader.idKader,
-                    namaKader: profilKader.nama,
-                    desaWilayah: profilKader.desaWilayah,
-                    namaOrganisasi: profilKader.namaOrganisasi,
-                    tanggalTerbit: new Date().toISOString().slice(0, 10),
-                    alasanCapaian: "Sertifikat Pemetaan Partisipatif",
-                    status: "diterbitkan",
-                    ditandatanganiOleh: penandatangan,
-                    jabatanPenandatangan,
-                    fotoKaderBase64: profilKader.fotoKaderBase64
-                  })
+            </div>
+
+            <h4 style={{ margin: "16px 0 8px", fontSize: "0.92rem" }}>Kader dan capaian terverifikasi</h4>
+            {pesanTerbit && (
+              <div
+                role="status"
+                className="alert-banner-success"
+                style={
+                  pesanTerbit.ok
+                    ? { margin: "0 0 8px" }
+                    : { margin: "0 0 8px", background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }
                 }
               >
-                🏅 Terbitkan ({sertifikatList.length})
-              </button>
-            </div>
+                {pesanTerbit.teks}
+              </div>
+            )}
+            {ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget).length === 0 ? (
+              <p className="text-muted" style={{ fontSize: "0.84rem", margin: 0 }}>
+                Belum ada data kader. Sertifikat bisa diterbitkan setelah data kader diverifikasi.
+              </p>
+            ) : (
+              <div className="table-responsive">
+                <table className="data-table" id="tabel-kader-sertifikat">
+                  <thead>
+                    <tr>
+                      <th>Kader</th>
+                      <th>Terverifikasi</th>
+                      <th>Status</th>
+                      <th>Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget).map((k) => (
+                      <tr key={k.idKader}>
+                        <td>
+                          <strong>{k.namaKader}</strong>
+                          <div className="text-xs text-muted">{k.idKader} • {k.desaWilayah}</div>
+                        </td>
+                        <td className="text-xs">
+                          {k.capaian.totalPoinTitik} titik • {k.capaian.totalTrackingKm.toFixed(1)} km •{" "}
+                          {k.capaian.totalPoligonHa.toFixed(1)} Ha
+                        </td>
+                        <td>
+                          <span className={`badge-sync ${k.sudahTerbit ? "status-terverifikasi" : k.capaian.berhakSertifikat ? "status-tersinkron" : "status-lokal"}`} style={{ marginLeft: 0 }}>
+                            {k.sudahTerbit ? "TERBIT" : k.capaian.berhakSertifikat ? "SIAP TERBIT" : "BELUM"}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-primary-sm"
+                            disabled={k.sudahTerbit || !k.capaian.berhakSertifikat}
+                            title={
+                              k.sudahTerbit
+                                ? "Sertifikat sudah diterbitkan"
+                                : k.capaian.berhakSertifikat
+                                ? "Terbitkan sertifikat untuk kader ini"
+                                : "Belum memenuhi satu paket capaian terverifikasi"
+                            }
+                            onClick={() => {
+                              const hasil = siapkanSertifikat(k, nomorSertBaru, sertifikatList, {
+                                namaOrganisasi: profilKader.namaOrganisasi,
+                                ditandatanganiOleh: penandatangan,
+                                jabatanPenandatangan,
+                                fotoKaderBase64:
+                                  k.idKader === profilKader.idKader ? profilKader.fotoKaderBase64 : undefined
+                              });
+                              setPesanTerbit({ teks: hasil.pesan, ok: hasil.ok });
+                              if (hasil.ok && hasil.sertifikat) onTerbitkanSertifikat(hasil.sertifikat);
+                            }}
+                          >
+                            <Award size={13} /> Terbitkan
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {sertifikatList.length > 0 && (
               <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>

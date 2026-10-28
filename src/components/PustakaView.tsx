@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
+import { buatId } from "../lib/id";
 import {
   ArrowUpDown,
   ChevronDown,
@@ -24,7 +25,7 @@ interface PustakaViewProps {
   onHapusAreaOffline: (id: string) => void;
   onTambahLapisan: (lapisan: LapisanSpasial) => void;
   onHapusLapisan: (id: string) => void;
-  onImporDataSpasial: (items: DataSpasialItem[]) => void;
+  onImporBerkas: (namaBerkas: string, isi: string) => boolean;
   onBukaPengaturanEkspor: () => void;
 }
 
@@ -40,7 +41,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   onHapusAreaOffline,
   onTambahLapisan,
   onHapusLapisan,
-  onImporDataSpasial,
+  onImporBerkas,
   onBukaPengaturanEkspor
 }) => {
   const [subTab, setSubTab] = useState<"peta" | "lapisan">("peta");
@@ -99,7 +100,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     e.preventDefault();
     if (!namaPetaBaru.trim()) return;
     const itemBaru: AreaPetaOffline = {
-      id: `MAP-OFF-${Date.now().toString().slice(-4)}`,
+      id: buatId("MAP-OFF"),
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
       minLat: -0.958,
@@ -126,7 +127,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     e.preventDefault();
     if (!namaLapisanBaru.trim()) return;
     const lyrBaru: LapisanSpasial = {
-      id: `LYR-${Date.now().toString().slice(-4)}`,
+      id: buatId("LYR"),
       nama: namaLapisanBaru.trim(),
       jumlahPeta: 1,
       kategoriDefault: "Flora",
@@ -138,49 +139,25 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   };
 
   const handleImporFileLapisan = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const text = String(reader.result || "");
-        const json = JSON.parse(text);
-        if (json.features && Array.isArray(json.features)) {
-          const hasil: DataSpasialItem[] = json.features.map(
-            (f: Record<string, any>, idx: number) => ({
-              id: `IMP-${Date.now()}-${idx}`,
-              idKader: "KDR-IMP",
-              namaKader: "Impor File",
-              desaWilayah: "-",
-              jenisGeometri:
-                f.geometry?.type === "Polygon"
-                  ? "polygon"
-                  : f.geometry?.type === "LineString"
-                  ? "line"
-                  : "point",
-              kategori: f.properties?.kategori || "Flora",
-              judul: f.properties?.judul || f.properties?.name || `Objek #${idx + 1}`,
-              deskripsi: f.properties?.deskripsi || `Diimpor dari ${file.name}`,
-              koordinat: [{ lat: -0.9475, lng: 100.4192, elevasi: 410 }],
-              panjangKm: 0,
-              luasHa: 0,
-              statusSinkron: "lokal",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              riwayatPembaruan: []
-            })
-          );
-          onImporDataSpasial(hasil);
-        }
-      } catch {
-        // lanjut buat entri lapisan
+      // Lapisan dicatat hanya bila isi berkas benar-benar terbaca dan berisi objek
+      if (onImporBerkas(file.name, String(reader.result || ""))) {
+        onTambahLapisan({
+          id: buatId("LYR"),
+          nama: file.name.replace(/\.[^/.]+$/, ""),
+          jumlahPeta: 1,
+          createdAt: new Date().toISOString()
+        });
       }
-      onTambahLapisan({
-        id: `LYR-${Date.now().toString().slice(-4)}`,
-        nama: file.name.replace(/\.[^/.]+$/, ""),
-        jumlahPeta: 1,
-        createdAt: new Date().toISOString()
-      });
+      input.value = "";
+    };
+    reader.onerror = () => {
+      onImporBerkas(file.name, "");
+      input.value = "";
     };
     reader.readAsText(file);
   };
@@ -409,8 +386,20 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <div className="avenza-map-info">
                   <div className="avenza-map-title">{item.namaArea}</div>
                   <div className="avenza-map-meta">
-                    {formatAngkaIndo(item.ukuranMb)} MB <span className="dot-sep">•</span>{" "}
+                    {item.unduhanNyata || item.jenisFile !== "XYZ Tiles"
+                      ? `${formatAngkaIndo(item.ukuranMb)} MB`
+                      : "Ukuran tidak diketahui"}{" "}
+                    <span className="dot-sep">•</span>{" "}
                     {formatAngkaIndo(item.jarakKm ?? 0)} km
+                    {item.unduhanNyata ? (
+                      <>
+                        {" "}<span className="dot-sep">•</span> {item.jumlahTile.toLocaleString("id-ID")} tile
+                      </>
+                    ) : (
+                      <>
+                        {" "}<span className="dot-sep">•</span> Catatan saja
+                      </>
+                    )}
                   </div>
                 </div>
 

@@ -10,6 +10,8 @@ import {
   SertifikatKader,
   TugasPemetaan
 } from "../types";
+import { unikkanId } from "./id";
+import { bacaTeks, siapkanPenyimpanan, tulisTeks } from "./penyimpanan";
 
 // Versi 5 storage keys — seluruh contoh/dummy data dihapus bersih
 const KEY_PROFIL = "geokader_profil_v5";
@@ -66,9 +68,26 @@ export const TUGAS_AWAL: TugasPemetaan[] = [];
 export const PESAN_AWAL: PesanKomunikasi[] = [];
 export const KADER_AKTIF_AWAL: KaderAktifPresence[] = [];
 
+/** Kunci data yang dipindahkan dari localStorage ke IndexedDB (sesi/akun tetap di localStorage) */
+export const KUNCI_DATA = [
+  KEY_PROFIL,
+  KEY_SPASIAL,
+  KEY_OFFLINE_MAPS,
+  KEY_LAPISAN,
+  KEY_SERTIFIKAT,
+  KEY_PENGUMUMAN,
+  KEY_TUGAS,
+  KEY_PESAN,
+  KEY_GDRIVE,
+  KEY_KADER_AKTIF
+];
+
+/** Harus selesai sebelum aplikasi membaca data (dipanggil di main.tsx) */
+export const siapkanStorage = () => siapkanPenyimpanan(KUNCI_DATA);
+
 function bacaJson<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = bacaTeks(key);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -76,12 +95,10 @@ function bacaJson<T>(key: string, fallback: T): T {
   }
 }
 
+// Kegagalan menulis (mis. kuota penuh) tidak lagi diabaikan: penyimpanan.ts mencatatnya
+// pada status yang ditampilkan aplikasi sebagai peringatan.
 function simpanJson<T>(key: string, val: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(val));
-  } catch {
-    // abaikan kuota
-  }
+  tulisTeks(key, JSON.stringify(val));
 }
 
 export const muatProfil = () => {
@@ -99,25 +116,27 @@ export const muatProfil = () => {
 };
 export const simpanProfil = (v: ProfilKader) => simpanJson(KEY_PROFIL, v);
 
-export const muatDataSpasial = () => bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL);
+export const muatDataSpasial = () => unikkanId(bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL));
 export const simpanDataSpasial = (v: DataSpasialItem[]) => simpanJson(KEY_SPASIAL, v);
 
-export const muatAreaOffline = () => bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL);
+export const muatAreaOffline = () => unikkanId(bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL));
 export const simpanAreaOffline = (v: AreaPetaOffline[]) => simpanJson(KEY_OFFLINE_MAPS, v);
 
-export const muatLapisan = () => bacaJson<LapisanSpasial[]>(KEY_LAPISAN, LAPISAN_AWAL);
+export const muatLapisan = () => unikkanId(bacaJson<LapisanSpasial[]>(KEY_LAPISAN, LAPISAN_AWAL));
 export const simpanLapisan = (v: LapisanSpasial[]) => simpanJson(KEY_LAPISAN, v);
 
-export const muatSertifikat = () => bacaJson<SertifikatKader[]>(KEY_SERTIFIKAT, SERTIFIKAT_AWAL);
+export const muatSertifikat = () => unikkanId(bacaJson<SertifikatKader[]>(KEY_SERTIFIKAT, SERTIFIKAT_AWAL));
 export const simpanSertifikat = (v: SertifikatKader[]) => simpanJson(KEY_SERTIFIKAT, v);
 
-export const muatPengumuman = () => bacaJson<PengumumanBroadcast[]>(KEY_PENGUMUMAN, PENGUMUMAN_AWAL);
+export const muatPengumuman = () => unikkanId(bacaJson<PengumumanBroadcast[]>(KEY_PENGUMUMAN, PENGUMUMAN_AWAL));
 export const simpanPengumuman = (v: PengumumanBroadcast[]) => simpanJson(KEY_PENGUMUMAN, v);
 
-export const muatTugas = () => bacaJson<TugasPemetaan[]>(KEY_TUGAS, TUGAS_AWAL);
+export const muatTugas = () => unikkanId(bacaJson<TugasPemetaan[]>(KEY_TUGAS, TUGAS_AWAL));
 export const simpanTugas = (v: TugasPemetaan[]) => simpanJson(KEY_TUGAS, v);
 
-export const muatPesan = () => bacaJson<PesanKomunikasi[]>(KEY_PESAN, PESAN_AWAL);
+// Data lama bertanda "terkirim"/"antrean_offline", padahal pesan tidak pernah meninggalkan perangkat
+export const muatPesan = () =>
+  unikkanId(bacaJson<PesanKomunikasi[]>(KEY_PESAN, PESAN_AWAL)).map((m) => ({ ...m, statusKirim: "tersimpan" as const }));
 export const simpanPesan = (v: PesanKomunikasi[]) => simpanJson(KEY_PESAN, v);
 
 export const muatKaderAktif = () => bacaJson<KaderAktifPresence[]>(KEY_KADER_AKTIF, KADER_AKTIF_AWAL);
@@ -129,6 +148,7 @@ export const muatKonfigGDrive = () =>
     folderIdDatabase: "",
     spreadsheetIdMaster: "",
     autoSyncSaatOnline: true,
+    tokenBersama: "",
     terakhirSinkron: ""
   });
 export const simpanKonfigGDrive = (v: KonfigurasiGDrive) => simpanJson(KEY_GDRIVE, v);

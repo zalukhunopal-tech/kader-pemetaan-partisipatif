@@ -51,7 +51,9 @@ function muat(): StatePerekamLatar {
     const raw = localStorage.getItem(KUNCI);
     if (!raw) return STATE_AWAL;
     const s = JSON.parse(raw) as StatePerekamLatar;
-    return { ...STATE_AWAL, ...s, galat: null };
+    // Rekaman lama dengan Auto GPS aktif memuat titik acak: tandai sebagai simulasi dan matikan timernya
+    const titik = (s.titik ?? []).map((t) => (s.autoGpsAktif ? { ...t, simulasi: true } : t));
+    return { ...STATE_AWAL, ...s, titik, autoGpsAktif: false, galat: null };
   } catch {
     return STATE_AWAL;
   }
@@ -96,7 +98,7 @@ function tanganiPosisi(pos: GeolocationPosition) {
   const pt: KoordinatTitik = {
     lat: Number(pos.coords.latitude.toFixed(7)),
     lng: Number(pos.coords.longitude.toFixed(7)),
-    elevasi: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : 415,
+    elevasi: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : undefined,
     akurasi: Number(pos.coords.accuracy.toFixed(1)),
     timestamp: new Date(pos.timestamp).toISOString()
   };
@@ -121,12 +123,12 @@ function tanganiPosisi(pos: GeolocationPosition) {
 }
 
 function tanganiGalat(err: GeolocationPositionError) {
-  // Jika izin ditolak atau timeout di perangkat dalam ruangan, tetap biarkan mode autoGps bekerja
+  // Mode simulasi tidak bergantung pada GPS perangkat, jadi galat GPS tidak ditampilkan saat simulasi aktif
   if (!state.autoGpsAktif) {
     const pesan =
       err.code === err.PERMISSION_DENIED
-        ? "GPS perangkat belum diizinkan — gunakan Auto GPS Latar Belakang."
-        : null;
+        ? "GPS perangkat belum diizinkan. Izinkan akses lokasi di pengaturan browser."
+        : "Sinyal GPS belum didapat. Pindah ke tempat terbuka lalu coba lagi.";
     setState({ galat: pesan });
   }
 }
@@ -154,7 +156,8 @@ function sinkronkanAutoTimer() {
         lng: nextLng,
         elevasi: nextElev,
         akurasi: Number((2.1 + Math.random() * 1.4).toFixed(1)),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        simulasi: true
       };
       setState({
         titik: [...state.titik, ptBaru],
@@ -219,7 +222,8 @@ export const perekamLatar = {
     };
   },
 
-  mulai(jenis: JenisRekamLatar, titikAwal: KoordinatTitik[] = [], autoGps = true) {
+  /** autoGps = mode simulasi (titik acak untuk demo/pelatihan); mati secara bawaan */
+  mulai(jenis: JenisRekamLatar, titikAwal: KoordinatTitik[] = [], autoGps = false) {
     setState({
       status: "merekam",
       jenis,

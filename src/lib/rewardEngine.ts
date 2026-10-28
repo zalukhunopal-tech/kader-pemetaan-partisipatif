@@ -1,8 +1,99 @@
-import { DataSpasialItem, PesanKomunikasi, ProfilKader, TugasPemetaan } from "../types";
+import {
+  DataSpasialItem,
+  PembaruanObjek,
+  PesanKomunikasi,
+  ProfilKader,
+  TugasPemetaan
+} from "../types";
+import { dihitungUntukCapaian } from "./geoUtils";
 
 export const TARGET_TITIK = 50;
 export const TARGET_TRACKING_KM = 5.0;
 export const TARGET_POLIGON_HA = 5.0;
+
+/** Batas sumbangan diskusi pada skor level (setara Level 4; Level 5 butuh data lapangan) */
+export const BATAS_SKOR_DISKUSI = 200;
+
+/** Jeda minimal antar pembaruan pada objek yang sama */
+export const JEDA_PEMBARUAN_JAM = 24;
+const JEDA_PEMBARUAN_MS = JEDA_PEMBARUAN_JAM * 60 * 60 * 1000;
+
+const bersihkanTeks = (t: string | undefined) =>
+  (t ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+const normalisasiIsi = (u: Pick<PembaruanObjek, "kondisiTerbaru" | "catatan">) =>
+  `${bersihkanTeks(u.kondisiTerbaru)}|${bersihkanTeks(u.catatan)}`;
+
+const waktuMs = (iso: string | undefined) => {
+  const t = Date.parse(iso ?? "");
+  return Number.isNaN(t) ? null : t;
+};
+
+/**
+ * Pembaruan yang dihitung sebagai poin: dicatat oleh pemilik objek, berjarak minimal
+ * JEDA_PEMBARUAN_JAM dari pembaruan sah sebelumnya (atau dari saat objek dibuat),
+ * dan isinya berbeda dari pembaruan sah sebelumnya.
+ */
+export function daftarPembaruanSah(item: DataSpasialItem): PembaruanObjek[] {
+  const urut = (item.riwayatPembaruan ?? [])
+    .filter((u) => waktuMs(u.tanggal) !== null)
+    .sort((a, b) => (waktuMs(a.tanggal) as number) - (waktuMs(b.tanggal) as number));
+
+  const sah: PembaruanObjek[] = [];
+  let terakhirMs = waktuMs(item.createdAt) ?? -Infinity;
+  let isiTerakhir = "";
+  for (const u of urut) {
+    const oleh = u.idKader ? u.idKader === item.idKader : u.olehKader === item.namaKader;
+    if (!oleh) continue;
+    const t = waktuMs(u.tanggal) as number;
+    if (t - terakhirMs < JEDA_PEMBARUAN_MS) continue;
+    const isi = normalisasiIsi(u);
+    if (isi === isiTerakhir) continue;
+    sah.push(u);
+    terakhirMs = t;
+    isiTerakhir = isi;
+  }
+  return sah;
+}
+
+export const hitungPembaruanSah = (item: DataSpasialItem): number =>
+  daftarPembaruanSah(item).length;
+
+const formatSisa = (ms: number) =>
+  ms >= 60 * 60 * 1000
+    ? `${Math.ceil(ms / (60 * 60 * 1000))} jam`
+    : `${Math.max(1, Math.ceil(ms / (60 * 1000)))} menit`;
+
+/**
+ * Memeriksa apakah pembaruan baru boleh dicatat: satu pembaruan per objek per
+ * JEDA_PEMBARUAN_JAM, dan isinya harus berbeda dari pembaruan terakhir.
+ */
+export function cekPembaruanBaru(
+  item: DataSpasialItem,
+  kondisiTerbaru: string,
+  catatan: string,
+  sekarangMs: number = Date.now()
+): { boleh: boolean; alasan?: string } {
+  const riwayat = item.riwayatPembaruan ?? [];
+  const terakhir = riwayat.reduce<PembaruanObjek | null>((a, u) => {
+    const t = waktuMs(u.tanggal);
+    if (t === null) return a;
+    return !a || t > (waktuMs(a.tanggal) as number) ? u : a;
+  }, null);
+  const terakhirMs = terakhir ? (waktuMs(terakhir.tanggal) as number) : waktuMs(item.createdAt) ?? -Infinity;
+
+  const sisaMs = JEDA_PEMBARUAN_MS - (sekarangMs - terakhirMs);
+  if (sisaMs > 0) {
+    return {
+      boleh: false,
+      alasan: `Objek ini baru ${terakhir ? "diperbarui" : "dibuat"}. Pembaruan berikutnya bisa dicatat dalam ${formatSisa(sisaMs)}.`
+    };
+  }
+  if (terakhir && normalisasiIsi(terakhir) === normalisasiIsi({ kondisiTerbaru, catatan })) {
+    return { boleh: false, alasan: "Isi pembaruan sama dengan sebelumnya. Tuliskan kondisi yang berubah." };
+  }
+  return { boleh: true };
+}
 
 export interface HasilPerhitunganCapaian {
   jumlahTitik: number;
@@ -229,7 +320,7 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
  * Menghitung posisi level kader dari 20 Level GIS berdasarkan:
  * 1. Banyak data yang diambil (Titik, Jalur Tracking km, Poligon Ha, Pembaruan objek)
  * 2. Variasi data (Keberagaman kategori survei & jenis geometri)
- * 3. Keaktifan dalam diskusi (Pesan terkirim, berbagi pin koordinat, pesan suara)
+ * 3. Keaktifan dalam diskusi (Pesan yang dibuat, berbagi pin koordinat, pesan suara)
  * 4. Kualitas & kelengkapan data (Foto geotagging, atribut lokal/ilmiah, akurasi GPS, verifikasi)
  * 5. Penyelesaian penugasan pemetaan lapangan
  */
@@ -240,15 +331,15 @@ export function hitungPeringkatGis20Level(
   tugasList: TugasPemetaan[] = []
 ): HasilPeringkatGis20 {
   const dataKader = semuaData.filter(
-    (d) => d.idKader === profil.idKader && d.statusSinkron !== "ditolak"
+    (d) =>
+      d.idKader === profil.idKader &&
+      d.statusSinkron !== "ditolak" &&
+      dihitungUntukCapaian(d)
   );
 
   // 1. Skor Volume Data
   const jmlTitik = dataKader.filter((d) => d.jenisGeometri === "point").length;
-  const jmlPembaruan = dataKader.reduce(
-    (acc, d) => acc + (d.riwayatPembaruan ? d.riwayatPembaruan.length : 0),
-    0
-  );
+  const jmlPembaruan = dataKader.reduce((acc, d) => acc + hitungPembaruanSah(d), 0);
   const totalKm = dataKader
     .filter((d) => d.jenisGeometri === "line")
     .reduce((acc, d) => acc + (d.panjangKm || 0), 0);
@@ -268,13 +359,18 @@ export function hitungPeringkatGis20Level(
   const skorVariasiData = kategoriUnik * 35 + geometriUnik * 45;
 
   // 3. Skor Keaktifan Diskusi & Koordinasi
+  // Hanya ruang diskusi komunitas, dicocokkan dengan ID pengirim (bukan nama yang bisa sama atau
+  // diubah), dan dibatasi supaya diskusi saja tidak bisa menaikkan level jauh tanpa data lapangan.
   const pesanKader = pesanList.filter(
-    (m) => m.idPengirim === profil.idKader || m.namaPengirim === profil.nama
+    (m) => m.saluran === "komunitas" && m.idPengirim === profil.idKader
   );
   const pesanDiskusi = pesanKader.length;
   const pinDibagikan = pesanKader.filter((m) => Boolean(m.pinKoordinat)).length;
   const pesanSuara = pesanKader.filter((m) => Boolean(m.durasiSuaraDetik)).length;
-  const skorDiskusi = pesanDiskusi * 15 + pinDibagikan * 20 + pesanSuara * 15;
+  const skorDiskusi = Math.min(
+    BATAS_SKOR_DISKUSI,
+    pesanDiskusi * 15 + pinDibagikan * 20 + pesanSuara * 15
+  );
 
   // 4. Skor Kualitas & Validasi Data
   const dataBerfoto = dataKader.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl)).length;
@@ -365,8 +461,7 @@ export function hitungPeringkatGis20Level(
 /**
  * Menghitung capaian gamifikasi & insentif kader sesuai PRD Bab 3.3:
  * - 1 Paket Capaian = 50 Titik Koordinat ATAU 5 km Tracking Perjalanan ATAU 5 Ha Pemetaan Poligon
- * - Capaian Pertama (1x Target) -> Sertifikat Kader Pemetaan
- * - Capaian Berikutnya (Setiap 2x Target) -> Upah Harian 1 Hari Kerja (1 HOK)
+ * - Capaian Pertama (1x Target) -> berhak atas Sertifikat Kader Pemetaan (hanya data terverifikasi)
  */
 export function hitungCapaianKader(
   semuaData: DataSpasialItem[],
@@ -376,15 +471,13 @@ export function hitungCapaianKader(
   const dataKader = semuaData.filter((d) => {
     if (d.idKader !== profil.idKader) return false;
     if (d.statusSinkron === "ditolak") return false;
+    if (!dihitungUntukCapaian(d)) return false;
     if (hanyaTerverifikasi) return d.statusSinkron === "terverifikasi";
     return true;
   });
 
   const jumlahTitik = dataKader.filter((d) => d.jenisGeometri === "point").length;
-  const jumlahPembaruan = dataKader.reduce(
-    (acc, d) => acc + (d.riwayatPembaruan ? d.riwayatPembaruan.length : 0),
-    0
-  );
+  const jumlahPembaruan = dataKader.reduce((acc, d) => acc + hitungPembaruanSah(d), 0);
   // Sesuai PRD 3.3.A.1: Mengumpulkan atau memperbarui titik koordinat
   const totalPoinTitik = jumlahTitik + jumlahPembaruan;
 
