@@ -14,7 +14,7 @@ import {
 import { rahasiaUntukTampil } from "../lib/totp";
 import { KodeQrSvg } from "./KodeQrSvg";
 import { TombolInstal } from "./InstalAplikasi";
-import { AlertCircle, CheckCircle2, Compass, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone } from "lucide-react";
 
 interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
@@ -292,21 +292,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             textAlign: "center"
           }}
         >
-          <div
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.15)",
-              border: "2px solid #34d399",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 8
-            }}
-          >
-            <Compass size={26} color="#fbbf24" />
-          </div>
+          <img src="./icon.svg" alt="" width={56} height={56} style={{ display: "block", margin: "0 auto 8px" }} />
           <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>Titik Tapak</h2>
           <p style={{ margin: 0, fontSize: "0.78rem", color: "#a7f3d0" }}>Pemetaan Partisipatif Masyarakat</p>
         </div>

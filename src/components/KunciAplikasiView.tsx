@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Compass, Fingerprint, LogOut, Radio } from "lucide-react";
+import { Fingerprint, LogOut, Radio } from "lucide-react";
 import { AkunSesi } from "../lib/auth";
 import { PANJANG_PIN, TujuanBuka, aturPin, daftarkanBiometrik } from "../lib/kunciCepat";
 import { biometrikDidukung } from "../lib/webauthn";
@@ -143,7 +143,7 @@ export const KunciAplikasiView: React.FC<KunciAplikasiViewProps> = ({ sesi, mode
     <div className="layar-kunci-kartu">
       <div className="layar-kunci-kepala">
         <div className="layar-kunci-logo">
-          <Compass size={24} color="#fbbf24" aria-hidden="true" />
+          <img src="./icon.svg" alt="" width={52} height={52} />
         </div>
         <h2 id="judul-layar-kunci">{mode === "siapkan" ? "Amankan Titik Tapak" : "Titik Tapak terkunci"}</h2>
         <p>
