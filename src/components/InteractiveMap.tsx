@@ -18,7 +18,6 @@ import {
   namaArahKompas
 } from "../lib/geoUtils";
 import {
-  Compass,
   Crosshair,
   Download,
   FileUp,
@@ -113,7 +112,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
 
-  // Posisi tengah peta (Default: Desa Rimba Lestari)
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: -0.9475,
     lng: 100.4192
@@ -123,7 +121,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [formatKoord, setFormatKoord] = useState<FormatKoordinat>("DD");
   const [renderTick, setRenderTick] = useState<number>(0);
 
-  // Navigasi & Posisi GPS Kader
+  // State UI Clean Mode: fitur disembunyikan agar tidak menghalangi peta di HP
+  const [bukaMenuPeta, setBukaMenuPeta] = useState<boolean>(false);
+  const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
+  const [tampilDaftarObjek, setTampilDaftarObjek] = useState<boolean>(false);
+
+  // Navigasi & Posisi GPS
   const [gpsPos, setGpsPos] = useState<KoordinatTitik>({
     lat: -0.9478,
     lng: 100.4185,
@@ -150,23 +153,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [namaIlmiahInput, setNamaIlmiahInput] = useState<string>("");
   const [jumlahIndividuInput, setJumlahIndividuInput] = useState<string>("1");
   const [manfaatInput, setManfaatInput] = useState<string>("");
-  const [kondisiInput, setKondisiInput] = useState<string>("Sehat / Baik");
+  const [kondisiInput, setKondisiInput] = useState<string>("");
   const [deskripsiInput, setDeskripsiInput] = useState<string>("");
   const [fotoInput, setFotoInput] = useState<string>("");
 
-  // Inspeksi Objek Existing & Update Kondisi
+  // Inspeksi Objek Existing
   const [objekTerpilih, setObjekTerpilih] = useState<DataSpasialItem | null>(null);
   const [kondisiUpdateInput, setKondisiUpdateInput] = useState<string>("");
   const [catatanUpdateInput, setCatatanUpdateInput] = useState<string>("");
 
   // Modal Offline Downloader
   const [bukaModalOffline, setBukaModalOffline] = useState<boolean>(false);
-  const [namaAreaOfflineBaru, setNamaAreaOfflineBaru] = useState<string>(
-    "Blok Survei Hutan Desa"
-  );
+  const [namaAreaOfflineBaru, setNamaAreaOfflineBaru] = useState<string>("");
   const [sedangMengunduhTile, setSedangMengunduhTile] = useState<boolean>(false);
 
-  // Panning interaksi
   const dragRef = useRef<{
     active: boolean;
     startX: number;
@@ -183,7 +183,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     moved: false
   });
 
-  // Efek apabila fokusKoordinat berubah dari Tugas atau Chat
   useEffect(() => {
     if (fokusKoordinat) {
       setCenter({ lat: fokusKoordinat.lat, lng: fokusKoordinat.lng });
@@ -198,7 +197,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   }, [fokusKoordinat]);
 
-  // Simulasi Auto-Walk Tracking GPS di lapangan
   useEffect(() => {
     if (!autoTrackingAktif || modeRekam === null) return;
     const timer = window.setInterval(() => {
@@ -222,7 +220,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return () => clearInterval(timer);
   }, [autoTrackingAktif, modeRekam]);
 
-  // Konversi Lat/Lng ke piksel layar Canvas
   const latLngToPixel = (
     lat: number,
     lng: number,
@@ -239,7 +236,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     };
   };
 
-  // Gambar Peta di Canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -255,7 +251,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const W = rect.width;
     const H = rect.height;
 
-    // 1. Latar Belakang Taktis / Kontur Hutan (Fallback & Mode Taktis)
+    // 1. Latar Belakang Peta
     const grad = ctx.createLinearGradient(0, 0, W, H);
     if (basemap === "satelit") {
       grad.addColorStop(0, "#071f18");
@@ -271,7 +267,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo (jika bukan mode taktis murni)
+    // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo
     const centerTx = lngToTileX(center.lng, zoom);
     const centerTy = latToTileY(center.lat, zoom);
     const startTileX = Math.floor(centerTx - W / (2 * TILE_SIZE)) - 1;
@@ -307,49 +303,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
     }
 
-    // 3. Gambar Garis Kontur Topografi & Sungai Simulasi (selalu tampil halus agar di mode offline/sandbox tetap informatif)
+    // 3. Kisi Koordinat Halus (Tanpa label contoh/dummy)
     ctx.save();
-    ctx.strokeStyle =
-      basemap === "taktis" ? "rgba(16, 185, 129, 0.25)" : "rgba(52, 211, 153, 0.14)";
-    ctx.lineWidth = 1;
-    const peakPoints = [
-      { lat: -0.943, lng: 100.422, label: "Puncak Kabut (540 mdpl)" },
-      { lat: -0.951, lng: 100.414, label: "Bukit Damar (410 mdpl)" }
-    ];
-    peakPoints.forEach((pk) => {
-      const p = latLngToPixel(pk.lat, pk.lng, W, H);
-      for (let r = 35; r <= 240; r += 35) {
-        ctx.beginPath();
-        ctx.ellipse(p.x, p.y, r * 1.35, r * 0.9, 0.35, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.fillStyle = "rgba(167, 243, 208, 0.55)";
-      ctx.font = "600 11px system-ui, sans-serif";
-      ctx.fillText(`▲ ${pk.label}`, p.x - 40, p.y - 8);
-    });
-
-    // Aliran Sungai Jernih
-    const riverCoords = [
-      { lat: -0.938, lng: 100.412 },
-      { lat: -0.944, lng: 100.415 },
-      { lat: -0.9491, lng: 100.4151 },
-      { lat: -0.9518, lng: 100.4235 },
-      { lat: -0.956, lng: 100.429 }
-    ];
-    ctx.strokeStyle = "rgba(56, 189, 248, 0.45)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    riverCoords.forEach((rc, idx) => {
-      const rp = latLngToPixel(rc.lat, rc.lng, W, H);
-      if (idx === 0) ctx.moveTo(rp.x, rp.y);
-      else ctx.lineTo(rp.x, rp.y);
-    });
-    ctx.stroke();
-    ctx.restore();
-
-    // 4. Gambar Kisi Koordinat (Coordinate Grid)
-    ctx.save();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
     ctx.lineWidth = 1;
     const stepGrid = 128;
     for (let gx = (W / 2) % stepGrid; gx < W; gx += stepGrid) {
@@ -366,7 +322,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
     ctx.restore();
 
-    // 5. Gambar Poligon, Jalur Tracking, dan Titik yang sudah tersimpan
+    // 4. Gambar Objek Spasial yang Sudah Tersimpan
     dataSpasial.forEach((item) => {
       const color = WARNA_KATEGORI[item.kategori] || "#10b981";
       const isSelected = objekTerpilih?.id === item.id;
@@ -386,7 +342,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         ctx.lineWidth = isSelected ? 3 : 2;
         ctx.stroke();
 
-        // Label Luas Ha di tengah poligon
         const avgLat =
           item.koordinat.reduce((a, b) => a + b.lat, 0) / item.koordinat.length;
         const avgLng =
@@ -430,7 +385,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       } else if (item.jenisGeometri === "point" && item.koordinat[0]) {
         const p = latLngToPixel(item.koordinat[0].lat, item.koordinat[0].lng, W, H);
         ctx.save();
-        // Lingkaran luar halo jika terpilih
         if (isSelected) {
           ctx.beginPath();
           ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
@@ -445,7 +399,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         ctx.strokeStyle = "#ffffff";
         ctx.stroke();
 
-        // Label nama titik
         ctx.fillStyle = "rgba(6, 20, 17, 0.82)";
         const label = item.namaLokal || item.judul.slice(0, 16);
         const tw = ctx.measureText(label).width + 12;
@@ -458,7 +411,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
     });
 
-    // 6. Gambar Draft Sedang Direkam (Garis / Poligon / Titik)
+    // 5. Gambar Draft Sedang Direkam
     if (modeRekam && titikDraft.length > 0) {
       ctx.save();
       ctx.beginPath();
@@ -489,7 +442,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       ctx.restore();
     }
 
-    // 7. Garis Navigasi Go-To Waypoint (Jika aktif)
+    // 6. Garis Navigasi Go-To
     if (targetGoTo) {
       const fromP = latLngToPixel(gpsPos.lat, gpsPos.lng, W, H);
       const toP = latLngToPixel(targetGoTo.lat, targetGoTo.lng, W, H);
@@ -504,44 +457,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       ctx.restore();
     }
 
-    // 8. Posisi GPS Biru Kader Saat Ini
+    // 7. Posisi GPS Biru
     const gpsPx = latLngToPixel(gpsPos.lat, gpsPos.lng, W, H);
     ctx.save();
     ctx.beginPath();
-    ctx.arc(gpsPx.x, gpsPx.y, 18, 0, Math.PI * 2);
+    ctx.arc(gpsPx.x, gpsPx.y, 16, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(gpsPx.x, gpsPx.y, 7, 0, Math.PI * 2);
+    ctx.arc(gpsPx.x, gpsPx.y, 6.5, 0, Math.PI * 2);
     ctx.fillStyle = "#0ea5e9";
     ctx.fill();
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
     ctx.restore();
 
-    // 9. Bidikan Tengah (Crosshair Avenza/AlpineQuest)
+    // 8. Bidikan Tengah (Crosshair)
     ctx.save();
     const cx = W / 2;
     const cy = H / 2;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(cx - 22, cy);
-    ctx.lineTo(cx - 6, cy);
-    ctx.moveTo(cx + 6, cy);
-    ctx.lineTo(cx + 22, cy);
-    ctx.moveTo(cx, cy - 22);
-    ctx.lineTo(cx, cy - 6);
-    ctx.moveTo(cx, cy + 6);
-    ctx.lineTo(cx, cy + 22);
+    ctx.moveTo(cx - 18, cy);
+    ctx.lineTo(cx - 5, cy);
+    ctx.moveTo(cx + 5, cy);
+    ctx.lineTo(cx + 18, cy);
+    ctx.moveTo(cx, cy - 18);
+    ctx.lineTo(cx, cy - 5);
+    ctx.moveTo(cx, cy + 5);
+    ctx.lineTo(cx, cy + 18);
     ctx.stroke();
     ctx.fillStyle = "#fbbf24";
     ctx.beginPath();
-    ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }, [
@@ -557,8 +510,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     renderTick
   ]);
 
-  // Event handler Geser Peta & Klik Objek di Peta
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (bukaMenuPeta) setBukaMenuPeta(false);
     dragRef.current = {
       active: true,
       startX: e.clientX,
@@ -595,7 +548,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
 
-      // Jika sedang dalam mode rekam garis/poligon, klik di peta bisa menambah titik, atau cek klik pada objek existing
       if (!modeRekam) {
         for (const item of dataSpasial) {
           const refCoord = item.koordinat[0];
@@ -611,7 +563,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
-  // Tambah titik dari posisi bidikan tengah (Crosshair)
   const tambahTitikBidikan = () => {
     const pt: KoordinatTitik = {
       lat: Number(center.lat.toFixed(6)),
@@ -628,10 +579,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
-  // Mulai mode rekam
   const mulaiModeRekam = (jenis: JenisGeometri) => {
     setObjekTerpilih(null);
     setModeRekam(jenis);
+    setBukaAlatRekam(false);
     setAutoTrackingAktif(false);
     if (jenis === "point") {
       const pt: KoordinatTitik = {
@@ -658,7 +609,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
-  // Unggah Foto Lapangan & Kompres ke Base64
   const handlePilihFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -671,7 +621,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Simpan Data Spasial Baru
   const handleSimpanForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modeRekam || titikDraft.length === 0) return;
@@ -694,7 +643,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       jumlahIndividu: Number(jumlahIndividuInput) || 1,
       manfaatMasyarakat: manfaatInput.trim() || undefined,
       kondisiAncaman: kondisiInput.trim() || undefined,
-      deskripsi: deskripsiInput.trim() || "Direkam langsung di lapangan oleh kader.",
+      deskripsi: deskripsiInput.trim() || "Direkam langsung di lapangan.",
       koordinat: titikDraft,
       panjangKm,
       luasHa,
@@ -716,11 +665,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setNamaLokalInput("");
     setNamaIlmiahInput("");
     setManfaatInput("");
+    setKondisiInput("");
     setDeskripsiInput("");
     setFotoInput("");
   };
 
-  // Impor file GeoJSON
   const handleImporFileSpasial = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -729,7 +678,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       try {
         const text = String(reader.result || "");
         const json = JSON.parse(text);
-        if (json. features && Array.isArray(json.features)) {
+        if (json.features && Array.isArray(json.features)) {
           const hasilImpor: DataSpasialItem[] = json.features.map(
             (f: Record<string, any>, idx: number) => {
               const geomType = f.geometry?.type;
@@ -776,6 +725,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             }
           );
           onImporDataSpasial(hasilImpor);
+          setBukaMenuPeta(false);
         }
       } catch {
         alert("Format file tidak dikenali. Gunakan file .geojson standar.");
@@ -784,13 +734,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     reader.readAsText(file);
   };
 
-  // Unduh Area Peta Offline
   const handleUnduhAreaOffline = () => {
     setSedangMengunduhTile(true);
     setTimeout(() => {
       const areaBaru: AreaPetaOffline = {
         id: `OFF-${Date.now()}`,
-        namaArea: namaAreaOfflineBaru || "Area Hutan Desa",
+        namaArea: namaAreaOfflineBaru.trim() || `Peta Offline ${areaOffline.length + 1}`,
         basemapId: basemap,
         minLat: Number((center.lat - 0.015).toFixed(4)),
         maxLat: Number((center.lat + 0.015).toFixed(4)),
@@ -805,8 +754,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       };
       onSimpanAreaOffline(areaBaru);
       setSedangMengunduhTile(false);
+      setNamaAreaOfflineBaru("");
       setBukaModalOffline(false);
-    }, 900);
+    }, 800);
   };
 
   const panjangDraftKm = hitungPanjangGarisKm(titikDraft);
@@ -820,49 +770,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     : 0;
 
   return (
-    <div className="map-module-wrapper">
-      {/* BARIS STATUS GPS, KOMPAS & KOORDINAT BIDIKAN (ALA AVENZA / ALPINEQUEST) */}
-      <div className="gps-hud-bar">
-        <div className="gps-hud-item">
-          <Crosshair size={15} className="text-emerald" />
-          <span className="hud-coord">
-            {formatKoordinatTeks(center.lat, center.lng, formatKoord)}
-          </span>
-          <button
-            type="button"
-            className="hud-badge-btn"
-            onClick={() =>
-              setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))
-            }
-            title="Ubah Format Koordinat (DD / DMS / UTM)"
-          >
-            {formatKoord}
-          </button>
-        </div>
-
-        <div className="gps-hud-metrics">
-          <span className="hud-pill">
-            📡 GPS ±{gpsPos.akurasi} m • {gpsPos.elevasi} mdpl
-          </span>
-          <span className="hud-pill">
-            <Compass size={14} /> {kompasDerajat}° {namaArahKompas(kompasDerajat)}
-          </span>
-        </div>
-      </div>
-
+    <div className="map-module-wrapper clean-map-mode">
       {/* BANNER NAVIGASI GO-TO WAYPOINT JIKA AKTIF */}
       {targetGoTo && (
         <div className="goto-nav-banner">
           <div>
-            <strong>🎯 Navigasi Go-To: {targetGoTo.judul}</strong>
+            <strong>🎯 {targetGoTo.judul}</strong>
             <div className="goto-nav-sub">
-              Jarak lurus:{" "}
-              <b>
-                {jarakKeTargetMeter >= 1000
-                  ? `${(jarakKeTargetMeter / 1000).toFixed(2)} km`
-                  : `${jarakKeTargetMeter} meter`}
-              </b>{" "}
-              • Arah Kompas: <b>{bearingKeTarget}° ({namaArahKompas(bearingKeTarget)})</b>
+              {jarakKeTargetMeter >= 1000
+                ? `${(jarakKeTargetMeter / 1000).toFixed(2)} km`
+                : `${jarakKeTargetMeter} m`}{" "}
+              • {bearingKeTarget}° ({namaArahKompas(bearingKeTarget)})
             </div>
           </div>
           <button
@@ -870,13 +788,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             className="btn-outline-sm"
             onClick={() => setTargetGoTo(null)}
           >
-            Hentikan Navigasi
+            Tutup
           </button>
         </div>
       )}
 
-      {/* KANVAS PETA INTERAKTIF */}
-      <div className="map-canvas-container">
+      {/* KANVAS PETA INTERAKTIF FULL-VIEW DAN CLEAN DI MOBILE */}
+      <div className="map-canvas-container clean-canvas">
         <canvas
           ref={canvasRef}
           className="map-canvas"
@@ -885,48 +803,31 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onPointerUp={handlePointerUp}
         />
 
-        {/* PEMILIH BASEMAP DI POJOK KIRI ATAS */}
-        <div className="map-overlay-top-left">
-          <div className="basemap-switcher">
-            <Layers size={15} />
-            {(
-              [
-                { id: "satelit", label: "Satelit Gratis" },
-                { id: "topo", label: "Topografi" },
-                { id: "osm", label: "OSM" },
-                { id: "taktis", label: "Kontur Offline" }
-              ] as { id: BasemapType; label: string }[]
-            ).map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={`basemap-btn ${basemap === b.id ? "active" : ""}`}
-                onClick={() => setBasemap(b.id)}
-              >
-                {b.label}
-              </button>
-            ))}
-          </div>
+        {/* PILL KOORDINAT RINGKAS DI KIRI ATAS (KETUK UNTUK GANTI DD/DMS/UTM) */}
+        <div className="map-clean-top-left">
+          <button
+            type="button"
+            className="map-coord-mini-pill"
+            onClick={() =>
+              setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))
+            }
+            title="Ketuk untuk ubah format koordinat (DD / DMS / UTM)"
+          >
+            <Crosshair size={13} className="text-emerald" />
+            <span>{formatKoordinatTeks(center.lat, center.lng, formatKoord)}</span>
+            <small>±{gpsPos.akurasi}m</small>
+          </button>
         </div>
 
-        {/* TOMBOL ZOOM & LOKASI SAYA DI KANAN ATAS */}
+        {/* TOMBOL KONTROL RINGKAS DI KANAN ATAS (TIDAK MENGHALANGI PETA) */}
         <div className="map-overlay-top-right">
           <button
             type="button"
-            className="map-ctrl-btn"
-            onClick={() => setZoom((z) => Math.min(19, z + 1))}
-            title="Perbesar Peta"
+            className={`map-ctrl-btn ${bukaMenuPeta ? "active-ctrl" : ""}`}
+            onClick={() => setBukaMenuPeta((v) => !v)}
+            title="Lapisan Peta & Alat Offline"
           >
-            +
-          </button>
-          <span className="zoom-indicator">Z{zoom}</span>
-          <button
-            type="button"
-            className="map-ctrl-btn"
-            onClick={() => setZoom((z) => Math.max(11, z - 1))}
-            title="Perkecil Peta"
-          >
-            −
+            <Layers size={17} />
           </button>
           <button
             type="button"
@@ -939,25 +840,100 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <button
             type="button"
             className="map-ctrl-btn"
-            onClick={() => setBukaModalOffline(true)}
-            title="Unduh Peta Satelit Offline / Impor GeoPDF"
+            onClick={() => setZoom((z) => Math.min(19, z + 1))}
+            title="Perbesar"
           >
-            <Download size={16} />
+            +
           </button>
-          <label
+          <button
+            type="button"
             className="map-ctrl-btn"
-            title="Impor File Spasial (GeoJSON / KML / GPX)"
-            style={{ cursor: "pointer" }}
+            onClick={() => setZoom((z) => Math.max(11, z - 1))}
+            title="Perkecil"
           >
-            <FileUp size={16} />
-            <input
-              type="file"
-              accept=".geojson,.json"
-              style={{ display: "none" }}
-              onChange={handleImporFileSpasial}
-            />
-          </label>
+            −
+          </button>
         </div>
+
+        {/* POPOVER LAPISAN & ALAT PETA (HANYA TAMPIL SAAT TOMBOL LAYERS DIKETUK) */}
+        {bukaMenuPeta && (
+          <div className="map-layers-popover">
+            <div className="map-popover-head">
+              <strong>Peta Dasar & Alat</strong>
+              <button
+                type="button"
+                className="btn-icon-close"
+                onClick={() => setBukaMenuPeta(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="map-basemap-grid">
+              {(
+                [
+                  { id: "satelit", label: "🛰️ Satelit" },
+                  { id: "topo", label: "⛰️ Topografi" },
+                  { id: "osm", label: "🗺️ OSM" },
+                  { id: "taktis", label: "🧭 Kontur" }
+                ] as { id: BasemapType; label: string }[]
+              ).map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={`map-basemap-Option ${basemap === b.id ? "active" : ""}`}
+                  onClick={() => {
+                    setBasemap(b.id);
+                    setBukaMenuPeta(false);
+                  }}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="map-popover-actions">
+              <button
+                type="button"
+                className="btn-outline-sm"
+                style={{ width: "100%" }}
+                onClick={() => {
+                  setBukaMenuPeta(false);
+                  setBukaModalOffline(true);
+                }}
+              >
+                <Download size={14} /> Unduh Area Offline
+              </button>
+
+              <label
+                className="btn-outline-sm"
+                style={{ width: "100%", cursor: "pointer" }}
+              >
+                <FileUp size={14} /> Impor GeoJSON
+                <input
+                  type="file"
+                  accept=".geojson,.json"
+                  style={{ display: "none" }}
+                  onChange={handleImporFileSpasial}
+                />
+              </label>
+
+              {dataSpasial.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  style={{ width: "100%" }}
+                  onClick={() => {
+                    setTampilDaftarObjek((v) => !v);
+                    setBukaMenuPeta(false);
+                  }}
+                >
+                  <Eye size={14} /> {tampilDaftarObjek ? "Sembunyikan" : "Lihat"} Daftar Objek ({dataSpasial.length})
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON */}
         {modeRekam && modeRekam !== "point" && (
@@ -967,20 +943,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               <div>
                 <strong>
                   {modeRekam === "line"
-                    ? `Merekam Jalur Tracking (${titikDraft.length} titik)`
-                    : `Memetakan Poligon Wilayah (${titikDraft.length} sudut)`}
+                    ? `Jalur (${titikDraft.length} titik • ${panjangDraftKm} km)`
+                    : `Poligon (${titikDraft.length} sudut • ${luasDraftHa} Ha)`}
                 </strong>
-                <div className="rec-sub">
-                  {modeRekam === "line" ? (
-                    <>
-                      Panjang Otomatis: <b>{panjangDraftKm} km</b> (Target 1 Paket: 5,0 km)
-                    </>
-                  ) : (
-                    <>
-                      Luas Otomatis: <b>{luasDraftHa} Ha</b> • Keliling: {panjangDraftKm} km (Target: 5,0 Ha)
-                    </>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -990,14 +955,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 className="btn-tool"
                 onClick={tambahTitikBidikan}
               >
-                <Plus size={15} /> +Titik Bidikan
+                <Plus size={14} /> +Titik
               </button>
               <button
                 type="button"
                 className={`btn-tool ${autoTrackingAktif ? "active-walk" : ""}`}
                 onClick={() => setAutoTrackingAktif((a) => !a)}
               >
-                <Play size={15} /> {autoTrackingAktif ? "Jeda Jalan GPS" : "Auto-Track GPS"}
+                <Play size={14} /> {autoTrackingAktif ? "Jeda" : "Auto GPS"}
               </button>
               <button
                 type="button"
@@ -1008,7 +973,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 }
                 onClick={() => setBukaModalForm(true)}
               >
-                <Check size={15} /> Selesai & Simpan
+                <Check size={14} /> Simpan
               </button>
               <button
                 type="button"
@@ -1019,66 +984,72 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   setAutoTrackingAktif(false);
                 }}
               >
-                <X size={15} /> Batal
+                <X size={14} />
               </button>
             </div>
           </div>
         )}
 
-        {/* BILAH ALAT PEREKAMAN LAPANGAN (BAWAH PETA) */}
+        {/* TOMBOL REKAM RINGKAS YANG BISA DISEMBUNYIKAN AGAR TIDAK MENGHALANGI PETA */}
         {!modeRekam && (
-          <div className="map-bottom-toolbar">
-            <button
-              type="button"
-              className="record-action-btn point"
-              onClick={() => mulaiModeRekam("point")}
-            >
-              <MapPin size={18} />
-              <div>
-                <span>Ambil Titik (Waypoint)</span>
-                <small>Flora, Fauna, Air, Batas</small>
+          <div className="map-clean-bottom-bar">
+            {!bukaAlatRekam ? (
+              <button
+                type="button"
+                className="map-fab-record-trigger"
+                onClick={() => setBukaAlatRekam(true)}
+              >
+                <Plus size={18} strokeWidth={2.5} />
+                <span>Rekam Lokasi</span>
+              </button>
+            ) : (
+              <div className="map-compact-record-pills">
+                <button
+                  type="button"
+                  className="compact-rec-pill"
+                  onClick={() => mulaiModeRekam("point")}
+                >
+                  <MapPin size={15} />
+                  <span>Titik</span>
+                </button>
+                <button
+                  type="button"
+                  className="compact-rec-pill"
+                  onClick={() => mulaiModeRekam("line")}
+                >
+                  <Route size={15} />
+                  <span>Jalur</span>
+                </button>
+                <button
+                  type="button"
+                  className="compact-rec-pill"
+                  onClick={() => mulaiModeRekam("polygon")}
+                >
+                  <Square size={15} />
+                  <span>Poligon</span>
+                </button>
+                <button
+                  type="button"
+                  className="compact-rec-close"
+                  onClick={() => setBukaAlatRekam(false)}
+                  title="Sembunyikan alat rekam"
+                >
+                  <X size={15} />
+                </button>
               </div>
-            </button>
-
-            <button
-              type="button"
-              className="record-action-btn line"
-              onClick={() => mulaiModeRekam("line")}
-            >
-              <Route size={18} />
-              <div>
-                <span>Rekam Tracking (Jalur)</span>
-                <small>Hitung jarak otomatis (km)</small>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="record-action-btn polygon"
-              onClick={() => mulaiModeRekam("polygon")}
-            >
-              <Square size={18} />
-              <div>
-                <span>Petakan Poligon (Area)</span>
-                <small>Hitung luas otomatis (Ha)</small>
-              </div>
-            </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* PANEL DETAIL OBJEK EXISTING & PEMBARUAN DATA (KETIKA OBJEK DIKLIK DI PETA) */}
+      {/* PANEL DETAIL OBJEK EXISTING KETIKA DIKLIK DI PETA */}
       {objekTerpilih && (
         <div className="inspector-card">
           <div className="inspector-header">
             <div>
               <span className="badge-kategori">{objekTerpilih.kategori}</span>
               <span className={`badge-sync status-${objekTerpilih.statusSinkron}`}>
-                {objekTerpilih.statusSinkron === "lokal"
-                  ? "📱 Tersimpan di HP (Belum Sinkron)"
-                  : objekTerpilih.statusSinkron === "tersinkron"
-                  ? "☁️ Tersinkron ke GDrive"
-                  : "✅ Terverifikasi Admin"}
+                {objekTerpilih.statusSinkron.toUpperCase()}
               </span>
               <h4>{objekTerpilih.judul}</h4>
             </div>
@@ -1094,44 +1065,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <div className="inspector-grid">
             <div>
               <p className="inspector-desc">{objekTerpilih.deskripsi}</p>
-              <ul className="inspector-meta">
-                {objekTerpilih.namaLokal && (
-                  <li>
-                    <strong>Nama Lokal / Ilmiah:</strong> {objekTerpilih.namaLokal}{" "}
-                    {objekTerpilih.namaIlmiah ? `(${objekTerpilih.namaIlmiah})` : ""}
-                  </li>
-                )}
-                {objekTerpilih.manfaatMasyarakat && (
-                  <li>
-                    <strong>Manfaat Masyarakat:</strong> {objekTerpilih.manfaatMasyarakat}
-                  </li>
-                )}
-                {objekTerpilih.kondisiAncaman && (
-                  <li>
-                    <strong>Kondisi / Ancaman:</strong> {objekTerpilih.kondisiAncaman}
-                  </li>
-                )}
-                {objekTerpilih.jenisGeometri === "line" && (
-                  <li>
-                    <strong>Panjang Jalur Tracking:</strong> {objekTerpilih.panjangKm} km
-                  </li>
-                )}
-                {objekTerpilih.jenisGeometri === "polygon" && (
-                  <li>
-                    <strong>Luas Wilayah Poligon:</strong> {objekTerpilih.luasHa} Hektare (Ha)
-                  </li>
-                )}
-                <li>
-                  <strong>Koordinat Utama:</strong>{" "}
-                  {formatKoordinatTeks(
-                    objekTerpilih.koordinat[0].lat,
-                    objekTerpilih.koordinat[0].lng,
-                    formatKoord
-                  )}
-                </li>
-              </ul>
-
-              <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
                 <button
                   type="button"
                   className="btn-primary-sm"
@@ -1143,43 +1077,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     })
                   }
                 >
-                  <Navigation size={14} /> Navigasi Go-To ke Titik Ini
+                  <Navigation size={14} /> Navigasi Go-To
                 </button>
               </div>
             </div>
 
-            {/* Form Update Kondisi Terbaru (Sesuai PRD 3.1: Pembaruan Data Existing) */}
             <div className="inspector-update-box">
               <h5>
-                <RefreshCw size={14} /> Perbarui Kondisi Objek (Update Data Existing)
+                <RefreshCw size={14} /> Perbarui Kondisi
               </h5>
-              {objekTerpilih.riwayatPembaruan.length > 0 && (
-                <div className="update-history-list">
-                  {objekTerpilih.riwayatPembaruan.map((u) => (
-                    <div key={u.id} className="update-history-item">
-                      <small>
-                        {u.tanggal.slice(0, 10)} oleh <b>{u.olehKader}</b>
-                      </small>
-                      <div>{u.kondisiTerbaru}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               <input
                 type="text"
                 className="form-input"
-                placeholder="Kondisi terbaru (mis. Pohon sedang berbuah lebat)"
+                placeholder="Kondisi terbaru..."
                 value={kondisiUpdateInput}
                 onChange={(e) => setKondisiUpdateInput(e.target.value)}
-              />
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Catatan tambahan tindak lanjut..."
-                value={catatanUpdateInput}
-                onChange={(e) => setCatatanUpdateInput(e.target.value)}
-                style={{ marginTop: "6px" }}
               />
               <button
                 type="button"
@@ -1196,39 +1108,38 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   setCatatanUpdateInput("");
                 }}
               >
-                + Simpan Pembaruan Kondisi (+1 Poin Capaian)
+                + Simpan Pembaruan
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DAFTAR RINGKAS OBJEK DI PETA AGAR MUDAH DIKLIK / MENUJU KE LOKASI */}
-      <div className="map-feature-strip">
-        <span className="strip-label">
-          <Eye size={14} /> Objek Terpetakan ({dataSpasial.length}):
-        </span>
-        {dataSpasial.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            className={`strip-chip ${objekTerpilih?.id === d.id ? "active" : ""}`}
-            onClick={() => {
-              setObjekTerpilih(d);
-              if (d.koordinat[0]) {
-                setCenter({ lat: d.koordinat[0].lat, lng: d.koordinat[0].lng });
-              }
-            }}
-          >
-            {d.jenisGeometri === "point"
-              ? "📍"
-              : d.jenisGeometri === "line"
-              ? "〰️"
-              : "⬢"}{" "}
-            {d.judul.slice(0, 22)}
-          </button>
-        ))}
-      </div>
+      {/* DAFTAR OBJEK (HANYA MUNCUL JIKA DIAKTIFKAN DARI MENU LAYERS) */}
+      {tampilDaftarObjek && dataSpasial.length > 0 && (
+        <div className="map-feature-strip">
+          {dataSpasial.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className={`strip-chip ${objekTerpilih?.id === d.id ? "active" : ""}`}
+              onClick={() => {
+                setObjekTerpilih(d);
+                if (d.koordinat[0]) {
+                  setCenter({ lat: d.koordinat[0].lat, lng: d.koordinat[0].lng });
+                }
+              }}
+            >
+              {d.jenisGeometri === "point"
+                ? "📍"
+                : d.jenisGeometri === "line"
+                ? "〰️"
+                : "⬢"}{" "}
+              {d.judul.slice(0, 20)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* MODAL FORM PENYIMPANAN ATRIBUT SURVEI LAPANGAN */}
       {bukaModalForm && (
@@ -1237,10 +1148,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             <div className="modal-header">
               <h3>
                 {modeRekam === "point"
-                  ? "📍 Simpan Titik Koordinat (Waypoint)"
+                  ? "📍 Simpan Titik Lokasi"
                   : modeRekam === "line"
-                  ? `〰️ Simpan Jalur Tracking (${panjangDraftKm} km)`
-                  : `⬢ Simpan Poligon Wilayah (${luasDraftHa} Ha)`}
+                  ? `〰️ Simpan Jalur (${panjangDraftKm} km)`
+                  : `⬢ Simpan Poligon (${luasDraftHa} Ha)`}
               </h3>
               <button
                 type="button"
@@ -1260,21 +1171,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     value={kategoriInput}
                     onChange={(e) => setKategoriInput(e.target.value as KategoriSurvei)}
                   >
-                    <option value="Flora">🌿 Flora (Tumbuhan / Pohon)</option>
-                    <option value="Fauna">🐾 Fauna (Satwa / Jejak)</option>
-                    <option value="Mata Air">💧 Mata Air / Hidrologi</option>
-                    <option value="Tanda Batas">🪧 Tanda Batas Wilayah</option>
-                    <option value="Wilayah Adat / Lahan">⬢ Wilayah Adat / Kebun</option>
-                    <option value="Ancaman / Temuan">⚠️ Ancaman / Temuan Lain</option>
+                    <option value="Flora">🌿 Flora</option>
+                    <option value="Fauna">🐾 Fauna</option>
+                    <option value="Mata Air">💧 Mata Air</option>
+                    <option value="Tanda Batas">🪧 Tanda Batas</option>
+                    <option value="Wilayah Adat / Lahan">⬢ Wilayah Adat / Lahan</option>
+                    <option value="Ancaman / Temuan">⚠️ Ancaman / Temuan</option>
                   </select>
                 </div>
                 <div>
-                  <label>Judul / Nama Objek *</label>
+                  <label>Nama Objek *</label>
                   <input
                     type="text"
                     required
                     className="form-input"
-                    placeholder="Mis. Pohon Damar Besar Blok Ulu"
+                    placeholder="Masukkan nama objek"
                     value={judulInput}
                     onChange={(e) => setJudulInput(e.target.value)}
                   />
@@ -1287,23 +1198,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Mis. Damar / Meranti"
+                    placeholder="Nama lokal"
                     value={namaLokalInput}
                     onChange={(e) => setNamaLokalInput(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label>Nama Ilmiah (Opsional)</label>
+                  <label>Nama Ilmiah</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Mis. Agathis dammara"
+                    placeholder="Opsional"
                     value={namaIlmiahInput}
                     onChange={(e) => setNamaIlmiahInput(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label>Jumlah Individu</label>
+                  <label>Jumlah</label>
                   <input
                     type="number"
                     min="1"
@@ -1316,21 +1227,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
               <div className="form-row-2">
                 <div>
-                  <label>Manfaat bagi Masyarakat</label>
+                  <label>Manfaat</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Mis. Getah damar, sumber air bersih, pohon pakan"
+                    placeholder="Manfaat bagi masyarakat"
                     value={manfaatInput}
                     onChange={(e) => setManfaatInput(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label>Kondisi / Ancaman</label>
+                  <label>Kondisi</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Mis. Sehat, aman dari pembalakan"
+                    placeholder="Kondisi saat ini"
                     value={kondisiInput}
                     onChange={(e) => setKondisiInput(e.target.value)}
                   />
@@ -1338,11 +1249,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               </div>
 
               <div>
-                <label>Deskripsi Lapangan Lengkap</label>
+                <label>Catatan Lapangan</label>
                 <textarea
                   rows={2}
                   className="form-input"
-                  placeholder="Catat ciri lokasi, kemiringan lereng, atau kesepakatan warga..."
+                  placeholder="Catatan tambahan..."
                   value={deskripsiInput}
                   onChange={(e) => setDeskripsiInput(e.target.value)}
                 />
@@ -1350,7 +1261,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
               <div className="form-photo-box">
                 <label className="btn-upload-photo">
-                  <Camera size={16} /> Ambil / Lampirkan Foto Dokumentasi (Geotagging)
+                  <Camera size={16} /> Lampirkan Foto
                   <input
                     type="file"
                     accept="image/*"
@@ -1359,9 +1270,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     onChange={handlePilihFoto}
                   />
                 </label>
-                {fotoInput && (
-                  <span className="photo-ready-badge">✓ Foto terlampir siap sinkron GDrive</span>
-                )}
+                {fotoInput && <span className="photo-ready-badge">✓ Foto siap</span>}
               </div>
 
               <div className="modal-footer">
@@ -1370,10 +1279,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   className="btn-outline-sm"
                   onClick={() => setBukaModalForm(false)}
                 >
-                  Kembali ke Peta
+                  Batal
                 </button>
                 <button type="submit" className="btn-primary">
-                  💾 Simpan ke Memori HP (Offline-First)
+                  Simpan Lokasi
                 </button>
               </div>
             </form>
@@ -1381,12 +1290,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* MODAL PENGUNDUH PETA SATELIT OFFLINE & GEOPDF */}
+      {/* MODAL PENGUNDUH PETA SATELIT OFFLINE */}
       {bukaModalOffline && (
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>📥 Pengunduh Area Peta Satelit Offline & GeoPDF</h3>
+              <h3>📥 Unduh Peta Offline</h3>
               <button
                 type="button"
                 className="btn-icon-close"
@@ -1397,30 +1306,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </div>
 
             <div className="modal-form">
-              <p className="text-muted">
-                Simpan citra satelit kotak wilayah kerja saat ini ke memori HP agar tetap bisa
-                dipakai di tengah hutan tanpa sinyal seluler.
-              </p>
-
               <div>
                 <label>Nama Area Peta Offline</label>
                 <input
                   type="text"
                   className="form-input"
+                  placeholder="Masukkan nama area"
                   value={namaAreaOfflineBaru}
                   onChange={(e) => setNamaAreaOfflineBaru(e.target.value)}
                 />
-              </div>
-
-              <div className="offline-bbox-preview">
-                <div>
-                  <strong>Batas Wilayah (Bounding Box):</strong>{" "}
-                  {(center.lat - 0.015).toFixed(4)}° s/d {(center.lat + 0.015).toFixed(4)}° LS,{" "}
-                  {(center.lng - 0.015).toFixed(4)}° s/d {(center.lng + 0.015).toFixed(4)}° BT
-                </div>
-                <div>
-                  <strong>Rentang Zoom:</strong> Z13 – Z18 (Estimasi 960 Tile • ±19,5 MB)
-                </div>
               </div>
 
               <button
@@ -1429,40 +1323,34 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 disabled={sedangMengunduhTile}
                 onClick={handleUnduhAreaOffline}
               >
-                {sedangMengunduhTile
-                  ? "⏳ Mengunduh & Menyimpan Tile Satelit ke Memori HP..."
-                  : "⬇️ Unduh Paket Peta Satelit Sekarang"}
+                {sedangMengunduhTile ? "⏳ Mengunduh..." : "⬇️ Unduh Sekarang"}
               </button>
 
-              <hr style={{ borderColor: "rgba(255,255,255,0.1)", margin: "12px 0" }} />
-
-              <h4>Paket Peta Offline Tersimpan di HP ({areaOffline.length})</h4>
-              <div className="offline-list">
-                {areaOffline.map((a) => (
-                  <div key={a.id} className="offline-item">
-                    <div>
-                      <strong>{a.namaArea}</strong>
-                      <small>
-                        {a.jenisFile} • Zoom {a.zoomMin}–{a.zoomMax} ({a.jumlahTile} tile,{" "}
-                        {a.ukuranMb} MB)
-                      </small>
+              {areaOffline.length > 0 && (
+                <div className="offline-list" style={{ marginTop: 8 }}>
+                  {areaOffline.map((a) => (
+                    <div key={a.id} className="offline-item">
+                      <div>
+                        <strong>{a.namaArea}</strong>
+                        <small>{a.ukuranMb} MB</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-outline-sm"
+                        onClick={() => {
+                          setCenter({
+                            lat: (a.minLat + a.maxLat) / 2,
+                            lng: (a.minLng + a.maxLng) / 2
+                          });
+                          setBukaModalOffline(false);
+                        }}
+                      >
+                        Buka
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn-outline-sm"
-                      onClick={() => {
-                        setCenter({
-                          lat: (a.minLat + a.maxLat) / 2,
-                          lng: (a.minLng + a.maxLng) / 2
-                        });
-                        setBukaModalOffline(false);
-                      }}
-                    >
-                      Buka Area
-                    </button>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

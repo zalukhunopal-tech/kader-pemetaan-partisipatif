@@ -69,19 +69,20 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     "kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat_hok"
   >("kader_aktif");
 
-  // Modal Edit Data Spasial
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
 
-  // Form Tugas Spasial Baru
+  // Form Tugas Spasial Baru (tanpa data contoh)
   const [judulTugas, setJudulTugas] = useState("");
   const [descTugas, setDescTugas] = useState("");
-  const [wilayahTugas, setWilayahTugas] = useState("Blok Hutan Utara");
+  const [wilayahTugas, setWilayahTugas] = useState("");
   const [geomTugas, setGeomTugas] = useState<JenisGeometri>("polygon");
   const [katTugas, setKatTugas] = useState<KategoriSurvei>("Wilayah Adat / Lahan");
-  const [kuantitasTugas, setKuantitasTugas] = useState("Minimal 5,0 Ha Poligon");
+  const [kuantitasTugas, setKuantitasTugas] = useState("");
   const [latTugas, setLatTugas] = useState("-0.9470");
   const [lngTugas, setLngTugas] = useState("100.4190");
-  const [deadlineTugas, setDeadlineTugas] = useState("2026-11-20");
+  const [deadlineTugas, setDeadlineTugas] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
 
   // Form Pengumuman Baru
   const [judulAnn, setJudulAnn] = useState("");
@@ -90,9 +91,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   // Form Penerbitan Sertifikat
   const [nomorSertBaru, setNomorSertBaru] = useState(
-    `043/SERT-KPP/X/${new Date().getFullYear()}`
+    `001/SERT-KPP/${new Date().getFullYear()}`
   );
-  const [penandatangan, setPenandatangan] = useState("Ir. Hendra Wijaya, M.Sc.");
+  const [penandatangan, setPenandatangan] = useState("Koordinator Program GIS");
 
   const handleBuatTugas = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,21 +101,23 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     onTambahTugas({
       id: `TSK-${Date.now().toString().slice(-4)}`,
       judul: judulTugas.trim(),
-      deskripsi: descTugas.trim() || "Penugasan survei lapangan dari Admin GIS.",
-      targetWilayah: wilayahTugas,
+      deskripsi: descTugas.trim() || "Penugasan survei lapangan.",
+      targetWilayah: wilayahTugas.trim() || "-",
       jenisTargetGeometri: geomTugas,
       kategoriTarget: katTugas,
-      targetKuantitas: kuantitasTugas,
+      targetKuantitas: kuantitasTugas.trim() || "1 Paket",
       batasWaktu: deadlineTugas,
       koordinatAcuan: {
         lat: Number(latTugas) || -0.947,
         lng: Number(lngTugas) || 100.419
       },
       status: "aktif",
-      dibuatOleh: "Admin GIS Organisasi"
+      dibuatOleh: "Admin GIS"
     });
     setJudulTugas("");
     setDescTugas("");
+    setWilayahTugas("");
+    setKuantitasTugas("");
   };
 
   const handleBuatPengumuman = (e: React.FormEvent) => {
@@ -126,7 +129,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       isi: isiAnn.trim(),
       kategori: katAnn,
       targetDesa: "Semua Wilayah",
-      olehAdmin: "Admin GIS Organisasi",
+      olehAdmin: "Admin GIS",
       tanggal: new Date().toISOString().slice(0, 10),
       penting: true
     });
@@ -169,15 +172,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               >
                 ADMINISTRATOR GIS
               </span>
-              <span style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
-                Koordinator Wilayah & Verifikasi Lapangan
-              </span>
             </div>
-            <h2 style={{ margin: "6px 0 4px", color: "#ffffff", fontSize: "1.25rem", lineHeight: 1.3 }}>
-              Panel Kendali Pemetaan Partisipatif
+            <h2 style={{ margin: "6px 0 4px", color: "#ffffff", fontSize: "1.2rem", lineHeight: 1.3 }}>
+              Panel Kendali Pemetaan
             </h2>
             <div style={{ fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
-              🟢 {jumlahOnline} Kader Terdeteksi Aktif di Lapangan • {dataSpasial.length} Data Spasial Masuk
+              🟢 {jumlahOnline} Kader Aktif • {dataSpasial.length} Data Spasial
             </div>
           </div>
         </div>
@@ -186,7 +186,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             gap: 8,
             marginTop: 14
           }}
@@ -206,12 +206,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              textAlign: "center"
+              gap: 6
             }}
           >
-            <Radio size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
-            <span>Monitor Kader Aktif</span>
+            <Radio size={15} color="#38bdf8" />
+            <span>Monitor Kader</span>
           </button>
 
           <button
@@ -229,11 +228,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              textAlign: "center"
+              gap: 6
             }}
           >
-            <Edit3 size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
+            <Edit3 size={15} color="#38bdf8" />
             <span>Kelola Data ({dataSpasial.length})</span>
           </button>
 
@@ -252,12 +250,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              textAlign: "center"
+              gap: 6
             }}
           >
-            <PlusCircle size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
-            <span>Tugas Baru ({tugasList.length})</span>
+            <PlusCircle size={15} color="#38bdf8" />
+            <span>Tugas ({tugasList.length})</span>
           </button>
 
           <button
@@ -275,306 +272,85 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              textAlign: "center"
+              gap: 6
             }}
           >
-            <Award size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
-            <span>Sertifikat & 1 HOK</span>
+            <Award size={15} color="#38bdf8" />
+            <span>Sertifikat & HOK</span>
           </button>
         </div>
       </div>
 
-      {/* 2. TAB A: MONITOR KADER AKTIF & LOKASI GPS */}
+      {/* 2. TAB A: MONITOR KADER AKTIF */}
       {subTabAdmin === "kader_aktif" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {/* RADAR & MAP PRESENCE CANVAS */}
-          <div className="section-card" style={{ padding: "16px 18px" }}>
-            <div className="section-header-flex">
-              <div>
-                <h3 style={{ margin: "0 0 4px", fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
-                  <MapPin size={20} color="#0284c7" style={{ flexShrink: 0 }} />
-                  <span>Peta Lokasi Akun Kader Aktif di Lapangan</span>
-                </h3>
-                <p className="text-muted" style={{ margin: 0, fontSize: "0.8rem" }}>
-                  Pemantauan real-time koordinat GPS dan status pergerakan surveyor masyarakat
-                </p>
-              </div>
-            </div>
+        <div className="section-card">
+          <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+            <MapPin size={18} color="#0284c7" /> Monitor Lokasi Kader Lapangan
+          </h3>
 
-            {/* PETA VISUAL SEBARAN KADER */}
-            <div
-              style={{
-                marginTop: "12px",
-                height: 290,
-                borderRadius: "14px",
-                position: "relative",
-                overflow: "hidden",
-                background: "linear-gradient(135deg, #092e20 0%, #064e3b 60%, #042f2e 100%)",
-                border: "1px solid #059669",
-                boxShadow: "inset 0 0 30px rgba(0,0,0,0.5)"
-              }}
-            >
-              {/* Garis Grid Radar */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage:
-                    "linear-gradient(rgba(52, 211, 153, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(52, 211, 153, 0.15) 1px, transparent 1px)",
-                  backgroundSize: "40px 40px"
-                }}
-              />
-
-              {/* Watermark Label Wilayah */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  left: 12,
-                  right: 12,
-                  color: "#a7f3d0",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8
-                }}
-              >
-                Wilayah Konservasi Desa Rimba Lestari
-              </div>
-
-              {/* Pin Koordinat Kader di Peta Visual */}
-              {kaderAktifList.map((kader, idx) => {
-                const posX = 20 + ((kader.lng - 100.41) * 7000) % 70;
-                const posY = 22 + ((Math.abs(kader.lat) - 0.94) * 5000) % 58;
-                const isOnline = kader.status !== "offline";
-
-                return (
-                  <div
-                    key={kader.idKader}
-                    onClick={() => onFokusKePeta(kader.lat, kader.lng, kader.nama)}
-                    style={{
-                      position: "absolute",
-                      left: `${posX}%`,
-                      top: `${posY}%`,
-                      transform: "translate(-50%, -50%)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      zIndex: 10
-                    }}
-                    title={`Klik untuk lihat di Peta: ${kader.nama} (${kader.lat}, ${kader.lng})`}
-                  >
-                    {isOnline && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          background:
-                            kader.status === "survei_aktif"
-                              ? "rgba(34, 197, 94, 0.4)"
-                              : "rgba(56, 189, 248, 0.4)",
-                          animation: "pulse 2s infinite"
-                        }}
-                      />
-                    )}
-
-                    <div
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: "50%",
-                        background:
-                          kader.status === "survei_aktif"
-                            ? "#22c55e"
-                            : kader.status === "online"
-                            ? "#38bdf8"
-                            : "#94a3b8",
-                        border: "2px solid #ffffff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffffff",
-                        fontSize: "0.7rem",
-                        fontWeight: 800,
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.4)"
-                      }}
-                    >
-                      {idx + 1}
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 4,
-                        background: "rgba(0, 0, 0, 0.78)",
-                        color: "#ffffff",
-                        padding: "2px 7px",
-                        borderRadius: 6,
-                        fontSize: "0.68rem",
-                        fontWeight: 700,
-                        whiteSpace: "nowrap",
-                        border: "1px solid rgba(255,255,255,0.2)"
-                      }}
-                    >
-                      {kader.nama.split(" ")[0]}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Legenda Peta Mini */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 8,
-                  left: 10,
-                  right: 10,
-                  background: "rgba(0,0,0,0.72)",
-                  borderRadius: 8,
-                  padding: "5px 10px",
-                  fontSize: "0.66rem",
-                  color: "#e2e8f0",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                  gap: "6px 12px"
-                }}
-              >
-                <span>🟢 Survei Aktif</span>
-                <span>🔵 Online</span>
-                <span>⚪ Standby/Offline</span>
-              </div>
-            </div>
-          </div>
-
-          {/* DAFTAR AKUN KADER AKTIF & DETAIL LOKASI */}
-          <div className="section-card">
-            <h3 style={{ margin: "0 0 12px", fontSize: "1.02rem" }}>
-              👥 Daftar Akun Kader Terdaftar & Lokasi Lapangan
-            </h3>
-
+          {kaderAktifList.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
               {kaderAktifList.map((k) => (
                 <div
                   key={k.idKader}
                   style={{
                     background: "#f8faf9",
-                    border: k.status === "survei_aktif" ? "1.5px solid #0d7344" : "1px solid #d5dcd8",
+                    border: "1px solid #d5dcd8",
                     borderRadius: "14px",
                     padding: "14px",
                     display: "flex",
                     flexDirection: "column",
-                    justifyContent: "space-between",
                     gap: 10
                   }}
                 >
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              background:
-                                k.status === "survei_aktif"
-                                  ? "#22c55e"
-                                  : k.status === "online"
-                                  ? "#0284c7"
-                                  : "#94a3b8",
-                              flexShrink: 0
-                            }}
-                          />
-                          <strong style={{ fontSize: "0.94rem", color: "#181a19" }}>{k.nama}</strong>
-                        </div>
-                        <div style={{ fontSize: "0.74rem", color: "#64748b", marginTop: 2 }}>
-                          {k.idKader} • {k.desaWilayah}
-                        </div>
-                      </div>
-
-                      <span
-                        style={{
-                          fontSize: "0.68rem",
-                          fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: 99,
-                          background:
-                            k.status === "survei_aktif"
-                              ? "#dcfce7"
-                              : k.status === "online"
-                              ? "#e0f2fe"
-                              : "#f1f5f9",
-                          color:
-                            k.status === "survei_aktif"
-                              ? "#166534"
-                              : k.status === "online"
-                              ? "#0369a1"
-                              : "#64748b"
-                        }}
-                      >
-                        {k.status === "survei_aktif" ? "Survei Aktif" : k.status === "online" ? "Online" : "Offline"}
-                      </span>
-                    </div>
-
-                    <div style={{ background: "#ffffff", padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", marginTop: 8 }}>
-                      <div style={{ fontSize: "0.75rem", color: "#0d7344", fontWeight: 600 }}>
-                        📍 {k.aktivitasTerakhir}
-                      </div>
-                      <div style={{ fontSize: "0.72rem", color: "#475569", fontFamily: "monospace", marginTop: 2 }}>
-                        {k.lat.toFixed(5)}°, {k.lng.toFixed(5)}° (Akurasi: ±{k.akurasi}m)
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div>
+                      <strong style={{ fontSize: "0.94rem" }}>{k.nama}</strong>
+                      <div style={{ fontSize: "0.74rem", color: "#64748b" }}>
+                        {k.idKader} • {k.desaWilayah}
                       </div>
                     </div>
+                    <span className="badge-kategori">{k.status}</span>
                   </div>
-
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.72rem", color: "#64748b" }}>
-                      <Battery size={13} color={k.baterai > 50 ? "#16a34a" : "#ca8a04"} />
-                      <span>{k.baterai}% • {k.waktuUpdate}</span>
-                    </div>
-
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ fontSize: "0.72rem", color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+                      <Battery size={13} /> {k.baterai}% • {k.waktuUpdate}
+                    </span>
                     <button
                       type="button"
                       className="btn-outline-sm"
                       onClick={() => onFokusKePeta(k.lat, k.lng, k.nama)}
-                      style={{ padding: "4px 10px", fontSize: "0.74rem" }}
                     >
-                      <MapPin size={12} /> Buka Lokasi
+                      <MapPin size={12} /> Peta
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
+              Belum ada kader yang aktif mengirimkan sinyal lokasi lapangan.
+            </div>
+          )}
         </div>
       )}
 
-      {/* 3. TAB B: KELOLA & UBAH DATA SPASIAL */}
+      {/* 3. TAB B: KELOLA DATA SPASIAL */}
       {subTabAdmin === "kelola_data" && (
         <div className="section-card">
-          <div className="section-header-flex">
-            <div>
-              <h3 style={{ margin: "0 0 4px", fontSize: "1.02rem" }}>
-                ✏️ Kelola & Ubah Data Lapangan Kader ({dataSpasial.length})
-              </h3>
-              <p className="text-muted" style={{ margin: 0, fontSize: "0.8rem" }}>
-                Admin dapat menyunting judul, kategori, deskripsi, koordinat, memvalidasi atau menghapus data yang tidak sesuai.
-              </p>
-            </div>
-          </div>
+          <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
+            ✏️ Kelola Data Lapangan ({dataSpasial.length})
+          </h3>
 
           {dataSpasial.length > 0 ? (
-            <div className="table-responsive" style={{ marginTop: 12 }}>
+            <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>ID & Kader</th>
                     <th>Kategori & Judul</th>
                     <th>Status</th>
-                    <th>Tindakan Admin</th>
+                    <th>Tindakan</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -582,12 +358,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <tr key={d.id}>
                       <td>
                         <strong>{d.namaKader}</strong>
-                        <div className="text-xs text-muted">{d.id} • {d.createdAt.slice(0, 10)}</div>
+                        <div className="text-xs text-muted">{d.id}</div>
                       </td>
                       <td>
                         <span className="badge-kategori">{d.kategori}</span>{" "}
                         <strong>{d.judul}</strong>
-                        <div className="text-xs text-muted">{d.deskripsi}</div>
                       </td>
                       <td>
                         <span className={`badge-sync status-${d.statusSinkron}`} style={{ marginLeft: 0 }}>
@@ -600,7 +375,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             type="button"
                             className="btn-outline-sm"
                             onClick={() => setItemDiedit(d)}
-                            title="Ubah Data Spasial"
                           >
                             <Edit3 size={13} /> Edit
                           </button>
@@ -608,7 +382,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             type="button"
                             className="btn-primary-sm"
                             onClick={() => onVerifikasiData(d.id, "terverifikasi")}
-                            title="Verifikasi Sah"
                           >
                             <Check size={13} /> Sah
                           </button>
@@ -616,7 +389,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             type="button"
                             className="btn-danger-sm"
                             onClick={() => onHapusDataSpasial(d.id)}
-                            title="Hapus Data"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -628,8 +400,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </table>
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: "32px 16px", color: "#64748b" }}>
-              Belum ada data lapangan yang direkam kader. Data baru akan otomatis muncul di sini untuk diperiksa admin.
+            <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
+              Belum ada data lapangan yang direkam.
             </div>
           )}
         </div>
@@ -637,42 +409,22 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
       {/* MODAL EDIT DATA SPASIAL */}
       {itemDiedit && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            zIndex: 100
-          }}
-          onClick={() => setItemDiedit(null)}
-        >
+        <div className="modal-backdrop" onClick={() => setItemDiedit(null)}>
           <form
             onSubmit={handleSimpanEditData}
-            style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "18px",
-              maxWidth: 520,
-              width: "100%",
-              maxHeight: "90vh",
-              overflowY: "auto"
-            }}
+            className="modal-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: "1.02rem" }}>✏️ Ubah Data Spasial: {itemDiedit.id}</h3>
-              <button type="button" onClick={() => setItemDiedit(null)} style={{ border: "none", background: "transparent", cursor: "pointer" }}>
+            <div className="modal-header">
+              <h3>✏️ Ubah Data: {itemDiedit.id}</h3>
+              <button type="button" className="btn-icon-close" onClick={() => setItemDiedit(null)}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="modal-form">
               <div>
-                <label>Judul Objek / Temuan</label>
+                <label>Judul Objek</label>
                 <input
                   type="text"
                   className="form-input"
@@ -709,13 +461,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <option value="lokal">Lokal (HP)</option>
                     <option value="tersinkron">Tersinkron GDrive</option>
                     <option value="terverifikasi">Terverifikasi Sah</option>
-                    <option value="ditolak">Ditolak / Perlu Revisi</option>
+                    <option value="ditolak">Ditolak</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label>Deskripsi Lapangan</label>
+                <label>Deskripsi</label>
                 <textarea
                   rows={2}
                   className="form-input"
@@ -723,41 +475,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   onChange={(e) => setItemDiedit({ ...itemDiedit, deskripsi: e.target.value })}
                 />
               </div>
-
-              <div>
-                <label>Catatan Verifikasi Admin (Untuk Kader)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Mis. Koordinat akurat dan foto jelas."
-                  value={itemDiedit.catatanAdmin || ""}
-                  onChange={(e) => setItemDiedit({ ...itemDiedit, catatanAdmin: e.target.value })}
-                />
-              </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+            <div className="modal-footer">
               <button type="button" className="btn-outline-sm" onClick={() => setItemDiedit(null)}>
                 Batal
               </button>
               <button type="submit" className="btn-primary-sm">
-                Simpan Perubahan
+                Simpan
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* 4. TAB C: MEMASUKKAN TUGAS BARU */}
+      {/* 4. TAB C: TUGAS SURVEI */}
       {subTabAdmin === "tugas_survei" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <form onSubmit={handleBuatTugas} className="section-card">
-            <h3 style={{ margin: "0 0 4px", fontSize: "1.02rem" }}>
-              🗺️ Masukkan Penugasan Pemetaan Baru untuk Kader
+            <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
+              🗺️ Buat Tugas Pemetaan Baru
             </h3>
-            <p className="text-muted" style={{ margin: "0 0 12px", fontSize: "0.8rem" }}>
-              Tugas yang dibuat akan langsung dikirimkan ke aplikasi seluruh kader di wilayah target
-            </p>
 
             <div className="form-row-2">
               <div>
@@ -765,17 +503,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Contoh: Pemetaan Pohon Pakan Satwa Sempadan Sungai"
+                  placeholder="Nama tugas survei"
                   value={judulTugas}
                   onChange={(e) => setJudulTugas(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label>Wilayah / Blok Target</label>
+                <label>Wilayah Target</label>
                 <input
                   type="text"
                   className="form-input"
+                  placeholder="Blok / wilayah"
                   value={wilayahTugas}
                   onChange={(e) => setWilayahTugas(e.target.value)}
                   required
@@ -815,7 +554,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Mis. 50 Titik / 5 km / 5 Ha"
+                  placeholder="50 Titik / 5 km / 5 Ha"
                   value={kuantitasTugas}
                   onChange={(e) => setKuantitasTugas(e.target.value)}
                 />
@@ -824,7 +563,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
             <div className="form-row-3" style={{ marginTop: 8 }}>
               <div>
-                <label>Latitude Acuan Peta</label>
+                <label>Latitude</label>
                 <input
                   type="text"
                   className="form-input"
@@ -833,7 +572,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 />
               </div>
               <div>
-                <label>Longitude Acuan Peta</label>
+                <label>Longitude</label>
                 <input
                   type="text"
                   className="form-input"
@@ -842,7 +581,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 />
               </div>
               <div>
-                <label>Batas Waktu Penyelesaian</label>
+                <label>Batas Waktu</label>
                 <input
                   type="date"
                   className="form-input"
@@ -853,29 +592,24 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
 
             <div style={{ marginTop: 8 }}>
-              <label>Instruksi Detail untuk Kader</label>
+              <label>Instruksi</label>
               <textarea
                 rows={2}
                 className="form-input"
-                placeholder="Jelaskan panduan teknis, jenis spesies pohon yang dicari, atau batas keliling lahan..."
+                placeholder="Rincian tugas lapangan..."
                 value={descTugas}
                 onChange={(e) => setDescTugas(e.target.value)}
               />
             </div>
 
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ marginTop: 12, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            >
-              <PlusCircle size={16} /> Publikasikan Tugas ke Peta Kader
+            <button type="submit" className="btn-primary" style={{ marginTop: 12, width: "100%" }}>
+              <PlusCircle size={16} /> Publikasikan Tugas
             </button>
           </form>
 
-          {/* DAFTAR TUGAS AKTIF */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 10px", fontSize: "1.02rem" }}>
-              📋 Daftar Penugasan Lapangan ({tugasList.length})
+            <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>
+              📋 Daftar Tugas ({tugasList.length})
             </h3>
             {tugasList.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -886,7 +620,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       background: "#f8faf9",
                       border: "1px solid #d5dcd8",
                       borderRadius: 12,
-                      padding: "12px 14px",
+                      padding: "12px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
@@ -894,18 +628,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       gap: 10
                     }}
                   >
-                    <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-                        <span className="badge-kategori">{t.kategoriTarget}</span>
-                        <strong style={{ fontSize: "0.92rem" }}>{t.judul}</strong>
+                    <div>
+                      <span className="badge-kategori">{t.kategoriTarget}</span>{" "}
+                      <strong>{t.judul}</strong>
+                      <div className="text-xs text-muted">
+                        {t.targetKuantitas} • {t.targetWilayah}
                       </div>
-                      <div style={{ fontSize: "0.76rem", color: "#64748b", marginTop: 3 }}>
-                        Target: <b>{t.targetKuantitas}</b> • Wilayah: {t.targetWilayah} • Batas: {t.batasWaktu}
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: "#334155", marginTop: 2 }}>{t.deskripsi}</div>
                     </div>
-
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 6 }}>
                       <button
                         type="button"
                         className="btn-outline-sm"
@@ -918,7 +648,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         className="btn-danger-sm"
                         onClick={() => onHapusTugas(t.id)}
                       >
-                        <Trash2 size={13} /> Hapus
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -926,40 +656,31 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
-                Belum ada tugas aktif. Masukkan tugas di formulir atas.
+                Belum ada tugas aktif.
               </div>
             )}
           </div>
 
-          {/* SIARAN PENGUMUMAN BROADCAST */}
           <form onSubmit={handleBuatPengumuman} className="section-card">
-            <h3 style={{ margin: "0 0 6px", fontSize: "1.02rem" }}>
-              📢 Kirim Siaran Pengumuman ke Seluruh Kader
-            </h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1rem" }}>📢 Kirim Pengumuman</h3>
             <div className="form-row-2">
-              <div>
-                <label>Judul Pengumuman</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Contoh: Jadwal Kalibrasi GPS Wilayah"
-                  value={judulAnn}
-                  onChange={(e) => setJudulAnn(e.target.value)}
-                />
-              </div>
-              <div>
-                <label>Isi Pesan Broadcast</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Tulis pesan pengumuman..."
-                  value={isiAnn}
-                  onChange={(e) => setIsiAnn(e.target.value)}
-                />
-              </div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Judul pengumuman"
+                value={judulAnn}
+                onChange={(e) => setJudulAnn(e.target.value)}
+              />
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Isi pesan"
+                value={isiAnn}
+                onChange={(e) => setIsiAnn(e.target.value)}
+              />
             </div>
             <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }}>
-              Kirim Pengumuman
+              Kirim Broadcast
             </button>
           </form>
         </div>
@@ -968,15 +689,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {/* 5. TAB D: SERTIFIKAT & 1 HOK */}
       {subTabAdmin === "sertifikat_hok" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {/* TERBITKAN SERTIFIKAT */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 6px", fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Award size={20} color="#0d7344" style={{ flexShrink: 0 }} />
-              <span>Penerbitan Sertifikat Resmi Kader</span>
+            <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <Award size={18} color="#0d7344" /> Penerbitan Sertifikat Resmi
             </h3>
-            <p className="text-muted" style={{ margin: "0 0 12px", fontSize: "0.8rem" }}>
-              Terbitkan dan kirimkan sertifikat kompetensi digital resmi ke akun kader <b>{profilKader.nama}</b> ({profilKader.idKader})
-            </p>
 
             <div className="form-row-2">
               <div>
@@ -1012,22 +728,20 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   desaWilayah: profilKader.desaWilayah,
                   namaOrganisasi: profilKader.namaOrganisasi,
                   tanggalTerbit: new Date().toISOString().slice(0, 10),
-                  alasanCapaian: "Menyelesaikan 1 Paket Capaian Survei & Pemetaan Partisipatif",
+                  alasanCapaian: "1 Paket Survei & Pemetaan Partisipatif",
                   status: "diterbitkan",
                   ditandatanganiOleh: penandatangan,
-                  jabatanPenandatangan: "Koordinator Program GIS & Pemetaan Partisipatif"
+                  jabatanPenandatangan: "Koordinator Program GIS"
                 })
               }
             >
-              🏅 Sahkan & Terbitkan Sertifikat Resmi ({sertifikatList.length} Terbit)
+              🏅 Terbitkan Sertifikat ({sertifikatList.length} Terbit)
             </button>
           </div>
 
-          {/* PERSETUJUAN KLAIM UPAH 1 HOK */}
           <div className="section-card">
-            <h3 style={{ margin: "0 0 6px", fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Banknote size={20} color="#0d7344" style={{ flexShrink: 0 }} />
-              <span>Persetujuan Klaim Upah 1 HOK</span>
+            <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <Banknote size={18} color="#0d7344" /> Klaim Upah 1 HOK
             </h3>
             {klaimUpahList.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1038,7 +752,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       background: "#f8faf9",
                       border: "1px solid #d5dcd8",
                       borderRadius: 12,
-                      padding: "12px 14px",
+                      padding: "12px",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
@@ -1046,20 +760,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       gap: 10
                     }}
                   >
-                    <div style={{ minWidth: 0, flex: "1 1 200px" }}>
-                      <strong>{k.namaKader} — Tiket {k.id} (1 HOK)</strong>
-                      <div className="text-xs text-muted">{k.rincianBukti}</div>
-                      <div className="text-xs text-emerald" style={{ marginTop: 2 }}>
-                        Rp {k.nominalRupiah.toLocaleString("id-ID")} • Status: <b>{k.status.toUpperCase()}</b>
+                    <div>
+                      <strong>{k.namaKader} — {k.id}</strong>
+                      <div className="text-xs text-emerald">
+                        Rp {k.nominalRupiah.toLocaleString("id-ID")} • <b>{k.status.toUpperCase()}</b>
                       </div>
                     </div>
                     {k.status !== "dicairkan" && (
                       <button
                         type="button"
                         className="btn-primary-sm"
-                        onClick={() => onUpdateStatusKlaimHok(k.id, "dicairkan", "Disetujui dan dicairkan oleh bendahara.")}
+                        onClick={() => onUpdateStatusKlaimHok(k.id, "dicairkan", "Disetujui.")}
                       >
-                        Cairkan Upah
+                        Cairkan
                       </button>
                     )}
                   </div>
@@ -1067,7 +780,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: 20, color: "#64748b" }}>
-                Belum ada pengajuan klaim 1 HOK dari kader.
+                Belum ada pengajuan klaim 1 HOK.
               </div>
             )}
           </div>

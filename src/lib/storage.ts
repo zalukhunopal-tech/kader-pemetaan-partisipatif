@@ -12,126 +12,61 @@ import {
   TugasPemetaan
 } from "../types";
 
-// Versi 4 storage keys untuk memastikan semua mock/contoh lama dibersihkan
-const KEY_PROFIL = "geokader_profil_v4";
-const KEY_SPASIAL = "geokader_data_spasial_v4";
-const KEY_OFFLINE_MAPS = "geokader_offline_maps_v4";
-const KEY_LAPISAN = "geokader_lapisan_v4";
-const KEY_SERTIFIKAT = "geokader_sertifikat_v4";
-const KEY_UPAH_HOK = "geokader_upah_hok_v4";
-const KEY_PENGUMUMAN = "geokader_pengumuman_v4";
-const KEY_TUGAS = "geokader_tugas_v4";
-const KEY_PESAN = "geokader_pesan_v4";
-const KEY_GDRIVE = "geokader_gdrive_v4";
-const KEY_KADER_AKTIF = "geokader_kader_aktif_v4";
+// Versi 5 storage keys — seluruh contoh/dummy data dihapus bersih
+const KEY_PROFIL = "geokader_profil_v5";
+const KEY_SPASIAL = "geokader_data_spasial_v5";
+const KEY_OFFLINE_MAPS = "geokader_offline_maps_v5";
+const KEY_LAPISAN = "geokader_lapisan_v5";
+const KEY_SERTIFIKAT = "geokader_sertifikat_v5";
+const KEY_UPAH_HOK = "geokader_upah_hok_v5";
+const KEY_PENGUMUMAN = "geokader_pengumuman_v5";
+const KEY_TUGAS = "geokader_tugas_v5";
+const KEY_PESAN = "geokader_pesan_v5";
+const KEY_GDRIVE = "geokader_gdrive_v5";
+const KEY_KADER_AKTIF = "geokader_kader_aktif_v5";
+const KEY_CLEANED_V5 = "geokader_cleaned_v5";
+
+function bersihkanDataContohLama(): void {
+  try {
+    if (localStorage.getItem(KEY_CLEANED_V5) === "1") return;
+    const kunciHapus: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("geokader_") && !k.endsWith("_v5")) {
+        kunciHapus.push(k);
+      }
+    }
+    kunciHapus.forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem(KEY_CLEANED_V5, "1");
+  } catch {
+    // abaikan jika storage tidak tersedia
+  }
+}
+
+bersihkanDataContohLama();
 
 export const PROFIL_BAWAAN: ProfilKader = {
-  idKader: "KDR-2026-014",
-  nama: "Budi Santoso",
-  desaWilayah: "Desa Rimba Lestari",
-  kelompokMasyarakat: "Kelompok Tani Hutan (KTH) Mandiri",
-  noHp: "0812-3456-7890",
-  namaOrganisasi: "Konsorsium Pemetaan Partisipatif Nusantara",
+  idKader: "KDR-001",
+  nama: "Kader Pemetaan",
+  desaWilayah: "-",
+  kelompokMasyarakat: "-",
+  noHp: "-",
+  namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
   tarifHokRupiah: 150000,
   modePerhitunganUpah: "kumulatif",
   modeKombinasiTarget: "per_kategori"
 };
 
-// Data Spasial Lapangan dimulai bersih (kosong tanpa contoh dummy)
+// Seluruh data awal dimulai kosong (tanpa data contoh/dummy)
 export const DATA_SPASIAL_AWAL: DataSpasialItem[] = [];
-
-// Pustaka Peta Offline dimulai bersih (contoh mock lama dihapus)
 export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [];
-
-// Lapisan Spasial Kategori Standar
-export const LAPISAN_AWAL: LapisanSpasial[] = [
-  {
-    id: "LYR-01",
-    nama: "Lapisan Flora",
-    jumlahPeta: 0,
-    kategoriDefault: "Flora",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "LYR-02",
-    nama: "Lapisan Fauna",
-    jumlahPeta: 0,
-    kategoriDefault: "Fauna",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "LYR-03",
-    nama: "Lapisan Mata Air",
-    jumlahPeta: 0,
-    kategoriDefault: "Mata Air",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "LYR-04",
-    nama: "Lapisan Wilayah Adat & Batas",
-    jumlahPeta: 0,
-    kategoriDefault: "Wilayah Adat / Lahan",
-    createdAt: new Date().toISOString()
-  }
-];
-
+export const LAPISAN_AWAL: LapisanSpasial[] = [];
 export const SERTIFIKAT_AWAL: SertifikatKader[] = [];
 export const KLAIM_UPAH_AWAL: KlaimUpahHOK[] = [];
 export const PENGUMUMAN_AWAL: PengumumanBroadcast[] = [];
 export const TUGAS_AWAL: TugasPemetaan[] = [];
 export const PESAN_AWAL: PesanKomunikasi[] = [];
-
-// Data Kehadiran Kader Aktif & Koordinat GPS Lapangan Terkini untuk Monitor Admin
-export const KADER_AKTIF_AWAL: KaderAktifPresence[] = [
-  {
-    idKader: "KDR-2026-014",
-    nama: "Budi Santoso",
-    desaWilayah: "Desa Rimba Lestari",
-    status: "survei_aktif",
-    lat: -0.94725,
-    lng: 100.4178,
-    akurasi: 3.2,
-    baterai: 88,
-    aktivitasTerakhir: "Sedang Merekam Titik Flora (Blok Hulu)",
-    waktuUpdate: "Baru saja"
-  },
-  {
-    idKader: "KDR-2026-008",
-    nama: "Siti Rahmah",
-    desaWilayah: "Desa Rimba Lestari",
-    status: "online",
-    lat: -0.9448,
-    lng: 100.4212,
-    akurasi: 4.0,
-    baterai: 76,
-    aktivitasTerakhir: "Patroli Jalur Punggungan Dusun I",
-    waktuUpdate: "4 menit lalu"
-  },
-  {
-    idKader: "KDR-2026-021",
-    nama: "Ahmad Fadli",
-    desaWilayah: "Dusun II Batu Putih",
-    status: "survei_aktif",
-    lat: -0.9491,
-    lng: 100.4151,
-    akurasi: 2.8,
-    baterai: 94,
-    aktivitasTerakhir: "Pengukuran Koordinat Sumber Air",
-    waktuUpdate: "1 menit lalu"
-  },
-  {
-    idKader: "KDR-2026-035",
-    nama: "Dewi Lestari",
-    desaWilayah: "Desa Rimba Lestari",
-    status: "offline",
-    lat: -0.9518,
-    lng: 100.4235,
-    akurasi: 5.5,
-    baterai: 42,
-    aktivitasTerakhir: "Standby di Pos Koordinasi Desa",
-    waktuUpdate: "1 jam lalu"
-  }
-];
+export const KADER_AKTIF_AWAL: KaderAktifPresence[] = [];
 
 function bacaJson<T>(key: string, fallback: T): T {
   try {
@@ -184,8 +119,8 @@ export const simpanKaderAktif = (v: KaderAktifPresence[]) => simpanJson(KEY_KADE
 export const muatKonfigGDrive = () =>
   bacaJson<KonfigurasiGDrive>(KEY_GDRIVE, {
     webAppUrl: "",
-    folderIdDatabase: "Database_Pemetaan",
-    spreadsheetIdMaster: "Master_Spasial_Sheets",
+    folderIdDatabase: "",
+    spreadsheetIdMaster: "",
     autoSyncSaatOnline: true,
     terakhirSinkron: ""
   });
