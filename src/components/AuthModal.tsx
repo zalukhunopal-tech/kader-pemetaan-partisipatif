@@ -6,7 +6,6 @@ import {
   muatSemuaAkun,
   resetKataSandi
 } from "../lib/auth";
-import { PeranPengguna } from "../types";
 import {
   Compass,
   Eye,
@@ -40,7 +39,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
   const [emailDaftar, setEmailDaftar] = useState("");
   const [passwordDaftar, setPasswordDaftar] = useState("");
   const [konfirmasiPasswordDaftar, setKonfirmasiPasswordDaftar] = useState("");
-  const [peranDaftar, setPeranDaftar] = useState<PeranPengguna>("kader");
   const [desaDaftar, setDesaDaftar] = useState("");
   const [noHpDaftar, setNoHpDaftar] = useState("");
   const [kelompokDaftar, setKelompokDaftar] = useState("");
@@ -119,7 +117,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
       nama: namaDaftar,
       email: emailDaftar,
       kataSandi: passwordDaftar,
-      peran: peranDaftar,
       desaWilayah: desaDaftar,
       noHp: noHpDaftar,
       kelompokMasyarakat: kelompokDaftar
@@ -607,47 +604,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     onChange={(e) => setEmailDaftar(e.target.value)}
                     style={{ width: "100%", height: 40, padding: "0 12px 0 36px", borderRadius: 8, border: "1.5px solid #cbd5e1", fontSize: "0.86rem" }}
                   />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  Peran Akun *
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPeranDaftar("kader")}
-                    style={{
-                      border: peranDaftar === "kader" ? "2px solid #0d7344" : "1.5px solid #cbd5e1",
-                      background: peranDaftar === "kader" ? "#e8f5ee" : "#ffffff",
-                      color: peranDaftar === "kader" ? "#0d7344" : "#475569",
-                      padding: "8px",
-                      borderRadius: 8,
-                      fontSize: "0.76rem",
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
-                  >
-                    👤 Kader Lapangan
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPeranDaftar("admin")}
-                    style={{
-                      border: peranDaftar === "admin" ? "2px solid #0284c7" : "1.5px solid #cbd5e1",
-                      background: peranDaftar === "admin" ? "#e0f2fe" : "#ffffff",
-                      color: peranDaftar === "admin" ? "#0369a1" : "#475569",
-                      padding: "8px",
-                      borderRadius: 8,
-                      fontSize: "0.76rem",
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
-                  >
-                    🛡️ Admin GIS
-                  </button>
                 </div>
               </div>
 

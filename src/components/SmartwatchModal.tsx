@@ -356,7 +356,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       return;
     }
 
-    perekamLatar.mulai("line", [posisiGps], true);
+    perekamLatar.mulai("line", [posisiGps]);
     tampilkanPesanSingkat("● Merekam Jalur...");
     setTampilFiturWatch(false);
   };
@@ -393,7 +393,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       return;
     }
 
-    perekamLatar.mulai("polygon", [posisiGps], true);
+    perekamLatar.mulai("polygon", [posisiGps]);
     tampilkanPesanSingkat("● Merekam Poligon...");
     setTampilFiturWatch(false);
   };

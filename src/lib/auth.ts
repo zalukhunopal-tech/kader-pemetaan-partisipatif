@@ -144,7 +144,6 @@ export function daftarAkunBaru(data: {
   nama: string;
   email: string;
   kataSandi: string;
-  peran: PeranPengguna;
   desaWilayah: string;
   noHp: string;
   kelompokMasyarakat?: string;
@@ -159,15 +158,13 @@ export function daftarAkunBaru(data: {
     };
   }
 
+  // Pendaftaran mandiri selalu menghasilkan akun kader; akun admin tidak bisa dibuat dari formulir ini
   const akunBaru: AkunPengguna = {
-    idKader:
-      data.peran === "admin"
-        ? `ADM-${Date.now().toString().slice(-4)}`
-        : `KDR-${Date.now().toString().slice(-4)}`,
+    idKader: `KDR-${Date.now().toString().slice(-4)}`,
     nama: data.nama.trim(),
     email: emailBersih,
     password: data.kataSandi.trim(),
-    peran: data.peran,
+    peran: "kader",
     desaWilayah: data.desaWilayah.trim() || "-",
     noHp: data.noHp.trim() || "-",
     kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",

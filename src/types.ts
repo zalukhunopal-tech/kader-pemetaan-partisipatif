@@ -23,6 +23,7 @@ export interface KoordinatTitik {
   elevasi?: number; // Z (mdpl)
   akurasi?: number; // meter
   timestamp?: string;
+  simulasi?: boolean; // true = titik acak dari mode simulasi, bukan GPS perangkat
 }
 
 export interface PembaruanObjek {

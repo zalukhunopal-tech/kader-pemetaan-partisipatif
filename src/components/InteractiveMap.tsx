@@ -615,7 +615,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setTitikDraft([ptAwal]);
       setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Flora");
       // Mulai perekaman di latar belakang agar tetap merekam walaupun pindah tab
-      perekamLatar.mulai(jenis, [ptAwal], true);
+      perekamLatar.mulai(jenis, [ptAwal]);
     }
   };
 
@@ -692,6 +692,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           const hasilImpor: DataSpasialItem[] = json.features.map(
             (f: Record<string, any>, idx: number) => {
               const geomType = f.geometry?.type;
+              const simulasi = f.properties?.simulasi === true;
               let jenis: JenisGeometri = "point";
               let koord: KoordinatTitik[] = [];
               if (geomType === "Point") {
@@ -714,6 +715,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   elevasi: c[2] || 400
                 }));
               }
+              // Pertahankan penanda simulasi agar data hasil ekspor-impor tidak lolos hitungan capaian
+              if (simulasi) koord = koord.map((k) => ({ ...k, simulasi: true }));
               return {
                 id: `IMP-${Date.now()}-${idx}`,
                 idKader: profil.idKader,
@@ -1014,9 +1017,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 type="button"
                 className={`btn-tool ${rekamLatar.autoGpsAktif ? "active-walk" : ""}`}
                 onClick={() => perekamLatar.toggleAutoGps()}
-                title="Rekam titik GPS otomatis di latar belakang walau pindah menu"
+                title="Mode demo: menambah titik acak tanpa GPS. Data simulasi tidak dihitung ke capaian dan skor."
               >
-                <Radio size={14} /> {rekamLatar.autoGpsAktif ? "Auto ON" : "Auto OFF"}
+                <Radio size={14} /> {rekamLatar.autoGpsAktif ? "Simulasi ON" : "Simulasi OFF"}
               </button>
               <button
                 type="button"

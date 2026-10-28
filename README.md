@@ -8,7 +8,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
    - **Multi-Basemap & Offline Tile Downloader**: Citra Satelit Gratis (Esri World Imagery), OpenTopoMap, OpenStreetMap, dan Peta Kontur Taktis Offline, dilengkapi pengunduh kotak wilayah (*bounding box*) serta impor GeoJSON/GeoPDF.
    - **Perekaman Data Spasial Presisi**:
      - **Titik Koordinat (Waypoint / Point)**: Koordinat $(X, Y, Z/\text{elevasi})$, akurasi GPS, kategori (Flora, Fauna, Mata Air, Tanda Batas, Ancaman), Nama Lokal/Ilmiah, Manfaat, dan lampiran Foto Geotagging.
-     - **Jalur Perjalanan (GPS Tracking / Line)**: Perekaman jejak langkah & *Auto-Walk GPS Tracker* dengan perhitungan panjang otomatis dalam **Kilometer (km)**.
+     - **Jalur Perjalanan (GPS Tracking / Line)**: Perekaman jejak langkah dari GPS perangkat dengan perhitungan panjang otomatis dalam **Kilometer (km)**. Tersedia tombol *Simulasi* (mati secara bawaan) untuk demo dan pelatihan tanpa GPS; data simulasi ditandai dan tidak dihitung ke capaian maupun skor level.
      - **Pemetaan Wilayah (Polygon / Area)**: Pemetaan batas lahan/hutan adat dengan perhitungan luas otomatis dalam **Hektare (Ha)**.
    - **Pembaruan Data Existing**: Klik objek yang sudah pernah dipetakan di layar peta untuk menambahkan pembaruan kondisi terbaru.
    - **Alat Bantu Navigasi Lapangan**: Format koordinat **DD / DMS / UTM**, kompas digital, dan **Go-To Waypoint Navigation** (garis lurus penunjuk arah & jarak menuju titik target).

@@ -129,6 +129,14 @@ export function formatKoordinatTeks(
 }
 
 /**
+ * True bila ada titik hasil mode simulasi (bukan GPS perangkat).
+ * Data seperti ini tidak dihitung untuk capaian maupun skor level.
+ */
+export function adalahDataSimulasi(item: DataSpasialItem): boolean {
+  return item.koordinat.some((k) => k.simulasi === true);
+}
+
+/**
  * Konversi ke WKT (Well-Known Text) untuk disimpan di kolom Google Sheets
  */
 export function keWKT(item: DataSpasialItem): string {
@@ -192,6 +200,7 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
         panjangKm: item.panjangKm,
         luasHa: item.luasHa,
         statusSinkron: item.statusSinkron,
+        simulasi: adalahDataSimulasi(item),
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
         jumlahPembaruan: item.riwayatPembaruan.length

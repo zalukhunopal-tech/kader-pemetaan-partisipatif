@@ -38,6 +38,7 @@ import {
 } from "./lib/storage";
 import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
+import { adalahDataSimulasi } from "./lib/geoUtils";
 import {
   perekamLatar,
   usePerekamLatar,
@@ -85,9 +86,12 @@ export const App: React.FC = () => {
   );
 
   // Role & Session State
-  const [peran, setPeran] = useState<PeranPengguna>(() =>
+  // Admin boleh beralih ke tampilan kader, tetapi peran admin hanya berlaku untuk akun admin
+  const [peranTampilan, setPeranTampilan] = useState<PeranPengguna>(() =>
     sesiPengguna ? sesiPengguna.peran : "kader"
   );
+  const adalahAkunAdmin = sesiPengguna?.peran === "admin";
+  const peran: PeranPengguna = adalahAkunAdmin ? peranTampilan : "kader";
   const [tabAktif, setTabAktif] = useState<MenuTab>(() =>
     sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka"
   );
@@ -193,7 +197,7 @@ export const App: React.FC = () => {
   // Handler Login Berhasil
   const handleLoginSukses = (akun: AkunPengguna) => {
     setSesiPengguna(akun);
-    setPeran(akun.peran);
+    setPeranTampilan(akun.peran);
     setProfil((prev) => ({
       ...prev,
       idKader: akun.idKader,
@@ -222,7 +226,11 @@ export const App: React.FC = () => {
 
   // Switch Peran Pengguna (Admin vs User/Kader)
   const gantiPeranAkun = (peranBaru: PeranPengguna) => {
-    setPeran(peranBaru);
+    if (peranBaru === "admin" && !adalahAkunAdmin) {
+      tampilkanToast("Akun ini tidak memiliki akses Administrator GIS.");
+      return;
+    }
+    setPeranTampilan(peranBaru);
     if (peranBaru === "admin") {
       setTabAktif("admin");
       tampilkanToast("🛡️ Beralih ke Akun Administrator GIS.");
@@ -254,7 +262,11 @@ export const App: React.FC = () => {
   // Handler Simpan Data Spasial Baru dari Peta (User Feature)
   const handleSimpanDataBaru = (item: DataSpasialItem) => {
     setDataSpasial((prev) => [item, ...prev]);
-    tampilkanToast(`✓ "${item.judul}" disimpan ke Lapisan & memori HP.`);
+    tampilkanToast(
+      adalahDataSimulasi(item)
+        ? `✓ "${item.judul}" disimpan sebagai data simulasi (tidak dihitung ke capaian).`
+        : `✓ "${item.judul}" disimpan ke Lapisan & memori HP.`
+    );
   };
 
   // Handler Update Kondisi pada Objek Existing
@@ -458,17 +470,19 @@ export const App: React.FC = () => {
                   <span>{sedangOnline ? "Online" : "Offline"}</span>
                 </button>
 
-                <button
-                  type="button"
-                  className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
-                  onClick={() => {
-                    setBukaMenuTitikTiga(false);
-                    gantiPeranAkun(peran === "admin" ? "kader" : "admin");
-                  }}
-                >
-                  {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
-                  <span>{peran === "admin" ? "Admin" : "User"}</span>
-                </button>
+                {adalahAkunAdmin && (
+                  <button
+                    type="button"
+                    className={`avenza-role-chip ${peran === "admin" ? "admin" : "kader"}`}
+                    onClick={() => {
+                      setBukaMenuTitikTiga(false);
+                      gantiPeranAkun(peran === "admin" ? "kader" : "admin");
+                    }}
+                  >
+                    {peran === "admin" ? <Shield size={12} /> : <User size={12} />}
+                    <span>{peran === "admin" ? "Admin" : "User"}</span>
+                  </button>
+                )}
               </div>
 
               <div className="avenza-overflow-divider" />
@@ -542,17 +556,19 @@ export const App: React.FC = () => {
 
               <div className="avenza-overflow-divider" />
 
-              <button
-                type="button"
-                className="avenza-overflow-item"
-                style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
-                onClick={() => {
-                  setBukaMenuTitikTiga(false);
-                  gantiPeranAkun(peran === "kader" ? "admin" : "kader");
-                }}
-              >
-                {peran === "kader" ? "🛡️ Mode Admin" : "👤 Mode User"}
-              </button>
+              {adalahAkunAdmin && (
+                <button
+                  type="button"
+                  className="avenza-overflow-item"
+                  style={{ color: peran === "kader" ? "#0284c7" : "#0d7344", fontWeight: 700 }}
+                  onClick={() => {
+                    setBukaMenuTitikTiga(false);
+                    gantiPeranAkun(peran === "kader" ? "admin" : "kader");
+                  }}
+                >
+                  {peran === "kader" ? "🛡️ Mode Admin" : "👤 Mode User"}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -731,7 +747,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {tabAktif === "admin" && (
+        {tabAktif === "admin" && peran === "admin" && (
           <AdminDashboardView
             dataSpasial={dataSpasial}
             profilKader={profil}
