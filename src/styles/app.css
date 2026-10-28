@@ -427,9 +427,9 @@ body {
   position: relative;
   width: 100%;
   /* Rasio ilustrasi dijaga; tinggi dibatasi agar tidak terlalu pendek di HP atau terlalu tinggi di PC */
-  aspect-ratio: 640 / 220;
+  aspect-ratio: 3168 / 1344;
   min-height: 150px;
-  max-height: 260px;
+  max-height: 290px;
   border-radius: 18px;
   overflow: hidden;
   display: flex;
@@ -474,74 +474,40 @@ body {
   transform: scale(1.03);
 }
 
+@media (max-width: 480px) {
+  .avenza-buka-peta-btn {
+    padding: 7px 15px;
+    font-size: 0.84rem;
+    gap: 6px;
+  }
+}
+
 .avenza-buka-peta-btn:focus-visible {
   outline: 3px solid #fde68a;
   outline-offset: 2px;
 }
 
-/* Gerak halus ilustrasi peta dasar (mati bila perangkat meminta gerak minimal) */
-.latar-peta-dasar .pd-sinar {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: pd-putar 48s linear infinite;
+/* Wallpaper peta dasar: menutupi kartu, sedikit membesar saat disentuh/diarahkan */
+.latar-peta-dasar-img {
+  object-fit: cover;
+  object-position: 50% 40%;
+  transition: transform 0.6s ease;
+  user-select: none;
 }
 
-.latar-peta-dasar .pd-denyut {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: pd-denyut 2.2s ease-out infinite;
-}
-
-.latar-peta-dasar .pd-jarum {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: pd-jarum 7s ease-in-out infinite;
-}
-
-.latar-peta-dasar .pd-sinyal {
-  animation: pd-sinyal 1.8s ease-in-out infinite;
-}
-
-@keyframes pd-putar {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pd-denyut {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(2.6);
-    opacity: 0;
-  }
-}
-
-@keyframes pd-jarum {
-  0%,
-  100% {
-    transform: rotate(-14deg);
-  }
-  50% {
-    transform: rotate(12deg);
-  }
-}
-
-@keyframes pd-sinyal {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  50% {
-    opacity: 1;
-  }
+.avenza-basemap-banner:hover .latar-peta-dasar-img,
+.avenza-basemap-banner:focus-within .latar-peta-dasar-img {
+  transform: scale(1.04);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .latar-peta-dasar * {
-    animation: none !important;
+  .latar-peta-dasar-img {
+    transition: none;
+  }
+
+  .avenza-basemap-banner:hover .latar-peta-dasar-img,
+  .avenza-basemap-banner:focus-within .latar-peta-dasar-img {
+    transform: none;
   }
 }
 
