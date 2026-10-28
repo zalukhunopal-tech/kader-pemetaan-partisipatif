@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -37,8 +37,10 @@ import {
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { AkunSesi, aksesAdminSah, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
+import { AkunSesi, aksesAdminSah, muatSesiPengguna, simpanSesiPengguna, sisaMasaTotp } from "./lib/auth";
 import { BATAS_DIAM_MS, catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
+import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi, useVersiKunciAplikasi } from "./lib/kunciAplikasi";
+import { metodeKunciCepat } from "./lib/kunciCepat";
 import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
@@ -67,6 +69,8 @@ import { AdminDashboardView } from "./components/AdminDashboardView";
 import { SmartwatchModal } from "./components/SmartwatchModal";
 import { GantiSandiModal } from "./components/GantiSandiModal";
 import { GerbangAdminView } from "./components/GerbangAdminView";
+import { KunciAplikasiView } from "./components/KunciAplikasiView";
+import { PengaturanKunciModal } from "./components/PengaturanKunciModal";
 import { BannerInstal, TombolInstal } from "./components/InstalAplikasi";
 import {
   Award,
@@ -88,7 +92,8 @@ import {
   Pause,
   Play,
   Watch,
-  KeyRound
+  KeyRound,
+  Fingerprint
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -112,6 +117,22 @@ export const App: React.FC = () => {
   const gerbangTerbuka = adalahAkunAdmin && gerbangAdminTerbuka(sesiPengguna?.email);
   const modeAdminTerkunci = adalahAkunAdmin && peranTampilan === "admin" && !gerbangTerbuka;
   const aksesAdmin = adalahAkunAdmin && peranTampilan === "admin" && gerbangTerbuka;
+
+  // Kunci aplikasi: kode Google Authenticator berlaku 8 jam; di antaranya aplikasi yang terkunci
+  // (dibuka ulang atau diam 15 menit) dibuka dengan PIN atau sidik jari/wajah.
+  useVersiKunciAplikasi();
+  const [, setVersiKeamanan] = useState(0);
+  const segarkanKeamanan = () => setVersiKeamanan((v) => v + 1);
+  const emailSesi = sesiPengguna?.email;
+  const metodeCepat = metodeKunciCepat(emailSesi);
+  const layarKunci: "buka" | "siapkan" | null = !sesiPengguna
+    ? null
+    : !aplikasiTerbuka(emailSesi) || sisaMasaTotp(emailSesi) <= 0
+      ? "buka"
+      : !metodeCepat.pin && !metodeCepat.biometrik
+        ? "siapkan"
+        : null;
+  const [bukaKeamanan, setBukaKeamanan] = useState<boolean>(false);
   const [tabAktif, setTabAktif] = useState<MenuTab>(() => {
     const bawaan: MenuTab = sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka";
     // Pintasan aplikasi terpasang (mis. tekan lama ikon > "Peta") membuka ?tab=...
@@ -279,8 +300,10 @@ export const App: React.FC = () => {
   // Handler Logout
   const handleLogout = () => {
     kunciGerbangAdmin();
+    kunciAplikasi();
     simpanSesiPengguna(null);
     setSesiPengguna(null);
+    setBukaKeamanan(false);
     tampilkanToast("Anda telah keluar dari aplikasi GeoKader.");
   };
 
@@ -301,6 +324,22 @@ export const App: React.FC = () => {
       tampilkanToast("👤 Beralih ke Akun Kader Lapangan (User).");
     }
   };
+
+  // Tinggi bilah bawah yang sebenarnya (membesar bila ukuran huruf HP diperbesar) dipakai CSS untuk
+  // ruang bawah halaman, tombol mengambang, dan tinggi peta, supaya tidak ada yang tertutup bilah bawah.
+  const roNavRef = useRef<ResizeObserver | null>(null);
+  const ukurBilahBawah = useCallback((el: HTMLElement | null) => {
+    roNavRef.current?.disconnect();
+    roNavRef.current = null;
+    if (!el) return;
+    const atur = () =>
+      document.documentElement.style.setProperty("--tinggi-nav", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    atur();
+    if (typeof ResizeObserver !== "undefined") {
+      roNavRef.current = new ResizeObserver(atur);
+      roNavRef.current.observe(el);
+    }
+  }, []);
 
   // Geser kiri/kanan di area konten untuk berpindah tab (mengikuti urutan bilah navigasi bawah)
   const urutanTab: MenuTab[] = peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
@@ -340,12 +379,39 @@ export const App: React.FC = () => {
       aksi(...args);
     };
 
-  // Gerbang terkunci sendiri setelah diam; diperiksa berkala agar layar kunci langsung tampil
+  // Kunci aplikasi, gerbang admin, dan masa 8 jam diperiksa berkala dan saat aplikasi kembali
+  // ditampilkan, supaya layar kunci langsung muncul begitu batasnya lewat
+  const masaTotpHabisRef = useRef<boolean | null>(null);
   useEffect(() => {
-    if (!adalahAkunAdmin) return;
-    const t = window.setInterval(() => gerbangAdminTerbuka(sesiPengguna?.email), 15_000);
-    return () => window.clearInterval(t);
-  }, [adalahAkunAdmin, sesiPengguna?.email]);
+    if (!emailSesi) return;
+    const periksa = () => {
+      // keduanya mengunci sendiri (dan memberi tahu App) bila batas diam terlewati
+      aplikasiTerbuka(emailSesi);
+      gerbangAdminTerbuka(emailSesi);
+      // masa 8 jam tidak punya pemberitahuan sendiri: gambar ulang hanya saat statusnya berubah
+      const habis = sisaMasaTotp(emailSesi) <= 0;
+      if (habis !== masaTotpHabisRef.current) {
+        masaTotpHabisRef.current = habis;
+        segarkanKeamanan();
+      }
+    };
+    const saatTampil = () => {
+      if (document.visibilityState === "visible") periksa();
+    };
+    const t = window.setInterval(periksa, 15_000);
+    document.addEventListener("visibilitychange", saatTampil);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", saatTampil);
+    };
+  }, [emailSesi]);
+
+  // Isi aplikasi di belakang layar kunci tetap terpasang (formulir tidak hilang) tetapi tidak bisa
+  // disentuh, difokus, atau dibaca pembaca layar
+  const bungkusRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (bungkusRef.current) bungkusRef.current.inert = layarKunci !== null;
+  });
 
   // Handler Ubah Nama & Jabatan Penandatangan Sertifikat oleh Admin
   const handleUbahPenandatanganSertifikat = (
@@ -597,6 +663,28 @@ export const App: React.FC = () => {
     return <AuthModal onLoginSukses={handleLoginSukses} />;
   }
 
+  const lapisKunci = layarKunci && (
+    <KunciAplikasiView
+      sesi={sesiPengguna}
+      mode={layarKunci}
+      tujuan={peran === "admin" ? "aplikasi+admin" : "aplikasi"}
+      sedangMerekam={rekamLatar.status !== "idle"}
+      onTerbuka={(pesan) => {
+        segarkanKeamanan();
+        tampilkanToast(pesan.startsWith("🔒") ? pesan : `🔓 ${pesan}`);
+      }}
+      onKeluar={handleLogout}
+    />
+  );
+  const denganKunci = (isi: React.ReactNode) => (
+    <>
+      <div ref={bungkusRef} className="bungkus-terkunci" aria-hidden={layarKunci ? true : undefined}>
+        {isi}
+      </div>
+      {lapisKunci}
+    </>
+  );
+
   const judulHalamanUtama: Record<MenuTab, string> = {
     pustaka: "Pustaka",
     peta: "Temukan",
@@ -608,7 +696,7 @@ export const App: React.FC = () => {
   };
 
   if (bukaPemberitahuan) {
-    return (
+    return denganKunci(
       <PemberitahuanView
         pengumumanList={pengumumanList}
         tugasList={tugasList}
@@ -624,7 +712,7 @@ export const App: React.FC = () => {
   }
 
   if (bukaPengaturanEkspor) {
-    return (
+    return denganKunci(
       <PengaturanEksporView
         dataSpasial={dataSpasial}
         onTutup={() => setBukaPengaturanEkspor(false)}
@@ -632,14 +720,19 @@ export const App: React.FC = () => {
     );
   }
 
-  return (
+  const catatAktivitas = () => {
+    catatAktivitasAdmin();
+    catatAktivitasAplikasi();
+  };
+
+  return denganKunci(
     <div
       className="app-shell"
       onClick={() => {
         if (bukaMenuTitikTiga) setBukaMenuTitikTiga(false);
       }}
-      onPointerDownCapture={() => catatAktivitasAdmin()}
-      onKeyDownCapture={() => catatAktivitasAdmin()}
+      onPointerDownCapture={catatAktivitas}
+      onKeyDownCapture={catatAktivitas}
     >
       {/* TOPBAR BERSIH: JUDUL TUNGGAL DI KIRI, TOOLBAR DISEMBUNYIKAN HINGGA DIKLIK AGAR TIDAK MENIMPA TEKS */}
       <header className="avenza-topbar">
@@ -793,6 +886,17 @@ export const App: React.FC = () => {
                 className="avenza-overflow-item"
                 onClick={() => {
                   setBukaMenuTitikTiga(false);
+                  setBukaKeamanan(true);
+                }}
+              >
+                <Fingerprint size={16} /> PIN & sidik jari
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
                   setBukaGantiSandi(true);
                 }}
               >
@@ -819,7 +923,7 @@ export const App: React.FC = () => {
       {aksesAdmin && (
         <div className="banner-mode-admin" role="status">
           <ShieldCheck size={14} aria-hidden="true" />
-          <span>Mode Administrator · terkunci otomatis setelah {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas</span>
+          <span>Mode Administrator · terkunci bila {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas</span>
           <button
             type="button"
             onClick={() => {
@@ -910,7 +1014,8 @@ export const App: React.FC = () => {
         onTouchEnd={handleGeserSelesai}
         onTouchCancel={() => (awalGeserRef.current = null)}
       >
-        {modeAdminTerkunci && sesiPengguna && (
+        {/* Saat layar kunci aplikasi tampil, gerbang admin tidak ikut dirender: satu PIN membuka keduanya */}
+        {modeAdminTerkunci && sesiPengguna && !layarKunci && (
           <GerbangAdminView
             sesi={sesiPengguna}
             onTerbuka={(pesan) => {
@@ -1064,6 +1169,22 @@ export const App: React.FC = () => {
         )}
       </main>
 
+      {bukaKeamanan && sesiPengguna && (
+        <PengaturanKunciModal
+          sesi={sesiPengguna}
+          onTutup={() => setBukaKeamanan(false)}
+          onPesan={(pesan) => {
+            segarkanKeamanan();
+            tampilkanToast(pesan);
+          }}
+          onKunciSekarang={() => {
+            setBukaKeamanan(false);
+            kunciGerbangAdmin();
+            kunciAplikasi();
+          }}
+        />
+      )}
+
       {bukaGantiSandi && sesiPengguna && (
         <GantiSandiModal
           email={sesiPengguna.email}
@@ -1086,7 +1207,7 @@ export const App: React.FC = () => {
       )}
 
       {/* BOTTOM NAVIGATION: BERBEDA UNTUK AKUN ADMIN DAN AKUN USER */}
-      <nav className="avenza-bottom-nav">
+      <nav className="avenza-bottom-nav" ref={ukurBilahBawah}>
         {peran === "kader" ? (
           // NAVIGASI KHUSUS AKUN USER (KADER)
           <>
@@ -1158,7 +1279,7 @@ export const App: React.FC = () => {
               onClick={() => setTabAktif("peta")}
             >
               <Map size={20} />
-              <span>Peta Survei</span>
+              <span>Temukan</span>
             </button>
 
             <button

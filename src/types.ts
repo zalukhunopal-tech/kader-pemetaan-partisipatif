@@ -97,7 +97,7 @@ export interface LapisanSpasial {
   createdAt: string;
 }
 
-export type BasemapType = "satelit" | "osm" | "topo" | "taktis";
+export type BasemapType = "satelit" | "google" | "esri" | "osm" | "topo" | "taktis";
 
 export type FormatKoordinat = "DD" | "DMS" | "UTM";
 

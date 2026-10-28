@@ -10,7 +10,7 @@ export const KUNCI_POSISI_PETA = "geokader_posisi_peta_v1";
 export const POSISI_AWAL_PETA = { lat: -0.9475, lng: 100.4192 };
 export const ZOOM_MIN_PETA = 11;
 export const ZOOM_MAKS_PETA = 19;
-const BASEMAP_SAH: BasemapType[] = ["satelit", "osm", "topo", "taktis"];
+const BASEMAP_SAH: BasemapType[] = ["satelit", "google", "esri", "osm", "topo", "taktis"];
 
 export interface PosisiPeta {
   lat: number;
@@ -28,7 +28,8 @@ export function bacaPosisiPeta(): PosisiPeta | null {
     return {
       lat: p.lat,
       lng: p.lng,
-      zoom: Math.min(ZOOM_MAKS_PETA, Math.max(ZOOM_MIN_PETA, Math.round(p.zoom))),
+      // zoom boleh pecahan (hasil cubit), cukup dua angka di belakang koma
+      zoom: Math.min(ZOOM_MAKS_PETA, Math.max(ZOOM_MIN_PETA, Math.round(p.zoom * 100) / 100)),
       basemap: BASEMAP_SAH.includes(p.basemap as BasemapType) ? (p.basemap as BasemapType) : "satelit"
     };
   } catch {
@@ -40,7 +41,7 @@ export function simpanPosisiPeta(p: PosisiPeta): void {
   try {
     localStorage.setItem(
       KUNCI_POSISI_PETA,
-      JSON.stringify({ lat: Number(p.lat.toFixed(6)), lng: Number(p.lng.toFixed(6)), zoom: p.zoom, basemap: p.basemap })
+      JSON.stringify({ lat: Number(p.lat.toFixed(6)), lng: Number(p.lng.toFixed(6)), zoom: Number(p.zoom.toFixed(2)), basemap: p.basemap })
     );
   } catch {
     // penyimpanan penuh atau tidak tersedia: posisi tidak diingat, peta tetap berfungsi

@@ -1696,55 +1696,61 @@ export const RewardView: React.FC<RewardViewProps> = ({
             <Award size={20} color="#0d7344" />
             <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat</h3>
           </div>
-
-          <div className="certificate-action-btns">
-            {peran === "admin" && (
-              <button
-                type="button"
-                className="btn-outline-sm cert-admin-btn"
-                onClick={() => setBukaAturSertifikat((v) => !v)}
-                title="Atur Logo, Tanda Tangan, dan Tema Sertifikat (Khusus Admin)"
-              >
-                <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Logo & TTD"}
-              </button>
-            )}
+          {peran === "admin" && (
             <button
               type="button"
-              className="btn-outline-sm"
-              onClick={() => inputFotoRef.current?.click()}
-              title="Foto Sertifikat"
+              className="btn-outline-sm cert-admin-btn"
+              onClick={() => setBukaAturSertifikat((v) => !v)}
+              title="Atur Logo, Tanda Tangan, dan Tema Sertifikat (Khusus Admin)"
             >
-              <Camera size={14} /> {fotoSertifikatBase64 ? "Ganti Foto" : "+ Foto"}
+              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Logo & TTD"}
+            </button>
+          )}
+        </div>
+
+        {/* Aksi sertifikat: baris tombol berukuran sama (ikon di atas label), lalu Unduh selebar kartu */}
+        <div className="sertifikat-aksi" id="aksi-sertifikat">
+          <div className="sertifikat-aksi-baris">
+            <button
+              type="button"
+              className="sertifikat-aksi-tombol"
+              onClick={() => inputFotoRef.current?.click()}
+              title="Foto untuk sertifikat"
+            >
+              <Camera size={18} aria-hidden="true" />
+              <span>{fotoSertifikatBase64 ? "Ganti Foto" : "Tambah Foto"}</span>
             </button>
             {fotoSertifikatBase64 && (
               <button
                 type="button"
-                className="btn-outline-sm"
+                className="sertifikat-aksi-tombol bahaya"
                 onClick={handleHapusFotoSertifikat}
-                title="Hapus Foto"
+                title="Hapus foto dari sertifikat"
               >
-                <Trash2 size={14} />
+                <Trash2 size={18} aria-hidden="true" />
+                <span>Hapus Foto</span>
               </button>
             )}
             <button
               type="button"
-              className="btn-outline-sm"
+              className="sertifikat-aksi-tombol"
               onClick={handleCetakSertifikat}
               disabled={!sertifikatSaya}
               title={sertifikatSaya ? "Cetak sertifikat" : "Tersedia setelah admin menerbitkan sertifikat"}
             >
-              <Printer size={14} /> Cetak
-            </button>
-            <button
-              type="button"
-              className="btn-primary-sm btn-unduh-sertifikat"
-              onClick={handleUnduhSertifikatPng}
-              disabled={!sertifikatSaya}
-              title={sertifikatSaya ? "Unduh sertifikat (PNG)" : "Tersedia setelah admin menerbitkan sertifikat"}
-            >
-              <Download size={14} /> Unduh
+              <Printer size={18} aria-hidden="true" />
+              <span>Cetak</span>
             </button>
           </div>
+          <button
+            type="button"
+            className="btn-primary-sm btn-unduh-sertifikat sertifikat-unduh"
+            onClick={handleUnduhSertifikatPng}
+            disabled={!sertifikatSaya}
+            title={sertifikatSaya ? "Unduh sertifikat (PNG)" : "Tersedia setelah admin menerbitkan sertifikat"}
+          >
+            <Download size={16} aria-hidden="true" /> Unduh Sertifikat
+          </button>
         </div>
 
         <p

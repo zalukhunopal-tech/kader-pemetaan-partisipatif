@@ -1,4 +1,5 @@
 import { AreaPetaOffline, BasemapType } from "../types";
+import { kunciGoogle, tokenSesiGoogle } from "./googleTiles";
 
 /**
  * PETA OFFLINE
@@ -19,6 +20,14 @@ export type BasemapTile = Exclude<BasemapType, "taktis">;
 export interface SumberTile {
   /** Nama yang tampil di pilihan peta */
   nama: string;
+  /** false bila sumber ini butuh kunci API yang belum dipasang (pilihan tidak ditampilkan) */
+  tersedia: boolean;
+  /** Sumber berkuota (berbayar di atas kuota gratis): hanya tile yang benar-benar tampil yang diminta */
+  berkuota?: boolean;
+  /** Teks hak cipta berubah menurut area yang tampil dan diambil dari penyedia (Google) */
+  atribusiDinamis?: boolean;
+  /** Catatan ketentuan yang perlu diketahui pemakai, mis. larangan menjiplak dari citra */
+  catatanPakai?: string;
   /** Templat URL utama, dengan {z}, {x}, {y} */
   template: string;
   /** Templat cadangan yang dicoba bila templat utama terus gagal (mis. jalur layanan berubah) */
@@ -51,6 +60,7 @@ function sumberSatelit(): SumberTile {
   if (kustom) {
     return {
       nama: "Satelit",
+      tersedia: true,
       template: kustom,
       atribusi: env.VITE_TILE_ATRIBUSI_SATELIT || "Sumber citra: penyedia tile milik organisasi",
       tautanLisensi: "",
@@ -61,23 +71,9 @@ function sumberSatelit(): SumberTile {
       rataKbPerTile: 22
     };
   }
-  const kunciEsri = (env.VITE_ESRI_API_KEY ?? "").trim();
-  if (kunciEsri) {
-    // ArcGIS Location Platform: gratis sampai kuota bulanan dengan akun dan kunci API; wajib atribusi
-    return {
-      nama: "Satelit Esri",
-      template: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(kunciEsri)}`,
-      atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, dan GIS User Community",
-      tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
-      lisensi: "Ketentuan Esri (akun ArcGIS Location Platform). Hanya untuk dilihat online.",
-      zoomMaks: 19,
-      bolehUnduh: false,
-      alasanTidakBoleh: "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
-      rataKbPerTile: 22
-    };
-  }
   return {
     nama: "Satelit Sentinel-2",
+    tersedia: true,
     template: EOX_S2_2016[0],
     templateCadangan: EOX_S2_2016.slice(1),
     atribusi: "Sentinel-2 cloudless – s2maps.eu oleh EOX IT Services GmbH (data Copernicus Sentinel 2016 yang dimodifikasi)",
@@ -90,6 +86,53 @@ function sumberSatelit(): SumberTile {
   };
 }
 
+const kunciEsri = (env.VITE_ESRI_API_KEY ?? "").trim();
+
+/**
+ * Esri World Imagery (citra resolusi tinggi Maxar/Vantor dan lainnya, sering < 1 m di Indonesia).
+ * Legal lewat akun ArcGIS Location Platform: kuota gratis 2 juta tile basemap per bulan, wajib atribusi.
+ */
+function sumberEsri(): SumberTile {
+  return {
+    nama: "Satelit Esri",
+    tersedia: kunciEsri !== "",
+    berkuota: true,
+    template: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(kunciEsri)}`,
+    atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, dan GIS User Community",
+    tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
+    lisensi: "Ketentuan Esri (akun ArcGIS Location Platform, gratis 2 juta tile/bulan). Hanya untuk dilihat online.",
+    zoomMaks: 19,
+    bolehUnduh: false,
+    alasanTidakBoleh: "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
+    rataKbPerTile: 22
+  };
+}
+
+/**
+ * Citra satelit Google lewat Map Tiles API resmi (token sesi, lihat googleTiles.ts). Gratis 100.000
+ * tile per bulan; wajib logo Google dan teks hak cipta dari Google; tidak boleh disimpan offline dan
+ * tidak boleh dijiplak/didigitasi menjadi data baru.
+ */
+function sumberGoogle(): SumberTile {
+  return {
+    nama: "Satelit Google",
+    tersedia: kunciGoogle() !== "",
+    berkuota: true,
+    atribusiDinamis: true,
+    template: `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={sesi}&key=${encodeURIComponent(kunciGoogle())}`,
+    atribusi: "Google",
+    tautanLisensi: "https://cloud.google.com/maps-platform/terms",
+    lisensi:
+      "Ketentuan Google Maps Platform (Map Tiles API, gratis 100.000 tile/bulan). Hanya untuk dilihat online, tidak boleh disimpan offline.",
+    catatanPakai:
+      "Ketentuan Google melarang menjiplak atau mendigitasi objek dari citra Google. Rekam lokasi dengan GPS di lapangan, atau pakai citra Sentinel-2/Esri untuk menggambar batas.",
+    zoomMaks: 19,
+    bolehUnduh: false,
+    alasanTidakBoleh: "Ketentuan Google melarang menyimpan tile untuk pemakaian offline.",
+    rataKbPerTile: 30
+  };
+}
+
 /**
  * Sumber tile. Bawaan hanya memakai layanan gratis yang ketentuannya mengizinkan dipakai di aplikasi
  * dengan atribusi, dan semuanya untuk dilihat online. Untuk unduhan offline, pasang penyedia tile
@@ -98,8 +141,11 @@ function sumberSatelit(): SumberTile {
  */
 export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
   satelit: sumberSatelit(),
+  google: sumberGoogle(),
+  esri: sumberEsri(),
   osm: {
     nama: "OpenStreetMap",
+    tersedia: true,
     template: env.VITE_TILE_URL_OSM || "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     atribusi: (env.VITE_TILE_URL_OSM && env.VITE_TILE_ATRIBUSI_OSM) || "© Kontributor OpenStreetMap",
     tautanLisensi: "https://www.openstreetmap.org/copyright",
@@ -112,6 +158,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
   },
   topo: {
     nama: "OpenTopoMap",
+    tersedia: true,
     template: env.VITE_TILE_URL_TOPO || "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
     atribusi: env.VITE_TILE_URL_TOPO
       ? env.VITE_TILE_ATRIBUSI_TOPO || "© Kontributor OpenStreetMap"
@@ -128,6 +175,8 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
 
 export const NAMA_ENV_SUMBER: Record<BasemapTile, string> = {
   satelit: "SATELIT",
+  google: "GOOGLE",
+  esri: "ESRI",
   osm: "OSM",
   topo: "TOPO"
 };
@@ -236,14 +285,31 @@ export function setelUlangTemplatUntukUji(): void {
 }
 
 export function urlTile(basemap: BasemapType, z: number, x: number, y: number): string | null {
-  if (basemap === "taktis") return null;
-  return isiTemplateTile(templateAktif(basemap), z, x, y);
+  if (basemap === "taktis" || !SUMBER_TILE[basemap].tersedia) return null;
+  let templat = templateAktif(basemap);
+  if (templat.includes("{sesi}")) {
+    const token = tokenSesiGoogle();
+    if (!token) return null; // sesi sedang dibuat; peta digambar ulang setelah siap
+    templat = templat.replace("{sesi}", encodeURIComponent(token));
+  }
+  return isiTemplateTile(templat, z, x, y);
+}
+
+/** Urutan pilihan peta dasar di menu Lapisan; sumber berkunci hanya muncul bila kuncinya dipasang */
+export const URUTAN_BASEMAP: BasemapType[] = ["google", "esri", "satelit", "topo", "osm", "taktis"];
+
+export const basemapTersedia = (b: BasemapType): boolean => b === "taktis" || SUMBER_TILE[b]?.tersedia === true;
+
+/** Peta dasar awal: citra paling tajam yang tersedia (Google, lalu Esri, lalu Sentinel-2) */
+export function basemapBawaan(): BasemapType {
+  return (["google", "esri"] as const).find((b) => SUMBER_TILE[b].tersedia) ?? "satelit";
 }
 
 /** Zoom tile yang benar-benar diminta untuk zoom tampilan (tidak melebihi zoom maksimum penyedia) */
 export function zoomSumber(basemap: BasemapType, zoomTampil: number): number {
   if (basemap === "taktis") return zoomTampil;
-  return Math.min(zoomTampil, SUMBER_TILE[basemap].zoomMaks);
+  // Zoom tampilan bisa pecahan (hasil cubit/roda); tile selalu diambil pada level bulat terdekat
+  return Math.min(Math.round(zoomTampil), SUMBER_TILE[basemap].zoomMaks);
 }
 
 export const perkiraanUkuranMb = (jumlahTile: number, basemap: BasemapTile) =>

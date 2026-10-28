@@ -298,12 +298,41 @@ describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
     expect(m.SUMBER_TILE.topo.atribusi).toMatch(/OpenTopoMap/);
   });
 
-  it("kunci API Esri dipakai bila diisi (gratis sampai kuota akun), tetap tidak boleh diunduh offline", async () => {
-    vi.stubEnv("VITE_ESRI_API_KEY", "kunci-uji");
+  it("tanpa kunci API: Satelit Google dan Esri tidak muncul, peta awal Sentinel-2", async () => {
+    vi.stubEnv("VITE_ESRI_API_KEY", "");
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
     const m = await muat();
-    expect(m.SUMBER_TILE.satelit.template).toMatch(/^https:\/\/ibasemaps-api\.arcgis\.com\/.*token=kunci-uji$/);
-    expect(m.SUMBER_TILE.satelit.atribusi).toMatch(/Powered by Esri/);
-    expect(m.SUMBER_TILE.satelit.bolehUnduh).toBe(false);
+    expect(m.basemapTersedia("google")).toBe(false);
+    expect(m.basemapTersedia("esri")).toBe(false);
+    expect(m.basemapBawaan()).toBe("satelit");
+    expect(m.urlTile("google", 10, 1, 2)).toBeNull();
+    expect(m.URUTAN_BASEMAP.filter(m.basemapTersedia)).toEqual(["satelit", "topo", "osm", "taktis"]);
+    vi.unstubAllEnvs();
+  });
+
+  it("kunci API Esri: pilihan Satelit Esri terpisah (Sentinel-2 tetap ada), tidak boleh diunduh offline", async () => {
+    vi.stubEnv("VITE_ESRI_API_KEY", "kunci-uji");
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+    const m = await muat();
+    expect(m.SUMBER_TILE.esri.template).toMatch(/^https:\/\/ibasemaps-api\.arcgis\.com\/.*token=kunci-uji$/);
+    expect(m.SUMBER_TILE.esri.atribusi).toMatch(/Powered by Esri/);
+    expect(m.SUMBER_TILE.esri.bolehUnduh).toBe(false);
+    expect(m.SUMBER_TILE.satelit.template).toMatch(/eox\.at/);
+    expect(m.basemapBawaan()).toBe("esri");
+    vi.unstubAllEnvs();
+  });
+
+  it("kunci API Google: Satelit Google jadi peta awal, wajib atribusi dinamis, tidak boleh offline atau dijiplak", async () => {
+    vi.stubEnv("VITE_ESRI_API_KEY", "kunci-esri");
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "kunci-google");
+    const m = await muat();
+    const g = m.SUMBER_TILE.google;
+    expect(g.tersedia).toBe(true);
+    expect(g.template).toBe("https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={sesi}&key=kunci-google");
+    expect(g.atribusiDinamis).toBe(true);
+    expect(g.bolehUnduh).toBe(false);
+    expect(g.catatanPakai).toMatch(/menjiplak/);
+    expect(m.basemapBawaan()).toBe("google");
     vi.unstubAllEnvs();
   });
 

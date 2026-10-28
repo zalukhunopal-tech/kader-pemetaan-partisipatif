@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
   BasemapType,
@@ -26,12 +26,26 @@ import {
 import { JEDA_PEMBARUAN_JAM } from "../lib/rewardEngine";
 import { buatId } from "../lib/id";
 import { kompresFoto, perkiraBytesDataUrl } from "../lib/foto";
-import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta } from "../lib/posisiPeta";
+import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta, ZOOM_MAKS_PETA, ZOOM_MIN_PETA } from "../lib/posisiPeta";
+import {
+  PecahanDunia,
+  TitikLayar,
+  jarakDuaTitik,
+  jepitZoom,
+  langkahZoomRoda,
+  pecahanDiLayar,
+  pusatUntukJangkar,
+  tengahDuaTitik,
+  zoomCubit
+} from "../lib/zoomPeta";
 import {
   BATAS_TILE_PER_AREA,
   KotakWilayah,
   NAMA_ENV_SUMBER,
   SUMBER_TILE,
+  URUTAN_BASEMAP,
+  basemapBawaan,
+  basemapTersedia,
   daftarTile,
   hapusTile,
   hitungJumlahTile,
@@ -46,6 +60,7 @@ import {
   unduhanLayak,
   urlTile
 } from "../lib/petaOffline";
+import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle, statusGoogle } from "../lib/googleTiles";
 import {
   StatePosisiPerangkat,
   aktifkanKompas,
@@ -179,7 +194,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     posisiTersimpan ? { lat: posisiTersimpan.lat, lng: posisiTersimpan.lng } : POSISI_AWAL_PETA
   );
   const [zoom, setZoom] = useState<number>(() => posisiTersimpan?.zoom ?? 15);
-  const [basemap, setBasemap] = useState<BasemapType>(() => posisiTersimpan?.basemap ?? "satelit");
+  // Peta dasar terakhir dipakai lagi bila masih tersedia (kunci API bisa dicabut); selain itu citra paling tajam
+  const [basemap, setBasemap] = useState<BasemapType>(() =>
+    posisiTersimpan && basemapTersedia(posisiTersimpan.basemap) ? posisiTersimpan.basemap : basemapBawaan()
+  );
+  const [atribusiGoogle, setAtribusiGoogle] = useState<string | null>(null);
+  const [logoGoogleGagal, setLogoGoogleGagal] = useState(false);
+  // Naik setiap kali sesi tile Google siap atau gagal, supaya peta digambar ulang
+  const [versiGoogle, setVersiGoogle] = useState(0);
+  useEffect(() => pantauSesiGoogle(() => setVersiGoogle((v) => v + 1)), []);
   const [formatKoord, setFormatKoord] = useState<FormatKoordinat>("DD");
   const [renderTick, setRenderTick] = useState<number>(0);
 
@@ -304,6 +327,62 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     moved: false
   });
 
+  // Jari yang sedang menyentuh peta (posisi relatif kanvas) dan keadaan awal cubit dua jari
+  const jariRef = useRef<Map<number, TitikLayar>>(new Map());
+  const cubitRef = useRef<{ jarak: number; zoom: number; jangkar: PecahanDunia } | null>(null);
+
+  // Tinggi peta = sisa layar di bawah peta sampai bilah navigasi bawah (yang tingginya ikut ukuran
+  // huruf HP), supaya atribusi dan tombol Rekam Lokasi tidak pernah tertutup bilah bawah
+  const wadahPetaRef = useRef<HTMLDivElement | null>(null);
+  const [tinggiPeta, setTinggiPeta] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = wadahPetaRef.current;
+    if (!el) return;
+    let bingkai = 0;
+    const hitung = () => {
+      cancelAnimationFrame(bingkai);
+      bingkai = requestAnimationFrame(() => {
+        const atas = el.getBoundingClientRect().top + window.scrollY;
+        const nav = document.querySelector<HTMLElement>(".avenza-bottom-nav");
+        const tinggiNav = nav ? nav.getBoundingClientRect().height : 0;
+        const tinggi = Math.max(280, Math.floor(window.innerHeight - atas - tinggiNav - 10));
+        setTinggiPeta((lama) => (lama !== null && Math.abs(lama - tinggi) < 2 ? lama : tinggi));
+      });
+    };
+    hitung();
+    window.addEventListener("resize", hitung);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(hitung) : null;
+    ro?.observe(document.body);
+    const nav = document.querySelector<HTMLElement>(".avenza-bottom-nav");
+    if (nav) ro?.observe(nav);
+    return () => {
+      cancelAnimationFrame(bingkai);
+      window.removeEventListener("resize", hitung);
+      ro?.disconnect();
+    };
+  }, []);
+
+  // Roda tetikus dan cubit trackpad (PC/laptop): perbesar/perkecil di sekitar penunjuk.
+  // Didaftarkan manual karena onWheel React bersifat pasif dan tidak bisa mencegah gulir halaman.
+  useEffect(() => {
+    const kanvas = canvasRef.current;
+    if (!kanvas) return;
+    const saatRoda = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = kanvas.getBoundingClientRect();
+      const titik = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const kini = posisiRef.current;
+      const zBaru = jepitZoom(kini.zoom + langkahZoomRoda(e.deltaY, e.deltaMode, e.ctrlKey));
+      if (zBaru === kini.zoom) return;
+      const pusatBaru = pusatUntukJangkar(pecahanDiLayar(kini, kini.zoom, titik, rect.width, rect.height), zBaru, titik, rect.width, rect.height);
+      posisiRef.current = { ...kini, ...pusatBaru, zoom: zBaru }; // event berikutnya bisa datang sebelum render
+      setZoom(zBaru);
+      setCenter(pusatBaru);
+    };
+    kanvas.addEventListener("wheel", saatRoda, { passive: false });
+    return () => kanvas.removeEventListener("wheel", saatRoda);
+  }, []);
+
   // Hanya pada pemakaian pertama (belum ada posisi tersimpan): pindahkan peta ke fix GPS pertama.
   // Setelah itu peta selalu dibuka di posisi terakhir; tombol "Pusatkan ke GPS" tetap tersedia.
   const sudahPusatRef = useRef(posisiTersimpan !== null);
@@ -383,10 +462,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
       const centerTx = lngToTileX(center.lng, zTile);
       const centerTy = latToTileY(center.lat, zTile);
-      const startTileX = Math.floor(centerTx - W / (2 * ukuranTile)) - 1;
-      const endTileX = Math.ceil(centerTx + W / (2 * ukuranTile)) + 1;
-      const startTileY = Math.floor(centerTy - H / (2 * ukuranTile)) - 1;
-      const endTileY = Math.ceil(centerTy + H / (2 * ukuranTile)) + 1;
+      // Sumber berkuota (Google/Esri) hanya meminta tile yang tampil, tanpa tile cadangan di tepi
+      const tepi = SUMBER_TILE[basemap].berkuota ? 0 : 1;
+      const startTileX = Math.floor(centerTx - W / (2 * ukuranTile)) - tepi;
+      const endTileX = Math.floor(centerTx + W / (2 * ukuranTile)) + tepi;
+      const startTileY = Math.floor(centerTy - H / (2 * ukuranTile)) - tepi;
+      const endTileY = Math.floor(centerTy + H / (2 * ukuranTile)) + tepi;
       for (let tx = startTileX; tx <= endTileX; tx++) {
         for (let ty = startTileY; ty <= endTileY; ty++) {
           const url = urlTile(basemap, zTile, tx, ty);
@@ -636,6 +717,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }, [
     center,
     zoom,
+    tinggiPeta,
+    versiGoogle,
     basemap,
     dataSpasial,
     titikDraft,
@@ -647,8 +730,37 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     renderTick
   ]);
 
+  const titikKanvas = (e: React.PointerEvent<HTMLCanvasElement>): TitikLayar => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  /** Dua jari menempel: catat jarak awal dan titik dunia di antara kedua jari */
+  const mulaiCubit = (kanvas: HTMLCanvasElement) => {
+    const [a, b] = Array.from(jariRef.current.values());
+    const rect = kanvas.getBoundingClientRect();
+    cubitRef.current = {
+      jarak: jarakDuaTitik(a, b),
+      zoom,
+      jangkar: pecahanDiLayar(center, zoom, tengahDuaTitik(a, b), rect.width, rect.height)
+    };
+    dragRef.current.active = false;
+    dragRef.current.moved = true; // cubitan tidak pernah dianggap ketukan memilih objek
+  };
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (bukaMenuPeta) setBukaMenuPeta(false);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // browser lama: tanpa penangkapan penunjuk, geser tetap berjalan selama jari di atas kanvas
+    }
+    jariRef.current.set(e.pointerId, titikKanvas(e));
+    if (jariRef.current.size === 2) {
+      mulaiCubit(e.currentTarget);
+      return;
+    }
+    if (jariRef.current.size > 2) return;
     dragRef.current = {
       active: true,
       startX: e.clientX,
@@ -660,6 +772,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (jariRef.current.has(e.pointerId)) jariRef.current.set(e.pointerId, titikKanvas(e));
+    const cubit = cubitRef.current;
+    if (cubit && jariRef.current.size >= 2) {
+      const [a, b] = Array.from(jariRef.current.values());
+      const rect = e.currentTarget.getBoundingClientRect();
+      const zBaru = zoomCubit(cubit.zoom, cubit.jarak, jarakDuaTitik(a, b));
+      setZoom(zBaru);
+      setCenter(pusatUntukJangkar(cubit.jangkar, zBaru, tengahDuaTitik(a, b), rect.width, rect.height));
+      return;
+    }
     if (!dragRef.current.active) return;
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
@@ -676,7 +798,38 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     });
   };
 
+  /** Satu jari diangkat dari cubitan: jari yang tersisa melanjutkan geser dari posisinya sekarang */
+  const akhiriJari = (e: React.PointerEvent<HTMLCanvasElement>): boolean => {
+    jariRef.current.delete(e.pointerId);
+    if (!cubitRef.current) return false;
+    if (jariRef.current.size >= 2) {
+      mulaiCubit(e.currentTarget);
+      return true;
+    }
+    cubitRef.current = null;
+    const sisa = Array.from(jariRef.current.values())[0];
+    if (sisa) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      dragRef.current = {
+        active: true,
+        startX: sisa.x + rect.left,
+        startY: sisa.y + rect.top,
+        startLat: center.lat,
+        startLng: center.lng,
+        moved: true
+      };
+    } else {
+      dragRef.current.active = false;
+    }
+    return true;
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!akhiriJari(e)) dragRef.current.active = false;
+  };
+
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (akhiriJari(e)) return;
     const wasMoved = dragRef.current.moved;
     dragRef.current.active = false;
 
@@ -827,10 +980,26 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     };
   };
 
+  // Hak cipta citra Google mengikuti area yang tampil; diambil setelah peta berhenti bergerak
+  useEffect(() => {
+    if (basemap !== "google") return;
+    let batal = false;
+    const t = window.setTimeout(() => {
+      const k = hitungKotakTerlihat();
+      void ambilAtribusiGoogle({ utara: k.maxLat, selatan: k.minLat, timur: k.maxLng, barat: k.minLng }, zoom).then((teks) => {
+        if (!batal && teks) setAtribusiGoogle(teks);
+      });
+    }, 700);
+    return () => {
+      batal = true;
+      window.clearTimeout(t);
+    };
+  }, [basemap, center, zoom, versiGoogle]);
+
   const bukaModalUnduh = () => {
     setKotakUnduh(hitungKotakTerlihat());
-    setZoomMinUnduh(Math.max(10, zoom - 2));
-    setZoomMaksUnduh(Math.min(18, zoom + 2));
+    setZoomMinUnduh(Math.max(10, Math.round(zoom) - 2));
+    setZoomMaksUnduh(Math.min(18, Math.round(zoom) + 2));
     setGalatUnduh(null);
     setKemajuanUnduh(null);
     void ukuranPenyimpanan().then(setRuangPenyimpanan);
@@ -948,26 +1117,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       )}
 
       {/* KANVAS PETA INTERAKTIF FULL-VIEW DAN CLEAN DI MOBILE */}
-      <div className="map-canvas-container clean-canvas">
-        {/* Atribusi sumber peta wajib tampil menurut lisensi/ketentuan penyedia */}
-        {basemap !== "taktis" && (
-          <a
-            id="atribusi-peta"
-            className="map-atribusi"
-            href={SUMBER_TILE[basemap].tautanLisensi || undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={SUMBER_TILE[basemap].lisensi}
-          >
-            {SUMBER_TILE[basemap].atribusi}
-          </a>
-        )}
+      <div
+        className="map-canvas-container clean-canvas"
+        ref={wadahPetaRef}
+        style={tinggiPeta !== null ? { height: tinggiPeta } : undefined}
+      >
         <canvas
           ref={canvasRef}
           className="map-canvas"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
         />
 
         {/* PILL KOORDINAT RINGKAS DI KIRI ATAS (KETUK UNTUK GANTI DD/DMS/UTM) */}
@@ -1035,7 +1196,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <button
             type="button"
             className="map-ctrl-btn"
-            onClick={() => setZoom((z) => Math.min(19, z + 1))}
+            onClick={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
             title="Perbesar"
           >
             +
@@ -1043,7 +1204,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <button
             type="button"
             className="map-ctrl-btn"
-            onClick={() => setZoom((z) => Math.max(11, z - 1))}
+            onClick={() => setZoom((z) => Math.max(ZOOM_MIN_PETA, Math.ceil(z - 0.01) - 1))}
             title="Perkecil"
           >
             −
@@ -1065,14 +1226,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </div>
 
             <div className="map-basemap-grid">
-              {(
-                [
-                  { id: "satelit", label: `🛰️ ${SUMBER_TILE.satelit.nama}` },
-                  { id: "topo", label: `⛰️ ${SUMBER_TILE.topo.nama}` },
-                  { id: "osm", label: `🗺️ ${SUMBER_TILE.osm.nama}` },
-                  { id: "taktis", label: "🧭 Kontur" }
-                ] as { id: BasemapType; label: string }[]
-              ).map((b) => (
+              {URUTAN_BASEMAP.filter(basemapTersedia).map((id) => ({
+                id,
+                label:
+                  id === "taktis"
+                    ? "🧭 Kontur"
+                    : `${id === "topo" ? "⛰️" : id === "osm" ? "🗺️" : "🛰️"} ${SUMBER_TILE[id].nama}`
+              })).map((b) => (
                 <button
                   key={b.id}
                   type="button"
@@ -1089,6 +1249,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             {basemap !== "taktis" && (
               <p className="map-lisensi-info" id="info-lisensi-peta">
                 <strong>Lisensi:</strong> {SUMBER_TILE[basemap].lisensi}
+                {SUMBER_TILE[basemap].catatanPakai && (
+                  <span className="map-catatan-pakai"> {SUMBER_TILE[basemap].catatanPakai}</span>
+                )}
+                {basemap === "google" && statusGoogle().galat && (
+                  <span className="map-galat-sumber" role="alert"> {statusGoogle().galat}</span>
+                )}
               </p>
             )}
 
@@ -1135,146 +1301,184 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         )}
 
-        {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON (LATAR BELAKANG) */}
-        {modeRekam && modeRekam !== "point" && (
-          <div className="recording-active-bar">
-            <div className="recording-metrics">
-              <span
-                className={`rec-dot ${rekamLatar.status === "dijeda" ? "paused" : ""}`}
-              />
-              <div>
-                <div className="rec-status-badge-inline">
-                  <Radio size={12} />
-                  <span>
-                    {rekamLatar.status === "dijeda"
-                      ? "REKAMAN DIJEDA"
-                      : "SEDANG MEREKAM (LATAR BELAKANG)"}
-                  </span>
-                  <span className="rec-timer-chip" data-tick={detikTick}>
-                    {formatDurasi(durasiRekamMs(rekamLatar))}
-                  </span>
+        {/* BARIS BAWAH PETA: atribusi (wajib menurut lisensi) di kiri bawah, tombol rekam/panel rekam di kanan.
+            Bila tidak muat dalam satu baris (layar sempit, huruf besar, panel rekam), tombol naik ke atas
+            atribusi sehingga tidak pernah saling menutupi. */}
+        <div className="map-bawah">
+          {/* Atribusi sumber peta wajib tampil menurut lisensi/ketentuan penyedia */}
+          {basemap === "google" ? (
+            // Ketentuan Google: logo Google tidak boleh tertutup dan teks hak cipta dari Google wajib tampil
+            <div id="atribusi-peta" className="map-atribusi map-atribusi-google">
+              {logoGoogleGagal ? (
+                <strong className="map-logo-google-teks">Google</strong>
+              ) : (
+                <img
+                  className="map-logo-google"
+                  src={LOGO_GOOGLE}
+                  alt="Google"
+                  height={18}
+                  draggable={false}
+                  onError={() => setLogoGoogleGagal(true)}
+                />
+              )}
+              <a href={SUMBER_TILE.google.tautanLisensi} target="_blank" rel="noopener noreferrer" title={SUMBER_TILE.google.lisensi}>
+                {atribusiGoogle ?? "Citra © Google"}
+              </a>
+            </div>
+          ) : (
+            basemap !== "taktis" && (
+              <a
+                id="atribusi-peta"
+                className="map-atribusi"
+                href={SUMBER_TILE[basemap].tautanLisensi || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={SUMBER_TILE[basemap].lisensi}
+              >
+                {SUMBER_TILE[basemap].atribusi}
+              </a>
+            )
+          )}
+          {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON (LATAR BELAKANG) */}
+          {modeRekam && modeRekam !== "point" && (
+            <div className="recording-active-bar">
+              <div className="recording-metrics">
+                <span
+                  className={`rec-dot ${rekamLatar.status === "dijeda" ? "paused" : ""}`}
+                />
+                <div>
+                  <div className="rec-status-badge-inline">
+                    <Radio size={12} />
+                    <span>
+                      {rekamLatar.status === "dijeda"
+                        ? "REKAMAN DIJEDA"
+                        : "SEDANG MEREKAM (LATAR BELAKANG)"}
+                    </span>
+                    <span className="rec-timer-chip" data-tick={detikTick}>
+                      {formatDurasi(durasiRekamMs(rekamLatar))}
+                    </span>
+                  </div>
+                  <strong>
+                    {modeRekam === "line"
+                      ? `Jalur (${titikDraft.length} titik • ${panjangDraftKm} km)`
+                      : `Poligon (${titikDraft.length} sudut • ${luasDraftHa} Ha)`}
+                  </strong>
                 </div>
-                <strong>
-                  {modeRekam === "line"
-                    ? `Jalur (${titikDraft.length} titik • ${panjangDraftKm} km)`
-                    : `Poligon (${titikDraft.length} sudut • ${luasDraftHa} Ha)`}
-                </strong>
+              </div>
+
+              <div className="recording-actions">
+                <button
+                  type="button"
+                  className="btn-tool"
+                  onClick={tambahTitikBidikan}
+                  title="Tambah titik dari bidikan tengah peta"
+                >
+                  <Plus size={14} /> +Titik
+                </button>
+                <button
+                  type="button"
+                  className={`btn-tool ${rekamLatar.status === "merekam" ? "active-walk" : ""}`}
+                  onClick={() =>
+                    rekamLatar.status === "merekam"
+                      ? perekamLatar.jeda()
+                      : perekamLatar.lanjutkan()
+                  }
+                >
+                  {rekamLatar.status === "merekam" ? (
+                    <>
+                      <Pause size={14} /> Jeda
+                    </>
+                  ) : (
+                    <>
+                      <Play size={14} /> Lanjut
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={`btn-tool ${rekamLatar.autoGpsAktif ? "active-walk" : ""}`}
+                  onClick={() => perekamLatar.toggleAutoGps()}
+                  title="Mode demo: menambah titik acak tanpa GPS. Data simulasi tidak dihitung ke capaian dan skor."
+                >
+                  <Radio size={14} /> {rekamLatar.autoGpsAktif ? "Simulasi ON" : "Simulasi OFF"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary-sm"
+                  disabled={
+                    (modeRekam === "line" && titikDraft.length < 2) ||
+                    (modeRekam === "polygon" && titikDraft.length < 3)
+                  }
+                  onClick={() => setBukaModalForm(true)}
+                >
+                  <Check size={14} /> Simpan
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger-sm"
+                  onClick={() => {
+                    perekamLatar.batal();
+                    setModeRekam(null);
+                    setTitikDraft([]);
+                  }}
+                  title="Batalkan perekaman"
+                >
+                  <X size={14} />
+                </button>
               </div>
             </div>
-
-            <div className="recording-actions">
-              <button
-                type="button"
-                className="btn-tool"
-                onClick={tambahTitikBidikan}
-                title="Tambah titik dari bidikan tengah peta"
-              >
-                <Plus size={14} /> +Titik
-              </button>
-              <button
-                type="button"
-                className={`btn-tool ${rekamLatar.status === "merekam" ? "active-walk" : ""}`}
-                onClick={() =>
-                  rekamLatar.status === "merekam"
-                    ? perekamLatar.jeda()
-                    : perekamLatar.lanjutkan()
-                }
-              >
-                {rekamLatar.status === "merekam" ? (
-                  <>
-                    <Pause size={14} /> Jeda
-                  </>
-                ) : (
-                  <>
-                    <Play size={14} /> Lanjut
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                className={`btn-tool ${rekamLatar.autoGpsAktif ? "active-walk" : ""}`}
-                onClick={() => perekamLatar.toggleAutoGps()}
-                title="Mode demo: menambah titik acak tanpa GPS. Data simulasi tidak dihitung ke capaian dan skor."
-              >
-                <Radio size={14} /> {rekamLatar.autoGpsAktif ? "Simulasi ON" : "Simulasi OFF"}
-              </button>
-              <button
-                type="button"
-                className="btn-primary-sm"
-                disabled={
-                  (modeRekam === "line" && titikDraft.length < 2) ||
-                  (modeRekam === "polygon" && titikDraft.length < 3)
-                }
-                onClick={() => setBukaModalForm(true)}
-              >
-                <Check size={14} /> Simpan
-              </button>
-              <button
-                type="button"
-                className="btn-danger-sm"
-                onClick={() => {
-                  perekamLatar.batal();
-                  setModeRekam(null);
-                  setTitikDraft([]);
-                }}
-                title="Batalkan perekaman"
-              >
-                <X size={14} />
-              </button>
+          )}
+          {/* TOMBOL REKAM RINGKAS YANG BISA DISEMBUNYIKAN AGAR TIDAK MENGHALANGI PETA */}
+          {!modeRekam && (
+            <div className="map-clean-bottom-bar">
+              {!bukaAlatRekam ? (
+                <button
+                  type="button"
+                  className="map-fab-record-trigger"
+                  onClick={() => setBukaAlatRekam(true)}
+                >
+                  <Plus size={18} strokeWidth={2.5} />
+                  <span>Rekam Lokasi</span>
+                </button>
+              ) : (
+                <div className="map-compact-record-pills">
+                  <button
+                    type="button"
+                    className="compact-rec-pill"
+                    onClick={() => mulaiModeRekam("point")}
+                  >
+                    <MapPin size={15} />
+                    <span>Titik</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-rec-pill"
+                    onClick={() => mulaiModeRekam("line")}
+                  >
+                    <Route size={15} />
+                    <span>Jalur</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-rec-pill"
+                    onClick={() => mulaiModeRekam("polygon")}
+                  >
+                    <Square size={15} />
+                    <span>Poligon</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-rec-close"
+                    onClick={() => setBukaAlatRekam(false)}
+                    title="Sembunyikan alat rekam"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* TOMBOL REKAM RINGKAS YANG BISA DISEMBUNYIKAN AGAR TIDAK MENGHALANGI PETA */}
-        {!modeRekam && (
-          <div className="map-clean-bottom-bar">
-            {!bukaAlatRekam ? (
-              <button
-                type="button"
-                className="map-fab-record-trigger"
-                onClick={() => setBukaAlatRekam(true)}
-              >
-                <Plus size={18} strokeWidth={2.5} />
-                <span>Rekam Lokasi</span>
-              </button>
-            ) : (
-              <div className="map-compact-record-pills">
-                <button
-                  type="button"
-                  className="compact-rec-pill"
-                  onClick={() => mulaiModeRekam("point")}
-                >
-                  <MapPin size={15} />
-                  <span>Titik</span>
-                </button>
-                <button
-                  type="button"
-                  className="compact-rec-pill"
-                  onClick={() => mulaiModeRekam("line")}
-                >
-                  <Route size={15} />
-                  <span>Jalur</span>
-                </button>
-                <button
-                  type="button"
-                  className="compact-rec-pill"
-                  onClick={() => mulaiModeRekam("polygon")}
-                >
-                  <Square size={15} />
-                  <span>Poligon</span>
-                </button>
-                <button
-                  type="button"
-                  className="compact-rec-close"
-                  onClick={() => setBukaAlatRekam(false)}
-                  title="Sembunyikan alat rekam"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* PANEL DETAIL OBJEK EXISTING KETIKA DIKLIK DI PETA */}
@@ -1563,7 +1767,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 <>
                   <p style={{ margin: 0, fontSize: "0.84rem" }}>
                     Area: bagian peta yang terlihat sekarang. Sumber:{" "}
-                    <strong>{{ satelit: "Satelit", topo: "Topografi", osm: "OSM" }[basemap]}</strong>.
+                    <strong>{sumberUnduh.nama}</strong>.
                   </p>
 
                   {!sumberUnduh.bolehUnduh && (
@@ -1571,10 +1775,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                       className="alert-banner-success"
                       style={{ margin: 0, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
                     >
-                      {sumberUnduh.alasanTidakBoleh} Untuk mengunduh, pasang penyedia tile yang lisensinya
-                      mengizinkan lewat <code>VITE_TILE_URL_{NAMA_ENV_SUMBER[basemap]}</code> dan{" "}
-                      <code>VITE_TILE_UNDUH_{NAMA_ENV_SUMBER[basemap]}=true</code> di berkas{" "}
-                      <code>.env</code>, lalu bangun ulang aplikasi.
+                      {sumberUnduh.alasanTidakBoleh}{" "}
+                      {basemap === "google" || basemap === "esri" ? (
+                        <>Untuk peta offline, pilih Satelit Sentinel-2, Topografi, atau OSM dengan penyedia tile yang mengizinkan unduhan.</>
+                      ) : (
+                        <>
+                          Untuk mengunduh, pasang penyedia tile yang lisensinya mengizinkan lewat{" "}
+                          <code>VITE_TILE_URL_{NAMA_ENV_SUMBER[basemap]}</code> dan{" "}
+                          <code>VITE_TILE_UNDUH_{NAMA_ENV_SUMBER[basemap]}=true</code> di berkas <code>.env</code>, lalu
+                          bangun ulang aplikasi.
+                        </>
+                      )}
                     </div>
                   )}
 

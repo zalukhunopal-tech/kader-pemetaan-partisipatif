@@ -10,6 +10,7 @@ import {
   uriOtpauth
 } from "./totp";
 import { bukaGerbangAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
+import { aplikasiTerbuka, bukaAplikasi, kunciAplikasi } from "./kunciAplikasi";
 
 /**
  * AUTENTIKASI SISI KLIEN
@@ -22,7 +23,22 @@ import { bukaGerbangAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerb
  * Administrator pertama di perangkat baru. Setiap akun wajib memakai Google Authenticator (TOTP) di
  * samping sandi. Rahasia TOTP tersimpan di perangkat yang sama dengan akunnya, jadi lapisan ini
  * menahan orang yang hanya tahu sandi, bukan orang yang dapat membaca penyimpanan perangkat.
+ *
+ * Kode Authenticator berlaku 8 jam per sesi di perangkat ini (MASA_BERLAKU_TOTP_MS). Selama itu,
+ * aplikasi yang terkunci (dibuka ulang atau diam 15 menit) dibuka dengan PIN atau sidik jari/wajah
+ * (kunciCepat.ts); setelah 8 jam, kode Authenticator diminta lagi.
  */
+
+/** Sidik jari / pengenalan wajah lewat WebAuthn (autentikator bawaan perangkat); hanya kunci publik yang disimpan */
+export interface DataBiometrik {
+  /** ID kredensial (base64url) */
+  idKredensial: string;
+  /** Kunci publik SPKI (base64) */
+  kunciPublik: string;
+  /** Algoritme COSE: -7 (ES256) atau -257 (RS256) */
+  alg: number;
+  dibuat: string;
+}
 
 export interface AkunPengguna {
   idKader: string;
@@ -45,6 +61,13 @@ export interface AkunPengguna {
   totpLangkahTerakhir?: number;
   /** Hash kode pemulihan sekali pakai yang belum terpakai */
   kodePemulihanHash?: string[];
+  /** PIN buka cepat di perangkat ini (hash PBKDF2 dengan garam tersendiri, tidak pernah teks polos) */
+  pinHash?: string;
+  pinGaram?: string;
+  pinIterasi?: number;
+  /** PIN salah berturut-turut; PIN dinonaktifkan setelah batasnya */
+  pinGagal?: number;
+  biometrik?: DataBiometrik;
   /** Sisa format lama (teks polos); dihapus oleh migrasiAkunLama */
   password?: string;
 }
@@ -52,12 +75,38 @@ export interface AkunPengguna {
 /** Data akun yang aman dibawa di sesi dan state aplikasi (tanpa hash atau sandi) */
 export type AkunSesi = Omit<
   AkunPengguna,
-  "kataSandiHash" | "garam" | "iterasi" | "password" | "wajibGantiSandi" | "totpRahasia" | "totpLangkahTerakhir" | "kodePemulihanHash"
+  | "kataSandiHash"
+  | "garam"
+  | "iterasi"
+  | "password"
+  | "wajibGantiSandi"
+  | "totpRahasia"
+  | "totpLangkahTerakhir"
+  | "kodePemulihanHash"
+  | "pinHash"
+  | "pinGaram"
+  | "pinIterasi"
+  | "pinGagal"
+  | "biometrik"
 >;
+
+/** Data kunci cepat (PIN dan biometrik) yang boleh diubah oleh kunciCepat.ts */
+export type DataKunciCepat = Pick<AkunPengguna, "pinHash" | "pinGaram" | "pinIterasi" | "pinGagal" | "biometrik">;
+export const TANPA_KUNCI_CEPAT: DataKunciCepat = {
+  pinHash: undefined,
+  pinGaram: undefined,
+  pinIterasi: undefined,
+  pinGagal: undefined,
+  biometrik: undefined
+};
 
 const KEY_ACCOUNTS = "geokader_accounts_v5";
 const KEY_SESSION = "geokader_current_session_v5";
 const KEY_GAGAL = "geokader_login_gagal_v5";
+const KEY_VERIFIKASI_TOTP = "geokader_verifikasi_totp_v1";
+
+/** Lama kode Google Authenticator berlaku setelah diverifikasi di perangkat ini */
+export const MASA_BERLAKU_TOTP_MS = 8 * 60 * 60 * 1000;
 
 export const ITERASI_PBKDF2 = 200_000;
 /** Hanya untuk tes: menurunkan jumlah iterasi agar tes cepat. Jangan diubah di aplikasi. */
@@ -126,11 +175,45 @@ export function muatSesiPengguna(): AkunSesi | null {
 
 export function simpanSesiPengguna(akun: AkunSesi | null): void {
   try {
-    if (!akun) localStorage.removeItem(KEY_SESSION);
-    else localStorage.setItem(KEY_SESSION, JSON.stringify(keSesi(akun)));
+    if (!akun) {
+      // Keluar mengakhiri masa berlaku kode Authenticator: masuk berikutnya meminta kode lagi
+      localStorage.removeItem(KEY_SESSION);
+      localStorage.removeItem(KEY_VERIFIKASI_TOTP);
+      kunciAplikasi();
+    } else localStorage.setItem(KEY_SESSION, JSON.stringify(keSesi(akun)));
   } catch {
     // abaikan
   }
+}
+
+/* ---------- Masa berlaku kode Authenticator (8 jam) ---------- */
+
+function catatVerifikasiTotp(email: string, sekarang = Date.now()): void {
+  try {
+    localStorage.setItem(KEY_VERIFIKASI_TOTP, JSON.stringify({ email: email.trim().toLowerCase(), pada: sekarang }));
+  } catch {
+    // tidak tersimpan: PIN/sidik jari tidak bisa dipakai, kode Authenticator diminta setiap kali terkunci
+  }
+}
+
+/** Sisa masa berlaku verifikasi Authenticator (ms) untuk email ini; 0 bila habis atau belum ada */
+export function sisaMasaTotp(email: string | undefined | null, sekarang = Date.now()): number {
+  if (!email) return 0;
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY_VERIFIKASI_TOTP) || "null") as { email?: string; pada?: number } | null;
+    if (!v || v.email !== email.trim().toLowerCase() || typeof v.pada !== "number") return 0;
+    const umur = sekarang - v.pada;
+    // jam yang dimundurkan (umur negatif) dianggap habis
+    return umur < 0 || umur >= MASA_BERLAKU_TOTP_MS ? 0 : MASA_BERLAKU_TOTP_MS - umur;
+  } catch {
+    return 0;
+  }
+}
+
+/** Identitas baru saja dibuktikan dengan kode Authenticator: mulai masa 8 jam dan buka kunci aplikasi */
+function tandaiTerverifikasi(email: string): void {
+  catatVerifikasiTotp(email);
+  bukaAplikasi(email);
 }
 
 /* ---------- Hash kata sandi ---------- */
@@ -326,6 +409,7 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
   if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
   const sesi = keSesi(akun);
   simpanSesiPengguna(sesi);
+  tandaiTerverifikasi(akun.email);
   // Kewenangan admin hanya dari verifikasi kode barusan, tidak dari sesi yang tersimpan
   if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
   else kunciGerbangAdmin();
@@ -415,12 +499,14 @@ export async function buatAdminPertama(data: DataDaftar, kodeAktivasi = ""): Pro
 /**
  * Pemeriksaan dua lapis untuk setiap aksi admin:
  * 1. sesi harus cocok dengan akun admin yang masih ada di data akun (peran dan ID sama), dan
- * 2. gerbang admin di memori harus terbuka (kode Authenticator diverifikasi di halaman ini dan belum diam terlalu lama).
+ * 2. gerbang admin di memori harus terbuka (identitas diverifikasi di halaman ini dan belum diam terlalu lama),
+ *    aplikasi tidak sedang terkunci, dan kode Authenticator terakhir masih dalam masa berlaku 8 jam.
  */
 function adminSah(adminSesi: AkunSesi | null): AkunPengguna | null {
   const akunAdmin = muatSemuaAkun().find((a) => a.email.toLowerCase() === (adminSesi?.email ?? "").toLowerCase());
   if (!adminSesi || !akunAdmin || akunAdmin.peran !== "admin" || akunAdmin.idKader !== adminSesi.idKader) return null;
   if (!akunAdmin.totpRahasia || !gerbangAdminTerbuka(akunAdmin.email)) return null;
+  if (!aplikasiTerbuka(akunAdmin.email) || sisaMasaTotp(akunAdmin.email) <= 0) return null;
   return akunAdmin;
 }
 
@@ -430,6 +516,46 @@ export function aksesAdminSah(adminSesi: AkunSesi | null): boolean {
   const terkini = muatSesiPengguna(); // dibaca ulang dari penyimpanan, bukan dari state aplikasi
   if (!terkini || terkini.email.toLowerCase() !== adminSesi.email.toLowerCase() || terkini.idKader !== adminSesi.idKader) return false;
   return adminSah(terkini) !== null;
+}
+
+export interface OpsiVerifikasi {
+  /** true: buka juga gerbang admin bila akunnya admin (layar kunci saat sedang di mode admin) */
+  bukaAdmin?: boolean;
+}
+
+/**
+ * Verifikasi ulang dengan kode Google Authenticator atau kode pemulihan untuk sesi yang sedang
+ * berjalan: dipakai layar kunci setelah masa 8 jam habis, saat PIN terlupa/terblokir, atau untuk
+ * membuka mode admin. Berhasil = masa berlaku 8 jam dimulai lagi dan aplikasi terbuka.
+ */
+export function verifikasiKodeAuthenticator(
+  sesi: AkunSesi | null,
+  kode: string,
+  opsi: OpsiVerifikasi = {}
+): { sukses: boolean; pesan: string } {
+  const emailBersih = (sesi?.email ?? "").trim().toLowerCase();
+  const tunggu = detikTertahan(emailBersih);
+  if (tunggu > 0) return { sukses: false, pesan: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
+  const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
+  if (!sesi || !akun || akun.idKader !== sesi.idKader || !akun.totpRahasia) {
+    return { sukses: false, pesan: "Sesi tidak sah. Keluar lalu masuk kembali." };
+  }
+  if (!kode.trim()) return { sukses: false, pesan: "Masukkan kode dari Google Authenticator atau kode pemulihan." };
+  const hasil = periksaKodeMasuk(akun, kode);
+  if (!hasil.ok) {
+    catatGagal(emailBersih);
+    return { sukses: false, pesan: PESAN_KODE_SALAH };
+  }
+  hapusGagal(emailBersih);
+  if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
+  tandaiTerverifikasi(akun.email);
+  if (opsi.bukaAdmin && akun.peran === "admin") bukaGerbangAdmin(akun.email);
+  return {
+    sukses: true,
+    pesan: hasil.pemulihan
+      ? `Terverifikasi dengan kode pemulihan; sisa ${hasil.sisa}.`
+      : "Terverifikasi. Kode Authenticator berlaku 8 jam di perangkat ini."
+  };
 }
 
 /**
@@ -444,18 +570,19 @@ export function bukaGerbangAdminDenganKode(adminSesi: AkunSesi | null, kode: str
   if (!adminSesi || !akun || akun.peran !== "admin" || akun.idKader !== adminSesi.idKader || !akun.totpRahasia) {
     return { sukses: false, pesan: "Akun ini tidak memiliki akses Administrator." };
   }
-  const hasil = periksaKodeMasuk(akun, kode);
-  if (!hasil.ok) {
-    catatGagal(emailBersih);
-    return { sukses: false, pesan: PESAN_KODE_SALAH };
-  }
-  hapusGagal(emailBersih);
-  if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
-  bukaGerbangAdmin(akun.email);
+  const r = verifikasiKodeAuthenticator(adminSesi, kode, { bukaAdmin: true });
+  if (!r.sukses) return r;
   return {
     sukses: true,
-    pesan: hasil.pemulihan ? `Mode admin dibuka dengan kode pemulihan; sisa ${hasil.sisa}.` : "Mode admin dibuka."
+    pesan: r.pesan.startsWith("Terverifikasi dengan kode pemulihan")
+      ? r.pesan.replace("Terverifikasi", "Mode admin dibuka")
+      : "Mode admin dibuka."
   };
+}
+
+/** Untuk kunciCepat.ts: menyimpan perubahan PIN/biometrik pada akun di perangkat ini */
+export function perbaruiKunciCepatAkun(email: string, perubahan: Partial<DataKunciCepat>): void {
+  simpanPerubahanAkun(email, perubahan);
 }
 
 /**
@@ -528,6 +655,7 @@ export async function selesaikanPendaftaranTotp(
     return { sukses: false, pesan: PESAN_KODE_SALAH };
   }
   hapusGagal(akun.email);
+  tandaiTerverifikasi(akun.email);
   if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
   else kunciGerbangAdmin();
   const kodePemulihan = buatKodePemulihan();
@@ -554,7 +682,13 @@ export function aturUlangAuthenticatorOlehAdmin(
   if (target.email.toLowerCase() === akunAdmin.email.toLowerCase()) {
     return { sukses: false, pesan: "Authenticator Anda sendiri hanya bisa diatur ulang oleh admin lain." };
   }
-  simpanPerubahanAkun(target.email, { totpRahasia: undefined, totpLangkahTerakhir: undefined, kodePemulihanHash: undefined });
+  // PIN dan sidik jari ikut dihapus: pemilik membuat yang baru setelah memasang Authenticator lagi
+  simpanPerubahanAkun(target.email, {
+    totpRahasia: undefined,
+    totpLangkahTerakhir: undefined,
+    kodePemulihanHash: undefined,
+    ...TANPA_KUNCI_CEPAT
+  });
   hapusGagal(target.email);
   return { sukses: true, pesan: `Authenticator ${target.nama} dihapus. Ia mendaftarkan yang baru saat masuk berikutnya.` };
 }
@@ -603,7 +737,7 @@ export async function aturUlangSandiOlehAdmin(
     return { sukses: false, pesan: "Ganti kata sandi Anda sendiri lewat menu Kata sandi." };
   }
   const sandiSementara = buatSandiSementara();
-  accounts[idx] = { ...accounts[idx], ...(await buatHashSandi(sandiSementara)), wajibGantiSandi: true };
+  accounts[idx] = { ...accounts[idx], ...(await buatHashSandi(sandiSementara)), ...TANPA_KUNCI_CEPAT, wajibGantiSandi: true };
   delete accounts[idx].password;
   simpanSemuaAkun(accounts);
   hapusGagal(emailTarget);

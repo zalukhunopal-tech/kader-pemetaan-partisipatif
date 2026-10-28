@@ -14,8 +14,13 @@ describe("posisi peta terakhir", () => {
     expect(bacaPosisiPeta()).toEqual({ lat: -1.123457, lng: 101.987654, zoom: 17, basemap: "osm" });
   });
 
+  it("zoom pecahan hasil cubit disimpan dengan dua desimal", () => {
+    simpanPosisiPeta({ lat: 2.85, lng: 117.37, zoom: 16.4567, basemap: "satelit" });
+    expect(bacaPosisiPeta()?.zoom).toBe(16.46);
+  });
+
   it("zoom dijepit ke rentang peta dan basemap tak dikenal kembali ke satelit", () => {
-    localStorage.setItem(KUNCI_POSISI_PETA, JSON.stringify({ lat: -1, lng: 100, zoom: 25, basemap: "google" }));
+    localStorage.setItem(KUNCI_POSISI_PETA, JSON.stringify({ lat: -1, lng: 100, zoom: 25, basemap: "tidak-dikenal" }));
     expect(bacaPosisiPeta()).toEqual({ lat: -1, lng: 100, zoom: 19, basemap: "satelit" });
     localStorage.setItem(KUNCI_POSISI_PETA, JSON.stringify({ lat: -1, lng: 100, zoom: 2, basemap: "topo" }));
     expect(bacaPosisiPeta()?.zoom).toBe(11);
