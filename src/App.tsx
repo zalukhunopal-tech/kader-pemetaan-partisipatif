@@ -41,6 +41,7 @@ import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
+import { hapusTileArea } from "./lib/petaOffline";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import {
   perekamLatar,
@@ -304,6 +305,18 @@ export const App: React.FC = () => {
     tampilkanToast(
       `✓ ${items.length} objek diimpor. Dihitung ke capaian setelah diverifikasi admin.`
     );
+  };
+
+  // Hapus area peta offline; tile yang tersimpan ikut dihapus (kecuali yang dipakai area lain)
+  const handleHapusAreaOffline = (id: string) => {
+    const area = areaOffline.find((a) => a.id === id);
+    if (!area) return;
+    setAreaOffline((prev) => prev.filter((a) => a.id !== id));
+    if (area.unduhanNyata) {
+      void hapusTileArea(area, areaOffline).then((n) =>
+        tampilkanToast(`✓ Peta "${area.namaArea}" dihapus (${n} tile dibersihkan).`)
+      );
+    }
   };
 
   // Handler Update Kondisi pada Objek Existing
@@ -770,9 +783,7 @@ export const App: React.FC = () => {
               setAreaOffline((prev) => [a, ...prev]);
               tampilkanToast(`✓ Peta "${a.namaArea}" ditambahkan ke Pustaka.`);
             }}
-            onHapusAreaOffline={(id) =>
-              setAreaOffline((prev) => prev.filter((a) => a.id !== id))
-            }
+            onHapusAreaOffline={handleHapusAreaOffline}
             onTambahLapisan={(l) => {
               setLapisanList((prev) => [l, ...prev]);
               tampilkanToast(`✓ "${l.nama}" berhasil dibuat.`);

@@ -4,6 +4,7 @@ import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { buatId } from "../lib/id";
 import { usePosisiPerangkat } from "../lib/posisiPerangkat";
+import { muatGambarTile, urlTile } from "../lib/petaOffline";
 import { Bluetooth, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
 
 interface SmartwatchModalProps {
@@ -175,7 +176,8 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
 
     for (let tx = startX; tx <= endX; tx++) {
       for (let ty = startY; ty <= endY; ty++) {
-        const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`;
+        const url = urlTile("satelit", zoom, tx, ty);
+        if (!url) continue;
         const drawX = Math.round(size / 2 + (tx - centerTx) * TILE_SIZE);
         const drawY = Math.round(size / 2 + (ty - centerTy) * TILE_SIZE);
         const cached = tileCacheRef.current.get(url);
@@ -183,16 +185,18 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
           ctx.drawImage(cached, drawX, drawY, TILE_SIZE, TILE_SIZE);
         } else if (!cached) {
           tileCacheRef.current.set(url, "loading");
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            tileCacheRef.current.set(url, img);
-            setRenderTick((t) => t + 1);
-          };
-          img.onerror = () => {
-            tileCacheRef.current.set(url, "error");
-          };
-          img.src = url;
+          muatGambarTile(url).then(
+            (img) => {
+              tileCacheRef.current.set(url, img);
+              setRenderTick((t) => t + 1);
+            },
+            () => {
+              tileCacheRef.current.set(url, "error");
+              window.setTimeout(() => {
+                if (tileCacheRef.current.get(url) === "error") tileCacheRef.current.delete(url);
+              }, 15000);
+            }
+          );
         }
       }
     }

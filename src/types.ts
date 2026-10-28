@@ -82,6 +82,11 @@ export interface AreaPetaOffline {
   thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah";
   diunduhPada: string;
   jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";
+  /** true bila tile benar-benar tersimpan di perangkat; selain itu entri hanya catatan */
+  unduhanNyata?: boolean;
+  /** Templat URL tile saat diunduh (untuk menghapus tile area ini) */
+  templateTile?: string;
+  jumlahGagal?: number;
 }
 
 export interface LapisanSpasial {

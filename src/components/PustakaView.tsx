@@ -410,8 +410,20 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <div className="avenza-map-info">
                   <div className="avenza-map-title">{item.namaArea}</div>
                   <div className="avenza-map-meta">
-                    {formatAngkaIndo(item.ukuranMb)} MB <span className="dot-sep">•</span>{" "}
+                    {item.unduhanNyata || item.jenisFile !== "XYZ Tiles"
+                      ? `${formatAngkaIndo(item.ukuranMb)} MB`
+                      : "Ukuran tidak diketahui"}{" "}
+                    <span className="dot-sep">•</span>{" "}
                     {formatAngkaIndo(item.jarakKm ?? 0)} km
+                    {item.unduhanNyata ? (
+                      <>
+                        {" "}<span className="dot-sep">•</span> {item.jumlahTile.toLocaleString("id-ID")} tile
+                      </>
+                    ) : (
+                      <>
+                        {" "}<span className="dot-sep">•</span> Catatan saja
+                      </>
+                    )}
                   </div>
                 </div>
 
