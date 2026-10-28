@@ -115,17 +115,63 @@ export function formatKoordinatTeks(
     };
     return `${toDMS(lat, "LU", "LS")} ${toDMS(lng, "BT", "BB")}`;
   }
-  // UTM Konversi standar
-  const zone = Math.floor((lng + 180) / 6) + 1;
-  const hemi = lat >= 0 ? "N" : "S";
-  const lonOrigin = (zone - 1) * 6 - 180 + 3;
-  const easting = Math.round(
-    500000 + toRad(lng - lonOrigin) * EARTH_RADIUS_M * Math.cos(toRad(lat)) * 0.9996
-  );
-  const northing = Math.round(
-    (lat < 0 ? 10000000 : 0) + toRad(lat) * EARTH_RADIUS_M * 0.9996
-  );
-  return `UTM ${zone}${hemi} ${easting}mE ${northing}mN`;
+  const utm = konversiUTM(lat, lng);
+  if (!utm) return "UTM tidak berlaku di luar lintang 80°S sampai 84°U";
+  return `UTM ${utm.zona}${utm.belahan} ${utm.timur}mE ${utm.utara}mN`;
+}
+
+export interface HasilUTM {
+  zona: number;
+  belahan: "N" | "S";
+  timur: number;
+  utara: number;
+}
+
+/**
+ * Koordinat UTM pada elipsoid WGS84 (proyeksi Transverse Mercator, deret Krüger).
+ * Sama dengan hasil PROJ dalam hitungan milimeter. Mengembalikan null di luar 80°S-84°U.
+ */
+export function konversiUTM(lat: number, lng: number): HasilUTM | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -80 || lat > 84) return null;
+  const A_WGS84 = 6378137;
+  const F_WGS84 = 1 / 298.257223563;
+  const K0 = 0.9996;
+  const n = F_WGS84 / (2 - F_WGS84);
+  const n2 = n * n;
+  const n3 = n2 * n;
+  const n4 = n3 * n;
+  const aBulat = (A_WGS84 / (1 + n)) * (1 + n2 / 4 + n4 / 64);
+  const alfa = [
+    n / 2 - (2 * n2) / 3 + (5 * n3) / 16,
+    (13 * n2) / 48 - (3 * n3) / 5,
+    (61 * n3) / 240
+  ];
+  const e = Math.sqrt(F_WGS84 * (2 - F_WGS84));
+
+  let lngNorm = ((((lng + 180) % 360) + 360) % 360) - 180;
+  if (lngNorm === -180 && lng > 0) lngNorm = 180; // tepat 180° dihitung di zona 60
+  const zona = Math.min(60, Math.floor((lngNorm + 180) / 6) + 1);
+  const lambda0 = toRad((zona - 1) * 6 - 180 + 3);
+  const phi = toRad(lat);
+  const dLambda = toRad(lngNorm) - lambda0;
+
+  const t = Math.sinh(Math.atanh(Math.sin(phi)) - e * Math.atanh(e * Math.sin(phi)));
+  const xiAksen = Math.atan2(t, Math.cos(dLambda));
+  const etaAksen = Math.atanh(Math.sin(dLambda) / Math.sqrt(1 + t * t));
+
+  let xi = xiAksen;
+  let eta = etaAksen;
+  for (let j = 1; j <= 3; j++) {
+    xi += alfa[j - 1] * Math.sin(2 * j * xiAksen) * Math.cosh(2 * j * etaAksen);
+    eta += alfa[j - 1] * Math.cos(2 * j * xiAksen) * Math.sinh(2 * j * etaAksen);
+  }
+
+  return {
+    zona,
+    belahan: lat >= 0 ? "N" : "S",
+    timur: Math.round(500000 + K0 * aBulat * eta),
+    utara: Math.round((lat < 0 ? 10000000 : 0) + K0 * aBulat * xi)
+  };
 }
 
 /**
