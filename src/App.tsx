@@ -55,6 +55,7 @@ import { RewardView } from "./components/RewardView";
 import { TugasPengumumanView } from "./components/TugasPengumumanView";
 import { KomunikasiView } from "./components/KomunikasiView";
 import { AdminDashboardView } from "./components/AdminDashboardView";
+import { SmartwatchModal } from "./components/SmartwatchModal";
 import {
   Award,
   Bell,
@@ -73,7 +74,8 @@ import {
   LogOut,
   Radio,
   Pause,
-  Play
+  Play,
+  Watch
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -95,6 +97,7 @@ export const App: React.FC = () => {
   const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
   const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
+  const [bukaSmartwatch, setBukaSmartwatch] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const [notifToast, setNotifToast] = useState<string | null>(null);
 
@@ -475,6 +478,17 @@ export const App: React.FC = () => {
                 className="avenza-overflow-item"
                 onClick={() => {
                   setBukaMenuTitikTiga(false);
+                  setBukaSmartwatch(true);
+                }}
+              >
+                <Watch size={16} /> Smartwatch
+              </button>
+
+              <button
+                type="button"
+                className="avenza-overflow-item"
+                onClick={() => {
+                  setBukaMenuTitikTiga(false);
                   setTabAktif("reward");
                 }}
               >
@@ -665,6 +679,7 @@ export const App: React.FC = () => {
             onImporDataSpasial={(items) =>
               setDataSpasial((prev) => [...items, ...prev])
             }
+            onBukaSmartwatch={() => setBukaSmartwatch(true)}
           />
         )}
 
@@ -747,6 +762,16 @@ export const App: React.FC = () => {
           />
         )}
       </main>
+
+      {/* MODAL SMARTWATCH BLUETOOTH */}
+      {bukaSmartwatch && (
+        <SmartwatchModal
+          dataSpasial={dataSpasial}
+          profil={profil}
+          onSimpanDataBaru={handleSimpanDataBaru}
+          onTutup={() => setBukaSmartwatch(false)}
+        />
+      )}
 
       {/* BOTTOM NAVIGATION: BERBEDA UNTUK AKUN ADMIN DAN AKUN USER */}
       <nav className="avenza-bottom-nav">

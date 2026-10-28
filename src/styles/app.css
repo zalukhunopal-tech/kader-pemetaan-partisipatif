@@ -1903,11 +1903,11 @@ body {
 
 .certificate-canvas-stage {
   width: 100%;
-  background: #0f172a;
+  background: #f1f5f9;
   padding: 10px;
   border-radius: 14px;
   border: 1px solid #cbd5e1;
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .certificate-wysiwyg-canvas {
@@ -1916,8 +1916,8 @@ body {
   height: auto;
   aspect-ratio: 1600 / 1131;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  background: #032219;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16);
+  background: #fdfcf9;
 }
 
 .certificate-status-footnote {
@@ -3346,18 +3346,348 @@ label {
   cursor: pointer;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  /* Penyesuaian ukuran huruf khusus HP/Mobile agar proporsional & tidak kebesaran */
+  .avenza-topbar-title {
+    font-size: 1.02rem;
+  }
+
+  .section-card {
+    padding: 12px;
+  }
+
+  .section-header h3,
+  .certificate-header-bar h3 {
+    font-size: 0.9rem !important;
+  }
+
+  .visual-profile-bar {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .visual-profile-left {
+    gap: 9px;
+  }
+
+  .visual-avatar-emblem {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+  }
+
+  .visual-pill-id,
+  .visual-pill-verified {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+  }
+
+  .visual-profile-name {
+    font-size: 0.92rem !important;
+    line-height: 1.2;
+  }
+
+  .visual-profile-loc {
+    font-size: 0.68rem;
+    display: block;
+    line-height: 1.2;
+  }
+
+  .visual-icon-gear-btn {
+    width: 32px;
+    height: 32px;
+  }
+
   .visual-level-carousel {
-    padding: 12px 8px;
+    grid-template-columns: 74px minmax(0, 1fr) 74px;
+    padding: 10px 6px;
     gap: 6px;
+    border-radius: 14px;
   }
 
   .visual-level-side-btn {
-    padding: 10px 4px;
-    min-height: 76px;
+    padding: 8px 4px;
+    min-height: 66px;
+    border-radius: 11px;
+    gap: 3px;
+  }
+
+  .side-level-unlocked-num {
+    font-size: 0.8rem;
   }
 
   .side-level-caption {
-    font-size: 0.64rem;
+    font-size: 0.58rem;
   }
+
+  .visual-medal-svg-wrap svg {
+    width: 74px;
+    height: 74px;
+  }
+
+  .visual-current-level-title {
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  .visual-current-status-pill {
+    font-size: 0.62rem;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  .certificate-action-btns .btn-outline-sm,
+  .certificate-action-btns .btn-primary-sm {
+    font-size: 0.68rem;
+    padding: 5px 9px;
+  }
+}
+
+/* ============================================================================
+   FITUR SMARTWATCH BLUETOOTH (SIMPEL: HANYA PETA, KLIK MUNCUL 3 TOMBOL)
+   ============================================================================ */
+.smartwatch-map-btn {
+  color: #0284c7 !important;
+}
+
+.smartwatch-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.smartwatch-modal-sheet {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 370px;
+  padding: 14px 16px 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.smartwatch-bt-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.smartwatch-bt-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: #e2e8f0;
+}
+
+.smartwatch-bt-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.smartwatch-bt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 99px;
+}
+
+.smartwatch-bt-chip.connected {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.smartwatch-pair-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 99px;
+  padding: 5px 11px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.smartwatch-pair-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.smartwatch-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.smartwatch-device-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.smartwatch-strap-top,
+.smartwatch-strap-bottom {
+  width: 116px;
+  height: 22px;
+  background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+  border-left: 2px solid #475569;
+  border-right: 2px solid #475569;
+}
+
+.smartwatch-strap-top {
+  border-radius: 10px 10px 0 0;
+}
+
+.smartwatch-strap-bottom {
+  border-radius: 0 0 10px 10px;
+}
+
+.smartwatch-bezel {
+  position: relative;
+  width: 268px;
+  height: 268px;
+  border-radius: 50%;
+  background: #020617;
+  border: 7px solid #334155;
+  box-shadow:
+    inset 0 0 14px rgba(0, 0, 0, 0.8),
+    0 8px 25px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+
+.smartwatch-map-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+.smartwatch-rec-mini-dot {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85);
+  animation: pulseRecWhite 1.2s infinite;
+  pointer-events: none;
+}
+
+.smartwatch-mini-toast {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(2, 6, 23, 0.88);
+  color: #fde68a;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.smartwatch-controls-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  animation: fadeInWatch 0.15s ease-out;
+}
+
+@keyframes fadeInWatch {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.smartwatch-action-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(15, 23, 42, 0.92);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.smartwatch-action-btn:active {
+  transform: scale(0.93);
+}
+
+.smartwatch-action-btn.titik {
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.smartwatch-action-btn.jalur {
+  border-color: #38bdf8;
+  color: #7dd3fc;
+}
+
+.smartwatch-action-btn.poligon {
+  border-color: #fbbf24;
+  color: #fde68a;
+}
+
+.smartwatch-action-btn.active {
+  background: #dc2626;
+  border-color: #fca5a5;
+  color: #ffffff;
 }

@@ -20,26 +20,26 @@ const KEY_SESSION = "geokader_current_session_v5";
 export const AKUN_DEFAULT: AkunPengguna[] = [
   {
     idKader: "KDR-001",
-    nama: "Budi Santoso (Kader Lapangan)",
+    nama: "Budi Santoso",
     email: "kader@geokader.id",
     password: "kader123",
     peran: "kader",
     desaWilayah: "Desa Rimba Hijau",
     noHp: "081234567890",
     kelompokMasyarakat: "Kelompok Tani Hutan Harapan",
-    namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
+    namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
     createdAt: "2026-01-01T00:00:00.000Z"
   },
   {
     idKader: "ADM-001",
-    nama: "Siti Rahma (GIS Administrator)",
+    nama: "Siti Rahma",
     email: "admin@geokader.id",
     password: "admin123",
     peran: "admin",
     desaWilayah: "Kantor Balai Spasial",
     noHp: "081987654321",
     kelompokMasyarakat: "Tim Verifikasi & Data Spasial",
-    namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
+    namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
     createdAt: "2026-01-01T00:00:00.000Z"
   }
 ];
@@ -82,7 +82,17 @@ export function muatSesiPengguna(): AkunPengguna | null {
   try {
     const raw = localStorage.getItem(KEY_SESSION);
     if (!raw) return null;
-    return JSON.parse(raw) as AkunPengguna;
+    const parsed = JSON.parse(raw) as AkunPengguna;
+    if (
+      !parsed.namaOrganisasi ||
+      parsed.namaOrganisasi === "Konsorsium Pemetaan Partisipatif"
+    ) {
+      parsed.namaOrganisasi = "Sertifikat Kader Pemetaan Partisipatif";
+    }
+    if (parsed.nama === "Budi Santoso (Kader Lapangan)") {
+      parsed.nama = "Budi Santoso";
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -161,7 +171,7 @@ export function daftarAkunBaru(data: {
     desaWilayah: data.desaWilayah.trim() || "-",
     noHp: data.noHp.trim() || "-",
     kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",
-    namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
+    namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
     createdAt: new Date().toISOString()
   };
 

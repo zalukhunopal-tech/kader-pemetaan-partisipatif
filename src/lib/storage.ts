@@ -49,7 +49,7 @@ export const PROFIL_BAWAAN: ProfilKader = {
   desaWilayah: "-",
   kelompokMasyarakat: "-",
   noHp: "-",
-  namaOrganisasi: "Konsorsium Pemetaan Partisipatif",
+  namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
   modeKombinasiTarget: "per_kategori",
   namaPenandatanganSertifikat: "Koordinator Program GIS",
   jabatanPenandatanganSertifikat: "Koordinator Verifikasi Spasial"
@@ -83,7 +83,19 @@ function simpanJson<T>(key: string, val: T): void {
   }
 }
 
-export const muatProfil = () => bacaJson<ProfilKader>(KEY_PROFIL, PROFIL_BAWAAN);
+export const muatProfil = () => {
+  const p = bacaJson<ProfilKader>(KEY_PROFIL, PROFIL_BAWAAN);
+  if (
+    !p.namaOrganisasi ||
+    p.namaOrganisasi === "Konsorsium Pemetaan Partisipatif"
+  ) {
+    p.namaOrganisasi = "Sertifikat Kader Pemetaan Partisipatif";
+  }
+  if (p.nama === "Budi Santoso (Kader Lapangan)") {
+    p.nama = "Budi Santoso";
+  }
+  return p;
+};
 export const simpanProfil = (v: ProfilKader) => simpanJson(KEY_PROFIL, v);
 
 export const muatDataSpasial = () => bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL);

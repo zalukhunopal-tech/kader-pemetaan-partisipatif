@@ -40,7 +40,8 @@ import {
   Camera,
   RefreshCw,
   Eye,
-  Radio
+  Radio,
+  Watch
 } from "lucide-react";
 
 interface InteractiveMapProps {
@@ -57,6 +58,7 @@ interface InteractiveMapProps {
   ) => void;
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
   onImporDataSpasial: (items: DataSpasialItem[]) => void;
+  onBukaSmartwatch?: () => void;
 }
 
 const TILE_SIZE = 256;
@@ -115,7 +117,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanDataBaru,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
-  onImporDataSpasial
+  onImporDataSpasial,
+  onBukaSmartwatch
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
@@ -828,6 +831,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
         {/* TOMBOL KONTROL RINGKAS DI KANAN ATAS (TIDAK MENGHALANGI PETA) */}
         <div className="map-overlay-top-right">
+          {onBukaSmartwatch && (
+            <button
+              type="button"
+              className="map-ctrl-btn smartwatch-map-btn"
+              onClick={onBukaSmartwatch}
+              title="Sambungkan Smartwatch via Bluetooth"
+            >
+              <Watch size={16} />
+            </button>
+          )}
           <button
             type="button"
             className={`map-ctrl-btn ${bukaMenuPeta ? "active-ctrl" : ""}`}
