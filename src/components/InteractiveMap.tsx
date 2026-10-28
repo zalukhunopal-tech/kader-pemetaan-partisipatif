@@ -23,6 +23,7 @@ import {
   durasiRekamMs,
   formatDurasi
 } from "../lib/perekamLatar";
+import { JEDA_PEMBARUAN_JAM } from "../lib/rewardEngine";
 import {
   Crosshair,
   Download,
@@ -55,7 +56,7 @@ interface InteractiveMapProps {
     kondisiTerbaru: string,
     catatan: string,
     fotoBase64?: string
-  ) => void;
+  ) => boolean;
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
   onImporDataSpasial: (items: DataSpasialItem[]) => void;
   onBukaSmartwatch?: () => void;
@@ -1151,19 +1152,24 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 value={kondisiUpdateInput}
                 onChange={(e) => setKondisiUpdateInput(e.target.value)}
               />
+              <p className="text-xs text-muted" style={{ margin: "6px 0 0" }}>
+                Satu pembaruan per objek setiap {JEDA_PEMBARUAN_JAM} jam.
+              </p>
               <button
                 type="button"
                 className="btn-primary-sm"
                 style={{ marginTop: "8px", width: "100%" }}
                 onClick={() => {
                   if (!kondisiUpdateInput.trim()) return;
-                  onTambahPembaruanObjek(
+                  const diterima = onTambahPembaruanObjek(
                     objekTerpilih.id,
                     kondisiUpdateInput.trim(),
                     catatanUpdateInput.trim()
                   );
-                  setKondisiUpdateInput("");
-                  setCatatanUpdateInput("");
+                  if (diterima) {
+                    setKondisiUpdateInput("");
+                    setCatatanUpdateInput("");
+                  }
                 }}
               >
                 + Simpan Pembaruan

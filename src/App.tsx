@@ -6,6 +6,7 @@ import {
   KonfigurasiGDrive,
   LapisanSpasial,
   MenuTab,
+  PembaruanObjek,
   PengumumanBroadcast,
   PeranPengguna,
   PesanKomunikasi,
@@ -38,7 +39,8 @@ import {
 } from "./lib/storage";
 import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
-import { adalahDataSimulasi } from "./lib/geoUtils";
+import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
+import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import {
   perekamLatar,
   usePerekamLatar,
@@ -290,29 +292,52 @@ export const App: React.FC = () => {
     kondisiTerbaru: string,
     catatan: string,
     fotoBase64?: string
-  ) => {
+  ): boolean => {
+    const objek = dataSpasial.find((d) => d.id === idData);
+    if (!objek) return false;
+
+    // Satu pembaruan per objek per 24 jam, dan isinya harus berubah
+    const cek = cekPembaruanBaru(objek, kondisiTerbaru, catatan);
+    if (!cek.boleh) {
+      tampilkanToast(`⚠️ ${cek.alasan}`);
+      return false;
+    }
+
+    const pembaruan: PembaruanObjek = {
+      id: `UPD-${Date.now().toString().slice(-4)}`,
+      tanggal: new Date().toISOString(),
+      idKader: profil.idKader,
+      olehKader: profil.nama,
+      kondisiTerbaru,
+      catatan,
+      fotoBase64
+    };
+    const objekBaru: DataSpasialItem = {
+      ...objek,
+      riwayatPembaruan: [...objek.riwayatPembaruan, pembaruan]
+    };
+    const dapatPoin =
+      dihitungUntukCapaian(objek) &&
+      hitungPembaruanSah(objekBaru) > hitungPembaruanSah(objek);
+
     setDataSpasial((prev) =>
-      prev.map((d) => {
-        if (d.id !== idData) return d;
-        return {
-          ...d,
-          kondisiAncaman: kondisiTerbaru,
-          updatedAt: new Date().toISOString(),
-          riwayatPembaruan: [
-            ...d.riwayatPembaruan,
-            {
-              id: `UPD-${Date.now().toString().slice(-4)}`,
-              tanggal: new Date().toISOString(),
-              olehKader: profil.nama,
-              kondisiTerbaru,
-              catatan,
-              fotoBase64
+      prev.map((d) =>
+        d.id === idData
+          ? {
+              ...d,
+              kondisiAncaman: kondisiTerbaru,
+              updatedAt: pembaruan.tanggal,
+              riwayatPembaruan: [...d.riwayatPembaruan, pembaruan]
             }
-          ]
-        };
-      })
+          : d
+      )
     );
-    tampilkanToast("✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin).");
+    tampilkanToast(
+      dapatPoin
+        ? "✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin)."
+        : "✓ Pembaruan kondisi objek disimpan (tidak menambah poin)."
+    );
+    return true;
   };
 
   // Handler Ubah Data Spasial oleh Admin (Admin Feature)

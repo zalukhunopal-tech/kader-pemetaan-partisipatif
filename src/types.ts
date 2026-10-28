@@ -29,6 +29,7 @@ export interface KoordinatTitik {
 export interface PembaruanObjek {
   id: string;
   tanggal: string;
+  idKader?: string; // pencatat pembaruan; entri lama hanya punya olehKader (nama)
   olehKader: string;
   kondisiTerbaru: string;
   catatan: string;

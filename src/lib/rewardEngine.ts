@@ -1,9 +1,96 @@
-import { DataSpasialItem, PesanKomunikasi, ProfilKader, TugasPemetaan } from "../types";
+import {
+  DataSpasialItem,
+  PembaruanObjek,
+  PesanKomunikasi,
+  ProfilKader,
+  TugasPemetaan
+} from "../types";
 import { dihitungUntukCapaian } from "./geoUtils";
 
 export const TARGET_TITIK = 50;
 export const TARGET_TRACKING_KM = 5.0;
 export const TARGET_POLIGON_HA = 5.0;
+
+/** Jeda minimal antar pembaruan pada objek yang sama */
+export const JEDA_PEMBARUAN_JAM = 24;
+const JEDA_PEMBARUAN_MS = JEDA_PEMBARUAN_JAM * 60 * 60 * 1000;
+
+const bersihkanTeks = (t: string | undefined) =>
+  (t ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+const normalisasiIsi = (u: Pick<PembaruanObjek, "kondisiTerbaru" | "catatan">) =>
+  `${bersihkanTeks(u.kondisiTerbaru)}|${bersihkanTeks(u.catatan)}`;
+
+const waktuMs = (iso: string | undefined) => {
+  const t = Date.parse(iso ?? "");
+  return Number.isNaN(t) ? null : t;
+};
+
+/**
+ * Pembaruan yang dihitung sebagai poin: dicatat oleh pemilik objek, berjarak minimal
+ * JEDA_PEMBARUAN_JAM dari pembaruan sah sebelumnya (atau dari saat objek dibuat),
+ * dan isinya berbeda dari pembaruan sah sebelumnya.
+ */
+export function daftarPembaruanSah(item: DataSpasialItem): PembaruanObjek[] {
+  const urut = (item.riwayatPembaruan ?? [])
+    .filter((u) => waktuMs(u.tanggal) !== null)
+    .sort((a, b) => (waktuMs(a.tanggal) as number) - (waktuMs(b.tanggal) as number));
+
+  const sah: PembaruanObjek[] = [];
+  let terakhirMs = waktuMs(item.createdAt) ?? -Infinity;
+  let isiTerakhir = "";
+  for (const u of urut) {
+    const oleh = u.idKader ? u.idKader === item.idKader : u.olehKader === item.namaKader;
+    if (!oleh) continue;
+    const t = waktuMs(u.tanggal) as number;
+    if (t - terakhirMs < JEDA_PEMBARUAN_MS) continue;
+    const isi = normalisasiIsi(u);
+    if (isi === isiTerakhir) continue;
+    sah.push(u);
+    terakhirMs = t;
+    isiTerakhir = isi;
+  }
+  return sah;
+}
+
+export const hitungPembaruanSah = (item: DataSpasialItem): number =>
+  daftarPembaruanSah(item).length;
+
+const formatSisa = (ms: number) =>
+  ms >= 60 * 60 * 1000
+    ? `${Math.ceil(ms / (60 * 60 * 1000))} jam`
+    : `${Math.max(1, Math.ceil(ms / (60 * 1000)))} menit`;
+
+/**
+ * Memeriksa apakah pembaruan baru boleh dicatat: satu pembaruan per objek per
+ * JEDA_PEMBARUAN_JAM, dan isinya harus berbeda dari pembaruan terakhir.
+ */
+export function cekPembaruanBaru(
+  item: DataSpasialItem,
+  kondisiTerbaru: string,
+  catatan: string,
+  sekarangMs: number = Date.now()
+): { boleh: boolean; alasan?: string } {
+  const riwayat = item.riwayatPembaruan ?? [];
+  const terakhir = riwayat.reduce<PembaruanObjek | null>((a, u) => {
+    const t = waktuMs(u.tanggal);
+    if (t === null) return a;
+    return !a || t > (waktuMs(a.tanggal) as number) ? u : a;
+  }, null);
+  const terakhirMs = terakhir ? (waktuMs(terakhir.tanggal) as number) : waktuMs(item.createdAt) ?? -Infinity;
+
+  const sisaMs = JEDA_PEMBARUAN_MS - (sekarangMs - terakhirMs);
+  if (sisaMs > 0) {
+    return {
+      boleh: false,
+      alasan: `Objek ini baru ${terakhir ? "diperbarui" : "dibuat"}. Pembaruan berikutnya bisa dicatat dalam ${formatSisa(sisaMs)}.`
+    };
+  }
+  if (terakhir && normalisasiIsi(terakhir) === normalisasiIsi({ kondisiTerbaru, catatan })) {
+    return { boleh: false, alasan: "Isi pembaruan sama dengan sebelumnya. Tuliskan kondisi yang berubah." };
+  }
+  return { boleh: true };
+}
 
 export interface HasilPerhitunganCapaian {
   jumlahTitik: number;
@@ -249,10 +336,7 @@ export function hitungPeringkatGis20Level(
 
   // 1. Skor Volume Data
   const jmlTitik = dataKader.filter((d) => d.jenisGeometri === "point").length;
-  const jmlPembaruan = dataKader.reduce(
-    (acc, d) => acc + (d.riwayatPembaruan ? d.riwayatPembaruan.length : 0),
-    0
-  );
+  const jmlPembaruan = dataKader.reduce((acc, d) => acc + hitungPembaruanSah(d), 0);
   const totalKm = dataKader
     .filter((d) => d.jenisGeometri === "line")
     .reduce((acc, d) => acc + (d.panjangKm || 0), 0);
@@ -386,10 +470,7 @@ export function hitungCapaianKader(
   });
 
   const jumlahTitik = dataKader.filter((d) => d.jenisGeometri === "point").length;
-  const jumlahPembaruan = dataKader.reduce(
-    (acc, d) => acc + (d.riwayatPembaruan ? d.riwayatPembaruan.length : 0),
-    0
-  );
+  const jumlahPembaruan = dataKader.reduce((acc, d) => acc + hitungPembaruanSah(d), 0);
   // Sesuai PRD 3.3.A.1: Mengumpulkan atau memperbarui titik koordinat
   const totalPoinTitik = jumlahTitik + jumlahPembaruan;
 
