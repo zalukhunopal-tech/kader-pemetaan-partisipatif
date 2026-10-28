@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
+import { buatId } from "../lib/id";
 import {
   ArrowUpDown,
   ChevronDown,
@@ -99,7 +100,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     e.preventDefault();
     if (!namaPetaBaru.trim()) return;
     const itemBaru: AreaPetaOffline = {
-      id: `MAP-OFF-${Date.now().toString().slice(-4)}`,
+      id: buatId("MAP-OFF"),
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
       minLat: -0.958,
@@ -126,7 +127,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     e.preventDefault();
     if (!namaLapisanBaru.trim()) return;
     const lyrBaru: LapisanSpasial = {
-      id: `LYR-${Date.now().toString().slice(-4)}`,
+      id: buatId("LYR"),
       nama: namaLapisanBaru.trim(),
       jumlahPeta: 1,
       kategoriDefault: "Flora",
@@ -176,7 +177,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         // lanjut buat entri lapisan
       }
       onTambahLapisan({
-        id: `LYR-${Date.now().toString().slice(-4)}`,
+        id: buatId("LYR"),
         nama: file.name.replace(/\.[^/.]+$/, ""),
         jumlahPeta: 1,
         createdAt: new Date().toISOString()

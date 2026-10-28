@@ -24,6 +24,7 @@ import {
   formatDurasi
 } from "../lib/perekamLatar";
 import { JEDA_PEMBARUAN_JAM } from "../lib/rewardEngine";
+import { buatId } from "../lib/id";
 import {
   Crosshair,
   Download,
@@ -640,7 +641,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const luasHa = modeRekam === "polygon" ? hitungLuasPoligonHa(titikDraft) : 0;
 
     const itemBaru: DataSpasialItem = {
-      id: `SPS-${Date.now().toString().slice(-5)}`,
+      id: buatId("SPS"),
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,

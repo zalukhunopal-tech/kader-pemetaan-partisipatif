@@ -40,6 +40,7 @@ import {
 import { AkunPengguna, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
 import { sinkronkanDataKeGDrive } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
+import { buatId } from "./lib/id";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import {
   perekamLatar,
@@ -304,7 +305,7 @@ export const App: React.FC = () => {
     }
 
     const pembaruan: PembaruanObjek = {
-      id: `UPD-${Date.now().toString().slice(-4)}`,
+      id: buatId("UPD"),
       tanggal: new Date().toISOString(),
       idKader: profil.idKader,
       olehKader: profil.nama,
@@ -410,7 +411,7 @@ export const App: React.FC = () => {
     durasiSuaraDetik?: number
   ) => {
     const msgBaru: PesanKomunikasi = {
-      id: `MSG-${Date.now().toString().slice(-5)}`,
+      id: buatId("MSG"),
       saluran,
       idPengirim: peran === "admin" ? "ADMIN-01" : profil.idKader,
       namaPengirim: peran === "admin" ? "Admin GIS Organisasi" : profil.nama,

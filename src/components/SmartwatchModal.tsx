@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { DataSpasialItem, KoordinatTitik, ProfilKader } from "../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
+import { buatId } from "../lib/id";
 import { Bluetooth, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
 
 interface SmartwatchModalProps {
@@ -299,7 +300,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       timestamp: new Date().toISOString()
     };
     const itemBaru: DataSpasialItem = {
-      id: `SW-PT-${Date.now().toString().slice(-4)}`,
+      id: buatId("SW-PT"),
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
@@ -332,7 +333,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       if (hasilTitik.length >= 2) {
         const panjangKm = hitungPanjangGarisKm(hasilTitik);
         onSimpanDataBaru({
-          id: `SW-LN-${Date.now().toString().slice(-4)}`,
+          id: buatId("SW-LN"),
           idKader: profil.idKader,
           namaKader: profil.nama,
           desaWilayah: profil.desaWilayah,
@@ -369,7 +370,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       if (hasilTitik.length >= 3) {
         const luasHa = hitungLuasPoligonHa(hasilTitik);
         onSimpanDataBaru({
-          id: `SW-PG-${Date.now().toString().slice(-4)}`,
+          id: buatId("SW-PG"),
           idKader: profil.idKader,
           namaKader: profil.nama,
           desaWilayah: profil.desaWilayah,

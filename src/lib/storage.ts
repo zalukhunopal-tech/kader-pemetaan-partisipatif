@@ -10,6 +10,7 @@ import {
   SertifikatKader,
   TugasPemetaan
 } from "../types";
+import { unikkanId } from "./id";
 
 // Versi 5 storage keys — seluruh contoh/dummy data dihapus bersih
 const KEY_PROFIL = "geokader_profil_v5";
@@ -99,25 +100,25 @@ export const muatProfil = () => {
 };
 export const simpanProfil = (v: ProfilKader) => simpanJson(KEY_PROFIL, v);
 
-export const muatDataSpasial = () => bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL);
+export const muatDataSpasial = () => unikkanId(bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL));
 export const simpanDataSpasial = (v: DataSpasialItem[]) => simpanJson(KEY_SPASIAL, v);
 
-export const muatAreaOffline = () => bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL);
+export const muatAreaOffline = () => unikkanId(bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL));
 export const simpanAreaOffline = (v: AreaPetaOffline[]) => simpanJson(KEY_OFFLINE_MAPS, v);
 
-export const muatLapisan = () => bacaJson<LapisanSpasial[]>(KEY_LAPISAN, LAPISAN_AWAL);
+export const muatLapisan = () => unikkanId(bacaJson<LapisanSpasial[]>(KEY_LAPISAN, LAPISAN_AWAL));
 export const simpanLapisan = (v: LapisanSpasial[]) => simpanJson(KEY_LAPISAN, v);
 
-export const muatSertifikat = () => bacaJson<SertifikatKader[]>(KEY_SERTIFIKAT, SERTIFIKAT_AWAL);
+export const muatSertifikat = () => unikkanId(bacaJson<SertifikatKader[]>(KEY_SERTIFIKAT, SERTIFIKAT_AWAL));
 export const simpanSertifikat = (v: SertifikatKader[]) => simpanJson(KEY_SERTIFIKAT, v);
 
-export const muatPengumuman = () => bacaJson<PengumumanBroadcast[]>(KEY_PENGUMUMAN, PENGUMUMAN_AWAL);
+export const muatPengumuman = () => unikkanId(bacaJson<PengumumanBroadcast[]>(KEY_PENGUMUMAN, PENGUMUMAN_AWAL));
 export const simpanPengumuman = (v: PengumumanBroadcast[]) => simpanJson(KEY_PENGUMUMAN, v);
 
-export const muatTugas = () => bacaJson<TugasPemetaan[]>(KEY_TUGAS, TUGAS_AWAL);
+export const muatTugas = () => unikkanId(bacaJson<TugasPemetaan[]>(KEY_TUGAS, TUGAS_AWAL));
 export const simpanTugas = (v: TugasPemetaan[]) => simpanJson(KEY_TUGAS, v);
 
-export const muatPesan = () => bacaJson<PesanKomunikasi[]>(KEY_PESAN, PESAN_AWAL);
+export const muatPesan = () => unikkanId(bacaJson<PesanKomunikasi[]>(KEY_PESAN, PESAN_AWAL));
 export const simpanPesan = (v: PesanKomunikasi[]) => simpanJson(KEY_PESAN, v);
 
 export const muatKaderAktif = () => bacaJson<KaderAktifPresence[]>(KEY_KADER_AKTIF, KADER_AKTIF_AWAL);

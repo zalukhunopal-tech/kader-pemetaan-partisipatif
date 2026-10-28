@@ -1,4 +1,5 @@
 import { PeranPengguna } from "../types";
+import { buatId } from "./id";
 
 export interface AkunPengguna {
   idKader: string;
@@ -158,9 +159,13 @@ export function daftarAkunBaru(data: {
     };
   }
 
+  // ID kader menjadi kunci kepemilikan data, jadi harus unik di antara akun yang ada
+  let idKader = buatId("KDR");
+  while (accounts.some((a) => a.idKader === idKader)) idKader = buatId("KDR");
+
   // Pendaftaran mandiri selalu menghasilkan akun kader; akun admin tidak bisa dibuat dari formulir ini
   const akunBaru: AkunPengguna = {
-    idKader: `KDR-${Date.now().toString().slice(-4)}`,
+    idKader,
     nama: data.nama.trim(),
     email: emailBersih,
     password: data.kataSandi.trim(),

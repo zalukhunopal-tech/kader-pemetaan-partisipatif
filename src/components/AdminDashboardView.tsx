@@ -11,6 +11,7 @@ import {
   TugasPemetaan
 } from "../types";
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
+import { buatId } from "../lib/id";
 import {
   Check,
   Award,
@@ -97,7 +98,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     e.preventDefault();
     if (!judulTugas.trim()) return;
     onTambahTugas({
-      id: `TSK-${Date.now().toString().slice(-4)}`,
+      id: buatId("TSK"),
       judul: judulTugas.trim(),
       deskripsi: descTugas.trim() || "Penugasan survei lapangan.",
       targetWilayah: wilayahTugas.trim() || "-",
@@ -122,7 +123,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     e.preventDefault();
     if (!judulAnn.trim() || !isiAnn.trim()) return;
     onTambahPengumuman({
-      id: `ANN-${Date.now().toString().slice(-4)}`,
+      id: buatId("ANN"),
       judul: judulAnn.trim(),
       isi: isiAnn.trim(),
       kategori: katAnn,
@@ -752,7 +753,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 style={{ flex: "1 1 220px" }}
                 onClick={() =>
                   onTerbitkanSertifikat({
-                    id: `CERT-${Date.now().toString().slice(-4)}`,
+                    id: buatId("CERT"),
                     nomorSertifikat: nomorSertBaru,
                     idKader: profilKader.idKader,
                     namaKader: profilKader.nama,
