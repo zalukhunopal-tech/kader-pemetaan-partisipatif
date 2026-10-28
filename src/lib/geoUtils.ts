@@ -171,6 +171,16 @@ export function keWKT(item: DataSpasialItem): string {
   return `POLYGON((${pts}))`;
 }
 
+/** Posisi GeoJSON: elevasi hanya ditulis bila diketahui (tidak diganti 0) */
+const posisiGeoJSON = (p: KoordinatTitik): number[] =>
+  p.elevasi !== undefined ? [p.lng, p.lat, p.elevasi] : [p.lng, p.lat];
+
+const posisiKML = (p: KoordinatTitik): string =>
+  p.elevasi !== undefined ? `${p.lng},${p.lat},${p.elevasi}` : `${p.lng},${p.lat}`;
+
+const eleGPX = (p: KoordinatTitik, awalan = ""): string =>
+  p.elevasi !== undefined ? `${awalan}<ele>${p.elevasi}</ele>\n` : "";
+
 /**
  * Ekspor daftar DataSpasialItem menjadi string GeoJSON FeatureCollection standar QGIS/ArcGIS
  */
@@ -178,18 +188,18 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
   const features = daftar.map((item) => {
     let geometry: Record<string, unknown>;
     if (item.jenisGeometri === "point") {
-      const p = item.koordinat[0] || { lat: 0, lng: 0, elevasi: 0 };
+      const p = item.koordinat[0] || { lat: 0, lng: 0 };
       geometry = {
         type: "Point",
-        coordinates: [p.lng, p.lat, p.elevasi ?? 0]
+        coordinates: posisiGeoJSON(p)
       };
     } else if (item.jenisGeometri === "line") {
       geometry = {
         type: "LineString",
-        coordinates: item.koordinat.map((p) => [p.lng, p.lat, p.elevasi ?? 0])
+        coordinates: item.koordinat.map(posisiGeoJSON)
       };
     } else {
-      const ring = item.koordinat.map((p) => [p.lng, p.lat, p.elevasi ?? 0]);
+      const ring = item.koordinat.map(posisiGeoJSON);
       if (ring.length > 0) ring.push([...ring[0]]);
       geometry = {
         type: "Polygon",
@@ -254,7 +264,7 @@ export function eksporKeKML(daftar: DataSpasialItem[]): string {
   const placemarks = daftar
     .map((item) => {
       const coords = item.koordinat
-        .map((p) => `${p.lng},${p.lat},${p.elevasi ?? 0}`)
+        .map((p) => posisiKML(p))
         .join(" ");
       let geomXml = "";
       if (item.jenisGeometri === "point") {
@@ -263,7 +273,7 @@ export function eksporKeKML(daftar: DataSpasialItem[]): string {
         geomXml = `<LineString><tessellate>1</tessellate><coordinates>${coords}</coordinates></LineString>`;
       } else {
         const first = item.koordinat[0];
-        const closed = first ? `${coords} ${first.lng},${first.lat},${first.elevasi ?? 0}` : coords;
+        const closed = first ? `${coords} ${posisiKML(first)}` : coords;
         geomXml = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${closed}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
       }
       return `    <Placemark>
@@ -300,8 +310,7 @@ export function eksporKeGPX(daftar: DataSpasialItem[]): string {
     .map((d) => {
       const p = d.koordinat[0];
       return `  <wpt lat="${p.lat}" lon="${p.lng}">
-    <ele>${p.elevasi ?? 0}</ele>
-    <name>${esc(d.judul)}</name>
+${eleGPX(p, "    ")}    <name>${esc(d.judul)}</name>
     <desc>${esc(`${d.kategori}: ${d.deskripsi}`)}</desc>
   </wpt>`;
     })
@@ -313,7 +322,7 @@ export function eksporKeGPX(daftar: DataSpasialItem[]): string {
       const pts = d.koordinat
         .map(
           (p) =>
-            `      <trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.elevasi ?? 0}</ele></trkpt>`
+            `      <trkpt lat="${p.lat}" lon="${p.lng}">${eleGPX(p)}</trkpt>`
         )
         .join("\n");
       return `  <trk>

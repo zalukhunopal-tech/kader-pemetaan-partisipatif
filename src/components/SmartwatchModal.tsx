@@ -3,6 +3,7 @@ import { DataSpasialItem, KoordinatTitik, ProfilKader } from "../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { buatId } from "../lib/id";
+import { usePosisiPerangkat } from "../lib/posisiPerangkat";
 import { Bluetooth, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
 
 interface SmartwatchModalProps {
@@ -57,42 +58,19 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
   // Default FALSE -> hanya menampilkan peta saja jika tidak diklik
   const [tampilFiturWatch, setTampilFiturWatch] = useState<boolean>(false);
 
-  const [posisiGps, setPosisiGps] = useState<KoordinatTitik>(() => {
-    if (rekamLatar.posisiTerakhir) return rekamLatar.posisiTerakhir;
-    return {
-      lat: -0.9478,
-      lng: 100.4185,
-      elevasi: 418,
-      akurasi: 2.5
-    };
-  });
+  // Posisi dari GPS perangkat; null sampai ada fix. Selama mode simulasi (demo) mengikuti titik simulasi.
+  const perangkat = usePosisiPerangkat();
+  const posisiGps: KoordinatTitik | null =
+    rekamLatar.autoGpsAktif && rekamLatar.status === "merekam" && rekamLatar.posisiTerakhir
+      ? rekamLatar.posisiTerakhir
+      : perangkat.posisi;
+  const pesanGps =
+    perangkat.statusGps === "ditolak"
+      ? "GPS ditolak"
+      : perangkat.statusGps === "tidak_tersedia"
+      ? "GPS tidak tersedia"
+      : "Mencari GPS…";
   const [renderTick, setRenderTick] = useState<number>(0);
-
-  useEffect(() => {
-    if (rekamLatar.posisiTerakhir) {
-      setPosisiGps(rekamLatar.posisiTerakhir);
-    }
-  }, [rekamLatar.posisiTerakhir]);
-
-  // Pantau GPS asli perangkat bila tersedia
-  useEffect(() => {
-    if (!("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        setPosisiGps({
-          lat: Number(pos.coords.latitude.toFixed(6)),
-          lng: Number(pos.coords.longitude.toFixed(6)),
-          elevasi:
-            pos.coords.altitude != null ? Math.round(pos.coords.altitude) : 415,
-          akurasi: Number(pos.coords.accuracy.toFixed(1)),
-          timestamp: new Date(pos.timestamp).toISOString()
-        });
-      },
-      () => undefined,
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
 
   const tampilkanPesanSingkat = (teks: string) => {
     setInfoToastWatch(teks);
@@ -155,6 +133,16 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     ctx.scale(dpr, dpr);
+
+    if (!posisiGps) {
+      ctx.fillStyle = "#041510";
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "600 15px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(pesanGps, size / 2, size / 2);
+      return;
+    }
 
     const zoom = 16;
     const centerTx = lngToTileX(posisiGps.lng, zoom);
@@ -290,11 +278,15 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
     ctx.lineWidth = 2;
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
-  }, [posisiGps, dataSpasial, rekamLatar, renderTick]);
+  }, [posisiGps, pesanGps, dataSpasial, rekamLatar, renderTick]);
 
   // 1. FITUR PENGAMBILAN TITIK DARI SMARTWATCH
   const handleAmbilTitikWatch = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!posisiGps) {
+      tampilkanPesanSingkat(pesanGps);
+      return;
+    }
     const pt: KoordinatTitik = {
       ...posisiGps,
       timestamp: new Date().toISOString()
@@ -357,6 +349,10 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       return;
     }
 
+    if (!posisiGps) {
+      tampilkanPesanSingkat(pesanGps);
+      return;
+    }
     perekamLatar.mulai("line", [posisiGps]);
     tampilkanPesanSingkat("● Merekam Jalur...");
     setTampilFiturWatch(false);
@@ -394,6 +390,10 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
       return;
     }
 
+    if (!posisiGps) {
+      tampilkanPesanSingkat(pesanGps);
+      return;
+    }
     perekamLatar.mulai("polygon", [posisiGps]);
     tampilkanPesanSingkat("● Merekam Poligon...");
     setTampilFiturWatch(false);

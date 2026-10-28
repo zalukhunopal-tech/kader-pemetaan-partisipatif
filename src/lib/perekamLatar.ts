@@ -98,7 +98,7 @@ function tanganiPosisi(pos: GeolocationPosition) {
   const pt: KoordinatTitik = {
     lat: Number(pos.coords.latitude.toFixed(7)),
     lng: Number(pos.coords.longitude.toFixed(7)),
-    elevasi: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : 415,
+    elevasi: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : undefined,
     akurasi: Number(pos.coords.accuracy.toFixed(1)),
     timestamp: new Date(pos.timestamp).toISOString()
   };

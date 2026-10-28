@@ -26,6 +26,13 @@ import {
 import { JEDA_PEMBARUAN_JAM } from "../lib/rewardEngine";
 import { buatId } from "../lib/id";
 import {
+  StatePosisiPerangkat,
+  aktifkanKompas,
+  selisihArah,
+  titikDariBidikan,
+  usePosisiPerangkat
+} from "../lib/posisiPerangkat";
+import {
   Crosshair,
   Download,
   FileUp,
@@ -43,7 +50,8 @@ import {
   RefreshCw,
   Eye,
   Radio,
-  Watch
+  Watch,
+  Compass
 } from "lucide-react";
 
 interface InteractiveMapProps {
@@ -102,6 +110,37 @@ function getTileUrl(basemap: BasemapType, z: number, x: number, y: number): stri
   return null;
 }
 
+function teksStatusGps(p: StatePosisiPerangkat, simulasi: boolean): { teks: string; peringatan: boolean } {
+  if (simulasi) return { teks: "SIMULASI", peringatan: true };
+  switch (p.statusGps) {
+    case "aktif":
+      return p.posisi?.akurasi !== undefined && p.posisi.akurasi > 50
+        ? { teks: `±${Math.round(p.posisi.akurasi)} m (lemah)`, peringatan: true }
+        : { teks: `±${p.posisi?.akurasi ?? "?"} m`, peringatan: false };
+    case "ditolak":
+      return { teks: "GPS ditolak", peringatan: true };
+    case "tidak_tersedia":
+      return { teks: "GPS tidak tersedia", peringatan: true };
+    case "galat":
+      return { teks: "Sinyal GPS hilang", peringatan: true };
+    default:
+      return { teks: "Mencari GPS…", peringatan: true };
+  }
+}
+
+function teksStatusKompas(p: StatePosisiPerangkat): { teks: string; peringatan: boolean; perluKetuk: boolean } {
+  switch (p.statusKompas) {
+    case "perlu_izin":
+      return { teks: "Aktifkan kompas", peringatan: true, perluKetuk: true };
+    case "ditolak":
+      return { teks: "Kompas ditolak", peringatan: true, perluKetuk: false };
+    case "tidak_tersedia":
+      return { teks: "Kompas tidak tersedia", peringatan: true, perluKetuk: false };
+    default:
+      return { teks: "Kompas…", peringatan: false, perluKetuk: false };
+  }
+}
+
 const WARNA_KATEGORI: Record<KategoriSurvei, string> = {
   Flora: "#10b981",
   Fauna: "#f59e0b",
@@ -139,14 +178,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
   const [tampilDaftarObjek, setTampilDaftarObjek] = useState<boolean>(false);
 
-  // Navigasi & Posisi GPS
-  const [gpsPos, setGpsPos] = useState<KoordinatTitik>({
-    lat: -0.9478,
-    lng: 100.4185,
-    elevasi: 418,
-    akurasi: 2.8
-  });
-  const [kompasDerajat, setKompasDerajat] = useState<number>(65);
+  // Navigasi: posisi GPS dan arah kompas dari sensor perangkat (null selama belum ada data)
+  const perangkat = usePosisiPerangkat();
   const [targetGoTo, setTargetGoTo] = useState<{
     lat: number;
     lng: number;
@@ -155,6 +188,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // Mode Perekaman Spasial (terhubung dengan Perekam Latar Belakang)
   const rekamLatar = usePerekamLatar();
+  const simulasiAktif = rekamLatar.autoGpsAktif && rekamLatar.status === "merekam";
+  // Selama mode simulasi (demo), titik biru mengikuti jalur simulasi; selain itu hanya GPS asli
+  const gpsPos: KoordinatTitik | null =
+    simulasiAktif && rekamLatar.posisiTerakhir ? rekamLatar.posisiTerakhir : perangkat.posisi;
+  const posisiNyata = perangkat.statusGps === "aktif" ? perangkat.posisi : null;
+  const kompasDerajat: number | undefined = perangkat.arahDerajat ?? undefined;
   const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() =>
     rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : null
   );
@@ -169,14 +208,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (rekamLatar.status !== "idle" && rekamLatar.jenis) {
       setModeRekam(rekamLatar.jenis);
       setTitikDraft(rekamLatar.titik);
-      if (rekamLatar.posisiTerakhir) {
-        setGpsPos(rekamLatar.posisiTerakhir);
-        if (rekamLatar.autoGpsAktif && rekamLatar.status === "merekam") {
-          setCenter({
-            lat: rekamLatar.posisiTerakhir.lat,
-            lng: rekamLatar.posisiTerakhir.lng
-          });
-        }
+      if (rekamLatar.posisiTerakhir && rekamLatar.autoGpsAktif && rekamLatar.status === "merekam") {
+        setCenter({
+          lat: rekamLatar.posisiTerakhir.lat,
+          lng: rekamLatar.posisiTerakhir.lng
+        });
       }
     }
   }, [rekamLatar]);
@@ -238,6 +274,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
     }
   }, [fokusKoordinat]);
+
+  // Fix GPS pertama: pindahkan peta ke posisi kader (kecuali sedang diarahkan ke lokasi tugas)
+  const sudahPusatRef = useRef(false);
+  useEffect(() => {
+    if (sudahPusatRef.current || !perangkat.posisi || fokusKoordinat) return;
+    sudahPusatRef.current = true;
+    setCenter({ lat: perangkat.posisi.lat, lng: perangkat.posisi.lng });
+  }, [perangkat.posisi, fokusKoordinat]);
 
   const latLngToPixel = (
     lat: number,
@@ -462,7 +506,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
 
     // 6. Garis Navigasi Go-To
-    if (targetGoTo) {
+    if (targetGoTo && gpsPos) {
       const fromP = latLngToPixel(gpsPos.lat, gpsPos.lng, W, H);
       const toP = latLngToPixel(targetGoTo.lat, targetGoTo.lng, W, H);
       ctx.save();
@@ -476,21 +520,37 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       ctx.restore();
     }
 
-    // 7. Posisi GPS Biru
-    const gpsPx = latLngToPixel(gpsPos.lat, gpsPos.lng, W, H);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(gpsPx.x, gpsPx.y, 16, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(gpsPx.x, gpsPx.y, 6.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#0ea5e9";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#ffffff";
-    ctx.stroke();
-    ctx.restore();
+    // 7. Posisi GPS Biru (hanya bila perangkat sudah memberi posisi)
+    if (gpsPos) {
+      const gpsPx = latLngToPixel(gpsPos.lat, gpsPos.lng, W, H);
+      // Lingkaran akurasi digambar sesuai skala peta (meter per piksel pada zoom ini)
+      const meterPerPiksel = (156543.03392 * Math.cos((gpsPos.lat * Math.PI) / 180)) / Math.pow(2, zoom);
+      const radiusAkurasi = gpsPos.akurasi
+        ? Math.min(240, Math.max(16, gpsPos.akurasi / meterPerPiksel))
+        : 16;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(gpsPx.x, gpsPx.y, radiusAkurasi, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+      ctx.fill();
+      if (kompasDerajat !== undefined) {
+        const sudut = ((kompasDerajat - 90) * Math.PI) / 180;
+        ctx.beginPath();
+        ctx.moveTo(gpsPx.x, gpsPx.y);
+        ctx.arc(gpsPx.x, gpsPx.y, 34, sudut - 0.45, sudut + 0.45);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(14, 165, 233, 0.5)";
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(gpsPx.x, gpsPx.y, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#0ea5e9";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // 8. Bidikan Tengah (Crosshair)
     ctx.save();
@@ -524,6 +584,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     titikDraft,
     modeRekam,
     gpsPos,
+    kompasDerajat,
     objekTerpilih,
     targetGoTo,
     renderTick
@@ -583,13 +644,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const tambahTitikBidikan = () => {
-    const pt: KoordinatTitik = {
-      lat: Number(center.lat.toFixed(6)),
-      lng: Number(center.lng.toFixed(6)),
-      elevasi: Math.round(400 + (center.lat + 0.95) * 2500),
-      akurasi: gpsPos.akurasi || 3.0,
-      timestamp: new Date().toISOString()
-    };
+    const pt = titikDariBidikan(center, posisiNyata);
     if (modeRekam === "point") {
       setTitikDraft([pt]);
       setBukaModalForm(true);
@@ -602,13 +657,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setObjekTerpilih(null);
     setModeRekam(jenis);
     setBukaAlatRekam(false);
-    const ptAwal: KoordinatTitik = {
-      lat: Number(center.lat.toFixed(6)),
-      lng: Number(center.lng.toFixed(6)),
-      elevasi: gpsPos.elevasi || 420,
-      akurasi: gpsPos.akurasi || 2.8,
-      timestamp: new Date().toISOString()
-    };
+    const ptAwal = titikDariBidikan(center, posisiNyata);
     if (jenis === "point") {
       setTitikDraft([ptAwal]);
       setKategoriInput("Flora");
@@ -700,13 +749,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               if (geomType === "Point") {
                 jenis = "point";
                 const [lng, lat, ele] = f.geometry.coordinates;
-                koord = [{ lat, lng, elevasi: ele || 400 }];
+                koord = [{ lat, lng, elevasi: typeof ele === "number" ? ele : undefined }];
               } else if (geomType === "LineString") {
                 jenis = "line";
                 koord = f.geometry.coordinates.map((c: number[]) => ({
                   lat: c[1],
                   lng: c[0],
-                  elevasi: c[2] || 400
+                  elevasi: typeof c[2] === "number" ? c[2] : undefined
                 }));
               } else if (geomType === "Polygon") {
                 jenis = "polygon";
@@ -714,7 +763,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 koord = ring.slice(0, -1).map((c: number[]) => ({
                   lat: c[1],
                   lng: c[0],
-                  elevasi: c[2] || 400
+                  elevasi: typeof c[2] === "number" ? c[2] : undefined
                 }));
               }
               // Pertahankan penanda simulasi agar data hasil ekspor-impor tidak lolos hitungan capaian
@@ -777,12 +826,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const panjangDraftKm = hitungPanjangGarisKm(titikDraft);
   const luasDraftHa = hitungLuasPoligonHa(titikDraft);
 
-  const jarakKeTargetMeter = targetGoTo
-    ? Math.round(hitungJarakMeter(gpsPos, targetGoTo))
-    : 0;
-  const bearingKeTarget = targetGoTo
-    ? hitungBearingDerajat(gpsPos, targetGoTo)
-    : 0;
+  const jarakKeTargetMeter =
+    targetGoTo && gpsPos ? Math.round(hitungJarakMeter(gpsPos, targetGoTo)) : null;
+  const bearingKeTarget = targetGoTo && gpsPos ? hitungBearingDerajat(gpsPos, targetGoTo) : null;
+  const belokKeTarget =
+    bearingKeTarget !== null && kompasDerajat !== undefined
+      ? selisihArah(bearingKeTarget, kompasDerajat)
+      : null;
+  const infoGps = teksStatusGps(perangkat, simulasiAktif);
+  const infoKompas = teksStatusKompas(perangkat);
 
   return (
     <div className="map-module-wrapper clean-map-mode">
@@ -792,10 +844,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <div>
             <strong>🎯 {targetGoTo.judul}</strong>
             <div className="goto-nav-sub">
-              {jarakKeTargetMeter >= 1000
-                ? `${(jarakKeTargetMeter / 1000).toFixed(2)} km`
-                : `${jarakKeTargetMeter} m`}{" "}
-              • {bearingKeTarget}° ({namaArahKompas(bearingKeTarget)})
+              {jarakKeTargetMeter === null || bearingKeTarget === null ? (
+                "Menunggu posisi GPS…"
+              ) : (
+                <>
+                  {jarakKeTargetMeter >= 1000
+                    ? `${(jarakKeTargetMeter / 1000).toFixed(2)} km`
+                    : `${jarakKeTargetMeter} m`}{" "}
+                  • {bearingKeTarget}° ({namaArahKompas(bearingKeTarget)})
+                  {belokKeTarget !== null &&
+                    (Math.abs(belokKeTarget) < 10
+                      ? " • lurus"
+                      : ` • belok ${Math.abs(belokKeTarget)}° ke ${belokKeTarget > 0 ? "kanan" : "kiri"}`)}
+                </>
+              )}
             </div>
           </div>
           <button
@@ -830,8 +892,24 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           >
             <Crosshair size={13} className="text-emerald" />
             <span>{formatKoordinatTeks(center.lat, center.lng, formatKoord)}</span>
-            <small>±{gpsPos.akurasi}m</small>
+            <small style={infoGps.peringatan ? { color: "#fbbf24" } : undefined}>{infoGps.teks}</small>
           </button>
+          <div style={{ marginTop: 6 }}>
+            <button
+              type="button"
+              className="map-coord-mini-pill"
+              onClick={infoKompas.perluKetuk ? () => void aktifkanKompas() : undefined}
+              style={{ cursor: infoKompas.perluKetuk ? "pointer" : "default" }}
+              title={infoKompas.perluKetuk ? "Ketuk untuk mengizinkan sensor kompas" : "Arah atas layar HP"}
+            >
+              <Compass size={13} className="text-emerald" />
+              <span style={infoKompas.peringatan ? { color: "#fbbf24" } : undefined}>
+                {kompasDerajat !== undefined
+                  ? `${kompasDerajat}° ${namaArahKompas(kompasDerajat).split(" ")[0]}`
+                  : infoKompas.teks}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* TOMBOL KONTROL RINGKAS DI KANAN ATAS (TIDAK MENGHALANGI PETA) */}
@@ -857,8 +935,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <button
             type="button"
             className="map-ctrl-btn"
-            onClick={() => setCenter({ lat: gpsPos.lat, lng: gpsPos.lng })}
-            title="Pusatkan ke GPS Saya"
+            onClick={() => gpsPos && setCenter({ lat: gpsPos.lat, lng: gpsPos.lng })}
+            disabled={!gpsPos}
+            style={gpsPos ? undefined : { opacity: 0.45 }}
+            title={gpsPos ? "Pusatkan ke GPS Saya" : "Menunggu posisi GPS"}
           >
             <Navigation size={16} />
           </button>
