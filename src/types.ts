@@ -121,6 +121,7 @@ export interface ProfilKader {
   jabatanPenandatanganSertifikat?: string;
   logoSertifikatList?: LogoSertifikatItem[];
   penandatanganList?: PenandatanganSertifikatItem[];
+  temaKegiatanSertifikat?: string;
 }
 
 export interface SertifikatKader {
@@ -138,6 +139,7 @@ export interface SertifikatKader {
   fotoKaderBase64?: string;
   logoSertifikatList?: LogoSertifikatItem[];
   penandatanganList?: PenandatanganSertifikatItem[];
+  temaKegiatanSertifikat?: string;
 }
 
 export interface PengumumanBroadcast {

@@ -836,7 +836,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               type="button"
               className="map-ctrl-btn smartwatch-map-btn"
               onClick={onBukaSmartwatch}
-              title="Sambungkan Smartwatch via Bluetooth"
+              title="Mode Smartwatch"
             >
               <Watch size={16} />
             </button>

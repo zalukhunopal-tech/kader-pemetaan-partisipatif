@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { DataSpasialItem, KoordinatTitik, ProfilKader } from "../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
-import { Bluetooth, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
+import { Bluetooth, BluetoothOff, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
 
 interface SmartwatchModalProps {
   dataSpasial: DataSpasialItem[];
@@ -133,8 +133,13 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
     window.setTimeout(() => {
       setNamaJam("Smartwatch GIS BLE");
       setStatusBt("terhubung");
-      tampilkanPesanSingkat("Bluetooth Smartwatch Terhubung");
+      tampilkanPesanSingkat("Smartwatch Terhubung");
     }, 500);
+  };
+
+  const handlePutuskanBluetooth = () => {
+    setStatusBt("terputus");
+    tampilkanPesanSingkat("Smartwatch Terputus");
   };
 
   // Render Peta pada Layar Smartwatch
@@ -404,29 +409,40 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
         className="smartwatch-modal-sheet"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* BAR KONEKSI BLUETOOTH SMARTWATCH */}
+        {/* BAR KONEKSI SMARTWATCH */}
         <div className="smartwatch-bt-header">
           <div className="smartwatch-bt-title">
             <Watch size={18} color="#38bdf8" />
             <strong>Smartwatch</strong>
-            <span className={`smartwatch-bt-chip ${statusBt}`}>
-              <Bluetooth size={11} />
-              {statusBt === "terhubung"
-                ? namaJam
-                : statusBt === "menyambungkan"
-                  ? "Menyambung..."
-                  : "Bluetooth"}
-            </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
               type="button"
-              className="smartwatch-pair-btn"
-              onClick={handleSambungkanBluetooth}
+              className={`smartwatch-toggle-btn ${statusBt === "terhubung" ? "connected" : ""}`}
+              onClick={
+                statusBt === "terhubung"
+                  ? handlePutuskanBluetooth
+                  : handleSambungkanBluetooth
+              }
+              title={statusBt === "terhubung" ? "Putuskan Koneksi Smartwatch" : "Hubungkan Smartwatch"}
             >
-              <Bluetooth size={13} />
-              {statusBt === "terhubung" ? "Tersambung" : "Sambungkan"}
+              {statusBt === "terhubung" ? (
+                <>
+                  <BluetoothOff size={14} />
+                  <span>Putuskan</span>
+                </>
+              ) : statusBt === "menyambungkan" ? (
+                <>
+                  <Bluetooth size={14} />
+                  <span>Menghubungkan...</span>
+                </>
+              ) : (
+                <>
+                  <Bluetooth size={14} />
+                  <span>Hubungkan</span>
+                </>
+              )}
             </button>
             <button
               type="button"

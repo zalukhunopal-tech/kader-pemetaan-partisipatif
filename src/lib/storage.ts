@@ -52,7 +52,8 @@ export const PROFIL_BAWAAN: ProfilKader = {
   namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
   modeKombinasiTarget: "per_kategori",
   namaPenandatanganSertifikat: "Koordinator Program GIS",
-  jabatanPenandatanganSertifikat: "Koordinator Verifikasi Spasial"
+  jabatanPenandatanganSertifikat: "Koordinator Verifikasi Spasial",
+  temaKegiatanSertifikat: "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau"
 };
 
 // Seluruh data awal dimulai kosong (tanpa data contoh/dummy)

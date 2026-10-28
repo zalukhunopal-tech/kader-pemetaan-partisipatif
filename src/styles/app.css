@@ -2478,10 +2478,9 @@ label {
 
   .certificate-action-btns {
     width: 100%;
-  }
-
-  .certificate-action-btns button {
-    flex: 1 1 130px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 }
 
@@ -3507,30 +3506,38 @@ label {
   font-weight: 700;
   padding: 4px 9px;
   border-radius: 99px;
-}
-
-.smartwatch-bt-chip.connected {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
-  border: 1px solid rgba(16, 185, 129, 0.45);
-}
-
-.smartwatch-pair-btn {
+.smartwatch-toggle-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   background: #0284c7;
   color: #ffffff;
-  border: none;
+  border: 1px solid rgba(56, 189, 248, 0.4);
   border-radius: 99px;
-  padding: 5px 11px;
-  font-size: 0.72rem;
+  padding: 6px 14px;
+  font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.smartwatch-pair-btn:disabled {
-  opacity: 0.65;
+.smartwatch-toggle-btn:hover {
+  background: #0369a1;
+}
+
+.smartwatch-toggle-btn.connected {
+  background: #dc2626;
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ffffff;
+}
+
+.smartwatch-toggle-btn.connected:hover {
+  background: #b91c1c;
+}
+
+.smartwatch-toggle-btn:disabled {
+  opacity: 0.75;
   cursor: wait;
 }
 
@@ -3782,4 +3789,95 @@ label {
   gap: 6px;
   font-size: 0.8rem;
   color: #0f172a;
+}
+
+.cert-admin-banner-info {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--avenza-green);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.badge-admin-only {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--avenza-green);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.cert-theme-input-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cert-empty-hint {
+  background: #ffffff;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.cert-admin-btn {
+  border-color: var(--avenza-green) !important;
+  color: var(--avenza-green) !important;
+  font-weight: 700 !important;
+}
+
+@media (max-width: 640px) {
+  .cert-logo-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cert-signer-editor-card .form-row-3 {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .certificate-action-btns {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .certificate-action-btns button,
+  .certificate-action-btns label {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Khusus tombol Unduh di HP/Mobile: dibuat panjang (lebar penuh) dan teks ditengahkan */
+  .certificate-action-btns .btn-unduh-sertifikat {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 12px 20px !important;
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    border-radius: 99px !important;
+    box-shadow: 0 4px 14px rgba(13, 115, 68, 0.28) !important;
+    letter-spacing: 0.02em !important;
+  }
 }

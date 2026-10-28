@@ -31,7 +31,8 @@ import {
   ChevronRight,
   Lock,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FileText
 } from "lucide-react";
 
 interface RewardViewProps {
@@ -567,7 +568,7 @@ function gambarSatuBlokPenandatangan(
   ctx.fillText("GEOKADER", 0, 3);
   ctx.restore();
 
-  // 3. Tanda Tangan (Gambar Unggahan atau Goresan Tanda Tangan Kaligrafi)
+  // 3. Tanda Tangan (Gambar Unggahan atau Garis Penandatangan Fisik)
   if (ttdImg && ttdImg.complete && ttdImg.naturalWidth > 0) {
     const maxW = 160;
     const maxH = 82;
@@ -576,36 +577,14 @@ function gambarSatuBlokPenandatangan(
     const dh = ttdImg.naturalHeight * scale;
     ctx.drawImage(ttdImg, cx - dw / 2, yTop + 34 + (maxH - dh) / 2, dw, dh);
   } else {
+    // Garis penandatangan fisik resmi jika belum ada tanda tangan digital yang diunggah
     ctx.save();
-    ctx.strokeStyle = "#0f172a";
-    ctx.lineWidth = 2.6;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    const offsetVar = (idx % 3) * 6;
+    ctx.strokeStyle = "#94a3b8";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([5, 4]);
     ctx.beginPath();
-    ctx.moveTo(cx - 64, yTop + 88);
-    ctx.bezierCurveTo(
-      cx - 34,
-      yTop + 32 - offsetVar,
-      cx - 8,
-      yTop + 106,
-      cx + 14,
-      yTop + 46 + offsetVar
-    );
-    ctx.bezierCurveTo(
-      cx + 34,
-      yTop + 20,
-      cx + 48,
-      yTop + 96,
-      cx + 78,
-      yTop + 58
-    );
-    ctx.stroke();
-
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.moveTo(cx - 46, yTop + 95);
-    ctx.quadraticCurveTo(cx + 12, yTop + 80, cx + 88, yTop + 88);
+    ctx.moveTo(cx - 65, yTop + 96);
+    ctx.lineTo(cx + 65, yTop + 96);
     ctx.stroke();
     ctx.restore();
   }
@@ -802,11 +781,19 @@ function lukisSertifikatKeCanvas(
   ctx.restore();
 
   // 8. Barisan Logo di dalam Bagian Bawah V-Chevron Biru Navy
-  const logos =
-    sert.logoSertifikatList && sert.logoSertifikatList.length > 0
-      ? sert.logoSertifikatList
-      : DEFAULT_LOGO_SERTIFIKAT;
-  gambarDeretanLogoHeader(ctx, centerX, innerY + 216, logos, logoImagesMap);
+  // Hanya digambar jika logo sudah dimasukkan/diunggah berkas gambarnya oleh admin
+  const logosDenganGambar = (sert.logoSertifikatList || []).filter(
+    (l) => Boolean(l.imageBase64)
+  );
+  if (logosDenganGambar.length > 0) {
+    gambarDeretanLogoHeader(
+      ctx,
+      centerX,
+      innerY + 216,
+      logosDenganGambar,
+      logoImagesMap
+    );
+  }
 
   // 9. Teks "Diberikan Kepada"
   ctx.textAlign = "center";
@@ -841,28 +828,52 @@ function lukisSertifikatKeCanvas(
   ctx.font = "italic bold 22px Georgia, 'Times New Roman', serif";
   ctx.fillText(`Nomor: ${sert.nomorSertifikat}`, centerX, 568);
 
-  // 11. Deskripsi Peran & Tema Kegiatan (Tanpa Pengulangan Kata)
-  const peranTeks = "Sebagai Kader Spasial Desa";
-  const temaKegiatan = `"Inventarisasi dan Verifikasi Data Geospasial Wilayah ${sert.desaWilayah}"`;
+  // 11. Deskripsi Peran & Tema Kegiatan (Dapat Diubah oleh Admin)
+  const peranTeks = "Sebagai Kader Desa";
+  const temaRaw =
+    sert.temaKegiatanSertifikat?.trim() ||
+    "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+
+  const temaKegiatan =
+    temaRaw.startsWith('"') && temaRaw.endsWith('"')
+      ? temaRaw
+      : `"${temaRaw}"`;
 
   ctx.fillStyle = "#111827";
-  ctx.font = "500 28px system-ui, -apple-system, sans-serif";
+  ctx.font = "600 28px system-ui, -apple-system, sans-serif";
   ctx.fillText(peranTeks, centerX, 636);
 
-  ctx.font = "500 28px system-ui, -apple-system, sans-serif";
+  // Ukuran font adaptif untuk tema kegiatan agar tidak pernah overflow
+  let fontTema = 28;
+  ctx.font = `500 ${fontTema}px system-ui, -apple-system, sans-serif`;
+  const maxW = 1250;
+  while (ctx.measureText(temaKegiatan).width > maxW && fontTema > 14) {
+    fontTema -= 1;
+    ctx.font = `500 ${fontTema}px system-ui, -apple-system, sans-serif`;
+  }
   ctx.fillText(temaKegiatan, centerX, 678);
 
   ctx.font = "500 24px system-ui, -apple-system, sans-serif";
   ctx.fillText(formatTanggalSertifikatIndo(sert.tanggalTerbit), centerX, 742);
 
-  // 12. QR Code Verifikasi di Sisi Kanan
-  gambarQrCodeVerifikasi(
-    ctx,
-    W - 235,
-    545,
-    132,
-    `${sert.nomorSertifikat}-${sert.idKader}-${sert.namaKader}`
+  // 12. QR Code Verifikasi di Sisi Kanan (Hanya dibuat jika logo ATAU tanda tangan sudah dimasukkan)
+  const adaLogoDimasukkan = (sert.logoSertifikatList || []).some((l) =>
+    Boolean(l.imageBase64)
   );
+  const adaTtdDimasukkan = (sert.penandatanganList || []).some((p) =>
+    Boolean(p.tandaTanganBase64)
+  );
+  const tampilkanBarcode = adaLogoDimasukkan || adaTtdDimasukkan;
+
+  if (tampilkanBarcode) {
+    gambarQrCodeVerifikasi(
+      ctx,
+      W - 235,
+      545,
+      132,
+      `${sert.nomorSertifikat}-${sert.idKader}-${sert.namaKader}`
+    );
+  }
 
   // 13. Passfoto 3x4 di Tengah Bawah (atau Siluet WhatsApp jika belum ada foto)
   const photoW = 136;
@@ -1064,17 +1075,26 @@ export const RewardView: React.FC<RewardViewProps> = ({
     sertifikatSaya?.fotoKaderBase64 || profil.fotoKaderBase64 || "";
 
   const logoListAktif: LogoSertifikatItem[] = useMemo(() => {
-    if (profil.logoSertifikatList && profil.logoSertifikatList.length > 0) {
+    if (profil.logoSertifikatList) {
       return profil.logoSertifikatList;
     }
-    if (
-      sertifikatSaya?.logoSertifikatList &&
-      sertifikatSaya.logoSertifikatList.length > 0
-    ) {
+    if (sertifikatSaya?.logoSertifikatList) {
       return sertifikatSaya.logoSertifikatList;
     }
-    return DEFAULT_LOGO_SERTIFIKAT;
+    return [];
   }, [profil.logoSertifikatList, sertifikatSaya?.logoSertifikatList]);
+
+  const temaKegiatanAktif =
+    profil.temaKegiatanSertifikat ??
+    sertifikatSaya?.temaKegiatanSertifikat ??
+    "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+
+  const handleUbahTemaKegiatan = (teks: string) => {
+    onUbahProfil({
+      ...profil,
+      temaKegiatanSertifikat: teks
+    });
+  };
 
   const penandatanganListAktif: PenandatanganSertifikatItem[] = useMemo(() => {
     if (profil.penandatanganList && profil.penandatanganList.length > 0) {
@@ -1186,7 +1206,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
         jabatanPenandatangan,
         fotoKaderBase64: fotoSertifikatBase64 || undefined,
         logoSertifikatList: logoListAktif,
-        penandatanganList: penandatanganListAktif
+        penandatanganList: penandatanganListAktif,
+        temaKegiatanSertifikat: temaKegiatanAktif
       };
     }
     return {
@@ -1204,7 +1225,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
       jabatanPenandatangan,
       fotoKaderBase64: fotoSertifikatBase64 || undefined,
       logoSertifikatList: logoListAktif,
-      penandatanganList: penandatanganListAktif
+      penandatanganList: penandatanganListAktif,
+      temaKegiatanSertifikat: temaKegiatanAktif
     };
   }, [
     sertifikatSaya,
@@ -1212,7 +1234,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
     sudahTersertifikasi,
     fotoSertifikatBase64,
     logoListAktif,
-    penandatanganListAktif
+    penandatanganListAktif,
+    temaKegiatanAktif
   ]);
 
   useEffect(() => {
@@ -1251,7 +1274,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
     const warnaPalet = ["#eab308", "#38bdf8", "#22c55e", "#a855f7", "#f97316"];
     const itemBaru: LogoSertifikatItem = {
       id: `logo-${Date.now()}`,
-      nama: `MITRA ${logoListAktif.length + 1}`,
+      nama: `Logo Mitra ${logoListAktif.length + 1}`,
       warnaAksen: warnaPalet[logoListAktif.length % warnaPalet.length]
     };
     onUbahProfil({
@@ -1279,7 +1302,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handleHapusLogo = (id: string) => {
-    if (logoListAktif.length <= 1) return;
     const baru = logoListAktif.filter((l) => l.id !== id);
     onUbahProfil({ ...profil, logoSertifikatList: baru });
   };
@@ -1708,14 +1730,16 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </div>
 
           <div className="certificate-action-btns">
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() => setBukaAturSertifikat((v) => !v)}
-              title="Atur & Tambah Logo maupun Tanda Tangan Sertifikat"
-            >
-              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Pengaturan" : "Logo & TTD"}
-            </button>
+            {peran === "admin" && (
+              <button
+                type="button"
+                className="btn-outline-sm cert-admin-btn"
+                onClick={() => setBukaAturSertifikat((v) => !v)}
+                title="Atur Logo, Tanda Tangan, dan Tema Sertifikat (Khusus Admin)"
+              >
+                <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Logo & TTD"}
+              </button>
+            )}
             <button
               type="button"
               className="btn-outline-sm"
@@ -1743,7 +1767,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             </button>
             <button
               type="button"
-              className="btn-primary-sm"
+              className="btn-primary-sm btn-unduh-sertifikat"
               onClick={handleUnduhSertifikatPng}
             >
               <Download size={14} /> Unduh
@@ -1759,13 +1783,45 @@ export const RewardView: React.FC<RewardViewProps> = ({
           />
         </div>
 
-        {/* PANEL ATUR & TAMBAH LOGO SERTA TANDA TANGAN SERTIFIKAT */}
-        {(bukaAturSertifikat || peran === "admin") && (
+        {/* PANEL ATUR & TAMBAH LOGO, TTD, SERTA TEMA SERTIFIKAT (KHUSUS ADMIN) */}
+        {peran === "admin" && bukaAturSertifikat && (
           <div className="cert-customizer-panel">
-            {/* A. PENGATURAN & TAMBAH LOGO SERTIFIKAT */}
+            <div className="cert-admin-banner-info">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="badge-admin-only">Khusus Admin</span>
+                <strong>Pengaturan Tampilan Sertifikat Resmi</strong>
+              </div>
+              <small style={{ color: "#64748b" }}>
+                Pengaturan logo, tanda tangan pejabat, dan teks tema kegiatan hanya dapat diakses dan diubah oleh akun Administrator.
+              </small>
+            </div>
+
+            {/* A. TEMA / DESKRIPSI KEGIATAN DI BAWAH 'SEBAGAI KADER DESA' (KHUSUS ADMIN) */}
             <div className="cert-customizer-section">
               <div className="cert-customizer-head">
-                <div className="cert-admin-signer-title" style={{ margin: 0 }}>
+                <div className="cert-admin-signer-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                  <FileText size={15} color="#0d7344" />
+                  <strong>Teks Kegiatan (Di Bawah 'Sebagai Kader Desa')</strong>
+                </div>
+              </div>
+              <div className="cert-theme-input-box">
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder='Contoh: "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau"'
+                  value={temaKegiatanAktif}
+                  onChange={(e) => handleUbahTemaKegiatan(e.target.value)}
+                />
+                <small style={{ color: "#64748b" }}>
+                  Teks ini dicetak tepat di baris bawah <em>"Sebagai Kader Desa"</em> pada sertifikat. Font otomatis menyesuaikan panjang kalimat agar proporsional di PC maupun HP.
+                </small>
+              </div>
+            </div>
+
+            {/* B. PENGATURAN & TAMBAH LOGO SERTIFIKAT */}
+            <div className="cert-customizer-section" style={{ marginTop: 12 }}>
+              <div className="cert-customizer-head">
+                <div className="cert-admin-signer-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
                   <ImageIcon size={15} color="#0284c7" />
                   <strong>Logo Header ({logoListAktif.length})</strong>
                 </div>
@@ -1778,42 +1834,46 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 </button>
               </div>
 
-              <div className="cert-logo-editor-grid">
-                {logoListAktif.map((logo, idx) => (
-                  <div key={logo.id} className="cert-logo-editor-item">
-                    <div className="cert-logo-preview-thumb">
-                      {logo.imageBase64 ? (
-                        <img src={logo.imageBase64} alt={logo.nama} />
-                      ) : (
-                        <span>{(logo.nama || `L${idx + 1}`).slice(0, 3).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Nama/Inisial Logo"
-                      value={logo.nama}
-                      onChange={(e) =>
-                        handleUbahLogo(logo.id, { nama: e.target.value })
-                      }
-                    />
-                    <label
-                      className="btn-outline-sm"
-                      style={{ margin: 0, cursor: "pointer" }}
-                      title="Unggah Gambar Logo"
-                    >
-                      <ImageIcon size={13} /> Gambar
+              {logoListAktif.length === 0 ? (
+                <div className="cert-empty-hint">
+                  Belum ada logo yang dimasukkan. Klik <strong>+ Tambah Logo</strong> lalu unggah file gambar logo agar ditampilkan pada header sertifikat dan mengaktifkan kode QR verifikasi.
+                </div>
+              ) : (
+                <div className="cert-logo-editor-grid">
+                  {logoListAktif.map((logo, idx) => (
+                    <div key={logo.id} className="cert-logo-editor-item">
+                      <div className="cert-logo-preview-thumb">
+                        {logo.imageBase64 ? (
+                          <img src={logo.imageBase64} alt={logo.nama} />
+                        ) : (
+                          <span>{(logo.nama || `L${idx + 1}`).slice(0, 3).toUpperCase()}</span>
+                        )}
+                      </div>
                       <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          handleUnggahGambarLogo(logo.id, e.target.files?.[0]);
-                          e.target.value = "";
-                        }}
+                        type="text"
+                        className="form-input"
+                        placeholder="Nama/Instansi Logo"
+                        value={logo.nama}
+                        onChange={(e) =>
+                          handleUbahLogo(logo.id, { nama: e.target.value })
+                        }
                       />
-                    </label>
-                    {logoListAktif.length > 1 && (
+                      <label
+                        className="btn-outline-sm"
+                        style={{ margin: 0, cursor: "pointer", whiteSpace: "nowrap" }}
+                        title="Unggah Gambar Logo"
+                      >
+                        <ImageIcon size={13} /> Gambar
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            handleUnggahGambarLogo(logo.id, e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
                       <button
                         type="button"
                         className="btn-danger-sm"
@@ -1822,25 +1882,25 @@ export const RewardView: React.FC<RewardViewProps> = ({
                       >
                         <Trash2 size={13} />
                       </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* B. PENGATURAN & TAMBAH TANDA TANGAN PEJABAT */}
-            <div className="cert-customizer-section" style={{ marginTop: 14 }}>
+            {/* C. PENGATURAN & TAMBAH TANDA TANGAN PEJABAT */}
+            <div className="cert-customizer-section" style={{ marginTop: 12 }}>
               <div className="cert-customizer-head">
-                <div className="cert-admin-signer-title" style={{ margin: 0 }}>
+                <div className="cert-admin-signer-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
                   <PenTool size={15} color="#0284c7" />
-                  <strong>Tanda Tangan ({penandatanganListAktif.length})</strong>
+                  <strong>Tanda Tangan Pejabat ({penandatanganListAktif.length})</strong>
                 </div>
                 <button
                   type="button"
                   className="btn-primary-sm"
                   onClick={handleTambahPenandatangan}
                 >
-                  <Plus size={13} /> Tambah Tanda Tangan
+                  <Plus size={13} /> Tambah Penandatangan
                 </button>
               </div>
 
@@ -1849,10 +1909,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
                   <div key={sig.id} className="cert-signer-editor-card">
                     <div className="cert-signer-card-top">
                       <strong>Penandatangan #{idx + 1}</strong>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         <label
                           className="btn-outline-sm"
-                          style={{ margin: 0, cursor: "pointer" }}
+                          style={{ margin: 0, cursor: "pointer", whiteSpace: "nowrap" }}
                           title="Unggah Gambar Tanda Tangan / Stempel"
                         >
                           <PenTool size={12} />{" "}
@@ -1876,9 +1936,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
                                 tandaTanganBase64: undefined
                               })
                             }
-                            title="Reset ke tanda tangan otomatis"
+                            title="Hapus gambar TTD"
                           >
-                            Reset
+                            Hapus TTD
                           </button>
                         )}
                         {penandatanganListAktif.length > 1 && (
