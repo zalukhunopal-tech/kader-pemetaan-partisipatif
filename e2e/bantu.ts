@@ -105,6 +105,12 @@ export async function kodeBerikutnya(p: Page, rahasia: string): Promise<string> 
 
 export const terkunci = async (p: Page) => (await p.locator(".layar-kunci").count()) === 1;
 
+/** Teks toast yang sedang tampil, atau "" bila tidak ada */
+export async function teksToast(p: Page): Promise<string> {
+  const t = p.locator(".avenza-toast");
+  return (await t.count()) ? ((await t.first().textContent()) ?? "") : "";
+}
+
 /** Membuat PIN di layar "Amankan GeoKader" (sidik jari tidak diaktifkan) */
 export async function buatPin(p: Page, pin = PIN): Promise<void> {
   expect(await sampai(async () => (await p.locator("#form-siapkan-pin").count()) === 1)).toBe(true);

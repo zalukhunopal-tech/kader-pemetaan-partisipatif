@@ -16,6 +16,8 @@ export default defineConfig({
   reporter: process.env.CI ? "line" : [["list"]],
   use: {
     browserName: "chromium",
+    // aksi seperti innerText tidak menunggu tanpa batas bila elemennya tidak muncul
+    actionTimeout: 10_000,
     // Lingkungan dengan Chromium terpasang di lokasi lain dapat menunjuknya lewat PW_CHROMIUM_PATH
     launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}
   },

@@ -10,7 +10,8 @@ import {
   kotak,
   masukSebagaiAdmin,
   posisiPeta,
-  sampai
+  sampai,
+  teksToast
 } from "./bantu";
 
 test("HP dengan huruf besar: peta, atribusi, dan Rekam Lokasi tidak tertutup bilah bawah; cubit dua jari", async ({ browser }) => {
@@ -126,7 +127,7 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   await p.locator(".compact-rec-pill", { hasText: "Titik" }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Pohon Meranti uji");
   await p.locator(".modal-form button[type=submit]").click();
-  expect(await sampai(async () => /Pohon Meranti uji/.test(await p.locator(".avenza-toast").innerText()))).toBe(true);
+  expect(await sampai(async () => /Pohon Meranti uji/.test(await teksToast(p)))).toBe(true);
   type Data = { judul: string; jenisGeometri: string; koordinat: { lat: number; lng: number; akurasi?: number }[] };
   const bacaData = () =>
     p.evaluate(
@@ -149,6 +150,56 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   const kan = await kotak(p, "canvas.map-canvas");
   await p.mouse.click(kan.left + kan.width / 2, kan.top + kan.height / 2);
   expect(await sampai(async () => /Pohon Meranti uji/.test(await p.locator(".inspector-card").innerText()))).toBe(true);
+
+  // perbarui kondisi: objek yang baru dibuat belum boleh diperbarui (jeda 24 jam), isian tetap ada
+  await p.getByPlaceholder("Kondisi terbaru...").fill("Daun menguning");
+  await p.getByRole("button", { name: "+ Simpan Pembaruan" }).click();
+  expect(await sampai(async () => /baru dibuat/.test(await teksToast(p)))).toBe(true);
+  expect(await p.getByPlaceholder("Kondisi terbaru...").inputValue()).toBe("Daun menguning");
+
+  // navigasi Go-To ke objek
+  await p.getByRole("button", { name: /Navigasi Go-To/ }).click();
+  expect(await sampai(async () => (await p.getByText("Pohon Meranti uji").count()) >= 2)).toBe(true);
+  expect(galat).toEqual([]);
+  await tutup();
+});
+
+test("unduh area offline dari penyedia tile berlisensi: tile tersimpan dan area muncul di Pustaka", async ({ browser }) => {
+  const { p, galat, tutup } = await halamanBaru(browser);
+  let dimintaJaringan = 0;
+  // penyedia tile uji (bundel e2e memasangnya lewat VITE_TILE_URL_OSM dengan izin unduh)
+  await p.context().route(/tile\.uji\.example/, (r) => {
+    dimintaJaringan++;
+    return r.fulfill({ status: 200, contentType: "image/png", body: PNG, headers: { "access-control-allow-origin": "*" } });
+  });
+  await p
+    .context()
+    .route(/tiles\.maps\.eox\.at|ibasemaps-api\.arcgis\.com|tile\.googleapis\.com|maps\.gstatic\.com/, (r) =>
+      r.fulfill({ status: 404, body: "" })
+    );
+  await masukSebagaiAdmin(p, URL_APP_KUNCI);
+  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator('button[title="Lapisan Peta & Alat Offline"]').click();
+  await p.locator(".map-basemap-Option", { hasText: "OpenStreetMap" }).click();
+  expect(await p.locator("#atribusi-peta").innerText()).toMatch(/penyedia tile uji/);
+  await p.locator('button[title="Lapisan Peta & Alat Offline"]').click();
+  await p.getByRole("button", { name: /Unduh Area Offline/ }).click();
+
+  await p.getByPlaceholder("Masukkan nama area").fill("Wilayah Uji Offline");
+  await p.locator("#zoom-min-unduh").selectOption({ index: 0 });
+  const perkiraan = await p.locator("#perkiraan-unduh").innerText();
+  const jumlah = Number(perkiraan.match(/^([\d.]+) tile/)![1].replace(/\./g, ""));
+  expect(jumlah).toBeGreaterThan(0);
+  const sebelum = dimintaJaringan;
+  await p.getByRole("button", { name: /Unduh Sekarang/ }).click();
+  expect(await sampai(async () => (await p.getByText("Unduh Peta Offline").count()) === 0, 30_000)).toBe(true);
+  expect(dimintaJaringan - sebelum).toBeGreaterThanOrEqual(1);
+  const tersimpan = await p.evaluate(async () => (await (await caches.open("geokader-tiles-v1")).keys()).length);
+  expect(tersimpan).toBe(jumlah);
+
+  await p.locator(".avenza-nav-item", { hasText: "Pustaka" }).click();
+  expect(await sampai(async () => (await p.getByText("Wilayah Uji Offline").count()) === 1)).toBe(true);
   expect(galat).toEqual([]);
   await tutup();
 });

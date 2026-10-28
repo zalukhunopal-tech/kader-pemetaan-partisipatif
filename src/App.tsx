@@ -150,7 +150,8 @@ export const App: React.FC = () => {
   const [bukaSmartwatch, setBukaSmartwatch] = useState<boolean>(false);
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
-  const [notifToast, setNotifToast] = useState<string | null>(null);
+  // id naik setiap toast baru, sehingga efek di bawah memulai ulang hitung mundurnya
+  const [notifToast, setNotifToast] = useState<{ pesan: string; id: number } | null>(null);
   const statusPenyimpanan = useStatusPenyimpanan();
   const [ruangPenyimpanan, setRuangPenyimpanan] = useState<PerkiraanPenyimpanan | null>(null);
 
@@ -243,10 +244,13 @@ export const App: React.FC = () => {
 
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
-  const tampilkanToast = (pesan: string) => {
-    setNotifToast(pesan);
-    setTimeout(() => setNotifToast(null), 3200);
-  };
+  const tampilkanToast = (pesan: string) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1 }));
+  // Toast hilang 3,2 detik setelah toast TERAKHIR (toast baru membatalkan hitung mundur yang lama)
+  useEffect(() => {
+    if (!notifToast) return;
+    const t = window.setTimeout(() => setNotifToast(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [notifToast]);
 
   // Handler Login Berhasil
   const handleLoginSukses = (akun: AkunSesi) => {
@@ -919,7 +923,7 @@ export const App: React.FC = () => {
       )}
 
       {/* TOAST FEEDBACK */}
-      {notifToast && <div className="avenza-toast">{notifToast}</div>}
+      {notifToast && <div className="avenza-toast">{notifToast.pesan}</div>}
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
