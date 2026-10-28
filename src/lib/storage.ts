@@ -11,6 +11,7 @@ import {
   TugasPemetaan
 } from "../types";
 import { unikkanId } from "./id";
+import { bacaTeks, siapkanPenyimpanan, tulisTeks } from "./penyimpanan";
 
 // Versi 5 storage keys — seluruh contoh/dummy data dihapus bersih
 const KEY_PROFIL = "geokader_profil_v5";
@@ -67,9 +68,26 @@ export const TUGAS_AWAL: TugasPemetaan[] = [];
 export const PESAN_AWAL: PesanKomunikasi[] = [];
 export const KADER_AKTIF_AWAL: KaderAktifPresence[] = [];
 
+/** Kunci data yang dipindahkan dari localStorage ke IndexedDB (sesi/akun tetap di localStorage) */
+export const KUNCI_DATA = [
+  KEY_PROFIL,
+  KEY_SPASIAL,
+  KEY_OFFLINE_MAPS,
+  KEY_LAPISAN,
+  KEY_SERTIFIKAT,
+  KEY_PENGUMUMAN,
+  KEY_TUGAS,
+  KEY_PESAN,
+  KEY_GDRIVE,
+  KEY_KADER_AKTIF
+];
+
+/** Harus selesai sebelum aplikasi membaca data (dipanggil di main.tsx) */
+export const siapkanStorage = () => siapkanPenyimpanan(KUNCI_DATA);
+
 function bacaJson<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = bacaTeks(key);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -77,12 +95,10 @@ function bacaJson<T>(key: string, fallback: T): T {
   }
 }
 
+// Kegagalan menulis (mis. kuota penuh) tidak lagi diabaikan: penyimpanan.ts mencatatnya
+// pada status yang ditampilkan aplikasi sebagai peringatan.
 function simpanJson<T>(key: string, val: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(val));
-  } catch {
-    // abaikan kuota
-  }
+  tulisTeks(key, JSON.stringify(val));
 }
 
 export const muatProfil = () => {

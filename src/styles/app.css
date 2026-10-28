@@ -3865,3 +3865,17 @@ label {
     letter-spacing: 0.02em !important;
   }
 }
+
+.banner-penyimpanan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.4;
+}

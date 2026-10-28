@@ -43,6 +43,7 @@ import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
+import { formatUkuranByte, perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import {
   perekamLatar,
@@ -117,6 +118,8 @@ export const App: React.FC = () => {
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const [notifToast, setNotifToast] = useState<string | null>(null);
+  const statusPenyimpanan = useStatusPenyimpanan();
+  const [ruangPenyimpanan, setRuangPenyimpanan] = useState<PerkiraanPenyimpanan | null>(null);
 
   // Data Store
   const [profil, setProfil] = useState<ProfilKader>(() => {
@@ -180,6 +183,22 @@ export const App: React.FC = () => {
   }, [rekamLatar.status]);
 
   // Simpan perubahan ke LocalStorage (Offline-First)
+  // Pantau sisa ruang penyimpanan agar pengguna diperingatkan sebelum data baru tak bisa disimpan
+  useEffect(() => {
+    let aktif = true;
+    const periksa = () => {
+      perkiraanPenyimpanan().then((r) => {
+        if (aktif) setRuangPenyimpanan(r);
+      });
+    };
+    periksa();
+    const t = setInterval(periksa, 60_000);
+    return () => {
+      aktif = false;
+      clearInterval(t);
+    };
+  }, [statusPenyimpanan.kuotaPenuh]);
+
   useEffect(() => simpanProfil(profil), [profil]);
   useEffect(() => simpanDataSpasial(dataSpasial), [dataSpasial]);
   useEffect(() => simpanAreaOffline(areaOffline), [areaOffline]);
@@ -782,6 +801,18 @@ export const App: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* PERINGATAN PENYIMPANAN: data baru yang tidak tersimpan harus terlihat, bukan hilang senyap */}
+      {(statusPenyimpanan.galat || (ruangPenyimpanan && ruangPenyimpanan.persen >= 80)) && (
+        <div className="banner-penyimpanan" role="alert">
+          <strong>⚠ {statusPenyimpanan.galat ? "Data terbaru mungkin belum tersimpan" : "Penyimpanan perangkat hampir penuh"}</strong>
+          <span>
+            {statusPenyimpanan.galat ??
+              `Terpakai ${formatUkuranByte(ruangPenyimpanan!.pakaiByte)} dari ${formatUkuranByte(ruangPenyimpanan!.kuotaByte)} (${Math.round(ruangPenyimpanan!.persen)}%).`}{" "}
+            Ekspor atau sinkronkan data sekarang, lalu hapus peta offline atau objek yang tidak diperlukan.
+          </span>
         </div>
       )}
 

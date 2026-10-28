@@ -25,6 +25,7 @@ import {
 } from "../lib/perekamLatar";
 import { JEDA_PEMBARUAN_JAM } from "../lib/rewardEngine";
 import { buatId } from "../lib/id";
+import { kompresFoto, perkiraBytesDataUrl } from "../lib/foto";
 import {
   BATAS_TILE_PER_AREA,
   KotakWilayah,
@@ -235,6 +236,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [kondisiInput, setKondisiInput] = useState<string>("");
   const [deskripsiInput, setDeskripsiInput] = useState<string>("");
   const [fotoInput, setFotoInput] = useState<string>("");
+  const [galatFoto, setGalatFoto] = useState<string | null>(null);
+  const [memprosesFoto, setMemprosesFoto] = useState<boolean>(false);
 
   // Inspeksi Objek Existing
   const [objekTerpilih, setObjekTerpilih] = useState<DataSpasialItem | null>(null);
@@ -686,15 +689,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const handlePilihFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setFotoInput(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    setGalatFoto(null);
+    setMemprosesFoto(true);
+    // Foto dikecilkan dulu: foto kamera mentah (beberapa MB) akan memenuhi kuota penyimpanan perangkat
+    kompresFoto(file)
+      .then((dataUrl) => setFotoInput(dataUrl))
+      .catch((err: unknown) => {
+        setFotoInput("");
+        setGalatFoto(err instanceof Error ? err.message : "Foto tidak dapat diproses.");
+      })
+      .finally(() => {
+        setMemprosesFoto(false);
+        input.value = "";
+      });
   };
 
   const handleSimpanForm = (e: React.FormEvent) => {
@@ -744,6 +754,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setKondisiInput("");
     setDeskripsiInput("");
     setFotoInput("");
+    setGalatFoto(null);
   };
 
   const handleImporFileSpasial = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1442,7 +1453,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     onChange={handlePilihFoto}
                   />
                 </label>
-                {fotoInput && <span className="photo-ready-badge">✓ Foto siap</span>}
+                {memprosesFoto && <span className="photo-ready-badge">Memproses foto…</span>}
+                {!memprosesFoto && fotoInput && (
+                  <span className="photo-ready-badge">✓ Foto siap ({Math.round(perkiraBytesDataUrl(fotoInput) / 1024)} KB)</span>
+                )}
+                {galatFoto && (
+                  <span role="alert" style={{ color: "#b91c1c", fontSize: 12 }}>
+                    {galatFoto}
+                  </span>
+                )}
               </div>
 
               <div className="modal-footer">
