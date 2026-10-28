@@ -1,3 +1,4 @@
+import { matriksQr, payloadVerifikasi } from "../lib/qr";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataSpasialItem,
@@ -426,89 +427,36 @@ function gambarDeretanLogoHeader(
 }
 
 /**
- * Menggambar QR Code Verifikasi di Sisi Kanan Sertifikat (Sesuai Referensi)
+ * Menggambar QR Code Verifikasi di Sisi Kanan Sertifikat. QR sungguhan yang bisa dipindai;
+ * area putih di sekelilingnya (4 modul) adalah zona tenang yang dibutuhkan pemindai.
  */
 function gambarQrCodeVerifikasi(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   size: number,
-  seedStr: string
+  payload: string
 ) {
+  const matriks = matriksQr(payload);
+  const n = matriks.length;
+  const sel = size / n;
+  const zonaTenang = sel * 4;
+
   ctx.save();
   ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "#cbd5e1";
   ctx.lineWidth = 1.5;
-  ctx.fillRect(x - 8, y - 8, size + 16, size + 16);
-  ctx.strokeRect(x - 8, y - 8, size + 16, size + 16);
+  ctx.fillRect(x - zonaTenang, y - zonaTenang, size + 2 * zonaTenang, size + 2 * zonaTenang);
+  ctx.strokeRect(x - zonaTenang, y - zonaTenang, size + 2 * zonaTenang, size + 2 * zonaTenang);
 
-  const cells = 21;
-  const cellSize = size / cells;
-
-  // Hash sederhana dari nomor sertifikat agar pola QR konsisten
-  let hash = 2166136261;
-  for (let i = 0; i < seedStr.length; i++) {
-    hash ^= seedStr.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  const isFinderPattern = (r: number, c: number) => {
-    const inTopLeft = r < 7 && c < 7;
-    const inTopRight = r < 7 && c >= cells - 7;
-    const inBottomLeft = r >= cells - 7 && c < 7;
-    return inTopLeft || inTopRight || inBottomLeft;
-  };
-
-  const drawFinder = (r0: number, c0: number) => {
-    ctx.fillStyle = "#111827";
-    ctx.fillRect(x + c0 * cellSize, y + r0 * cellSize, 7 * cellSize, 7 * cellSize);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(
-      x + (c0 + 1) * cellSize,
-      y + (r0 + 1) * cellSize,
-      5 * cellSize,
-      5 * cellSize
-    );
-    ctx.fillStyle = "#111827";
-    ctx.fillRect(
-      x + (c0 + 2) * cellSize,
-      y + (r0 + 2) * cellSize,
-      3 * cellSize,
-      3 * cellSize
-    );
-  };
-
-  drawFinder(0, 0);
-  drawFinder(0, cells - 7);
-  drawFinder(cells - 7, 0);
-
-  ctx.fillStyle = "#111827";
-  for (let r = 0; r < cells; r++) {
-    for (let c = 0; c < cells; c++) {
-      if (isFinderPattern(r, c)) continue;
-      if (r === 6 || c === 6) {
-        if ((r + c) % 2 === 0) {
-          ctx.fillRect(
-            x + c * cellSize,
-            y + r * cellSize,
-            cellSize + 0.4,
-            cellSize + 0.4
-          );
-        }
-        continue;
-      }
-      const v = Math.abs(Math.sin(r * 13.37 + c * 7.91 + (hash & 0xffff))) * 100;
-      if (v > 47) {
-        ctx.fillRect(
-          x + c * cellSize,
-          y + r * cellSize,
-          cellSize + 0.4,
-          cellSize + 0.4
-        );
+  ctx.fillStyle = "#000000";
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (matriks[r][c]) {
+        ctx.fillRect(x + c * sel, y + r * sel, sel + 0.5, sel + 0.5);
       }
     }
   }
-
   ctx.restore();
 }
 
@@ -866,13 +814,7 @@ function lukisSertifikatKeCanvas(
   const tampilkanBarcode = adaLogoDimasukkan || adaTtdDimasukkan;
 
   if (tampilkanBarcode) {
-    gambarQrCodeVerifikasi(
-      ctx,
-      W - 235,
-      545,
-      132,
-      `${sert.nomorSertifikat}-${sert.idKader}-${sert.namaKader}`
-    );
+    gambarQrCodeVerifikasi(ctx, W - 235, 545, 132, payloadVerifikasi(sert));
   }
 
   // 13. Passfoto 3x4 di Tengah Bawah (atau Siluet WhatsApp jika belum ada foto)
@@ -928,6 +870,21 @@ function lukisSertifikatKeCanvas(
       ttdImagesMap[sig.id]
     );
   });
+
+  // Pratinjau: sertifikat yang belum diterbitkan admin diberi tanda air agar tidak dipakai sebagai dokumen resmi
+  if (sert.status !== "diterbitkan") {
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate(-Math.PI / 9);
+    ctx.fillStyle = "rgba(185, 28, 28, 0.16)";
+    ctx.font = "800 150px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("PRATINJAU", 0, -30);
+    ctx.font = "700 54px system-ui, -apple-system, sans-serif";
+    ctx.fillText("BELUM DITERBITKAN ADMIN", 0, 90);
+    ctx.restore();
+  }
 }
 
 /**
@@ -1030,8 +987,13 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const [logoImagesMap, setLogoImagesMap] = useState<Record<string, HTMLImageElement>>({});
   const [ttdImagesMap, setTtdImagesMap] = useState<Record<string, HTMLImageElement>>({});
 
+  // Kemajuan yang terlihat kader memakai semua data; kelayakan sertifikat hanya dari data terverifikasi
   const capaian = useMemo(
     () => hitungCapaianKader(dataSpasial, profil, false),
+    [dataSpasial, profil]
+  );
+  const capaianTerverifikasi = useMemo(
+    () => hitungCapaianKader(dataSpasial, profil, true),
     [dataSpasial, profil]
   );
 
@@ -1069,7 +1031,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const totalPoin = capaian.totalPoinTitik;
   const totalKm = capaian.totalTrackingKm;
   const totalHa = capaian.totalPoligonHa;
-  const sudahTersertifikasi = Boolean(sertifikatSaya) || capaian.berhakSertifikat;
+  // Tersertifikasi hanya bila admin sudah menerbitkan; capaian saja belum cukup
+  const sudahTersertifikasi = Boolean(sertifikatSaya);
 
   const fotoSertifikatBase64 =
     sertifikatSaya?.fotoKaderBase64 || profil.fotoKaderBase64 || "";
@@ -1212,15 +1175,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
     }
     return {
       id: `CERT-${profil.idKader}`,
-      nomorSertifikat: `0115/SKPP-GIS/WILAYAH/X/${new Date().getFullYear()}`,
+      nomorSertifikat: "Belum diterbitkan",
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
       namaOrganisasi:
         profil.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif",
       tanggalTerbit: new Date().toISOString().slice(0, 10),
-      alasanCapaian: "Dedikasi Survei Spasial Desa",
-      status: sudahTersertifikasi ? "diterbitkan" : "menunggu_admin",
+      alasanCapaian: capaianTerverifikasi.alasanSertifikat,
+      status: "menunggu_admin",
       ditandatanganiOleh: namaPenandatangan,
       jabatanPenandatangan,
       fotoKaderBase64: fotoSertifikatBase64 || undefined,
@@ -1360,7 +1323,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
 
   const handleUnduhSertifikatPng = () => {
     const canvas = certCanvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !sertifikatSaya) return;
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
@@ -1377,7 +1340,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
 
   const handleCetakSertifikat = () => {
     const canvas = certCanvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !sertifikatSaya) return;
     lukisSertifikatKeCanvas(
       canvas,
       sertifikatTampil,
@@ -1721,6 +1684,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
         />
       </div>
 
+      <p id="capaian-terverifikasi" className="text-muted" style={{ margin: "-4px 4px 0", fontSize: "0.8rem", textAlign: "center" }}>
+        Terverifikasi admin: {capaianTerverifikasi.totalPoinTitik} titik • {capaianTerverifikasi.totalTrackingKm.toFixed(1)} km •{" "}
+        {capaianTerverifikasi.totalPoligonHa.toFixed(1)} Ha
+      </p>
+
       {/* 3. PREVIEW SERTIFIKAT BERGAMBAR + TOMBOL ATUR FOTO, LOGO & TANDA TANGAN */}
       <div className="section-card certificate-section-card">
         <div className="certificate-header-bar">
@@ -1762,6 +1730,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
               type="button"
               className="btn-outline-sm"
               onClick={handleCetakSertifikat}
+              disabled={!sertifikatSaya}
+              title={sertifikatSaya ? "Cetak sertifikat" : "Tersedia setelah admin menerbitkan sertifikat"}
             >
               <Printer size={14} /> Cetak
             </button>
@@ -1769,11 +1739,25 @@ export const RewardView: React.FC<RewardViewProps> = ({
               type="button"
               className="btn-primary-sm btn-unduh-sertifikat"
               onClick={handleUnduhSertifikatPng}
+              disabled={!sertifikatSaya}
+              title={sertifikatSaya ? "Unduh sertifikat (PNG)" : "Tersedia setelah admin menerbitkan sertifikat"}
             >
               <Download size={14} /> Unduh
             </button>
           </div>
         </div>
+
+        <p
+          id="status-sertifikat"
+          className="text-muted"
+          style={{ margin: "0 0 10px", fontSize: "0.84rem" }}
+        >
+          {sertifikatSaya
+            ? `Sertifikat ${sertifikatSaya.nomorSertifikat} sudah diterbitkan.`
+            : capaianTerverifikasi.berhakSertifikat
+            ? "Capaian terverifikasi sudah memenuhi satu paket. Menunggu admin menerbitkan sertifikat."
+            : "Sertifikat diterbitkan admin setelah data Anda yang memenuhi satu paket (50 titik, 5 km jalur, atau 5 Ha poligon) diverifikasi."}
+        </p>
 
         <div className="certificate-canvas-stage" id="certificate-print-area">
           <canvas

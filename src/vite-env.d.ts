@@ -7,4 +7,5 @@ interface ImportMetaEnv {
   readonly VITE_TILE_UNDUH_SATELIT?: string;
   readonly VITE_TILE_UNDUH_OSM?: string;
   readonly VITE_TILE_UNDUH_TOPO?: string;
+  readonly VITE_URL_VERIFIKASI?: string;
 }

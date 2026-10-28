@@ -889,9 +889,19 @@ export const App: React.FC = () => {
             }
             onUbahDataSpasial={handleUbahDataSpasial}
             onHapusDataSpasial={handleHapusDataSpasial}
-            onTerbitkanSertifikat={(sert) =>
-              setSertifikatList((prev) => [sert, ...prev])
-            }
+            onTerbitkanSertifikat={(sert) => {
+              // Satu sertifikat per kader dan nomor tidak boleh kembar
+              if (
+                sertifikatList.some(
+                  (s) => s.idKader === sert.idKader || s.nomorSertifikat === sert.nomorSertifikat
+                )
+              ) {
+                tampilkanToast("⚠️ Sertifikat tidak diterbitkan: kader sudah punya sertifikat atau nomor kembar.");
+                return;
+              }
+              setSertifikatList((prev) => [sert, ...prev]);
+              tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
+            }}
             onUbahPenandatanganSertifikat={(nama, jabatan) => {
               handleUbahPenandatanganSertifikat(nama, jabatan);
               tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);

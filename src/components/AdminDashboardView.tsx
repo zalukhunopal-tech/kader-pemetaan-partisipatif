@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DataSpasialItem,
   JenisGeometri,
@@ -12,6 +12,7 @@ import {
 } from "../types";
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
 import { buatId } from "../lib/id";
+import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import {
   Check,
   Award,
@@ -84,9 +85,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [katAnn] = useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
 
   // Form Penerbitan & Pengaturan Penandatangan Sertifikat
-  const [nomorSertBaru, setNomorSertBaru] = useState(
-    `001/SERT-KPP/${new Date().getFullYear()}`
-  );
+  const [nomorSertBaru, setNomorSertBaru] = useState(() => nomorSertifikatBerikut(sertifikatList));
+  const [pesanTerbit, setPesanTerbit] = useState<{ teks: string; ok: boolean } | null>(null);
+  // Nomor berikutnya mengikuti jumlah sertifikat yang sudah terbit
+  useEffect(() => {
+    setNomorSertBaru(nomorSertifikatBerikut(sertifikatList));
+  }, [sertifikatList.length]);
   const [penandatangan, setPenandatangan] = useState(
     profilKader.namaPenandatanganSertifikat || "Koordinator Program GIS"
   );
@@ -697,7 +701,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
             <div className="form-row-3">
               <div>
-                <label>Nomor Sertifikat</label>
+                <label>Nomor sertifikat berikutnya</label>
                 <input
                   type="text"
                   className="form-input"
@@ -747,30 +751,86 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 ✍️ Simpan Penandatangan
               </button>
 
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ flex: "1 1 220px" }}
-                onClick={() =>
-                  onTerbitkanSertifikat({
-                    id: buatId("CERT"),
-                    nomorSertifikat: nomorSertBaru,
-                    idKader: profilKader.idKader,
-                    namaKader: profilKader.nama,
-                    desaWilayah: profilKader.desaWilayah,
-                    namaOrganisasi: profilKader.namaOrganisasi,
-                    tanggalTerbit: new Date().toISOString().slice(0, 10),
-                    alasanCapaian: "Sertifikat Pemetaan Partisipatif",
-                    status: "diterbitkan",
-                    ditandatanganiOleh: penandatangan,
-                    jabatanPenandatangan,
-                    fotoKaderBase64: profilKader.fotoKaderBase64
-                  })
+            </div>
+
+            <h4 style={{ margin: "16px 0 8px", fontSize: "0.92rem" }}>Kader dan capaian terverifikasi</h4>
+            {pesanTerbit && (
+              <div
+                role="status"
+                className="alert-banner-success"
+                style={
+                  pesanTerbit.ok
+                    ? { margin: "0 0 8px" }
+                    : { margin: "0 0 8px", background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }
                 }
               >
-                🏅 Terbitkan ({sertifikatList.length})
-              </button>
-            </div>
+                {pesanTerbit.teks}
+              </div>
+            )}
+            {ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget).length === 0 ? (
+              <p className="text-muted" style={{ fontSize: "0.84rem", margin: 0 }}>
+                Belum ada data kader. Sertifikat bisa diterbitkan setelah data kader diverifikasi.
+              </p>
+            ) : (
+              <div className="table-responsive">
+                <table className="data-table" id="tabel-kader-sertifikat">
+                  <thead>
+                    <tr>
+                      <th>Kader</th>
+                      <th>Terverifikasi</th>
+                      <th>Status</th>
+                      <th>Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget).map((k) => (
+                      <tr key={k.idKader}>
+                        <td>
+                          <strong>{k.namaKader}</strong>
+                          <div className="text-xs text-muted">{k.idKader} • {k.desaWilayah}</div>
+                        </td>
+                        <td className="text-xs">
+                          {k.capaian.totalPoinTitik} titik • {k.capaian.totalTrackingKm.toFixed(1)} km •{" "}
+                          {k.capaian.totalPoligonHa.toFixed(1)} Ha
+                        </td>
+                        <td>
+                          <span className={`badge-sync ${k.sudahTerbit ? "status-terverifikasi" : k.capaian.berhakSertifikat ? "status-tersinkron" : "status-lokal"}`} style={{ marginLeft: 0 }}>
+                            {k.sudahTerbit ? "TERBIT" : k.capaian.berhakSertifikat ? "SIAP TERBIT" : "BELUM"}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-primary-sm"
+                            disabled={k.sudahTerbit || !k.capaian.berhakSertifikat}
+                            title={
+                              k.sudahTerbit
+                                ? "Sertifikat sudah diterbitkan"
+                                : k.capaian.berhakSertifikat
+                                ? "Terbitkan sertifikat untuk kader ini"
+                                : "Belum memenuhi satu paket capaian terverifikasi"
+                            }
+                            onClick={() => {
+                              const hasil = siapkanSertifikat(k, nomorSertBaru, sertifikatList, {
+                                namaOrganisasi: profilKader.namaOrganisasi,
+                                ditandatanganiOleh: penandatangan,
+                                jabatanPenandatangan,
+                                fotoKaderBase64:
+                                  k.idKader === profilKader.idKader ? profilKader.fotoKaderBase64 : undefined
+                              });
+                              setPesanTerbit({ teks: hasil.pesan, ok: hasil.ok });
+                              if (hasil.ok && hasil.sertifikat) onTerbitkanSertifikat(hasil.sertifikat);
+                            }}
+                          >
+                            <Award size={13} /> Terbitkan
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {sertifikatList.length > 0 && (
               <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
