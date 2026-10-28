@@ -115,7 +115,7 @@ export const teksWilayah = (w: Partial<WilayahAdministrasi> | undefined | null):
 export function slugBerkas(teks: string | undefined | null, maks = 60): string {
   return (teks ?? "")
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")

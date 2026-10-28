@@ -247,7 +247,7 @@ function namaBerkasRekaman_(r) {
 
 function slug_(s, maks) {
   var t = String(s === undefined || s === null ? "" : s).toLowerCase();
-  if (t.normalize) t = t.normalize("NFKD").replace(/[̀-ͯ]/g, "");
+  if (t.normalize) t = t.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
   t = t.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   return t.slice(0, maks).replace(/_+$/, "");
 }
