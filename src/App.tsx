@@ -269,6 +269,21 @@ export const App: React.FC = () => {
     );
   };
 
+  // Handler Impor Berkas: data impor selalu ditandai dan mulai dari status "lokal",
+  // sehingga baru dihitung ke capaian setelah admin menyatakannya sah
+  const handleImporDataSpasial = (items: DataSpasialItem[]) => {
+    if (items.length === 0) return;
+    const ditandai = items.map((d) => ({
+      ...d,
+      diimpor: true,
+      statusSinkron: "lokal" as StatusSinkron
+    }));
+    setDataSpasial((prev) => [...ditandai, ...prev]);
+    tampilkanToast(
+      `✓ ${items.length} objek diimpor. Dihitung ke capaian setelah diverifikasi admin.`
+    );
+  };
+
   // Handler Update Kondisi pada Objek Existing
   const handleTambahPembaruanObjek = (
     idData: string,
@@ -675,10 +690,7 @@ export const App: React.FC = () => {
             onHapusLapisan={(id) =>
               setLapisanList((prev) => prev.filter((l) => l.id !== id))
             }
-            onImporDataSpasial={(items) => {
-              setDataSpasial((prev) => [...items, ...prev]);
-              tampilkanToast(`✓ ${items.length} objek spasial berhasil diimpor.`);
-            }}
+            onImporDataSpasial={handleImporDataSpasial}
             onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
           />
         )}
@@ -692,9 +704,7 @@ export const App: React.FC = () => {
             onSimpanDataBaru={handleSimpanDataBaru}
             onTambahPembaruanObjek={handleTambahPembaruanObjek}
             onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-            onImporDataSpasial={(items) =>
-              setDataSpasial((prev) => [...items, ...prev])
-            }
+            onImporDataSpasial={handleImporDataSpasial}
             onBukaSmartwatch={() => setBukaSmartwatch(true)}
           />
         )}

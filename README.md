@@ -5,7 +5,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
 ## Fitur Utama (Sesuai PRD v1.0)
 
 1. **Modul Pemetaan & Navigasi Lapangan (Setara Avenza Maps / AlpineQuest)**
-   - **Multi-Basemap & Offline Tile Downloader**: Citra Satelit Gratis (Esri World Imagery), OpenTopoMap, OpenStreetMap, dan Peta Kontur Taktis Offline, dilengkapi pengunduh kotak wilayah (*bounding box*) serta impor GeoJSON/GeoPDF.
+   - **Multi-Basemap & Offline Tile Downloader**: Citra Satelit Gratis (Esri World Imagery), OpenTopoMap, OpenStreetMap, dan Peta Kontur Taktis Offline, dilengkapi pengunduh kotak wilayah (*bounding box*) serta impor GeoJSON. Data hasil impor ditandai dan baru dihitung ke capaian setelah diverifikasi admin.
    - **Perekaman Data Spasial Presisi**:
      - **Titik Koordinat (Waypoint / Point)**: Koordinat $(X, Y, Z/\text{elevasi})$, akurasi GPS, kategori (Flora, Fauna, Mata Air, Tanda Batas, Ancaman), Nama Lokal/Ilmiah, Manfaat, dan lampiran Foto Geotagging.
      - **Jalur Perjalanan (GPS Tracking / Line)**: Perekaman jejak langkah dari GPS perangkat dengan perhitungan panjang otomatis dalam **Kilometer (km)**. Tersedia tombol *Simulasi* (mati secara bawaan) untuk demo dan pelatihan tanpa GPS; data simulasi ditandai dan tidak dihitung ke capaian maupun skor level.

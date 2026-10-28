@@ -130,10 +130,27 @@ export function formatKoordinatTeks(
 
 /**
  * True bila ada titik hasil mode simulasi (bukan GPS perangkat).
- * Data seperti ini tidak dihitung untuk capaian maupun skor level.
  */
 export function adalahDataSimulasi(item: DataSpasialItem): boolean {
   return item.koordinat.some((k) => k.simulasi === true);
+}
+
+/**
+ * True bila data berasal dari berkas impor. Data lama yang diimpor sebelum ada penanda
+ * dikenali dari awalan ID "IMP-".
+ */
+export function adalahDataImpor(item: DataSpasialItem): boolean {
+  return item.diimpor === true || item.id.startsWith("IMP-");
+}
+
+/**
+ * Menentukan apakah data dihitung untuk capaian paket dan skor level.
+ * Data simulasi tidak pernah dihitung. Data impor baru dihitung setelah diverifikasi admin.
+ */
+export function dihitungUntukCapaian(item: DataSpasialItem): boolean {
+  if (adalahDataSimulasi(item)) return false;
+  if (adalahDataImpor(item) && item.statusSinkron !== "terverifikasi") return false;
+  return true;
 }
 
 /**
@@ -201,6 +218,7 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
         luasHa: item.luasHa,
         statusSinkron: item.statusSinkron,
         simulasi: adalahDataSimulasi(item),
+        diimpor: adalahDataImpor(item),
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
         jumlahPembaruan: item.riwayatPembaruan.length

@@ -1,5 +1,5 @@
 import { DataSpasialItem, PesanKomunikasi, ProfilKader, TugasPemetaan } from "../types";
-import { adalahDataSimulasi } from "./geoUtils";
+import { dihitungUntukCapaian } from "./geoUtils";
 
 export const TARGET_TITIK = 50;
 export const TARGET_TRACKING_KM = 5.0;
@@ -244,7 +244,7 @@ export function hitungPeringkatGis20Level(
     (d) =>
       d.idKader === profil.idKader &&
       d.statusSinkron !== "ditolak" &&
-      !adalahDataSimulasi(d)
+      dihitungUntukCapaian(d)
   );
 
   // 1. Skor Volume Data
@@ -380,7 +380,7 @@ export function hitungCapaianKader(
   const dataKader = semuaData.filter((d) => {
     if (d.idKader !== profil.idKader) return false;
     if (d.statusSinkron === "ditolak") return false;
-    if (adalahDataSimulasi(d)) return false;
+    if (!dihitungUntukCapaian(d)) return false;
     if (hanyaTerverifikasi) return d.statusSinkron === "terverifikasi";
     return true;
   });

@@ -10,6 +10,7 @@ import {
   StatusSinkron,
   TugasPemetaan
 } from "../types";
+import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
 import {
   Check,
   Award,
@@ -359,6 +360,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       </td>
                       <td>
                         <span className="badge-kategori">{d.kategori}</span>{" "}
+                        {adalahDataImpor(d) && <span className="badge-kategori">IMPOR</span>}{" "}
+                        {adalahDataSimulasi(d) && <span className="badge-kategori">SIMULASI</span>}{" "}
                         <strong>{d.judul}</strong>
                       </td>
                       <td>

@@ -58,6 +58,7 @@ export interface DataSpasialItem {
   namaFileFoto?: string;
   driveFileUrl?: string;
   statusSinkron: StatusSinkron;
+  diimpor?: boolean; // true = berasal dari berkas luar, bukan rekaman lapangan kader
   catatanAdmin?: string;
   createdAt: string;
   updatedAt: string;
