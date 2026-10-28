@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { DataSpasialItem, KoordinatTitik, ProfilKader } from "../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
-import { Bluetooth, BluetoothOff, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
+import { Bluetooth, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
 
 interface SmartwatchModalProps {
   dataSpasial: DataSpasialItem[];
@@ -416,33 +416,23 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
             <strong>Smartwatch</strong>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button
               type="button"
-              className={`smartwatch-toggle-btn ${statusBt === "terhubung" ? "connected" : ""}`}
+              className={`smartwatch-pair-btn ${statusBt === "terhubung" ? "connected" : ""}`}
               onClick={
                 statusBt === "terhubung"
                   ? handlePutuskanBluetooth
                   : handleSambungkanBluetooth
               }
-              title={statusBt === "terhubung" ? "Putuskan Koneksi Smartwatch" : "Hubungkan Smartwatch"}
+              title={
+                statusBt === "terhubung"
+                  ? "Putuskan Smartwatch"
+                  : "Hubungkan Smartwatch"
+              }
             >
-              {statusBt === "terhubung" ? (
-                <>
-                  <BluetoothOff size={14} />
-                  <span>Putuskan</span>
-                </>
-              ) : statusBt === "menyambungkan" ? (
-                <>
-                  <Bluetooth size={14} />
-                  <span>Menghubungkan...</span>
-                </>
-              ) : (
-                <>
-                  <Bluetooth size={14} />
-                  <span>Hubungkan</span>
-                </>
-              )}
+              <Bluetooth size={13} />
+              <span>{statusBt === "terhubung" ? "Putuskan" : "Hubungkan"}</span>
             </button>
             <button
               type="button"

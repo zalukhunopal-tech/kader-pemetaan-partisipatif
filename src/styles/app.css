@@ -3498,47 +3498,31 @@ label {
   gap: 6px;
 }
 
-.smartwatch-bt-chip {
+.smartwatch-pair-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 4px 9px;
-  border-radius: 99px;
-.smartwatch-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  gap: 5px;
   background: #0284c7;
   color: #ffffff;
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  border: none;
   border-radius: 99px;
-  padding: 6px 14px;
-  font-size: 0.76rem;
+  padding: 5px 12px;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
 }
 
-.smartwatch-toggle-btn:hover {
+.smartwatch-pair-btn:hover {
   background: #0369a1;
 }
 
-.smartwatch-toggle-btn.connected {
+.smartwatch-pair-btn.connected {
   background: #dc2626;
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #ffffff;
 }
 
-.smartwatch-toggle-btn.connected:hover {
+.smartwatch-pair-btn.connected:hover {
   background: #b91c1c;
-}
-
-.smartwatch-toggle-btn:disabled {
-  opacity: 0.75;
-  cursor: wait;
 }
 
 .smartwatch-close-btn {
