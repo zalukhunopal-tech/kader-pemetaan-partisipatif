@@ -22,10 +22,7 @@ function lngToTileX(lng: number, zoom: number): number {
 
 function latToTileY(lat: number, zoom: number): number {
   const rad = (lat * Math.PI) / 180;
-  return (
-    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) *
-    Math.pow(2, zoom)
-  );
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * Math.pow(2, zoom);
 }
 
 /**
@@ -46,22 +43,13 @@ interface WebBluetooth {
   requestDevice: (opts: Record<string, unknown>) => Promise<BluetoothPerangkat>;
 }
 
-export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
-  dataSpasial,
-  profil,
-  onSimpanDataBaru,
-  onTutup
-}) => {
+export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({ dataSpasial, profil, onSimpanDataBaru, onTutup }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(
-    new Map()
-  );
+  const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
   const rekamLatar = usePerekamLatar();
 
   // State koneksi Bluetooth Smartwatch
-  const [statusBt, setStatusBt] = useState<
-    "terputus" | "menyambungkan" | "terhubung"
-  >("terputus");
+  const [statusBt, setStatusBt] = useState<"terputus" | "menyambungkan" | "terhubung">("terputus");
   const [namaJam, setNamaJam] = useState<string>("Smartwatch GIS");
   const [infoToastWatch, setInfoToastWatch] = useState<string | null>(null);
 
@@ -72,15 +60,9 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
   // Posisi dari GPS perangkat; null sampai ada fix. Selama mode simulasi (demo) mengikuti titik simulasi.
   const perangkat = usePosisiPerangkat();
   const posisiGps: KoordinatTitik | null =
-    rekamLatar.autoGpsAktif && rekamLatar.status === "merekam" && rekamLatar.posisiTerakhir
-      ? rekamLatar.posisiTerakhir
-      : perangkat.posisi;
+    rekamLatar.autoGpsAktif && rekamLatar.status === "merekam" && rekamLatar.posisiTerakhir ? rekamLatar.posisiTerakhir : perangkat.posisi;
   const pesanGps =
-    perangkat.statusGps === "ditolak"
-      ? "GPS ditolak"
-      : perangkat.statusGps === "tidak_tersedia"
-      ? "GPS tidak tersedia"
-      : "Mencari GPS…";
+    perangkat.statusGps === "ditolak" ? "GPS ditolak" : perangkat.statusGps === "tidak_tersedia" ? "GPS tidak tersedia" : "Mencari GPS…";
   const [renderTick, setRenderTick] = useState<number>(0);
 
   const tampilkanPesanSingkat = (teks: string) => {
@@ -170,14 +152,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
     });
 
     // Latar belakang peta gelap
-    const bg = ctx.createRadialGradient(
-      size / 2,
-      size / 2,
-      20,
-      size / 2,
-      size / 2,
-      size / 2
-    );
+    const bg = ctx.createRadialGradient(size / 2, size / 2, 20, size / 2, size / 2, size / 2);
     bg.addColorStop(0, "#0a291f");
     bg.addColorStop(1, "#041510");
     ctx.fillStyle = bg;
@@ -284,10 +259,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
     // Titik GPS pengguna di tengah layar smartwatch
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, 14, 0, Math.PI * 2);
-    ctx.fillStyle =
-      rekamLatar.status === "merekam"
-        ? "rgba(239, 68, 68, 0.3)"
-        : "rgba(14, 165, 233, 0.28)";
+    ctx.fillStyle = rekamLatar.status === "merekam" ? "rgba(239, 68, 68, 0.3)" : "rgba(14, 165, 233, 0.28)";
     ctx.fill();
 
     ctx.beginPath();
@@ -418,17 +390,12 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
     setTampilFiturWatch(false);
   };
 
-  const sedangRekamJalur =
-    rekamLatar.status !== "idle" && rekamLatar.jenis === "line";
-  const sedangRekamPoligon =
-    rekamLatar.status !== "idle" && rekamLatar.jenis === "polygon";
+  const sedangRekamJalur = rekamLatar.status !== "idle" && rekamLatar.jenis === "line";
+  const sedangRekamPoligon = rekamLatar.status !== "idle" && rekamLatar.jenis === "polygon";
 
   return (
     <div className="smartwatch-modal-backdrop" onClick={onTutup}>
-      <div
-        className="smartwatch-modal-sheet"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="smartwatch-modal-sheet" onClick={(e) => e.stopPropagation()}>
         {/* BAR KONEKSI SMARTWATCH */}
         <div className="smartwatch-bt-header">
           <div className="smartwatch-bt-title">
@@ -440,26 +407,13 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
             <button
               type="button"
               className={`smartwatch-pair-btn ${statusBt === "terhubung" ? "connected" : ""}`}
-              onClick={
-                statusBt === "terhubung"
-                  ? handlePutuskanBluetooth
-                  : handleSambungkanBluetooth
-              }
-              title={
-                statusBt === "terhubung"
-                  ? "Putuskan Smartwatch"
-                  : "Hubungkan Smartwatch"
-              }
+              onClick={statusBt === "terhubung" ? handlePutuskanBluetooth : handleSambungkanBluetooth}
+              title={statusBt === "terhubung" ? "Putuskan Smartwatch" : "Hubungkan Smartwatch"}
             >
               <Bluetooth size={13} />
               <span>{statusBt === "terhubung" ? "Putuskan" : "Hubungkan"}</span>
             </button>
-            <button
-              type="button"
-              className="smartwatch-close-btn"
-              onClick={onTutup}
-              title="Tutup"
-            >
+            <button type="button" className="smartwatch-close-btn" onClick={onTutup} title="Tutup">
               <X size={16} />
             </button>
           </div>
@@ -488,32 +442,22 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
             <canvas ref={canvasRef} className="smartwatch-map-canvas" />
 
             {/* INDIKATOR KECIL DI ATAS JIKA SEDANG MEREKAM */}
-            {rekamLatar.status !== "idle" && !tampilFiturWatch && (
-              <div className="smartwatch-rec-mini-dot" />
-            )}
+            {rekamLatar.status !== "idle" && !tampilFiturWatch && <div className="smartwatch-rec-mini-dot" />}
 
             {/* TOAST SINGKAT DI LAYAR JAM */}
-            {infoToastWatch && (
-              <div className="smartwatch-mini-toast">{infoToastWatch}</div>
-            )}
+            {infoToastWatch && <div className="smartwatch-mini-toast">{infoToastWatch}</div>}
 
             {/* MENU 3 FITUR SIMPEL: HANYA MUNCUL APABILA LAYAR DIKLIK */}
             {tampilFiturWatch && (
               <div className="smartwatch-Controls-overlay">
-                <button
-                  type="button"
-                  className="smartwatch-action-btn point"
-                  onClick={handleAmbilTitikWatch}
-                >
+                <button type="button" className="smartwatch-action-btn point" onClick={handleAmbilTitikWatch}>
                   <MapPin size={20} />
                   <span>Titik</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`smartwatch-action-btn line ${
-                    sedangRekamJalur ? "active-rec" : ""
-                  }`}
+                  className={`smartwatch-action-btn line ${sedangRekamJalur ? "active-rec" : ""}`}
                   onClick={handleRekamJalurWatch}
                 >
                   {sedangRekamJalur ? <Check size={20} /> : <Route size={20} />}
@@ -522,16 +466,10 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({
 
                 <button
                   type="button"
-                  className={`smartwatch-action-btn poly ${
-                    sedangRekamPoligon ? "active-rec" : ""
-                  }`}
+                  className={`smartwatch-action-btn poly ${sedangRekamPoligon ? "active-rec" : ""}`}
                   onClick={handleRekamPoligonWatch}
                 >
-                  {sedangRekamPoligon ? (
-                    <Check size={20} />
-                  ) : (
-                    <Square size={20} />
-                  )}
+                  {sedangRekamPoligon ? <Check size={20} /> : <Square size={20} />}
                   <span>{sedangRekamPoligon ? "Simpan" : "Poligon"}</span>
                 </button>
               </div>

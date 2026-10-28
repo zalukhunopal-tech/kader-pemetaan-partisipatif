@@ -44,11 +44,31 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
   // Akun dan data disemai sebelum aplikasi pertama kali dimuat (data spasial lalu dipindah ke IndexedDB)
   const semai = {
     akun: [
-      akunSemai({ idKader: "ADM-1", nama: "Siti Admin", email: "admin@contoh.id", peran: "admin", sandi: SANDI_UJI, totpRahasia: RAHASIA_ADMIN }),
+      akunSemai({
+        idKader: "ADM-1",
+        nama: "Siti Admin",
+        email: "admin@contoh.id",
+        peran: "admin",
+        sandi: SANDI_UJI,
+        totpRahasia: RAHASIA_ADMIN
+      }),
       akunSemai({ idKader: "KDR-2", nama: "Siti", email: "siti@contoh.id", peran: "kader", sandi: SANDI_UJI, totpRahasia: RAHASIA_SITI })
     ],
-    profil: { idKader: "KDR-1", nama: "Budi", desaWilayah: "Desa A", kelompokMasyarakat: "-", noHp: "-", namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif", modeKombinasiTarget: "per_kategori", logoSertifikatList: [{ id: "l1", nama: "Logo Uji", imageBase64: LOGO }] },
-    data: [...titik("KDR-1", "Budi", 50, "lokal"), ...titik("KDR-2", "Siti", 50, "terverifikasi"), ...titik("KDR-3", "Sari", 30, "terverifikasi")]
+    profil: {
+      idKader: "KDR-1",
+      nama: "Budi",
+      desaWilayah: "Desa A",
+      kelompokMasyarakat: "-",
+      noHp: "-",
+      namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
+      modeKombinasiTarget: "per_kategori",
+      logoSertifikatList: [{ id: "l1", nama: "Logo Uji", imageBase64: LOGO }]
+    },
+    data: [
+      ...titik("KDR-1", "Budi", 50, "lokal"),
+      ...titik("KDR-2", "Siti", 50, "terverifikasi"),
+      ...titik("KDR-3", "Sari", 30, "terverifikasi")
+    ]
   };
   await p.context().addInitScript((s) => {
     if (localStorage.getItem("__disemai")) return;
@@ -116,7 +136,11 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
 });
 
 test("Sertifikat di HP dengan huruf besar: tombol rapi, kartu capaian tidak meluber, pratinjau bertanda air", async ({ browser }) => {
-  const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2.6 }, true);
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2.6 },
+    true
+  );
   await masukSebagaiAdmin(p, URL_APP, "Adrila Nopal Prastian Zalukhu");
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
   await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();

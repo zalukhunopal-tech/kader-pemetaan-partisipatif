@@ -11,14 +11,7 @@ import { buatId } from "./id";
 export const BATAS_FITUR_IMPOR = 5000;
 export const BATAS_BYTE_IMPOR = 10_000_000;
 
-export const KATEGORI_VALID: KategoriSurvei[] = [
-  "Flora",
-  "Fauna",
-  "Mata Air",
-  "Tanda Batas",
-  "Ancaman / Temuan",
-  "Wilayah Adat / Lahan"
-];
+export const KATEGORI_VALID: KategoriSurvei[] = ["Flora", "Fauna", "Mata Air", "Tanda Batas", "Ancaman / Temuan", "Wilayah Adat / Lahan"];
 
 export interface FiturImpor {
   jenisGeometri: JenisGeometri;
@@ -85,8 +78,7 @@ function uraikanGeometri(g: unknown, lapor: (alasan: string) => void): Bentuk[] 
     const cincin = baris(c[0], 3);
     if (!cincin) return null;
     // Cincin GeoJSON ditutup dengan titik pertama; aplikasi menyimpan cincin terbuka
-    const terbuka =
-      cincin.length > 3 && samaTitik(cincin[0], cincin[cincin.length - 1]) ? cincin.slice(0, -1) : cincin;
+    const terbuka = cincin.length > 3 && samaTitik(cincin[0], cincin[cincin.length - 1]) ? cincin.slice(0, -1) : cincin;
     return terbuka.length >= 3 ? { jenis: "polygon", koordinat: terbuka } : null;
   };
 
@@ -167,7 +159,8 @@ export function parseGeoJSON(isi: string): HasilParse {
   let daftar: unknown[];
   if (j && j.type === "FeatureCollection" && Array.isArray(j.features)) daftar = j.features;
   else if (j && j.type === "Feature") daftar = [j];
-  else if (j && typeof j.type === "string") daftar = [{ type: "Feature", properties: {}, geometry: j }]; // geometri polos
+  else if (j && typeof j.type === "string")
+    daftar = [{ type: "Feature", properties: {}, geometry: j }]; // geometri polos
   else throw new Error("Berkas bukan GeoJSON: tidak ada FeatureCollection, Feature, atau geometri.");
 
   if (daftar.length > BATAS_FITUR_IMPOR) {
@@ -206,8 +199,7 @@ function bacaXml(isi: string, nama: string): Document {
   return doc;
 }
 
-const isiTag = (el: Element, tag: string): string | undefined =>
-  teks(el.getElementsByTagName(tag)[0]?.textContent ?? undefined);
+const isiTag = (el: Element, tag: string): string | undefined => teks(el.getElementsByTagName(tag)[0]?.textContent ?? undefined);
 
 function koordinatKML(el: Element | undefined): number[][] {
   const mentah = el?.getElementsByTagName("coordinates")[0]?.textContent ?? "";
@@ -241,7 +233,11 @@ export function parseKML(isi: string): HasilParse {
       const luar = el.getElementsByTagName("outerBoundaryIs")[0];
       bentuk.push(...uraikanGeometri({ type: "Polygon", coordinates: [koordinatKML(luar)] }, lapor));
     }
-    if (bentuk.length === 0 && pm.getElementsByTagName("Point").length + pm.getElementsByTagName("LineString").length + pm.getElementsByTagName("Polygon").length === 0) {
+    if (
+      bentuk.length === 0 &&
+      pm.getElementsByTagName("Point").length + pm.getElementsByTagName("LineString").length + pm.getElementsByTagName("Polygon").length ===
+        0
+    ) {
       lapor("tidak ada geometri yang didukung (Point, LineString, Polygon)");
     }
     fitur.push(

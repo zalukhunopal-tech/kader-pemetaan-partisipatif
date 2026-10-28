@@ -152,8 +152,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
     lisensi: "Data ODbL. Server tile OSM boleh dipakai untuk melihat peta dengan atribusi, tidak untuk diunduh massal.",
     zoomMaks: 19,
     bolehUnduh: env.VITE_TILE_UNDUH_OSM === "true",
-    alasanTidakBoleh:
-      "Kebijakan tile OpenStreetMap melarang pengunduhan massal dari tile.openstreetmap.org.",
+    alasanTidakBoleh: "Kebijakan tile OpenStreetMap melarang pengunduhan massal dari tile.openstreetmap.org.",
     rataKbPerTile: 14
   },
   topo: {
@@ -167,8 +166,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
     lisensi: "CC-BY-SA dengan atribusi. Untuk dilihat online; pemakaian besar perlu menghubungi OpenTopoMap.",
     zoomMaks: 17,
     bolehUnduh: env.VITE_TILE_UNDUH_TOPO === "true",
-    alasanTidakBoleh:
-      "Layanan OpenTopoMap publik tidak menjamin izin pengunduhan massal untuk pemakaian offline.",
+    alasanTidakBoleh: "Layanan OpenTopoMap publik tidak menjamin izin pengunduhan massal untuk pemakaian offline.",
     rataKbPerTile: 28
   }
 };
@@ -258,7 +256,11 @@ export function templateAktif(basemap: BasemapTile): string {
  * padahal online (mis. penyedia mengubah jalur layanan), templat cadangan dipakai. Mengembalikan
  * true bila templat berganti sehingga peta perlu digambar ulang.
  */
-export function laporHasilTile(basemap: BasemapType, berhasil: boolean, online = typeof navigator === "undefined" || navigator.onLine): boolean {
+export function laporHasilTile(
+  basemap: BasemapType,
+  berhasil: boolean,
+  online = typeof navigator === "undefined" || navigator.onLine
+): boolean {
   if (basemap === "taktis") return false;
   const c = (hitungGagal[basemap] ??= { gagal: 0, berhasil: 0 });
   if (berhasil) {
@@ -312,8 +314,7 @@ export function zoomSumber(basemap: BasemapType, zoomTampil: number): number {
   return Math.min(Math.round(zoomTampil), SUMBER_TILE[basemap].zoomMaks);
 }
 
-export const perkiraanUkuranMb = (jumlahTile: number, basemap: BasemapTile) =>
-  (jumlahTile * SUMBER_TILE[basemap].rataKbPerTile) / 1024;
+export const perkiraanUkuranMb = (jumlahTile: number, basemap: BasemapTile) => (jumlahTile * SUMBER_TILE[basemap].rataKbPerTile) / 1024;
 
 /* ---------- Cache API ---------- */
 

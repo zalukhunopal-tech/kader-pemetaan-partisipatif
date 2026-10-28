@@ -229,7 +229,17 @@ describe("perekam latar: pemulihan setelah aplikasi dibuka ulang", () => {
   it("rekaman yang masih berjalan dilanjutkan: GPS dipantau lagi dan durasi lama dipertahankan", async () => {
     localStorage.setItem(
       KUNCI,
-      JSON.stringify({ status: "merekam", jenis: "line", titik: [{ lat: 1, lng: 2 }], mulaiPada: "2026-10-28T01:00:00.000Z", durasiTersimpanMs: 120_000, segmenMulaiMs: 1, posisiTerakhir: null, autoGpsAktif: false, galat: null })
+      JSON.stringify({
+        status: "merekam",
+        jenis: "line",
+        titik: [{ lat: 1, lng: 2 }],
+        mulaiPada: "2026-10-28T01:00:00.000Z",
+        durasiTersimpanMs: 120_000,
+        segmenMulaiMs: 1,
+        posisiTerakhir: null,
+        autoGpsAktif: false,
+        galat: null
+      })
     );
     const gps = pasangGpsTiruan();
     const m = await muat();
@@ -243,7 +253,17 @@ describe("perekam latar: pemulihan setelah aplikasi dibuka ulang", () => {
   it("rekaman lama dengan Auto GPS aktif ditandai simulasi dan timernya tidak dinyalakan lagi", async () => {
     localStorage.setItem(
       KUNCI,
-      JSON.stringify({ status: "dijeda", jenis: "line", titik: [{ lat: 1, lng: 2 }, { lat: 1.001, lng: 2 }], durasiTersimpanMs: 0, segmenMulaiMs: null, autoGpsAktif: true })
+      JSON.stringify({
+        status: "dijeda",
+        jenis: "line",
+        titik: [
+          { lat: 1, lng: 2 },
+          { lat: 1.001, lng: 2 }
+        ],
+        durasiTersimpanMs: 0,
+        segmenMulaiMs: null,
+        autoGpsAktif: true
+      })
     );
     pasangGpsTiruan();
     const { perekamLatar } = await muat();
@@ -286,8 +306,36 @@ describe("format durasi dan ringkasan", () => {
 
   it("ringkasan jalur (km) dan poligon (Ha)", async () => {
     const { ringkasanRekam } = await muat();
-    const dasar = { status: "merekam" as const, mulaiPada: null, durasiTersimpanMs: 0, segmenMulaiMs: null, posisiTerakhir: null, autoGpsAktif: false, galat: null };
-    expect(ringkasanRekam({ ...dasar, jenis: "line", titik: [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.01 }] })).toMatch(/^2 titik • 1\.1\d* km$/);
-    expect(ringkasanRekam({ ...dasar, jenis: "polygon", titik: [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.001 }, { lat: 0.001, lng: 0.001 }, { lat: 0.001, lng: 0 }] })).toMatch(/^4 sudut • 1\.2\d* Ha$/);
+    const dasar = {
+      status: "merekam" as const,
+      mulaiPada: null,
+      durasiTersimpanMs: 0,
+      segmenMulaiMs: null,
+      posisiTerakhir: null,
+      autoGpsAktif: false,
+      galat: null
+    };
+    expect(
+      ringkasanRekam({
+        ...dasar,
+        jenis: "line",
+        titik: [
+          { lat: 0, lng: 0 },
+          { lat: 0, lng: 0.01 }
+        ]
+      })
+    ).toMatch(/^2 titik • 1\.1\d* km$/);
+    expect(
+      ringkasanRekam({
+        ...dasar,
+        jenis: "polygon",
+        titik: [
+          { lat: 0, lng: 0 },
+          { lat: 0, lng: 0.001 },
+          { lat: 0.001, lng: 0.001 },
+          { lat: 0.001, lng: 0 }
+        ]
+      })
+    ).toMatch(/^4 sudut • 1\.2\d* Ha$/);
   });
 });

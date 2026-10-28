@@ -135,8 +135,8 @@ export const VerifikasiIdentitas: React.FC<VerifikasiIdentitasProps> = ({ sesi, 
           </>
         ) : (
           <>
-            <ShieldCheck size={15} aria-hidden="true" /> Kode <strong>Google Authenticator</strong> berlaku 8 jam dan sudah
-            habis. Masukkan kode 6 digit terbaru.
+            <ShieldCheck size={15} aria-hidden="true" /> Kode <strong>Google Authenticator</strong> berlaku 8 jam dan sudah habis. Masukkan
+            kode 6 digit terbaru.
           </>
         )}
       </p>

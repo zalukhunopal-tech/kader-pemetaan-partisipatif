@@ -90,11 +90,7 @@ function pesanGalat(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function kirimBatch(
-  url: string,
-  konfig: KonfigurasiGDrive,
-  batch: DataSpasialItem[]
-): Promise<BalasanDiterima> {
+async function kirimBatch(url: string, konfig: KonfigurasiGDrive, batch: DataSpasialItem[]): Promise<BalasanDiterima> {
   const payload = {
     action: "sync_spatial_batch",
     token: konfig.tokenBersama ?? "",
@@ -121,8 +117,7 @@ async function kirimBatch(
       luasHa: d.luasHa,
       fotoBase64: d.fotoBase64 || "",
       namaFileFoto:
-        d.namaFileFoto ||
-        `${d.kategori.toUpperCase().replace(/\W+/g, "_")}_${d.idKader}_${d.createdAt.slice(0, 10).replace(/-/g, "")}.jpg`,
+        d.namaFileFoto || `${d.kategori.toUpperCase().replace(/\W+/g, "_")}_${d.idKader}_${d.createdAt.slice(0, 10).replace(/-/g, "")}.jpg`,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt
     }))
@@ -143,9 +138,7 @@ async function kirimBatch(
     try {
       json = JSON.parse(teks);
     } catch {
-      throw new Error(
-        "balasan bukan JSON (pastikan Web App dipasang dengan akses \"Anyone\" dan URL berakhiran /exec)"
-      );
+      throw new Error('balasan bukan JSON (pastikan Web App dipasang dengan akses "Anyone" dan URL berakhiran /exec)');
     }
     return tafsirkanBalasan(
       json,
@@ -161,10 +154,7 @@ async function kirimBatch(
  * Web App. Status data hanya berubah untuk id yang dikonfirmasi tersimpan; tanpa URL yang
  * valid tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil.
  */
-export async function sinkronkanDataKeGDrive(
-  itemList: DataSpasialItem[],
-  konfig: KonfigurasiGDrive
-): Promise<HasilSinkron> {
+export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], konfig: KonfigurasiGDrive): Promise<HasilSinkron> {
   const belumSinkron = itemList.filter((d) => d.statusSinkron === "lokal");
   if (belumSinkron.length === 0) {
     return {
@@ -179,8 +169,7 @@ export async function sinkronkanDataKeGDrive(
   if (!urlAppsScriptValid(url)) {
     return {
       sukses: false,
-      pesan:
-        "Belum tersambung ke Google Drive. Isi URL Web App (berakhiran /exec) dan token di bagian Konfigurasi. Data tetap aman di HP.",
+      pesan: "Belum tersambung ke Google Drive. Isi URL Web App (berakhiran /exec) dan token di bagian Konfigurasi. Data tetap aman di HP.",
       idTersinkron: [],
       jumlahGagal: belumSinkron.length,
       belumDiatur: true

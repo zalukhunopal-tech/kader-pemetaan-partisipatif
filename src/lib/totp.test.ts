@@ -85,8 +85,12 @@ describe("periksaTotp", () => {
     const pertama = periksaTotp(RAHASIA_RFC, kodeSaatIni, { sekarangMs: T });
     expect(periksaTotp(RAHASIA_RFC, kodeSaatIni, { sekarangMs: T, langkahTerakhir: pertama.langkah }).ok).toBe(false);
     // kode langkah sebelumnya juga tidak boleh dipakai setelah langkah ini terpakai
-    expect(periksaTotp(RAHASIA_RFC, hitungTotp(RAHASIA_RFC, T - 30_000)!, { sekarangMs: T, langkahTerakhir: pertama.langkah }).ok).toBe(false);
-    expect(periksaTotp(RAHASIA_RFC, hitungTotp(RAHASIA_RFC, T + 30_000)!, { sekarangMs: T, langkahTerakhir: pertama.langkah }).ok).toBe(true);
+    expect(periksaTotp(RAHASIA_RFC, hitungTotp(RAHASIA_RFC, T - 30_000)!, { sekarangMs: T, langkahTerakhir: pertama.langkah }).ok).toBe(
+      false
+    );
+    expect(periksaTotp(RAHASIA_RFC, hitungTotp(RAHASIA_RFC, T + 30_000)!, { sekarangMs: T, langkahTerakhir: pertama.langkah }).ok).toBe(
+      true
+    );
   });
 
   it("menolak masukan yang bukan 6 digit, kosong, atau rahasia tidak sah", () => {

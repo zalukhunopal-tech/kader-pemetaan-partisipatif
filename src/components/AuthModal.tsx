@@ -14,19 +14,7 @@ import {
 import { rahasiaUntukTampil } from "../lib/totp";
 import { KodeQrSvg } from "./KodeQrSvg";
 import { TombolInstal } from "./InstalAplikasi";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Compass,
-  Copy,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Lock,
-  Mail,
-  ShieldCheck,
-  Smartphone
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Compass, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone } from "lucide-react";
 
 interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
@@ -35,7 +23,15 @@ interface AuthModalProps {
 type Mode = "login" | "kode_totp" | "daftar_totp" | "kode_pemulihan" | "ganti_sandi" | "setup_admin" | "lupa_password";
 
 const gayaLabel: React.CSSProperties = { display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 };
-const gayaInput: React.CSSProperties = { width: "100%", height: 42, padding: "0 12px", borderRadius: 10, border: "1.5px solid #cbd5e1", fontSize: "0.88rem", outline: "none" };
+const gayaInput: React.CSSProperties = {
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: "1.5px solid #cbd5e1",
+  fontSize: "0.88rem",
+  outline: "none"
+};
 const gayaInputIkon: React.CSSProperties = { ...gayaInput, padding: "0 12px 0 36px" };
 const gayaTombol = (sibuk: boolean): React.CSSProperties => ({
   height: 44,
@@ -48,7 +44,14 @@ const gayaTombol = (sibuk: boolean): React.CSSProperties => ({
   cursor: sibuk ? "wait" : "pointer",
   opacity: sibuk ? 0.7 : 1
 });
-const gayaTautan: React.CSSProperties = { border: "none", background: "transparent", color: "#64748b", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
+const gayaTautan: React.CSSProperties = {
+  border: "none",
+  background: "transparent",
+  color: "#64748b",
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  cursor: "pointer"
+};
 const gayaIkonKiri: React.CSSProperties = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" };
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
@@ -312,7 +315,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
           {pesanError && (
             <div
               role="alert"
-              style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "10px 12px", borderRadius: 10, fontSize: "0.8rem", display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}
+              style={{
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                color: "#991b1b",
+                padding: "10px 12px",
+                borderRadius: 10,
+                fontSize: "0.8rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 14
+              }}
             >
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{pesanError}</span>
@@ -321,7 +335,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
           {pesanSukses && (
             <div
               role="status"
-              style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "10px 12px", borderRadius: 10, fontSize: "0.8rem", display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}
+              style={{
+                background: "#f0fdf4",
+                border: "1px solid #bbf7d0",
+                color: "#166534",
+                padding: "10px 12px",
+                borderRadius: 10,
+                fontSize: "0.8rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 14
+              }}
             >
               <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
               <span>{pesanSukses}</span>
@@ -350,7 +375,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <label style={{ ...gayaLabel, margin: 0 }}>Kata Sandi</label>
-                  <button type="button" onClick={() => pindah("lupa_password")} style={{ ...gayaTautan, color: "#0d7344", fontSize: "0.75rem", padding: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => pindah("lupa_password")}
+                    style={{ ...gayaTautan, color: "#0d7344", fontSize: "0.75rem", padding: 0 }}
+                  >
                     Lupa Kata Sandi?
                   </button>
                 </div>
@@ -369,7 +398,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                     type="button"
                     aria-label={lihatPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                     onClick={() => setLihatPassword((v) => !v)}
-                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", color: "#64748b", cursor: "pointer" }}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      color: "#64748b",
+                      cursor: "pointer"
+                    }}
                   >
                     {lihatPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
@@ -385,7 +423,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               </p>
 
               {butuhAdminPertama && (
-                <button type="button" id="buka-setup-admin" onClick={() => pindah("setup_admin")} style={{ ...gayaTautan, color: "#0369a1" }}>
+                <button
+                  type="button"
+                  id="buka-setup-admin"
+                  onClick={() => pindah("setup_admin")}
+                  style={{ ...gayaTautan, color: "#0369a1" }}
+                >
                   Perangkat ini belum punya Administrator: buat Administrator pertama
                 </button>
               )}
@@ -419,8 +462,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 {sedangProses ? "Memeriksa…" : "Masuk"}
               </button>
               <p style={{ margin: 0, fontSize: "0.74rem", color: "#64748b", lineHeight: 1.45 }}>
-                HP hilang atau Authenticator tidak bisa dibuka? Ketik salah satu <strong>kode pemulihan</strong>{" "}
-                (bentuk <code>ABCDE-FGH23</code>) di kolom ini. Tiap kode hanya berlaku sekali.
+                HP hilang atau Authenticator tidak bisa dibuka? Ketik salah satu <strong>kode pemulihan</strong> (bentuk{" "}
+                <code>ABCDE-FGH23</code>) di kolom ini. Tiap kode hanya berlaku sekali.
               </p>
               <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
                 ← Kembali
@@ -437,8 +480,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{emailLogin}</div>
               </div>
               <ol style={{ margin: 0, paddingLeft: 18, fontSize: "0.8rem", color: "#334155", lineHeight: 1.6 }}>
-                <li>Pasang <strong>Google Authenticator</strong> di HP (Play Store atau App Store).</li>
-                <li>Pilih <strong>+</strong> lalu <strong>Pindai kode QR</strong> dan arahkan ke kode di bawah.</li>
+                <li>
+                  Pasang <strong>Google Authenticator</strong> di HP (Play Store atau App Store).
+                </li>
+                <li>
+                  Pilih <strong>+</strong> lalu <strong>Pindai kode QR</strong> dan arahkan ke kode di bawah.
+                </li>
                 <li>Ketik kode 6 digit yang muncul untuk GeoKader, lalu tekan Aktifkan.</li>
               </ol>
               <div style={{ display: "flex", justifyContent: "center" }}>
@@ -448,7 +495,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               </div>
               <div style={{ fontSize: "0.74rem", color: "#475569", textAlign: "center" }}>
                 Tidak bisa memindai? Pilih <em>Masukkan kunci setelan</em> lalu ketik kunci ini:
-                <div id="kunci-totp" style={{ marginTop: 4, fontFamily: "ui-monospace, monospace", fontSize: "0.86rem", fontWeight: 700, color: "#0f172a", userSelect: "all", wordBreak: "break-all" }}>
+                <div
+                  id="kunci-totp"
+                  style={{
+                    marginTop: 4,
+                    fontFamily: "ui-monospace, monospace",
+                    fontSize: "0.86rem",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    userSelect: "all",
+                    wordBreak: "break-all"
+                  }}
+                >
                   {rahasiaUntukTampil(totp.rahasia)}
                 </div>
               </div>
@@ -481,25 +539,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Authenticator aktif</h4>
               </div>
               <p style={{ margin: 0, fontSize: "0.8rem", color: "#334155", lineHeight: 1.5 }}>
-                Simpan <strong>kode pemulihan</strong> ini di tempat aman (mis. dicetak). Kode ini satu-satunya jalan masuk bila
-                HP hilang, dan <strong>hanya ditampilkan sekarang</strong>. Tiap kode berlaku sekali.
+                Simpan <strong>kode pemulihan</strong> ini di tempat aman (mis. dicetak). Kode ini satu-satunya jalan masuk bila HP hilang,
+                dan <strong>hanya ditampilkan sekarang</strong>. Tiap kode berlaku sekali.
               </p>
               <div
                 id="daftar-kode-pemulihan"
-                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, fontFamily: "ui-monospace, monospace", fontSize: "0.88rem", fontWeight: 700, textAlign: "center" }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 6,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 10,
+                  padding: 10,
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: "0.88rem",
+                  fontWeight: 700,
+                  textAlign: "center"
+                }}
               >
                 {hasilDaftar.kodePemulihan.map((k) => (
-                  <span key={k} style={{ userSelect: "all" }}>{k}</span>
+                  <span key={k} style={{ userSelect: "all" }}>
+                    {k}
+                  </span>
                 ))}
               </div>
-              <button type="button" onClick={() => void salinKodePemulihan()} style={{ ...gayaTombol(false), background: "#ffffff", color: "#0d7344", border: "1.5px solid #0d7344", height: 38, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => void salinKodePemulihan()}
+                style={{
+                  ...gayaTombol(false),
+                  background: "#ffffff",
+                  color: "#0d7344",
+                  border: "1.5px solid #0d7344",
+                  height: 38,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6
+                }}
+              >
                 <Copy size={14} /> {tersalin ? "Tersalin" : "Salin semua kode"}
               </button>
               <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.8rem", color: "#334155" }}>
-                <input id="kode-sudah-disimpan" type="checkbox" checked={sudahDisimpan} onChange={(e) => setSudahDisimpan(e.target.checked)} style={{ marginTop: 3 }} />
+                <input
+                  id="kode-sudah-disimpan"
+                  type="checkbox"
+                  checked={sudahDisimpan}
+                  onChange={(e) => setSudahDisimpan(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
                 Saya sudah menyimpan kode pemulihan ini.
               </label>
-              <button type="button" id="lanjut-setelah-pemulihan" disabled={!sudahDisimpan} onClick={lanjutSetelahKodePemulihan} style={{ ...gayaTombol(false), opacity: sudahDisimpan ? 1 : 0.5, cursor: sudahDisimpan ? "pointer" : "not-allowed" }}>
+              <button
+                type="button"
+                id="lanjut-setelah-pemulihan"
+                disabled={!sudahDisimpan}
+                onClick={lanjutSetelahKodePemulihan}
+                style={{ ...gayaTombol(false), opacity: sudahDisimpan ? 1 : 0.5, cursor: sudahDisimpan ? "pointer" : "not-allowed" }}
+              >
                 Lanjut ke aplikasi
               </button>
             </div>
@@ -508,36 +606,89 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
           {/* 5. PENYIAPAN ADMINISTRATOR PERTAMA (hanya selama perangkat belum punya admin) */}
           {mode === "setup_admin" && (
             <form id="form-setup-admin" onSubmit={handleSetupAdmin} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "10px 12px", fontSize: "0.78rem", color: "#1e3a8a", lineHeight: 1.5 }}>
-                <strong>Penyiapan awal.</strong> Perangkat ini belum punya Administrator. Buat akun Administrator pertama; akun
-                kader selanjutnya dibuat oleh Administrator dari menu Admin &gt; Akun. Tidak ada pendaftaran mandiri.
+              <div
+                style={{
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  fontSize: "0.78rem",
+                  color: "#1e3a8a",
+                  lineHeight: 1.5
+                }}
+              >
+                <strong>Penyiapan awal.</strong> Perangkat ini belum punya Administrator. Buat akun Administrator pertama; akun kader
+                selanjutnya dibuat oleh Administrator dari menu Admin &gt; Akun. Tidak ada pendaftaran mandiri.
               </div>
               <div>
                 <label style={gayaLabel}>Nama Lengkap *</label>
-                <input type="text" required placeholder="Nama lengkap" value={adm.nama} onChange={(e) => setAdm({ ...adm, nama: e.target.value })} style={gayaInput} />
+                <input
+                  type="text"
+                  required
+                  placeholder="Nama lengkap"
+                  value={adm.nama}
+                  onChange={(e) => setAdm({ ...adm, nama: e.target.value })}
+                  style={gayaInput}
+                />
               </div>
               <div>
                 <label style={gayaLabel}>Email *</label>
-                <input type="email" required autoComplete="username" placeholder="Alamat email" value={adm.email} onChange={(e) => setAdm({ ...adm, email: e.target.value })} style={gayaInput} />
+                <input
+                  type="email"
+                  required
+                  autoComplete="username"
+                  placeholder="Alamat email"
+                  value={adm.email}
+                  onChange={(e) => setAdm({ ...adm, email: e.target.value })}
+                  style={gayaInput}
+                />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
                 <div>
                   <label style={gayaLabel}>Desa / Wilayah</label>
-                  <input type="text" placeholder="Nama desa/wilayah" value={adm.desa} onChange={(e) => setAdm({ ...adm, desa: e.target.value })} style={gayaInput} />
+                  <input
+                    type="text"
+                    placeholder="Nama desa/wilayah"
+                    value={adm.desa}
+                    onChange={(e) => setAdm({ ...adm, desa: e.target.value })}
+                    style={gayaInput}
+                  />
                 </div>
                 <div>
                   <label style={gayaLabel}>No. HP</label>
-                  <input type="text" placeholder="Nomor telepon" value={adm.noHp} onChange={(e) => setAdm({ ...adm, noHp: e.target.value })} style={gayaInput} />
+                  <input
+                    type="text"
+                    placeholder="Nomor telepon"
+                    value={adm.noHp}
+                    onChange={(e) => setAdm({ ...adm, noHp: e.target.value })}
+                    style={gayaInput}
+                  />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
                 <div>
                   <label style={gayaLabel}>Kata Sandi *</label>
-                  <input type="password" required autoComplete="new-password" placeholder={`Min. ${MIN_PANJANG_SANDI} karakter`} value={adm.sandi} onChange={(e) => setAdm({ ...adm, sandi: e.target.value })} style={gayaInput} />
+                  <input
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    placeholder={`Min. ${MIN_PANJANG_SANDI} karakter`}
+                    value={adm.sandi}
+                    onChange={(e) => setAdm({ ...adm, sandi: e.target.value })}
+                    style={gayaInput}
+                  />
                 </div>
                 <div>
                   <label style={gayaLabel}>Konfirmasi *</label>
-                  <input type="password" required autoComplete="new-password" placeholder="Ulangi sandi" value={adm.ulang} onChange={(e) => setAdm({ ...adm, ulang: e.target.value })} style={gayaInput} />
+                  <input
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    placeholder="Ulangi sandi"
+                    value={adm.ulang}
+                    onChange={(e) => setAdm({ ...adm, ulang: e.target.value })}
+                    style={gayaInput}
+                  />
                 </div>
               </div>
               {kodeAdminDiperlukan && (
@@ -570,16 +721,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                 <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Lupa kata sandi atau HP hilang</h4>
               </div>
               <p style={{ margin: 0, fontSize: "0.84rem", color: "#334155", lineHeight: 1.5 }}>
-                Kata sandi tidak bisa diatur ulang sendiri tanpa verifikasi. Hubungi Administrator GIS Anda: admin akan membuat
-                kata sandi sementara, dan Anda wajib menggantinya saat masuk.
+                Kata sandi tidak bisa diatur ulang sendiri tanpa verifikasi. Hubungi Administrator GIS Anda: admin akan membuat kata sandi
+                sementara, dan Anda wajib menggantinya saat masuk.
               </p>
               <p style={{ margin: 0, fontSize: "0.84rem", color: "#334155", lineHeight: 1.5 }}>
-                HP dengan Google Authenticator hilang? Masuk memakai salah satu <strong>kode pemulihan</strong>, atau minta
-                admin menghapus Authenticator Anda lalu daftarkan yang baru saat masuk.
+                HP dengan Google Authenticator hilang? Masuk memakai salah satu <strong>kode pemulihan</strong>, atau minta admin menghapus
+                Authenticator Anda lalu daftarkan yang baru saat masuk.
               </p>
               <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b", lineHeight: 1.5 }}>
-                Jika Anda satu-satunya Administrator dan kehilangan sandi atau kode pemulihan, data di perangkat ini hanya
-                bisa dipulihkan dengan mengosongkan data aplikasi.
+                Jika Anda satu-satunya Administrator dan kehilangan sandi atau kode pemulihan, data di perangkat ini hanya bisa dipulihkan
+                dengan mengosongkan data aplikasi.
               </p>
               <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
                 ← Kembali

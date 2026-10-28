@@ -1,14 +1,7 @@
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { PeranPengguna } from "../types";
-import {
-  buatKodePemulihan,
-  buatRahasiaTotp,
-  hashKodePemulihan,
-  miripKodePemulihan,
-  periksaTotp,
-  uriOtpauth
-} from "./totp";
+import { buatKodePemulihan, buatRahasiaTotp, hashKodePemulihan, miripKodePemulihan, periksaTotp, uriOtpauth } from "./totp";
 import { bukaGerbangAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
 import { aplikasiTerbuka, bukaAplikasi, kunciAplikasi } from "./kunciAplikasi";
 
@@ -239,12 +232,7 @@ const dariBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0
  * PBKDF2-HMAC-SHA256. Memakai WebCrypto bila ada (konteks aman), selain itu pustaka murni JS.
  * Keduanya menghasilkan keluaran yang sama untuk masukan yang sama.
  */
-export async function turunkanKunci(
-  kataSandi: string,
-  garam: Uint8Array,
-  iterasi: number,
-  paksaFallback = false
-): Promise<Uint8Array> {
+export async function turunkanKunci(kataSandi: string, garam: Uint8Array, iterasi: number, paksaFallback = false): Promise<Uint8Array> {
   const sandi = kataSandi.normalize("NFKC");
   const sub = paksaFallback ? undefined : globalThis.crypto?.subtle;
   if (sub) {
@@ -285,7 +273,18 @@ export function validasiKataSandi(kataSandi: string, konteks: { nama?: string; e
   if (kataSandi.length < MIN_PANJANG_SANDI) return `Kata sandi minimal ${MIN_PANJANG_SANDI} karakter.`;
   if (/^(.)\1+$/.test(kataSandi)) return "Kata sandi tidak boleh berupa satu karakter yang diulang.";
   const kecil = kataSandi.toLowerCase();
-  const umum = ["12345678", "123456789", "1234567890", "password", "kata sandi", "katasandi", "qwertyui", "kader123", "admin123", "geokader"];
+  const umum = [
+    "12345678",
+    "123456789",
+    "1234567890",
+    "password",
+    "kata sandi",
+    "katasandi",
+    "qwertyui",
+    "kader123",
+    "admin123",
+    "geokader"
+  ];
   if (umum.some((u) => kecil === u || kecil.startsWith(u + "1"))) return "Kata sandi terlalu umum. Pilih yang lebih sulit ditebak.";
   const lokal = (konteks.email ?? "").split("@")[0].toLowerCase();
   if (lokal.length >= 4 && kecil.includes(lokal)) return "Kata sandi tidak boleh memuat bagian email.";
@@ -427,9 +426,7 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
   else kunciGerbangAdmin();
   return {
     sukses: true,
-    pesan: hasil.pemulihan
-      ? `Selamat datang, ${akun.nama}! Kode pemulihan dipakai; sisa ${hasil.sisa}.`
-      : `Selamat datang, ${akun.nama}!`,
+    pesan: hasil.pemulihan ? `Selamat datang, ${akun.nama}! Kode pemulihan dipakai; sisa ${hasil.sisa}.` : `Selamat datang, ${akun.nama}!`,
     akun: sesi,
     sisaKodePemulihan: hasil.pemulihan ? hasil.sisa : undefined
   };
@@ -505,7 +502,11 @@ export async function buatAdminPertama(data: DataDaftar, kodeAktivasi = ""): Pro
     return { sukses: false, pesan: "Kode aktivasi administrator tidak cocok." };
   }
   const { sukses, pesan } = await buatAkun(data, data.kataSandi, "admin");
-  return { sukses, pesan: sukses ? "Administrator dibuat. Lanjutkan dengan mendaftarkan Google Authenticator." : pesan, perluDaftarTotp: sukses };
+  return {
+    sukses,
+    pesan: sukses ? "Administrator dibuat. Lanjutkan dengan mendaftarkan Google Authenticator." : pesan,
+    perluDaftarTotp: sukses
+  };
 }
 
 /**
@@ -620,10 +621,7 @@ export async function buatAkunOlehAdmin(
 
 /* ---------- Pendaftaran Google Authenticator ---------- */
 
-async function periksaSandiUntukTotp(
-  email: string,
-  kataSandi: string
-): Promise<{ akun?: AkunPengguna; galat?: string }> {
+async function periksaSandiUntukTotp(email: string, kataSandi: string): Promise<{ akun?: AkunPengguna; galat?: string }> {
   const emailBersih = email.trim().toLowerCase();
   const tunggu = detikTertahan(emailBersih);
   if (tunggu > 0) return { galat: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
@@ -683,10 +681,7 @@ export async function selesaikanPendaftaranTotp(
  * Admin menghapus Authenticator akun lain (ponsel hilang). Pemilik akun mendaftarkan yang baru saat
  * masuk berikutnya, setelah memasukkan sandinya. Tidak berlaku untuk akun admin itu sendiri.
  */
-export function aturUlangAuthenticatorOlehAdmin(
-  adminSesi: AkunSesi | null,
-  emailTarget: string
-): { sukses: boolean; pesan: string } {
+export function aturUlangAuthenticatorOlehAdmin(adminSesi: AkunSesi | null, emailTarget: string): { sukses: boolean; pesan: string } {
   const akunAdmin = adminSah(adminSesi);
   if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator yang dapat mengatur ulang Authenticator." };
   const target = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailTarget.trim().toLowerCase());
@@ -803,8 +798,26 @@ export async function migrasiAkunLama(): Promise<void> {
 export async function siapkanAkunUji(): Promise<void> {
   if (!AKUN_UJI_AKTIF) return;
   const uji = [
-    { idKader: "KDR-001", nama: "Budi Santoso", email: "kader@geokader.id", kataSandi: "kader123", peran: "kader" as const, desaWilayah: "Desa Rimba Hijau", noHp: "081234567890", kelompokMasyarakat: "Kelompok Tani Hutan Harapan" },
-    { idKader: "ADM-001", nama: "Siti Rahma", email: "admin@geokader.id", kataSandi: "admin123", peran: "admin" as const, desaWilayah: "Kantor Balai Spasial", noHp: "081987654321", kelompokMasyarakat: "Tim Verifikasi & Data Spasial" }
+    {
+      idKader: "KDR-001",
+      nama: "Budi Santoso",
+      email: "kader@geokader.id",
+      kataSandi: "kader123",
+      peran: "kader" as const,
+      desaWilayah: "Desa Rimba Hijau",
+      noHp: "081234567890",
+      kelompokMasyarakat: "Kelompok Tani Hutan Harapan"
+    },
+    {
+      idKader: "ADM-001",
+      nama: "Siti Rahma",
+      email: "admin@geokader.id",
+      kataSandi: "admin123",
+      peran: "admin" as const,
+      desaWilayah: "Kantor Balai Spasial",
+      noHp: "081987654321",
+      kelompokMasyarakat: "Tim Verifikasi & Data Spasial"
+    }
   ];
   const accounts = muatSemuaAkun();
   let berubah = false;

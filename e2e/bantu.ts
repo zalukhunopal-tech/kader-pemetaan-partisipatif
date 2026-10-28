@@ -159,7 +159,14 @@ export async function masuk(p: Page, email: string, sandi: string, rahasia: stri
 }
 
 /** Akun siap pakai untuk disemai langsung ke penyimpanan (sandi di-hash seperti aplikasi, iterasi rendah) */
-export function akunSemai(data: { idKader: string; nama: string; email: string; peran: "admin" | "kader"; sandi: string; totpRahasia: string }) {
+export function akunSemai(data: {
+  idKader: string;
+  nama: string;
+  email: string;
+  peran: "admin" | "kader";
+  sandi: string;
+  totpRahasia: string;
+}) {
   const garam = randomBytes(16);
   const hash = pbkdf2Sync(data.sandi.normalize("NFKC"), garam, 1000, 32, "sha256");
   return {
@@ -197,4 +204,12 @@ export async function kotak(p: Page, selektor: string) {
 }
 
 export const posisiPeta = (p: Page) =>
-  p.evaluate(() => JSON.parse(localStorage.getItem("geokader_posisi_peta_v1") || "null") as { lat: number; lng: number; zoom: number; basemap: string } | null);
+  p.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("geokader_posisi_peta_v1") || "null") as {
+        lat: number;
+        lng: number;
+        zoom: number;
+        basemap: string;
+      } | null
+  );

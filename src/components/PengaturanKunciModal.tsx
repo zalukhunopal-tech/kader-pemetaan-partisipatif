@@ -96,7 +96,14 @@ export const PengaturanKunciModal: React.FC<PengaturanKunciModalProps> = ({ sesi
           <li>
             <ShieldCheck size={16} aria-hidden="true" />
             <span>
-              Google Authenticator: {sisa > 0 ? <>berlaku sampai pukul <strong>{berlakuSampai}</strong> (8 jam sejak kode terakhir)</> : "perlu kode baru"}
+              Google Authenticator:{" "}
+              {sisa > 0 ? (
+                <>
+                  berlaku sampai pukul <strong>{berlakuSampai}</strong> (8 jam sejak kode terakhir)
+                </>
+              ) : (
+                "perlu kode baru"
+              )}
             </span>
           </li>
           <li>
@@ -107,7 +114,11 @@ export const PengaturanKunciModal: React.FC<PengaturanKunciModalProps> = ({ sesi
             <Fingerprint size={16} aria-hidden="true" />
             <span>
               Sidik jari / wajah:{" "}
-              {metode.biometrik ? "aktif" : bioDidukung ? "belum aktif" : "tidak tersedia di perangkat/browser ini (perlu HTTPS dan sensor)"}
+              {metode.biometrik
+                ? "aktif"
+                : bioDidukung
+                  ? "belum aktif"
+                  : "tidak tersedia di perangkat/browser ini (perlu HTTPS dan sensor)"}
             </span>
           </li>
         </ul>
@@ -156,8 +167,7 @@ export const PengaturanKunciModal: React.FC<PengaturanKunciModalProps> = ({ sesi
 
         {(metode.biometrik || bioDidukung) && (
           <button type="button" className="btn-outline-sm keamanan-tombol" onClick={() => void aturBiometrik()} disabled={sibuk}>
-            <Fingerprint size={15} aria-hidden="true" />{" "}
-            {metode.biometrik ? "Matikan sidik jari / wajah" : "Aktifkan sidik jari / wajah"}
+            <Fingerprint size={15} aria-hidden="true" /> {metode.biometrik ? "Matikan sidik jari / wajah" : "Aktifkan sidik jari / wajah"}
           </button>
         )}
 
@@ -171,8 +181,8 @@ export const PengaturanKunciModal: React.FC<PengaturanKunciModalProps> = ({ sesi
           <Lock size={15} aria-hidden="true" /> Kunci aplikasi sekarang
         </button>
         <p className="keamanan-catatan">
-          Aplikasi terkunci sendiri saat dibuka ulang dan setelah 15 menit tanpa aktivitas. PIN salah 5 kali menonaktifkan
-          PIN sampai kode Google Authenticator dimasukkan lagi.
+          Aplikasi terkunci sendiri saat dibuka ulang dan setelah 15 menit tanpa aktivitas. PIN salah 5 kali menonaktifkan PIN sampai kode
+          Google Authenticator dimasukkan lagi.
         </p>
       </div>
     </div>

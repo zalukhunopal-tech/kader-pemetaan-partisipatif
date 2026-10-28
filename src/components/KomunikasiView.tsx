@@ -1,20 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { PesanKomunikasi, ProfilKader } from "../types";
 import { CatatanPerangkat } from "./CatatanPerangkat";
-import {
-  MapPin,
-  Mic,
-  Send,
-  Users,
-  ShieldAlert,
-  Paperclip,
-  Check,
-  Search,
-  Play,
-  Pause,
-  AlertTriangle,
-  Compass
-} from "lucide-react";
+import { MapPin, Mic, Send, Users, ShieldAlert, Paperclip, Check, Search, Play, Pause, AlertTriangle, Compass } from "lucide-react";
 
 interface KomunikasiViewProps {
   pesanList: PesanKomunikasi[];
@@ -28,12 +15,7 @@ interface KomunikasiViewProps {
   onLihatPinDiPeta: (lat: number, lng: number, label: string) => void;
 }
 
-export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
-  pesanList,
-  profil,
-  onKirimPesan,
-  onLihatPinDiPeta
-}) => {
+export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profil, onKirimPesan, onLihatPinDiPeta }) => {
   const [saluranAktif, setSaluranAktif] = useState<"komunitas" | "admin">("komunitas");
   const [teksPesan, setTeksPesan] = useState("");
   const [menuLampiranTerbuka, setMenuLampiranTerbuka] = useState(false);
@@ -71,25 +53,16 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   const kirimLokasiCepat = () => {
     const pin = {
       lat: Number(latPin) || -0.9472,
-      lng: Number(lngPin) || 100.4180,
+      lng: Number(lngPin) || 100.418,
       label: labelPin.trim() || "Posisi GPS Lapangan"
     };
-    onKirimPesan(
-      saluranAktif,
-      `📍 Berbagi Titik Koordinat: ${labelPin}`,
-      pin
-    );
+    onKirimPesan(saluranAktif, `📍 Berbagi Titik Koordinat: ${labelPin}`, pin);
     setBukaInputPin(false);
     setMenuLampiranTerbuka(false);
   };
 
   const kirimVoiceNote = () => {
-    onKirimPesan(
-      saluranAktif,
-      "🎙️ Pesan Suara: Laporan kondisi jalur survei aman dan cuaca cerah.",
-      undefined,
-      12
-    );
+    onKirimPesan(saluranAktif, "🎙️ Pesan Suara: Laporan kondisi jalur survei aman dan cuaca cerah.", undefined, 12);
     setMenuLampiranTerbuka(false);
   };
 
@@ -169,9 +142,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 textOverflow: "ellipsis"
               }}
             >
-              {saluranAktif === "komunitas"
-                ? "Komunitas"
-                : "Admin"}
+              {saluranAktif === "komunitas" ? "Komunitas" : "Admin"}
             </div>
             <div
               style={{
@@ -320,9 +291,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             }}
           >
             <div style={{ fontSize: "1.8rem", marginBottom: 6 }}>💬</div>
-            <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b", marginBottom: 4 }}>
-              Mulai Diskusi Lapangan
-            </div>
+            <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e293b", marginBottom: 4 }}>Mulai Diskusi Lapangan</div>
             <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
               {saluranAktif === "komunitas"
                 ? "Bagikan kabar temuan pohon, sarang satwa, mata air, atau titik koordinat GPS ke sesama kader."
@@ -384,9 +353,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                   )}
 
                   {/* Message Text */}
-                  <div style={{ fontSize: "0.88rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>
-                    {m.teks}
-                  </div>
+                  <div style={{ fontSize: "0.88rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>{m.teks}</div>
 
                   {/* Audio Voice Note Bubble */}
                   {m.durasiSuaraDetik && (
@@ -403,9 +370,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                     >
                       <button
                         type="button"
-                        onClick={() =>
-                          setAudioMemutar(audioMemutar === m.id ? null : m.id)
-                        }
+                        onClick={() => setAudioMemutar(audioMemutar === m.id ? null : m.id)}
                         style={{
                           width: 30,
                           height: 30,
@@ -491,13 +456,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                         <button
                           type="button"
                           className="btn-primary-sm"
-                          onClick={() =>
-                            onLihatPinDiPeta(
-                              m.pinKoordinat!.lat,
-                              m.pinKoordinat!.lng,
-                              m.pinKoordinat!.label
-                            )
-                          }
+                          onClick={() => onLihatPinDiPeta(m.pinKoordinat!.lat, m.pinKoordinat!.lng, m.pinKoordinat!.label)}
                           style={{
                             marginTop: 6,
                             width: "100%",
@@ -676,9 +635,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             boxShadow: "0 -4px 10px rgba(0,0,0,0.06)"
           }}
         >
-          <div style={{ fontWeight: 700, fontSize: "0.85rem", marginBottom: 8, color: "#181a19" }}>
-            📍 Bagikan Koordinat GPS Lapangan
-          </div>
+          <div style={{ fontWeight: 700, fontSize: "0.85rem", marginBottom: 8, color: "#181a19" }}>📍 Bagikan Koordinat GPS Lapangan</div>
           <div className="form-row-3" style={{ gap: 8 }}>
             <div>
               <label style={{ fontSize: "0.72rem" }}>Label Temuan</label>
@@ -712,18 +669,10 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             </div>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() => setBukaInputPin(false)}
-            >
+            <button type="button" className="btn-outline-sm" onClick={() => setBukaInputPin(false)}>
               Batal
             </button>
-            <button
-              type="button"
-              className="btn-primary-sm"
-              onClick={kirimLokasiCepat}
-            >
+            <button type="button" className="btn-primary-sm" onClick={kirimLokasiCepat}>
               Kirim ke Obrolan
             </button>
           </div>
@@ -767,11 +716,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
           type="text"
           value={teksPesan}
           onChange={(e) => setTeksPesan(e.target.value)}
-          placeholder={
-            saluranAktif === "komunitas"
-              ? "Ketik pesan ke grup kader..."
-              : "Tulis pertanyaan ke Admin GIS..."
-          }
+          placeholder={saluranAktif === "komunitas" ? "Ketik pesan ke grup kader..." : "Tulis pertanyaan ke Admin GIS..."}
           style={{
             flex: 1,
             minWidth: 0,

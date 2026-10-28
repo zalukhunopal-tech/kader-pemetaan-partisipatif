@@ -70,7 +70,8 @@ npm ci           # pasang dependensi persis sesuai package-lock.json
 npm run dev      # server pengembangan (terbuka ke jaringan lokal di port 3000)
 npm run build    # bangun versi produksi (PWA)
 npm test         # tes Vitest (lib/*: koordinat, skor, impor, sertifikat, QR, auth, PIN dan sidik jari, penyimpanan, sinkronisasi, Code.gs, peta)
-npm run lint     # pemeriksaan tipe (tsc --noEmit)
+npm run lint     # pemeriksaan tipe (tsc --noEmit) dan ESLint
+npm run format   # merapikan format kode dengan Prettier (format:check hanya memeriksa)
 npm run test:e2e # uji browser Playwright pada bundel produksi (lihat di bawah)
 ```
 

@@ -24,10 +24,7 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
         </h3>
         <div className="announcement-list">
           {pengumumanList.map((p) => (
-            <div
-              key={p.id}
-              className={`announcement-card ${p.penting ? "urgent" : ""}`}
-            >
+            <div key={p.id} className={`announcement-card ${p.penting ? "urgent" : ""}`}>
               <div className="ann-header">
                 <span className="badge-kategori">{p.kategori}</span>
                 <span className="text-xs text-muted">
@@ -47,8 +44,8 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
           <Target size={18} /> Tugas ({tugasList.length})
         </h3>
         <p className="text-muted">
-          Klik tombol <b>Buka Lokasi Acuan di Peta</b> untuk memusatkan peta satelit dan menyalakan
-          garis penunjuk arah (Go-To Navigation) menuju lokasi tugas.
+          Klik tombol <b>Buka Lokasi Acuan di Peta</b> untuk memusatkan peta satelit dan menyalakan garis penunjuk arah (Go-To Navigation)
+          menuju lokasi tugas.
         </p>
 
         <div className="task-grid">
@@ -58,11 +55,7 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
                 <span className="badge-kategori">
                   {t.jenisTargetGeometri.toUpperCase()} • {t.kategoriTarget}
                 </span>
-                <span
-                  className={`badge-sync ${
-                    t.status === "selesai" ? "status-terverifikasi" : "status-tersinkron"
-                  }`}
-                >
+                <span className={`badge-sync ${t.status === "selesai" ? "status-terverifikasi" : "status-tersinkron"}`}>
                   {t.status === "selesai" ? "✓ Selesai" : "⏳ Aktif"}
                 </span>
               </div>
@@ -86,22 +79,12 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
                 <button
                   type="button"
                   className="btn-primary-sm"
-                  onClick={() =>
-                    onBukaTargetDiPeta(
-                      t.koordinatAcuan.lat,
-                      t.koordinatAcuan.lng,
-                      t.judul
-                    )
-                  }
+                  onClick={() => onBukaTargetDiPeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul)}
                 >
                   <MapPin size={14} /> Buka Lokasi Acuan di Peta
                 </button>
                 {t.status !== "selesai" && (
-                  <button
-                    type="button"
-                    className="btn-outline-sm"
-                    onClick={() => onTandaiTugasSelesai(t.id)}
-                  >
+                  <button type="button" className="btn-outline-sm" onClick={() => onTandaiTugasSelesai(t.id)}>
                     <CheckCircle2 size={14} /> Tandai Selesai
                   </button>
                 )}

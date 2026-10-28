@@ -49,13 +49,7 @@ import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
 import { formatUkuranByte, perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
-import {
-  perekamLatar,
-  usePerekamLatar,
-  durasiRekamMs,
-  formatDurasi,
-  ringkasanRekam
-} from "./lib/perekamLatar";
+import { perekamLatar, usePerekamLatar, durasiRekamMs, formatDurasi, ringkasanRekam } from "./lib/perekamLatar";
 import { AuthModal } from "./components/AuthModal";
 import { PustakaView } from "./components/PustakaView";
 import { PemberitahuanView } from "./components/PemberitahuanView";
@@ -98,15 +92,11 @@ import {
 
 export const App: React.FC = () => {
   // Sesi Pengguna Login
-  const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() =>
-    muatSesiPengguna()
-  );
+  const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() => muatSesiPengguna());
 
   // Role & Session State
   // Admin boleh beralih ke tampilan kader, tetapi peran admin hanya berlaku untuk akun admin
-  const [peranTampilan, setPeranTampilan] = useState<PeranPengguna>(() =>
-    sesiPengguna ? sesiPengguna.peran : "kader"
-  );
+  const [peranTampilan, setPeranTampilan] = useState<PeranPengguna>(() => (sesiPengguna ? sesiPengguna.peran : "kader"));
   const adalahAkunAdmin = sesiPengguna?.peran === "admin";
   const peran: PeranPengguna = adalahAkunAdmin ? peranTampilan : "kader";
   // Pemisahan admin dan user, dua lapis:
@@ -149,9 +139,7 @@ export const App: React.FC = () => {
     return bawaan;
   });
   // Status jaringan nyata dari browser; tombol "Online/Offline" hanya menambah mode offline manual
-  const [jaringanTersedia, setJaringanTersedia] = useState<boolean>(() =>
-    typeof navigator === "undefined" ? true : navigator.onLine
-  );
+  const [jaringanTersedia, setJaringanTersedia] = useState<boolean>(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [modeOfflineManual, setModeOfflineManual] = useState<boolean>(false);
   const sedangOnline = jaringanTersedia && !modeOfflineManual;
 
@@ -183,29 +171,15 @@ export const App: React.FC = () => {
     return prof;
   });
 
-  const [dataSpasial, setDataSpasial] = useState<DataSpasialItem[]>(() =>
-    muatDataSpasial()
-  );
-  const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() =>
-    muatAreaOffline()
-  );
-  const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() =>
-    muatLapisan()
-  );
-  const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() =>
-    muatSertifikat()
-  );
-  const [pengumumanList, setPengumumanList] = useState<PengumumanBroadcast[]>(() =>
-    muatPengumuman()
-  );
+  const [dataSpasial, setDataSpasial] = useState<DataSpasialItem[]>(() => muatDataSpasial());
+  const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() => muatAreaOffline());
+  const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() => muatLapisan());
+  const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() => muatSertifikat());
+  const [pengumumanList, setPengumumanList] = useState<PengumumanBroadcast[]>(() => muatPengumuman());
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [pesanList, setPesanList] = useState<PesanKomunikasi[]>(() => muatPesan());
-  const [kaderAktifList] = useState<KaderAktifPresence[]>(() =>
-    muatKaderAktif()
-  );
-  const [konfigGDrive, setKonfigGDrive] = useState<KonfigurasiGDrive>(() =>
-    muatKonfigGDrive()
-  );
+  const [kaderAktifList] = useState<KaderAktifPresence[]>(() => muatKaderAktif());
+  const [konfigGDrive, setKonfigGDrive] = useState<KonfigurasiGDrive>(() => muatKonfigGDrive());
 
   const [fokusKoordinat, setFokusKoordinat] = useState<{
     lat: number;
@@ -292,9 +266,7 @@ export const App: React.FC = () => {
     } else {
       setTabAktif("pustaka");
     }
-    tampilkanToast(
-      `✓ Selamat datang, ${akun.nama} (${akun.peran === "admin" ? "Admin GIS" : "Kader Lapangan"})!`
-    );
+    tampilkanToast(`✓ Selamat datang, ${akun.nama} (${akun.peran === "admin" ? "Admin GIS" : "Kader Lapangan"})!`);
   };
 
   // Handler Logout
@@ -332,8 +304,7 @@ export const App: React.FC = () => {
     roNavRef.current?.disconnect();
     roNavRef.current = null;
     if (!el) return;
-    const atur = () =>
-      document.documentElement.style.setProperty("--tinggi-nav", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    const atur = () => document.documentElement.style.setProperty("--tinggi-nav", `${Math.ceil(el.getBoundingClientRect().height)}px`);
     atur();
     if (typeof ResizeObserver !== "undefined") {
       roNavRef.current = new ResizeObserver(atur);
@@ -342,7 +313,8 @@ export const App: React.FC = () => {
   }, []);
 
   // Geser kiri/kanan di area konten untuk berpindah tab (mengikuti urutan bilah navigasi bawah)
-  const urutanTab: MenuTab[] = peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
+  const urutanTab: MenuTab[] =
+    peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
   const awalGeserRef = useRef<Sentuhan | null>(null);
   const [animasiGeser, setAnimasiGeser] = useState<"kiri" | "kanan" | null>(null);
   const handleGeserMulai = (e: React.TouchEvent) => {
@@ -414,10 +386,7 @@ export const App: React.FC = () => {
   });
 
   // Handler Ubah Nama & Jabatan Penandatangan Sertifikat oleh Admin
-  const handleUbahPenandatanganSertifikat = (
-    namaPenandatangan: string,
-    jabatanPenandatangan: string
-  ) => {
+  const handleUbahPenandatanganSertifikat = (namaPenandatangan: string, jabatanPenandatangan: string) => {
     setProfil((prev) => ({
       ...prev,
       namaPenandatanganSertifikat: namaPenandatangan,
@@ -459,9 +428,7 @@ export const App: React.FC = () => {
         return false;
       }
       setDataSpasial((prev) => [...items, ...prev]);
-      tampilkanToast(
-        `✓ ${items.length} objek ${hasil.format} diimpor.${catatan} Dihitung ke capaian setelah diverifikasi admin.`
-      );
+      tampilkanToast(`✓ ${items.length} objek ${hasil.format} diimpor.${catatan} Dihitung ke capaian setelah diverifikasi admin.`);
       return true;
     } catch (err) {
       tampilkanToast(`⚠️ ${err instanceof Error ? err.message : "Berkas tidak dapat dibaca."}`);
@@ -475,19 +442,12 @@ export const App: React.FC = () => {
     if (!area) return;
     setAreaOffline((prev) => prev.filter((a) => a.id !== id));
     if (area.unduhanNyata) {
-      void hapusTileArea(area, areaOffline).then((n) =>
-        tampilkanToast(`✓ Peta "${area.namaArea}" dihapus (${n} tile dibersihkan).`)
-      );
+      void hapusTileArea(area, areaOffline).then((n) => tampilkanToast(`✓ Peta "${area.namaArea}" dihapus (${n} tile dibersihkan).`));
     }
   };
 
   // Handler Update Kondisi pada Objek Existing
-  const handleTambahPembaruanObjek = (
-    idData: string,
-    kondisiTerbaru: string,
-    catatan: string,
-    fotoBase64?: string
-  ): boolean => {
+  const handleTambahPembaruanObjek = (idData: string, kondisiTerbaru: string, catatan: string, fotoBase64?: string): boolean => {
     const objek = dataSpasial.find((d) => d.id === idData);
     if (!objek) return false;
 
@@ -511,9 +471,7 @@ export const App: React.FC = () => {
       ...objek,
       riwayatPembaruan: [...objek.riwayatPembaruan, pembaruan]
     };
-    const dapatPoin =
-      dihitungUntukCapaian(objek) &&
-      hitungPembaruanSah(objekBaru) > hitungPembaruanSah(objek);
+    const dapatPoin = dihitungUntukCapaian(objek) && hitungPembaruanSah(objekBaru) > hitungPembaruanSah(objek);
 
     setDataSpasial((prev) =>
       prev.map((d) =>
@@ -528,22 +486,14 @@ export const App: React.FC = () => {
       )
     );
     tampilkanToast(
-      dapatPoin
-        ? "✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin)."
-        : "✓ Pembaruan kondisi objek disimpan (tidak menambah poin)."
+      dapatPoin ? "✓ Pembaruan kondisi objek berhasil disimpan (+1 Poin)." : "✓ Pembaruan kondisi objek disimpan (tidak menambah poin)."
     );
     return true;
   };
 
   // Handler Ubah Data Spasial oleh Admin (Admin Feature)
   const handleUbahDataSpasial = (dataDiubah: DataSpasialItem) => {
-    setDataSpasial((prev) =>
-      prev.map((d) =>
-        d.id === dataDiubah.id
-          ? { ...dataDiubah, updatedAt: new Date().toISOString() }
-          : d
-      )
-    );
+    setDataSpasial((prev) => prev.map((d) => (d.id === dataDiubah.id ? { ...dataDiubah, updatedAt: new Date().toISOString() } : d)));
     tampilkanToast(`✓ Data "${dataDiubah.judul}" berhasil diperbarui oleh Admin.`);
   };
 
@@ -588,11 +538,7 @@ export const App: React.FC = () => {
       if (res.idTersinkron.length > 0) {
         const diterima = new Set(res.idTersinkron);
         setDataSpasial((prev) =>
-          prev.map((d) =>
-            diterima.has(d.id) && d.statusSinkron === "lokal"
-              ? { ...d, statusSinkron: "tersinkron" }
-              : d
-          )
+          prev.map((d) => (diterima.has(d.id) && d.statusSinkron === "lokal" ? { ...d, statusSinkron: "tersinkron" } : d))
         );
         setKonfigGDrive((prev) => ({
           ...prev,
@@ -706,22 +652,13 @@ export const App: React.FC = () => {
         tugasList={tugasList}
         onTutup={() => setBukaPemberitahuan(false)}
         onBukaTargetDiPeta={handleFokusKePeta}
-        onTandaiTugasSelesai={(id) =>
-          setTugasList((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t))
-          )
-        }
+        onTandaiTugasSelesai={(id) => setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)))}
       />
     );
   }
 
   if (bukaPengaturanEkspor) {
-    return denganKunci(
-      <PengaturanEksporView
-        dataSpasial={dataSpasial}
-        onTutup={() => setBukaPengaturanEkspor(false)}
-      />
-    );
+    return denganKunci(<PengaturanEksporView dataSpasial={dataSpasial} onTutup={() => setBukaPengaturanEkspor(false)} />);
   }
 
   const catatAktivitas = () => {
@@ -741,18 +678,12 @@ export const App: React.FC = () => {
       {/* TOPBAR BERSIH: JUDUL TUNGGAL DI KIRI, TOOLBAR DISEMBUNYIKAN HINGGA DIKLIK AGAR TIDAK MENIMPA TEKS */}
       <header className="avenza-topbar">
         <div className="avenza-topbar-left">
-          <h1
-            className="avenza-topbar-title"
-            onClick={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
-          >
+          <h1 className="avenza-topbar-title" onClick={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}>
             {judulHalamanUtama[tabAktif]}
           </h1>
         </div>
 
-        <div
-          className="avenza-topbar-actions"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="avenza-topbar-actions" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             className={`avenza-toolbar-toggle-btn ${bukaMenuTitikTiga ? "active" : ""}`}
@@ -771,16 +702,10 @@ export const App: React.FC = () => {
                   type="button"
                   className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
                   onClick={() => setModeOfflineManual((m) => !m)}
-                  title={
-                    jaringanTersedia
-                      ? "Ketuk untuk beralih mode offline manual (tidak mengunggah)"
-                      : "Tidak ada koneksi internet"
-                  }
+                  title={jaringanTersedia ? "Ketuk untuk beralih mode offline manual (tidak mengunggah)" : "Tidak ada koneksi internet"}
                 >
                   {sedangOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                  <span>
-                    {!jaringanTersedia ? "Offline" : modeOfflineManual ? "Offline (manual)" : "Online"}
-                  </span>
+                  <span>{!jaringanTersedia ? "Offline" : modeOfflineManual ? "Offline (manual)" : "Online"}</span>
                 </button>
 
                 {adalahAkunAdmin && (
@@ -942,19 +867,12 @@ export const App: React.FC = () => {
 
       {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (MUNCUL DI SEMUA TAB) */}
       {rekamLatar.status !== "idle" && (
-        <div
-          className={`global-rec-banner ${rekamLatar.status === "dijeda" ? "paused" : ""}`}
-          data-tick={detikRekamTick}
-        >
+        <div className={`global-rec-banner ${rekamLatar.status === "dijeda" ? "paused" : ""}`} data-tick={detikRekamTick}>
           <div className="global-rec-left" onClick={() => setTabAktif("peta")}>
             <span className="global-rec-pulse-dot" />
             <Radio size={15} />
             <div className="global-rec-text">
-              <strong>
-                {rekamLatar.status === "merekam"
-                  ? "SEDANG MEREKAM DI LATAR BELAKANG"
-                  : "PEREKAMAN LATAR DIJEDA"}
-              </strong>
+              <strong>{rekamLatar.status === "merekam" ? "SEDANG MEREKAM DI LATAR BELAKANG" : "PEREKAMAN LATAR DIJEDA"}</strong>
               <span>
                 {formatDurasi(durasiRekamMs(rekamLatar))} • {ringkasanRekam(rekamLatar)}
               </span>
@@ -965,11 +883,7 @@ export const App: React.FC = () => {
             <button
               type="button"
               className="global-rec-btn"
-              onClick={() =>
-                rekamLatar.status === "merekam"
-                  ? perekamLatar.jeda()
-                  : perekamLatar.lanjutkan()
-              }
+              onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
             >
               {rekamLatar.status === "merekam" ? (
                 <>
@@ -982,11 +896,7 @@ export const App: React.FC = () => {
               )}
             </button>
             {tabAktif !== "peta" && (
-              <button
-                type="button"
-                className="global-rec-btn primary"
-                onClick={() => setTabAktif("peta")}
-              >
+              <button type="button" className="global-rec-btn primary" onClick={() => setTabAktif("peta")}>
                 Buka Peta
               </button>
             )}
@@ -1030,146 +940,127 @@ export const App: React.FC = () => {
           />
         )}
         {!modeAdminTerkunci && (
-        <>
-        {tabAktif === "pustaka" && (
-          <PustakaView
-            areaOffline={areaOffline}
-            lapisanList={lapisanList}
-            dataSpasial={dataSpasial}
-            modePilihAktif={modePilihPustaka}
-            onMatikanModePilih={() => setModePilihPustaka(false)}
-            onBukaPetaDasar={() => setTabAktif("peta")}
-            onBukaAreaPeta={(area) => {
-              setFokusKoordinat({
-                lat: (area.minLat + area.maxLat) / 2,
-                lng: (area.minLng + area.maxLng) / 2,
-                label: area.namaArea
-              });
-              setTabAktif("peta");
-            }}
-            onTambahAreaOffline={(a) => {
-              setAreaOffline((prev) => [a, ...prev]);
-              tampilkanToast(`✓ Peta "${a.namaArea}" ditambahkan ke Pustaka.`);
-            }}
-            onHapusAreaOffline={handleHapusAreaOffline}
-            onTambahLapisan={(l) => {
-              setLapisanList((prev) => [l, ...prev]);
-              tampilkanToast(`✓ "${l.nama}" berhasil dibuat.`);
-            }}
-            onHapusLapisan={(id) =>
-              setLapisanList((prev) => prev.filter((l) => l.id !== id))
-            }
-            onImporBerkas={handleImporBerkas}
-            onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
-          />
-        )}
-
-        {tabAktif === "peta" && (
-          <InteractiveMap
-            dataSpasial={dataSpasial}
-            profil={profil}
-            areaOffline={areaOffline}
-            fokusKoordinat={fokusKoordinat}
-            onFokusDipakai={() => setFokusKoordinat(null)}
-            onSimpanDataBaru={handleSimpanDataBaru}
-            onTambahPembaruanObjek={handleTambahPembaruanObjek}
-            onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-            onImporBerkas={handleImporBerkas}
-            onBukaSmartwatch={() => setBukaSmartwatch(true)}
-          />
-        )}
-
-        {tabAktif === "data_sync" && (
-          <DatabaseSyncView
-            dataSpasial={dataSpasial}
-            konfigGDrive={konfigGDrive}
-            sedangSinkron={sedangSinkron}
-            pesanSinkron={pesanSinkron}
-            pesanSinkronGagal={pesanSinkronGagal}
-            sedangOnline={sedangOnline}
-            onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
-            onSimpanKonfigGDrive={setKonfigGDrive}
-            onFokusKePeta={handleFokusKePeta}
-          />
-        )}
-
-        {tabAktif === "reward" && (
-          <RewardView
-            dataSpasial={dataSpasial}
-            profil={profil}
-            peran={aksesAdmin ? "admin" : "kader"}
-            sertifikatList={sertifikatList}
-            pesanList={pesanList}
-            tugasList={tugasList}
-            onUbahProfil={setProfil}
-            onUbahPenandatanganSertifikat={wajibAdmin(handleUbahPenandatanganSertifikat)}
-          />
-        )}
-
-        {tabAktif === "tugas" && (
-          <TugasPengumumanView
-            pengumumanList={pengumumanList}
-            tugasList={tugasList}
-            onBukaTargetDiPeta={handleFokusKePeta}
-            onTandaiTugasSelesai={(id) =>
-              setTugasList((prev) =>
-                prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t))
-              )
-            }
-          />
-        )}
-
-        {tabAktif === "komunikasi" && (
-          <KomunikasiView
-            pesanList={pesanList}
-            profil={profil}
-            onKirimPesan={handleKirimPesan}
-            onLihatPinDiPeta={handleFokusKePeta}
-          />
-        )}
-
-        {tabAktif === "admin" && aksesAdmin && (
-          <AdminDashboardView
-            dataSpasial={dataSpasial}
-            profilKader={profil}
-            sertifikatList={sertifikatList}
-            tugasList={tugasList}
-            kaderAktifList={kaderAktifList}
-            sesiAdmin={sesiPengguna}
-            onVerifikasiData={wajibAdmin((id: string, status: StatusSinkron, catatan?: string) =>
-              setDataSpasial((prev) =>
-                prev.map((d) =>
-                  d.id === id ? { ...d, statusSinkron: status, catatanAdmin: catatan } : d
-                )
-              )
+          <>
+            {tabAktif === "pustaka" && (
+              <PustakaView
+                areaOffline={areaOffline}
+                lapisanList={lapisanList}
+                dataSpasial={dataSpasial}
+                modePilihAktif={modePilihPustaka}
+                onMatikanModePilih={() => setModePilihPustaka(false)}
+                onBukaPetaDasar={() => setTabAktif("peta")}
+                onBukaAreaPeta={(area) => {
+                  setFokusKoordinat({
+                    lat: (area.minLat + area.maxLat) / 2,
+                    lng: (area.minLng + area.maxLng) / 2,
+                    label: area.namaArea
+                  });
+                  setTabAktif("peta");
+                }}
+                onTambahAreaOffline={(a) => {
+                  setAreaOffline((prev) => [a, ...prev]);
+                  tampilkanToast(`✓ Peta "${a.namaArea}" ditambahkan ke Pustaka.`);
+                }}
+                onHapusAreaOffline={handleHapusAreaOffline}
+                onTambahLapisan={(l) => {
+                  setLapisanList((prev) => [l, ...prev]);
+                  tampilkanToast(`✓ "${l.nama}" berhasil dibuat.`);
+                }}
+                onHapusLapisan={(id) => setLapisanList((prev) => prev.filter((l) => l.id !== id))}
+                onImporBerkas={handleImporBerkas}
+                onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
+              />
             )}
-            onUbahDataSpasial={wajibAdmin(handleUbahDataSpasial)}
-            onHapusDataSpasial={wajibAdmin(handleHapusDataSpasial)}
-            onTerbitkanSertifikat={wajibAdmin((sert: SertifikatKader) => {
-              // Satu sertifikat per kader dan nomor tidak boleh kembar
-              if (
-                sertifikatList.some(
-                  (s) => s.idKader === sert.idKader || s.nomorSertifikat === sert.nomorSertifikat
-                )
-              ) {
-                tampilkanToast("⚠️ Sertifikat tidak diterbitkan: kader sudah punya sertifikat atau nomor kembar.");
-                return;
-              }
-              setSertifikatList((prev) => [sert, ...prev]);
-              tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
-            })}
-            onUbahPenandatanganSertifikat={wajibAdmin((nama: string, jabatan: string) => {
-              handleUbahPenandatanganSertifikat(nama, jabatan);
-              tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
-            })}
-            onTambahPengumuman={wajibAdmin((p: PengumumanBroadcast) => setPengumumanList((prev) => [p, ...prev]))}
-            onTambahTugas={wajibAdmin(handleTambahTugas)}
-            onHapusTugas={wajibAdmin(handleHapusTugas)}
-            onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}
-            onFokusKePeta={handleFokusKePeta}
-          />
-        )}
-        </>
+
+            {tabAktif === "peta" && (
+              <InteractiveMap
+                dataSpasial={dataSpasial}
+                profil={profil}
+                areaOffline={areaOffline}
+                fokusKoordinat={fokusKoordinat}
+                onFokusDipakai={() => setFokusKoordinat(null)}
+                onSimpanDataBaru={handleSimpanDataBaru}
+                onTambahPembaruanObjek={handleTambahPembaruanObjek}
+                onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
+                onImporBerkas={handleImporBerkas}
+                onBukaSmartwatch={() => setBukaSmartwatch(true)}
+              />
+            )}
+
+            {tabAktif === "data_sync" && (
+              <DatabaseSyncView
+                dataSpasial={dataSpasial}
+                konfigGDrive={konfigGDrive}
+                sedangSinkron={sedangSinkron}
+                pesanSinkron={pesanSinkron}
+                pesanSinkronGagal={pesanSinkronGagal}
+                sedangOnline={sedangOnline}
+                onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
+                onSimpanKonfigGDrive={setKonfigGDrive}
+                onFokusKePeta={handleFokusKePeta}
+              />
+            )}
+
+            {tabAktif === "reward" && (
+              <RewardView
+                dataSpasial={dataSpasial}
+                profil={profil}
+                peran={aksesAdmin ? "admin" : "kader"}
+                sertifikatList={sertifikatList}
+                pesanList={pesanList}
+                tugasList={tugasList}
+                onUbahProfil={setProfil}
+                onUbahPenandatanganSertifikat={wajibAdmin(handleUbahPenandatanganSertifikat)}
+              />
+            )}
+
+            {tabAktif === "tugas" && (
+              <TugasPengumumanView
+                pengumumanList={pengumumanList}
+                tugasList={tugasList}
+                onBukaTargetDiPeta={handleFokusKePeta}
+                onTandaiTugasSelesai={(id) => setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)))}
+              />
+            )}
+
+            {tabAktif === "komunikasi" && (
+              <KomunikasiView pesanList={pesanList} profil={profil} onKirimPesan={handleKirimPesan} onLihatPinDiPeta={handleFokusKePeta} />
+            )}
+
+            {tabAktif === "admin" && aksesAdmin && (
+              <AdminDashboardView
+                dataSpasial={dataSpasial}
+                profilKader={profil}
+                sertifikatList={sertifikatList}
+                tugasList={tugasList}
+                kaderAktifList={kaderAktifList}
+                sesiAdmin={sesiPengguna}
+                onVerifikasiData={wajibAdmin((id: string, status: StatusSinkron, catatan?: string) =>
+                  setDataSpasial((prev) => prev.map((d) => (d.id === id ? { ...d, statusSinkron: status, catatanAdmin: catatan } : d)))
+                )}
+                onUbahDataSpasial={wajibAdmin(handleUbahDataSpasial)}
+                onHapusDataSpasial={wajibAdmin(handleHapusDataSpasial)}
+                onTerbitkanSertifikat={wajibAdmin((sert: SertifikatKader) => {
+                  // Satu sertifikat per kader dan nomor tidak boleh kembar
+                  if (sertifikatList.some((s) => s.idKader === sert.idKader || s.nomorSertifikat === sert.nomorSertifikat)) {
+                    tampilkanToast("⚠️ Sertifikat tidak diterbitkan: kader sudah punya sertifikat atau nomor kembar.");
+                    return;
+                  }
+                  setSertifikatList((prev) => [sert, ...prev]);
+                  tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
+                })}
+                onUbahPenandatanganSertifikat={wajibAdmin((nama: string, jabatan: string) => {
+                  handleUbahPenandatanganSertifikat(nama, jabatan);
+                  tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
+                })}
+                onTambahPengumuman={wajibAdmin((p: PengumumanBroadcast) => setPengumumanList((prev) => [p, ...prev]))}
+                onTambahTugas={wajibAdmin(handleTambahTugas)}
+                onHapusTugas={wajibAdmin(handleHapusTugas)}
+                onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}
+                onFokusKePeta={handleFokusKePeta}
+              />
+            )}
+          </>
         )}
       </main>
 
@@ -1224,11 +1115,7 @@ export const App: React.FC = () => {
               <span>Pustaka</span>
             </button>
 
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
-              onClick={() => setTabAktif("peta")}
-            >
+            <button type="button" className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`} onClick={() => setTabAktif("peta")}>
               <Map size={20} />
               <span>Temukan</span>
             </button>
@@ -1240,9 +1127,7 @@ export const App: React.FC = () => {
             >
               <div className="nav-icon-wrap">
                 <CloudUpload size={20} />
-                {antreanLokalCount > 0 && (
-                  <span className="nav-badge">{antreanLokalCount}</span>
-                )}
+                {antreanLokalCount > 0 && <span className="nav-badge">{antreanLokalCount}</span>}
               </div>
               <span>GDrive</span>
             </button>
@@ -1277,11 +1162,7 @@ export const App: React.FC = () => {
               <span style={{ color: tabAktif === "admin" ? "#0284c7" : "#64748b" }}>Admin</span>
             </button>
 
-            <button
-              type="button"
-              className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
-              onClick={() => setTabAktif("peta")}
-            >
+            <button type="button" className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`} onClick={() => setTabAktif("peta")}>
               <Map size={20} />
               <span>Temukan</span>
             </button>
@@ -1304,12 +1185,7 @@ export const App: React.FC = () => {
               <span>Diskusi</span>
             </button>
 
-            <button
-              type="button"
-              className="avenza-nav-item"
-              onClick={() => gantiPeranAkun("kader")}
-              style={{ color: "#0d7344" }}
-            >
+            <button type="button" className="avenza-nav-item" onClick={() => gantiPeranAkun("kader")} style={{ color: "#0d7344" }}>
               <User size={20} />
               <span>Mode User</span>
             </button>

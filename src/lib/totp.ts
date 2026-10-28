@@ -76,8 +76,7 @@ function hotp(rahasia: Uint8Array, penghitung: number, digit = DIGIT_TOTP): stri
 }
 
 /** Nomor langkah 30 detik sejak 1 Jan 1970 */
-export const langkahWaktu = (sekarangMs: number = Date.now()): number =>
-  Math.floor(sekarangMs / 1000 / PERIODE_TOTP_DETIK);
+export const langkahWaktu = (sekarangMs: number = Date.now()): number => Math.floor(sekarangMs / 1000 / PERIODE_TOTP_DETIK);
 
 /** Kode TOTP untuk rahasia (base32) pada waktu tertentu; null bila rahasia tidak sah */
 export function hitungTotp(rahasiaBase32: string, sekarangMs: number = Date.now()): string | null {

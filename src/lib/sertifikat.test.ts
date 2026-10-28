@@ -48,7 +48,9 @@ describe("nomorSertifikatBerikut", () => {
     expect(nomorSertifikatBerikut(daftar, new Date(2026, 9, 28))).toBe("0116/SKPP-GIS/WILAYAH/X/2026");
   });
   it("urutan dimulai ulang di tahun baru dan format lain diabaikan", () => {
-    expect(nomorSertifikatBerikut([sert("0200/SKPP-GIS/WILAYAH/XII/2026"), sert("001/SERT-KPP/2026")], new Date(2027, 0, 2))).toBe("0001/SKPP-GIS/WILAYAH/I/2027");
+    expect(nomorSertifikatBerikut([sert("0200/SKPP-GIS/WILAYAH/XII/2026"), sert("001/SERT-KPP/2026")], new Date(2027, 0, 2))).toBe(
+      "0001/SKPP-GIS/WILAYAH/I/2027"
+    );
   });
   it("nomorSudahDipakai tidak peka huruf besar dan spasi", () => {
     expect(nomorSudahDipakai([sert("0001/SKPP-GIS/WILAYAH/X/2026")], " 0001/skpp-gis/wilayah/x/2026 ")).toBe(true);
@@ -81,7 +83,14 @@ describe("ringkasanKader dan penerbitan (S1)", () => {
     const siti = ringkasanKader(data, []).find((k) => k.namaKader === "Siti")!;
     const h = siapkanSertifikat(siti, "0001/SKPP-GIS/WILAYAH/X/2026", [], info);
     expect(h.ok).toBe(true);
-    expect(h.sertifikat).toMatchObject({ idKader: "KDR-2", namaKader: "Siti", desaWilayah: "Desa A", status: "diterbitkan", tanggalTerbit: "2026-10-28", ditandatanganiOleh: "Pejabat" });
+    expect(h.sertifikat).toMatchObject({
+      idKader: "KDR-2",
+      namaKader: "Siti",
+      desaWilayah: "Desa A",
+      status: "diterbitkan",
+      tanggalTerbit: "2026-10-28",
+      ditandatanganiOleh: "Pejabat"
+    });
     expect(h.sertifikat!.id).toMatch(/^CERT-[0-9a-f]{12}$/);
     expect(h.sertifikat!.alasanCapaian).toMatch(/50 Titik Koordinat/);
   });

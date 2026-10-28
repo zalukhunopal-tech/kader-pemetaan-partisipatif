@@ -35,16 +35,10 @@ function dariFy(fy: number): number {
 }
 
 /** Titik dunia yang berada di bawah titik layar (sx, sy) pada kanvas selebar W x H */
-export function pecahanDiLayar(
-  pusat: { lat: number; lng: number },
-  zoom: number,
-  titik: TitikLayar,
-  W: number,
-  H: number
-): PecahanDunia {
+export function pecahanDiLayar(pusat: { lat: number; lng: number }, zoom: number, titik: TitikLayar, W: number, H: number): PecahanDunia {
   const d = lebarDunia(zoom);
   return {
-    fx: ((pusat.lng + 180) / 360) + (titik.x - W / 2) / d,
+    fx: (pusat.lng + 180) / 360 + (titik.x - W / 2) / d,
     fy: keFy(pusat.lat) + (titik.y - H / 2) / d
   };
 }

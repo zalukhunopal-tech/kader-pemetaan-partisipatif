@@ -100,14 +100,22 @@ describe("sinkronkanDataKeGDrive", () => {
     expect(h).toMatchObject({ sukses: true, idTersinkron: ["a", "b"], jumlahGagal: 0 });
     expect(f).toHaveBeenCalledTimes(1);
     const body = JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
-    expect(body).toMatchObject({ action: "sync_spatial_batch", token: "rahasia", folderId: "Database_Pemetaan", spreadsheetId: "Master_Spasial" });
+    expect(body).toMatchObject({
+      action: "sync_spatial_batch",
+      token: "rahasia",
+      folderId: "Database_Pemetaan",
+      spreadsheetId: "Master_Spasial"
+    });
     expect(body.records.map((r: { id: string }) => r.id)).toEqual(["a", "b"]);
-    expect(body.records[0].wkt).toBe("POINT(100.400000 -0.900000)") // WKT: bujur lalu lintang, 6 desimal;
+    expect(body.records[0].wkt).toBe("POINT(100.400000 -0.900000)"); // WKT: bujur lalu lintang, 6 desimal;
     expect(JSON.parse(body.geojsonBundle).features).toHaveLength(2);
   });
 
   it("konfirmasi sebagian: hanya yang dikonfirmasi berubah status; sisanya dilaporkan", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => balas({ diterima: ["a"], gagal: [{ id: "b", pesan: "foto rusak" }] })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => balas({ diterima: ["a"], gagal: [{ id: "b", pesan: "foto rusak" }] }))
+    );
     const h = await sinkronkanDataKeGDrive([item("a"), item("b")], konfig());
     expect(h.sukses).toBe(false);
     expect(h.idTersinkron).toEqual(["a"]);
@@ -117,14 +125,20 @@ describe("sinkronkanDataKeGDrive", () => {
   });
 
   it("HTTP 200 dengan penolakan token tidak dianggap berhasil", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => balas({ sukses: false, pesan: "Token tidak sah." })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => balas({ sukses: false, pesan: "Token tidak sah." }))
+    );
     const h = await sinkronkanDataKeGDrive([item("a")], konfig());
     expect(h).toMatchObject({ sukses: false, idTersinkron: [], jumlahGagal: 1 });
     expect(h.pesan).toMatch(/Token tidak sah/);
   });
 
   it("balasan bukan JSON (halaman login Google) memberi petunjuk akses Anyone", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => balas("<html>Masuk</html>")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => balas("<html>Masuk</html>"))
+    );
     const h = await sinkronkanDataKeGDrive([item("a")], konfig());
     expect(h.sukses).toBe(false);
     expect(h.pesan).toMatch(/bukan JSON/);
@@ -132,12 +146,20 @@ describe("sinkronkanDataKeGDrive", () => {
   });
 
   it("HTTP 500 dan putus jaringan: gagal dengan pesan yang bisa dipahami, data tetap lokal", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => balas({}, 500)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => balas({}, 500))
+    );
     let h = await sinkronkanDataKeGDrive([item("a")], konfig());
     expect(h).toMatchObject({ sukses: false, idTersinkron: [] });
     expect(h.pesan).toMatch(/HTTP 500/);
 
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      })
+    );
     h = await sinkronkanDataKeGDrive([item("a")], konfig());
     expect(h.pesan).toMatch(/tidak ada koneksi/);
   });

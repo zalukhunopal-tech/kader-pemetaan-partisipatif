@@ -303,7 +303,11 @@ async function pasangAutentikatorTiruan(opsi: { tolak?: boolean; tanpaUv?: boole
   const get = vi.fn(async (arg: { publicKey: { challenge: Uint8Array } }) => {
     if (opsi.tolak) throw new DOMException("dibatalkan", "NotAllowedError");
     const dataKlien = new TextEncoder().encode(
-      JSON.stringify({ type: "webauthn.get", challenge: keBase64Url(new Uint8Array(arg.publicKey.challenge)), origin: window.location.origin })
+      JSON.stringify({
+        type: "webauthn.get",
+        challenge: keBase64Url(new Uint8Array(arg.publicKey.challenge)),
+        origin: window.location.origin
+      })
     );
     const ad = new Uint8Array(37);
     ad.set(sha256(new TextEncoder().encode(window.location.hostname)), 0);

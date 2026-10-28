@@ -11,9 +11,7 @@ export function buatId(awalan: string): string {
     // 12 karakter pertama UUID v4 seluruhnya acak (nibble versi ada di posisi ke-13)
     hex = c.randomUUID().replace(/-/g, "").slice(0, 12);
   } else if (c && typeof c.getRandomValues === "function") {
-    hex = Array.from(c.getRandomValues(new Uint8Array(6)), (b) =>
-      b.toString(16).padStart(2, "0")
-    ).join("");
+    hex = Array.from(c.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
   } else {
     hex = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
   }

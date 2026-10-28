@@ -1,17 +1,5 @@
 import { expect, test } from "@playwright/test";
-import {
-  PIN,
-  SANDI,
-  buatPin,
-  halamanBaru,
-  kodeBerikutnya,
-  majukanJam,
-  masuk,
-  pilihMenu,
-  sampai,
-  siapkanAdmin,
-  terkunci
-} from "./bantu";
+import { PIN, SANDI, buatPin, halamanBaru, kodeBerikutnya, majukanJam, masuk, pilihMenu, sampai, siapkanAdmin, terkunci } from "./bantu";
 
 /** Pemeriksaan kunci aplikasi seperti yang dilakukan App tiap 15 detik dan saat aplikasi tampil lagi */
 const periksaKunci = (p: import("@playwright/test").Page) => p.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
@@ -118,7 +106,14 @@ test("sidik jari / pengenalan wajah (autentikator virtual Chrome)", async ({ bro
   const cdp = await p.context().newCDPSession(p);
   await cdp.send("WebAuthn.enable");
   const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", {
-    options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true }
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true
+    }
   });
   await siapkanAdmin(p);
 
@@ -156,7 +151,10 @@ test("sidik jari / pengenalan wajah (autentikator virtual Chrome)", async ({ bro
 
   await test.step("menu Keamanan: sidik jari bisa dimatikan, PIN tetap ada", async () => {
     await pilihMenu(p, "PIN & sidik jari");
-    await p.locator("#pengaturan-kunci").getByRole("button", { name: /Matikan sidik jari/ }).click();
+    await p
+      .locator("#pengaturan-kunci")
+      .getByRole("button", { name: /Matikan sidik jari/ })
+      .click();
     expect(await sampai(async () => /Sidik jari \/ wajah: belum aktif/.test(await p.locator("#pengaturan-kunci").innerText()))).toBe(true);
   });
 

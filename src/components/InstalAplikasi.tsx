@@ -5,7 +5,14 @@ import { bannerInstalDitutup, mintaInstal, StatusInstal, tutupBannerInstal, useS
 /** Langkah manual bila browser tidak menyediakan dialog pemasangan (mis. Safari iOS, Firefox) */
 const PanduanInstal: React.FC<{ status: StatusInstal; onTutup: () => void }> = ({ status, onTutup }) => (
   <div className="modal-backdrop" onClick={onTutup}>
-    <div className="modal-card" id="panduan-instal" role="dialog" aria-modal="true" aria-labelledby="judul-panduan-instal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-card"
+      id="panduan-instal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="judul-panduan-instal"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="modal-header">
         <h3 id="judul-panduan-instal">📲 Pasang GeoKader</h3>
         <button type="button" className="btn-icon-close" onClick={onTutup} aria-label="Tutup">
@@ -48,8 +55,8 @@ const PanduanInstal: React.FC<{ status: StatusInstal; onTutup: () => void }> = (
         </ol>
       )}
       <p className="panduan-instal-catatan">
-        Setelah terpasang, GeoKader terbuka seperti aplikasi biasa dari layar utama dan tetap bisa dipakai tanpa internet.
-        Pemasangan memerlukan alamat <strong>https://</strong>.
+        Setelah terpasang, GeoKader terbuka seperti aplikasi biasa dari layar utama dan tetap bisa dipakai tanpa internet. Pemasangan
+        memerlukan alamat <strong>https://</strong>.
       </p>
     </div>
   </div>

@@ -68,9 +68,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   const jmlTersinkron = dataSpasial.filter((d) => d.statusSinkron === "tersinkron").length;
   const jmlVerif = dataSpasial.filter((d) => d.statusSinkron === "terverifikasi").length;
 
-  const dataTampil = dataSpasial.filter((d) =>
-    filterStatus === "semua" ? true : d.statusSinkron === filterStatus
-  );
+  const dataTampil = dataSpasial.filter((d) => (filterStatus === "semua" ? true : d.statusSinkron === filterStatus));
 
   // Kumpulkan semua item yang memiliki foto
   const dataDenganFoto = dataSpasial.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl));
@@ -87,9 +85,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
       <div className="section-card">
         <div className="section-header-flex">
           <div>
-            <h2 style={{ fontSize: "1.25rem", margin: "0 0 4px" }}>
-              ☁️ Sinkronisasi
-            </h2>
+            <h2 style={{ fontSize: "1.25rem", margin: "0 0 4px" }}>☁️ Sinkronisasi</h2>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.86rem" }}>
               {konfigGDrive.autoSyncSaatOnline
                 ? "Data tersimpan di perangkat lalu diunggah otomatis saat ada internet."
@@ -105,9 +101,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
             <CloudUpload size={17} />
-            {sedangSinkron
-              ? "Sedang Mengunggah..."
-              : `Sinkronkan Sekarang (${jmlLokal} Antrean)`}
+            {sedangSinkron ? "Sedang Mengunggah..." : `Sinkronkan Sekarang (${jmlLokal} Antrean)`}
           </button>
         </div>
 
@@ -125,9 +119,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           <div
             className="alert-banner-success"
             style={
-              pesanSinkronGagal
-                ? { marginTop: 12, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }
-                : { marginTop: 12 }
+              pesanSinkronGagal ? { marginTop: 12, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" } : { marginTop: 12 }
             }
           >
             {pesanSinkron}
@@ -223,7 +215,16 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                   </span>
                 </div>
                 <div style={{ padding: "8px 10px" }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#181a19", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      color: "#181a19",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
+                    }}
+                  >
                     {item.judul}
                   </div>
                   <div style={{ fontSize: "0.74rem", color: "#64748b", marginTop: 2 }}>
@@ -236,8 +237,10 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                         fontWeight: 700,
                         padding: "1px 6px",
                         borderRadius: 99,
-                        background: item.statusSinkron === "tersinkron" ? "#e0f2fe" : item.statusSinkron === "terverifikasi" ? "#dcfce7" : "#fef3c7",
-                        color: item.statusSinkron === "tersinkron" ? "#0284c7" : item.statusSinkron === "terverifikasi" ? "#166534" : "#b45309"
+                        background:
+                          item.statusSinkron === "tersinkron" ? "#e0f2fe" : item.statusSinkron === "terverifikasi" ? "#dcfce7" : "#fef3c7",
+                        color:
+                          item.statusSinkron === "tersinkron" ? "#0284c7" : item.statusSinkron === "terverifikasi" ? "#166534" : "#b45309"
                       }}
                     >
                       {item.statusSinkron === "tersinkron" ? "☁️ GDrive" : item.statusSinkron === "terverifikasi" ? "✅ Verif" : "📱 HP"}
@@ -258,14 +261,25 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               marginTop: "12px"
             }}
           >
-            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "#e8f5ee",
+                color: "#0d7344",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 10
+              }}
+            >
               <ImageIcon size={24} />
             </div>
-            <h5 style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "#1e293b" }}>
-              Belum Ada Foto Survei Lapangan
-            </h5>
+            <h5 style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "#1e293b" }}>Belum Ada Foto Survei Lapangan</h5>
             <p style={{ margin: 0, fontSize: "0.82rem", color: "#64748b", maxWidth: 360, marginInline: "auto" }}>
-              Ambil foto dokumentasi pohon, satwa, atau mata air saat merekam data di menu <b>Temukan (Peta)</b>. Foto akan otomatis tampil di sini dan siap disinkronkan ke Google Drive.
+              Ambil foto dokumentasi pohon, satwa, atau mata air saat merekam data di menu <b>Temukan (Peta)</b>. Foto akan otomatis tampil
+              di sini dan siap disinkronkan ke Google Drive.
             </p>
           </div>
         )}
@@ -275,9 +289,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
       <div className="section-card">
         <div className="section-header-flex">
           <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
-              📋 Data ({dataTampil.length})
-            </h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>📋 Data ({dataTampil.length})</h3>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
               Daftar objek spasial hasil perekaman
             </p>
@@ -288,13 +300,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             <button
               type="button"
               className="btn-outline-sm"
-              onClick={() =>
-                unduhBerkasTeks(
-                  "Database_Pemetaan_Kader.geojson",
-                  eksporKeGeoJSON(dataSpasial),
-                  "application/geo+json"
-                )
-              }
+              onClick={() => unduhBerkasTeks("Database_Pemetaan_Kader.geojson", eksporKeGeoJSON(dataSpasial), "application/geo+json")}
             >
               <Download size={13} /> GeoJSON
             </button>
@@ -302,11 +308,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               type="button"
               className="btn-outline-sm"
               onClick={() =>
-                unduhBerkasTeks(
-                  "Database_Pemetaan_Kader.kml",
-                  eksporKeKML(dataSpasial),
-                  "application/vnd.google-earth.kml+xml"
-                )
+                unduhBerkasTeks("Database_Pemetaan_Kader.kml", eksporKeKML(dataSpasial), "application/vnd.google-earth.kml+xml")
               }
             >
               <Download size={13} /> KML
@@ -314,13 +316,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             <button
               type="button"
               className="btn-outline-sm"
-              onClick={() =>
-                unduhBerkasTeks(
-                  "Master_Tabel_Pemetaan.csv",
-                  eksporKeCSV(dataSpasial),
-                  "text/csv;charset=utf-8"
-                )
-              }
+              onClick={() => unduhBerkasTeks("Master_Tabel_Pemetaan.csv", eksporKeCSV(dataSpasial), "text/csv;charset=utf-8")}
             >
               <Download size={13} /> CSV
             </button>
@@ -399,7 +395,8 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", fontSize: "0.86rem" }}>
-            Belum ada data spasial tersimpan. Buka menu <b>Temukan (Peta)</b> untuk mulai merekam titik, jejak langkah, atau poligon survei lapangan.
+            Belum ada data spasial tersimpan. Buka menu <b>Temukan (Peta)</b> untuk mulai merekam titik, jejak langkah, atau poligon survei
+            lapangan.
           </div>
         )}
       </div>
@@ -464,9 +461,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                 <span className="badge-kategori">{previewFoto.kategori}</span>
                 <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{previewFoto.createdAt.slice(0, 10)}</span>
               </div>
-              <h4 style={{ margin: "0 0 6px", fontSize: "1.1rem", color: "#181a19" }}>
-                {previewFoto.judul}
-              </h4>
+              <h4 style={{ margin: "0 0 6px", fontSize: "1.1rem", color: "#181a19" }}>{previewFoto.judul}</h4>
               <p style={{ margin: "0 0 10px", fontSize: "0.84rem", color: "#475569" }}>
                 {previewFoto.deskripsi || "Foto dokumentasi survei lapangan kader."}
               </p>
@@ -486,22 +481,14 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                     type="button"
                     className="btn-primary-sm"
                     onClick={() => {
-                      onFokusKePeta(
-                        previewFoto.koordinat[0].lat,
-                        previewFoto.koordinat[0].lng,
-                        previewFoto.judul
-                      );
+                      onFokusKePeta(previewFoto.koordinat[0].lat, previewFoto.koordinat[0].lng, previewFoto.judul);
                       setPreviewFoto(null);
                     }}
                   >
                     Buka di Peta
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  onClick={() => setPreviewFoto(null)}
-                >
+                <button type="button" className="btn-outline-sm" onClick={() => setPreviewFoto(null)}>
                   Tutup
                 </button>
               </div>
@@ -521,11 +508,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               Koneksikan ke Web App Google Apps Script organisasi Anda
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-outline-sm"
-            onClick={() => setTampilKodeGas((v) => !v)}
-          >
+          <button type="button" className="btn-outline-sm" onClick={() => setTampilKodeGas((v) => !v)}>
             <FileCode2 size={14} /> {tampilKodeGas ? "Tutup Kode" : "Salin Code.gs"}
           </button>
         </div>
@@ -543,21 +526,11 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           </div>
           <div>
             <label>Folder Google Drive</label>
-            <input
-              type="text"
-              className="form-input"
-              value={folderId}
-              onChange={(e) => setFolderId(e.target.value)}
-            />
+            <input type="text" className="form-input" value={folderId} onChange={(e) => setFolderId(e.target.value)} />
           </div>
           <div>
             <label>Nama Tab Spreadsheet</label>
-            <input
-              type="text"
-              className="form-input"
-              value={sheetId}
-              onChange={(e) => setSheetId(e.target.value)}
-            />
+            <input type="text" className="form-input" value={sheetId} onChange={(e) => setSheetId(e.target.value)} />
           </div>
         </div>
 
@@ -572,17 +545,12 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             onChange={(e) => setToken(e.target.value)}
           />
           <small className="text-muted">
-            Token mencegah orang yang hanya tahu URL menulis ke database. Token tersimpan di HP ini,
-            jadi bukan pengganti login.
+            Token mencegah orang yang hanya tahu URL menulis ke database. Token tersimpan di HP ini, jadi bukan pengganti login.
           </small>
         </div>
 
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: "0.86rem" }}>
-          <input
-            type="checkbox"
-            checked={autoSync}
-            onChange={(e) => setAutoSync(e.target.checked)}
-          />
+          <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
           Unggah otomatis saat ada internet
         </label>
 

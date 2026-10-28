@@ -12,7 +12,9 @@
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "lint": "tsc --noEmit && eslint .",
     "test": "vitest run",
-    "test:e2e": "npm run build && vite build --mode e2e --outDir dist-e2e && playwright test"
+    "test:e2e": "npm run build && vite build --mode e2e --outDir dist-e2e && playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",

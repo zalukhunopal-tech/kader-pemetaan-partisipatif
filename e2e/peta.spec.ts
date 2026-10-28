@@ -14,7 +14,11 @@ import {
 } from "./bantu";
 
 test("HP dengan huruf besar: peta, atribusi, dan Rekam Lokasi tidak tertutup bilah bawah; cubit dua jari", async ({ browser }) => {
-  const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2.6 }, true);
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2.6 },
+    true
+  );
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p);
   await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
@@ -55,7 +59,10 @@ test("HP dengan huruf besar: peta, atribusi, dan Rekam Lokasi tidak tertutup bil
       ];
       await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: titik(dari, 0) });
       for (let i = 1; i <= 8; i++) {
-        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: titik(dari + ((ke - dari) * i) / 8, (geserX * i) / 8) });
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: titik(dari + ((ke - dari) * i) / 8, (geserX * i) / 8)
+        });
       }
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       await p.waitForTimeout(600);
@@ -106,7 +113,10 @@ test("PC: roda tetikus memperbesar peta tanpa menggulir halaman", async ({ brows
 });
 
 test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di peta", async ({ browser }) => {
-  const { p, galat, tutup } = await halamanBaru(browser, { geolocation: { latitude: -1.61, longitude: 103.61, accuracy: 6 }, permissions: ["geolocation"] });
+  const { p, galat, tutup } = await halamanBaru(browser, {
+    geolocation: { latitude: -1.61, longitude: 103.61, accuracy: 6 },
+    permissions: ["geolocation"]
+  });
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p);
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
@@ -153,12 +163,21 @@ test("Satelit Google lewat Map Tiles API resmi (jaringan Google ditiru) dan Sate
       return r.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ session: "SESI-UJI", expiry: String(Math.floor(Date.now() / 1000) + 14 * 86400), tileWidth: 256, tileHeight: 256 })
+        body: JSON.stringify({
+          session: "SESI-UJI",
+          expiry: String(Math.floor(Date.now() / 1000) + 14 * 86400),
+          tileWidth: 256,
+          tileHeight: 256
+        })
       });
     }
     if (/\/tile\/v1\/viewport/.test(u)) {
       minta.viewport.push(u);
-      return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ copyright: "Imagery ©2026 Airbus, Maxar Technologies" }) });
+      return r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ copyright: "Imagery ©2026 Airbus, Maxar Technologies" })
+      });
     }
     if (/\/v1\/2dtiles\//.test(u)) {
       minta.tile.push(u);
@@ -167,12 +186,18 @@ test("Satelit Google lewat Map Tiles API resmi (jaringan Google ditiru) dan Sate
     return r.fulfill({ status: 404, body: "" });
   });
   await p.context().route(/maps\.gstatic\.com/, (r) => r.fulfill({ status: 200, contentType: "image/png", body: PNG }));
-  await p.context().route(/tiles\.maps\.eox\.at|ibasemaps-api\.arcgis\.com|tile\.openstreetmap\.org/, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+  await p
+    .context()
+    .route(/tiles\.maps\.eox\.at|ibasemaps-api\.arcgis\.com|tile\.openstreetmap\.org/, (r) =>
+      r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG })
+    );
   await masukSebagaiAdmin(p, URL_APP_KUNCI);
   await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
 
   expect(await sampai(async () => /Maxar/.test(await p.locator("#atribusi-peta").innerText()), 8000)).toBe(true);
-  expect(await p.locator("#atribusi-peta img.map-logo-google").evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+  expect(await p.locator("#atribusi-peta img.map-logo-google").evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(
+    true
+  );
   expect(minta.sesi).toHaveLength(1);
   expect(JSON.parse(minta.sesi[0].body!).mapType).toBe("satellite");
   expect(minta.sesi[0].u).toMatch(/key=kunci-uji-google/);

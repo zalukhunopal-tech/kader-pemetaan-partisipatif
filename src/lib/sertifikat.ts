@@ -53,11 +53,7 @@ export function ringkasanKader(
     .map(([idKader, info]) => ({
       idKader,
       ...info,
-      capaian: hitungCapaianKader(
-        dataSpasial,
-        { idKader, nama: info.namaKader, modeKombinasiTarget } as ProfilKader,
-        true
-      ),
+      capaian: hitungCapaianKader(dataSpasial, { idKader, nama: info.namaKader, modeKombinasiTarget } as ProfilKader, true),
       sudahTerbit: sertifikatList.some((s) => s.idKader === idKader)
     }))
     .sort((a, b) => Number(b.capaian.berhakSertifikat) - Number(a.capaian.berhakSertifikat) || a.namaKader.localeCompare(b.namaKader));

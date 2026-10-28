@@ -107,17 +107,8 @@ export const DEFAULT_PENANDATANGAN_SERTIFIKAT: PenandatanganSertifikatItem[] = [
 /**
  * Komponen SVG Siluet Orang bergaya WhatsApp Default Avatar
  */
-export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
-  size = 38
-}) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 64 64"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
+export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({ size = 38 }) => (
+  <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
       <clipPath id="waAvatarClip">
         <circle cx="32" cy="32" r="30" />
@@ -129,10 +120,7 @@ export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
       {/* Kepala bulat halus khas WhatsApp */}
       <circle cx="32" cy="23" r="11.5" fill="#cfd8dc" />
       {/* Bahu melengkung kubah khas WhatsApp */}
-      <path
-        d="M10 58C10 44.5 19.5 38 32 38C44.5 38 54 44.5 54 58V64H10V58Z"
-        fill="#cfd8dc"
-      />
+      <path d="M10 58C10 44.5 19.5 38 32 38C44.5 38 54 44.5 54 58V64H10V58Z" fill="#cfd8dc" />
     </g>
   </svg>
 );
@@ -140,41 +128,12 @@ export const SiluetOrangSvg: React.FC<{ size?: number; warna?: string }> = ({
 /**
  * Komponen SVG Gambar Kunci (Gembok Level Terkunci)
  */
-const KunciLevelSvg: React.FC<{ size?: number; warna?: string }> = ({
-  size = 28,
-  warna = "#fbbf24"
-}) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 48 48"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <rect
-      x="10"
-      y="21"
-      width="28"
-      height="21"
-      rx="5"
-      fill="rgba(2, 44, 34, 0.85)"
-      stroke={warna}
-      strokeWidth="3"
-    />
-    <path
-      d="M16 21V15C16 10.5817 19.5817 7 24 7C28.4183 7 32 10.5817 32 15V21"
-      stroke={warna}
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
+const KunciLevelSvg: React.FC<{ size?: number; warna?: string }> = ({ size = 28, warna = "#fbbf24" }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="10" y="21" width="28" height="21" rx="5" fill="rgba(2, 44, 34, 0.85)" stroke={warna} strokeWidth="3" />
+    <path d="M16 21V15C16 10.5817 19.5817 7 24 7C28.4183 7 32 10.5817 32 15V21" stroke={warna} strokeWidth="3" strokeLinecap="round" />
     <circle cx="24" cy="30" r="3" fill={warna} />
-    <path
-      d="M24 33V36"
-      stroke={warna}
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
+    <path d="M24 33V36" stroke={warna} strokeWidth="3" strokeLinecap="round" />
   </svg>
 );
 
@@ -182,13 +141,7 @@ const KunciLevelSvg: React.FC<{ size?: number; warna?: string }> = ({
  * Menggambar Siluet Orang bergaya WhatsApp di dalam Bingkai Passfoto Sertifikat
  * ketika kader belum mengunggah foto.
  */
-function gambarSiluetWhatsAppCanvas(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-) {
+function gambarSiluetWhatsAppCanvas(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
@@ -220,18 +173,8 @@ function gambarSiluetWhatsAppCanvas(
   const shoulderBottomY = y + h;
   ctx.beginPath();
   ctx.moveTo(cx - shoulderW, shoulderBottomY);
-  ctx.quadraticCurveTo(
-    cx - shoulderW,
-    shoulderTopY,
-    cx,
-    shoulderTopY
-  );
-  ctx.quadraticCurveTo(
-    cx + shoulderW,
-    shoulderTopY,
-    cx + shoulderW,
-    shoulderBottomY
-  );
+  ctx.quadraticCurveTo(cx - shoulderW, shoulderTopY, cx, shoulderTopY);
+  ctx.quadraticCurveTo(cx + shoulderW, shoulderTopY, cx + shoulderW, shoulderBottomY);
   ctx.closePath();
   ctx.fill();
 
@@ -380,13 +323,7 @@ function gambarDeretanLogoHeader(
       ctx.beginPath();
       ctx.arc(cx, cy, radius - 4, 0, Math.PI * 2);
       ctx.clip();
-      ctx.drawImage(
-        img,
-        cx - (radius - 4),
-        cy - (radius - 4),
-        (radius - 4) * 2,
-        (radius - 4) * 2
-      );
+      ctx.drawImage(img, cx - (radius - 4), cy - (radius - 4), (radius - 4) * 2, (radius - 4) * 2);
       ctx.restore();
     } else {
       // Emblem vektor organisasi otomatis jika belum unggah gambar
@@ -431,13 +368,7 @@ function gambarDeretanLogoHeader(
  * Menggambar QR Code Verifikasi di Sisi Kanan Sertifikat. QR sungguhan yang bisa dipindai;
  * area putih di sekelilingnya (4 modul) adalah zona tenang yang dibutuhkan pemindai.
  */
-function gambarQrCodeVerifikasi(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
-  payload: string
-) {
+function gambarQrCodeVerifikasi(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, payload: string) {
   const matriks = matriksQr(payload);
   const n = matriks.length;
   const sel = size / n;
@@ -506,9 +437,7 @@ function gambarSatuBlokPenandatangan(
   ctx.arc(0, 0, 17, 0, Math.PI * 2);
   ctx.stroke();
 
-  const labelStempel = (item.instansi || "VERIFIKASI SPASIAL")
-    .toUpperCase()
-    .slice(0, 22);
+  const labelStempel = (item.instansi || "VERIFIKASI SPASIAL").toUpperCase().slice(0, 22);
   ctx.font = "bold 7.5px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(`★ ${labelStempel} ★`, 0, -24);
@@ -731,17 +660,9 @@ function lukisSertifikatKeCanvas(
 
   // 8. Barisan Logo di dalam Bagian Bawah V-Chevron Biru Navy
   // Hanya digambar jika logo sudah dimasukkan/diunggah berkas gambarnya oleh admin
-  const logosDenganGambar = (sert.logoSertifikatList || []).filter(
-    (l) => Boolean(l.imageBase64)
-  );
+  const logosDenganGambar = (sert.logoSertifikatList || []).filter((l) => Boolean(l.imageBase64));
   if (logosDenganGambar.length > 0) {
-    gambarDeretanLogoHeader(
-      ctx,
-      centerX,
-      innerY + 216,
-      logosDenganGambar,
-      logoImagesMap
-    );
+    gambarDeretanLogoHeader(ctx, centerX, innerY + 216, logosDenganGambar, logoImagesMap);
   }
 
   // 9. Teks "Diberikan Kepada"
@@ -751,10 +672,7 @@ function lukisSertifikatKeCanvas(
   ctx.fillText("D i b e r i k a n   K e p a d a", centerX, 430);
 
   // 10. Nama Penerima + Garis Bawah Emas-Zaitun + Nomor Sertifikat di Bawah Garis
-  const namaBersih = (sert.namaKader || "Kader Spasial").replace(
-    /\s*\(Kader Lapangan\)/i,
-    ""
-  );
+  const namaBersih = (sert.namaKader || "Kader Spasial").replace(/\s*\(Kader Lapangan\)/i, "");
   let fontNama = 46;
   ctx.font = `bold ${fontNama}px Georgia, 'Times New Roman', serif`;
   while (ctx.measureText(namaBersih).width > 960 && fontNama > 28) {
@@ -779,14 +697,9 @@ function lukisSertifikatKeCanvas(
 
   // 11. Deskripsi Peran & Tema Kegiatan (Dapat Diubah oleh Admin)
   const peranTeks = "Sebagai Kader Desa";
-  const temaRaw =
-    sert.temaKegiatanSertifikat?.trim() ||
-    "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+  const temaRaw = sert.temaKegiatanSertifikat?.trim() || "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
 
-  const temaKegiatan =
-    temaRaw.startsWith('"') && temaRaw.endsWith('"')
-      ? temaRaw
-      : `"${temaRaw}"`;
+  const temaKegiatan = temaRaw.startsWith('"') && temaRaw.endsWith('"') ? temaRaw : `"${temaRaw}"`;
 
   ctx.fillStyle = "#111827";
   ctx.font = "600 28px system-ui, -apple-system, sans-serif";
@@ -806,12 +719,8 @@ function lukisSertifikatKeCanvas(
   ctx.fillText(formatTanggalSertifikatIndo(sert.tanggalTerbit), centerX, 742);
 
   // 12. QR Code Verifikasi di Sisi Kanan (Hanya dibuat jika logo ATAU tanda tangan sudah dimasukkan)
-  const adaLogoDimasukkan = (sert.logoSertifikatList || []).some((l) =>
-    Boolean(l.imageBase64)
-  );
-  const adaTtdDimasukkan = (sert.penandatanganList || []).some((p) =>
-    Boolean(p.tandaTanganBase64)
-  );
+  const adaLogoDimasukkan = (sert.logoSertifikatList || []).some((l) => Boolean(l.imageBase64));
+  const adaTtdDimasukkan = (sert.penandatanganList || []).some((p) => Boolean(p.tandaTanganBase64));
   const tampilkanBarcode = adaLogoDimasukkan || adaTtdDimasukkan;
 
   if (tampilkanBarcode) {
@@ -826,10 +735,7 @@ function lukisSertifikatKeCanvas(
   gambarBingkaiFotoKaderCanvas(ctx, photoX, photoY, photoW, photoH, fotoImg);
 
   // 14. Barisan Penandatangan di Kiri & Kanan Passfoto
-  const signers =
-    sert.penandatanganList && sert.penandatanganList.length > 0
-      ? sert.penandatanganList
-      : DEFAULT_PENANDATANGAN_SERTIFIKAT;
+  const signers = sert.penandatanganList && sert.penandatanganList.length > 0 ? sert.penandatanganList : DEFAULT_PENANDATANGAN_SERTIFIKAT;
 
   const ySignTop = 852;
   const leftCount = Math.ceil(signers.length / 2);
@@ -842,16 +748,8 @@ function lukisSertifikatKeCanvas(
   const leftAreaW = leftAreaEnd - leftAreaStart;
 
   leftSigners.forEach((sig, i) => {
-    const cx =
-      leftAreaStart + ((i + 0.5) / Math.max(1, leftSigners.length)) * leftAreaW;
-    gambarSatuBlokPenandatangan(
-      ctx,
-      cx,
-      ySignTop,
-      sig,
-      i,
-      ttdImagesMap[sig.id]
-    );
+    const cx = leftAreaStart + ((i + 0.5) / Math.max(1, leftSigners.length)) * leftAreaW;
+    gambarSatuBlokPenandatangan(ctx, cx, ySignTop, sig, i, ttdImagesMap[sig.id]);
   });
 
   // Area kanan: antara photoX + photoW + 25 s/d W - 75
@@ -860,16 +758,8 @@ function lukisSertifikatKeCanvas(
   const rightAreaW = rightAreaEnd - rightAreaStart;
 
   rightSigners.forEach((sig, i) => {
-    const cx =
-      rightAreaStart + ((i + 0.5) / Math.max(1, rightSigners.length)) * rightAreaW;
-    gambarSatuBlokPenandatangan(
-      ctx,
-      cx,
-      ySignTop,
-      sig,
-      i + leftCount,
-      ttdImagesMap[sig.id]
-    );
+    const cx = rightAreaStart + ((i + 0.5) / Math.max(1, rightSigners.length)) * rightAreaW;
+    gambarSatuBlokPenandatangan(ctx, cx, ySignTop, sig, i + leftCount, ttdImagesMap[sig.id]);
   });
 
   // Pratinjau: sertifikat yang belum diterbitkan admin diberi tanda air agar tidak dipakai sebagai dokumen resmi
@@ -906,14 +796,7 @@ const CincinProgresSvg: React.FC<{
     <div className="visual-ring-card">
       <div className="visual-ring-svg-wrap">
         <svg width="84" height="84" viewBox="0 0 84 84">
-          <circle
-            cx="42"
-            cy="42"
-            r={r}
-            fill="none"
-            stroke="#e2e8f0"
-            strokeWidth="7"
-          />
+          <circle cx="42" cy="42" r={r} fill="none" stroke="#e2e8f0" strokeWidth="7" />
           <circle
             cx="42"
             cy="42"
@@ -986,14 +869,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const [bukaAturSertifikat, setBukaAturSertifikat] = useState(false);
 
   // Kemajuan yang terlihat kader memakai semua data; kelayakan sertifikat hanya dari data terverifikasi
-  const capaian = useMemo(
-    () => hitungCapaianKader(dataSpasial, profil, false),
-    [dataSpasial, profil]
-  );
-  const capaianTerverifikasi = useMemo(
-    () => hitungCapaianKader(dataSpasial, profil, true),
-    [dataSpasial, profil]
-  );
+  const capaian = useMemo(() => hitungCapaianKader(dataSpasial, profil, false), [dataSpasial, profil]);
+  const capaianTerverifikasi = useMemo(() => hitungCapaianKader(dataSpasial, profil, true), [dataSpasial, profil]);
 
   const peringkatGis = useMemo(
     () => hitungPeringkatGis20Level(dataSpasial, profil, pesanList, tugasList),
@@ -1005,22 +882,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
   // State navigasi level ke kiri / ke kanan (1 s/d 20)
   // Level yang dilihat (geser kiri/kanan) kembali ke level saat ini begitu kader naik level
   const [levelDipilih, setLevelDipilih] = useState<{ untukLevel: number; nomor: number } | null>(null);
-  const nomorLevelDilihat =
-    levelDipilih && levelDipilih.untukLevel === levelSaatIni.level ? levelDipilih.nomor : levelSaatIni.level;
+  const nomorLevelDilihat = levelDipilih && levelDipilih.untukLevel === levelSaatIni.level ? levelDipilih.nomor : levelSaatIni.level;
   const setNomorLevelDilihat = (nomor: number) => setLevelDipilih({ untukLevel: levelSaatIni.level, nomor });
 
-  const infoLevelDilihat =
-    DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat) || levelSaatIni;
+  const infoLevelDilihat = DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat) || levelSaatIni;
   const apakahLevelTerkunci = nomorLevelDilihat > levelSaatIni.level;
 
-  const levelKiri =
-    nomorLevelDilihat > 1
-      ? DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat - 1) || null
-      : null;
+  const levelKiri = nomorLevelDilihat > 1 ? DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat - 1) || null : null;
   const levelKanan =
-    nomorLevelDilihat < DAFTAR_20_LEVEL_GIS.length
-      ? DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat + 1) || null
-      : null;
+    nomorLevelDilihat < DAFTAR_20_LEVEL_GIS.length ? DAFTAR_20_LEVEL_GIS.find((l) => l.level === nomorLevelDilihat + 1) || null : null;
 
   const sertifikatSaya = sertifikatList.find((s) => s.idKader === profil.idKader);
 
@@ -1030,8 +900,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   // Tersertifikasi hanya bila admin sudah menerbitkan; capaian saja belum cukup
   const sudahTersertifikasi = Boolean(sertifikatSaya);
 
-  const fotoSertifikatBase64 =
-    sertifikatSaya?.fotoKaderBase64 || profil.fotoKaderBase64 || "";
+  const fotoSertifikatBase64 = sertifikatSaya?.fotoKaderBase64 || profil.fotoKaderBase64 || "";
 
   const logoListAktif: LogoSertifikatItem[] = useMemo(() => {
     if (profil.logoSertifikatList) {
@@ -1059,10 +928,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
     if (profil.penandatanganList && profil.penandatanganList.length > 0) {
       return profil.penandatanganList;
     }
-    if (
-      sertifikatSaya?.penandatanganList &&
-      sertifikatSaya.penandatanganList.length > 0
-    ) {
+    if (sertifikatSaya?.penandatanganList && sertifikatSaya.penandatanganList.length > 0) {
       return sertifikatSaya.penandatanganList;
     }
     return DEFAULT_PENANDATANGAN_SERTIFIKAT;
@@ -1082,10 +948,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
       profil.namaPenandatanganSertifikat ||
       "Dr. Ir. Jonni Marwa, S.Hut., M.Si.";
     const jabatanPenandatangan =
-      pejabatUtama?.jabatan ||
-      sertifikatSaya?.jabatanPenandatangan ||
-      profil.jabatanPenandatanganSertifikat ||
-      "Koordinator Wilayah";
+      pejabatUtama?.jabatan || sertifikatSaya?.jabatanPenandatangan || profil.jabatanPenandatanganSertifikat || "Koordinator Wilayah";
 
     if (sertifikatSaya) {
       return {
@@ -1104,8 +967,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
-      namaOrganisasi:
-        profil.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif",
+      namaOrganisasi: profil.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif",
       tanggalTerbit: new Date().toISOString().slice(0, 10),
       alasanCapaian: capaianTerverifikasi.alasanSertifikat,
       status: "menunggu_admin",
@@ -1128,19 +990,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
 
   useEffect(() => {
     if (certCanvasRef.current) {
-      lukisSertifikatKeCanvas(
-        certCanvasRef.current,
-        sertifikatTampil,
-        fotoElement,
-        logoImagesMap,
-        ttdImagesMap
-      );
+      lukisSertifikatKeCanvas(certCanvasRef.current, sertifikatTampil, fotoElement, logoImagesMap, ttdImagesMap);
     }
   }, [sertifikatTampil, fotoElement, logoImagesMap, ttdImagesMap]);
 
-  const handlePilihFotoSertifikat = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handlePilihFotoSertifikat = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
@@ -1171,10 +1025,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
     });
   };
 
-  const handleUbahLogo = (
-    id: string,
-    patch: Partial<LogoSertifikatItem>
-  ) => {
+  const handleUbahLogo = (id: string, patch: Partial<LogoSertifikatItem>) => {
     const baru = logoListAktif.map((l) => (l.id === id ? { ...l, ...patch } : l));
     onUbahProfil({ ...profil, logoSertifikatList: baru });
   };
@@ -1209,13 +1060,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
     });
   };
 
-  const handleUbahPenandatanganItem = (
-    id: string,
-    patch: Partial<PenandatanganSertifikatItem>
-  ) => {
-    const baru = penandatanganListAktif.map((p) =>
-      p.id === id ? { ...p, ...patch } : p
-    );
+  const handleUbahPenandatanganItem = (id: string, patch: Partial<PenandatanganSertifikatItem>) => {
+    const baru = penandatanganListAktif.map((p) => (p.id === id ? { ...p, ...patch } : p));
     onUbahProfil({
       ...profil,
       penandatanganList: baru,
@@ -1249,13 +1095,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const handleUnduhSertifikatPng = () => {
     const canvas = certCanvasRef.current;
     if (!canvas || !sertifikatSaya) return;
-    lukisSertifikatKeCanvas(
-      canvas,
-      sertifikatTampil,
-      fotoElement,
-      logoImagesMap,
-      ttdImagesMap
-    );
+    lukisSertifikatKeCanvas(canvas, sertifikatTampil, fotoElement, logoImagesMap, ttdImagesMap);
     const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
     a.href = url;
@@ -1266,13 +1106,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const handleCetakSertifikat = () => {
     const canvas = certCanvasRef.current;
     if (!canvas || !sertifikatSaya) return;
-    lukisSertifikatKeCanvas(
-      canvas,
-      sertifikatTampil,
-      fotoElement,
-      logoImagesMap,
-      ttdImagesMap
-    );
+    lukisSertifikatKeCanvas(canvas, sertifikatTampil, fotoElement, logoImagesMap, ttdImagesMap);
     const dataUrl = canvas.toDataURL("image/png");
 
     const win = window.open("", "_blank");
@@ -1329,13 +1163,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   return (
     <div className="page-container reward-page-clean">
       {/* INPUT FILE TERSEMBUNYI UNTUK FOTO KADER DI SERTIFIKAT */}
-      <input
-        ref={inputFotoRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handlePilihFotoSertifikat}
-      />
+      <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePilihFotoSertifikat} />
 
       {/* 1. KARTU LEVEL KADER (GESER KIRI / KANAN DENGAN IKON KUNCI UNTUK LEVEL BELUM TERBUKA, TANPA XP) */}
       <div className="section-card reward-gis-hero-card">
@@ -1348,11 +1176,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
               title="Unggah foto kader"
             >
               {fotoSertifikatBase64 ? (
-                <img
-                  src={fotoSertifikatBase64}
-                  alt={profil.nama}
-                  className="visual-avatar-photo"
-                />
+                <img src={fotoSertifikatBase64} alt={profil.nama} className="visual-avatar-photo" />
               ) : (
                 <SiluetOrangSvg size={38} />
               )}
@@ -1374,12 +1198,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            className="visual-icon-gear-btn"
-            onClick={() => setBukaPengaturan((v) => !v)}
-            title="Profil"
-          >
+          <button type="button" className="visual-icon-gear-btn" onClick={() => setBukaPengaturan((v) => !v)} title="Profil">
             <Settings size={18} />
           </button>
         </div>
@@ -1391,9 +1210,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             type="button"
             className={`visual-level-side-btn ${!levelKiri ? "disabled" : ""}`}
             disabled={!levelKiri}
-            onClick={() =>
-              levelKiri && setNomorLevelDilihat(levelKiri.level)
-            }
+            onClick={() => levelKiri && setNomorLevelDilihat(levelKiri.level)}
             title={levelKiri ? `Lihat Level ${levelKiri.level}` : "Level Awal"}
           >
             <ChevronLeft size={20} className="side-arrow-icon" />
@@ -1402,15 +1219,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 {levelKiri.level > levelSaatIni.level ? (
                   <KunciLevelSvg size={26} warna="#94a3b8" />
                 ) : (
-                  <span className="side-level-unlocked-num">
-                    Lv.{levelKiri.level}
-                  </span>
+                  <span className="side-level-unlocked-num">Lv.{levelKiri.level}</span>
                 )}
-                <span className="side-level-caption">
-                  {levelKiri.level > levelSaatIni.level
-                    ? "Terkunci"
-                    : `Level ${levelKiri.level}`}
-                </span>
+                <span className="side-level-caption">{levelKiri.level > levelSaatIni.level ? "Terkunci" : `Level ${levelKiri.level}`}</span>
               </div>
             ) : (
               <div className="side-level-badge muted">
@@ -1434,14 +1245,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                       strokeWidth="5"
                       strokeDasharray="6 5"
                     />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="34"
-                      fill="rgba(15, 23, 42, 0.75)"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                    />
+                    <circle cx="50" cy="50" r="34" fill="rgba(15, 23, 42, 0.75)" stroke="#fbbf24" strokeWidth="2" />
                   </svg>
                   <div className="locked-medal-center-icon">
                     <KunciLevelSvg size={40} warna="#fbbf24" />
@@ -1469,14 +1273,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                         <stop offset="100%" stopColor="#d97706" />
                       </linearGradient>
                     </defs>
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="44"
-                      fill="rgba(2, 44, 34, 0.7)"
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeWidth="6"
-                    />
+                    <circle cx="50" cy="50" r="44" fill="rgba(2, 44, 34, 0.7)" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
                     <circle
                       cx="50"
                       cy="50"
@@ -1486,41 +1283,21 @@ export const RewardView: React.FC<RewardViewProps> = ({
                       strokeWidth="6"
                       strokeLinecap="round"
                       strokeDasharray={2 * Math.PI * 44}
-                      strokeDashoffset={
-                        2 * Math.PI * 44 * (1 - persenProgresLevel / 100)
-                      }
+                      strokeDashoffset={2 * Math.PI * 44 * (1 - persenProgresLevel / 100)}
                       transform="rotate(-90 50 50)"
                     />
                     <circle cx="50" cy="50" r="34" fill="url(#goldMedal)" />
-                    <text
-                      x="50"
-                      y="46"
-                      textAnchor="middle"
-                      fill="#022c22"
-                      fontSize="12"
-                      fontWeight="900"
-                    >
+                    <text x="50" y="46" textAnchor="middle" fill="#022c22" fontSize="12" fontWeight="900">
                       LEVEL
                     </text>
-                    <text
-                      x="50"
-                      y="68"
-                      textAnchor="middle"
-                      fill="#022c22"
-                      fontSize="24"
-                      fontWeight="900"
-                    >
+                    <text x="50" y="68" textAnchor="middle" fill="#022c22" fontSize="24" fontWeight="900">
                       {infoLevelDilihat.level}
                     </text>
                   </svg>
                 </div>
-                <div className="visual-current-level-title">
-                  {infoLevelDilihat.namaLevel}
-                </div>
+                <div className="visual-current-level-title">{infoLevelDilihat.namaLevel}</div>
                 <div className="visual-current-status-pill">
-                  {infoLevelDilihat.level === levelSaatIni.level
-                    ? `Level Aktif • Progres ${persenProgresLevel}%`
-                    : "Level Telah Terbuka"}
+                  {infoLevelDilihat.level === levelSaatIni.level ? `Level Aktif • Progres ${persenProgresLevel}%` : "Level Telah Terbuka"}
                 </div>
               </>
             )}
@@ -1531,9 +1308,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             type="button"
             className={`visual-level-side-btn ${!levelKanan ? "disabled" : ""}`}
             disabled={!levelKanan}
-            onClick={() =>
-              levelKanan && setNomorLevelDilihat(levelKanan.level)
-            }
+            onClick={() => levelKanan && setNomorLevelDilihat(levelKanan.level)}
             title={
               levelKanan
                 ? levelKanan.level > levelSaatIni.level
@@ -1547,14 +1322,10 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 {levelKanan.level > levelSaatIni.level ? (
                   <KunciLevelSvg size={28} warna="#fbbf24" />
                 ) : (
-                  <span className="side-level-unlocked-num">
-                    Lv.{levelKanan.level}
-                  </span>
+                  <span className="side-level-unlocked-num">Lv.{levelKanan.level}</span>
                 )}
                 <span className="side-level-caption">
-                  {levelKanan.level > levelSaatIni.level
-                    ? `Lv.${levelKanan.level} Terkunci`
-                    : `Level ${levelKanan.level}`}
+                  {levelKanan.level > levelSaatIni.level ? `Lv.${levelKanan.level} Terkunci` : `Level ${levelKanan.level}`}
                 </span>
               </div>
             ) : (
@@ -1678,24 +1449,16 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </button>
         </div>
 
-        <p
-          id="status-sertifikat"
-          className="text-muted"
-          style={{ margin: "0 0 10px", fontSize: "0.84rem" }}
-        >
+        <p id="status-sertifikat" className="text-muted" style={{ margin: "0 0 10px", fontSize: "0.84rem" }}>
           {sertifikatSaya
             ? `Sertifikat ${sertifikatSaya.nomorSertifikat} sudah diterbitkan.`
             : capaianTerverifikasi.berhakSertifikat
-            ? "Capaian terverifikasi sudah memenuhi satu paket. Menunggu admin menerbitkan sertifikat."
-            : "Sertifikat diterbitkan admin setelah data Anda yang memenuhi satu paket (50 titik, 5 km jalur, atau 5 Ha poligon) diverifikasi."}
+              ? "Capaian terverifikasi sudah memenuhi satu paket. Menunggu admin menerbitkan sertifikat."
+              : "Sertifikat diterbitkan admin setelah data Anda yang memenuhi satu paket (50 titik, 5 km jalur, atau 5 Ha poligon) diverifikasi."}
         </p>
 
         <div className="certificate-canvas-stage" id="certificate-print-area">
-          <canvas
-            ref={certCanvasRef}
-            className="certificate-wysiwyg-canvas"
-            aria-label={`Sertifikat ${sertifikatTampil.namaKader}`}
-          />
+          <canvas ref={certCanvasRef} className="certificate-wysiwyg-canvas" aria-label={`Sertifikat ${sertifikatTampil.namaKader}`} />
         </div>
 
         {/* PANEL ATUR & TAMBAH LOGO, TTD, SERTA TEMA SERTIFIKAT (KHUSUS ADMIN) */}
@@ -1728,7 +1491,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
                   onChange={(e) => handleUbahTemaKegiatan(e.target.value)}
                 />
                 <small style={{ color: "#64748b" }}>
-                  Teks ini dicetak tepat di baris bawah <em>"Sebagai Kader Desa"</em> pada sertifikat. Font otomatis menyesuaikan panjang kalimat agar proporsional di PC maupun HP.
+                  Teks ini dicetak tepat di baris bawah <em>"Sebagai Kader Desa"</em> pada sertifikat. Font otomatis menyesuaikan panjang
+                  kalimat agar proporsional di PC maupun HP.
                 </small>
               </div>
             </div>
@@ -1740,18 +1504,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
                   <ImageIcon size={15} color="#0284c7" />
                   <strong>Logo Header ({logoListAktif.length})</strong>
                 </div>
-                <button
-                  type="button"
-                  className="btn-primary-sm"
-                  onClick={handleTambahLogo}
-                >
+                <button type="button" className="btn-primary-sm" onClick={handleTambahLogo}>
                   <Plus size={13} /> Tambah Logo
                 </button>
               </div>
 
               {logoListAktif.length === 0 ? (
                 <div className="cert-empty-hint">
-                  Belum ada logo yang dimasukkan. Klik <strong>+ Tambah Logo</strong> lalu unggah file gambar logo agar ditampilkan pada header sertifikat dan mengaktifkan kode QR verifikasi.
+                  Belum ada logo yang dimasukkan. Klik <strong>+ Tambah Logo</strong> lalu unggah file gambar logo agar ditampilkan pada
+                  header sertifikat dan mengaktifkan kode QR verifikasi.
                 </div>
               ) : (
                 <div className="cert-logo-editor-grid">
@@ -1769,9 +1530,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                         className="form-input"
                         placeholder="Nama/Instansi Logo"
                         value={logo.nama}
-                        onChange={(e) =>
-                          handleUbahLogo(logo.id, { nama: e.target.value })
-                        }
+                        onChange={(e) => handleUbahLogo(logo.id, { nama: e.target.value })}
                       />
                       <label
                         className="btn-outline-sm"
@@ -1789,12 +1548,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                           }}
                         />
                       </label>
-                      <button
-                        type="button"
-                        className="btn-danger-sm"
-                        onClick={() => handleHapusLogo(logo.id)}
-                        title="Hapus Logo"
-                      >
+                      <button type="button" className="btn-danger-sm" onClick={() => handleHapusLogo(logo.id)} title="Hapus Logo">
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -1810,11 +1564,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                   <PenTool size={15} color="#0284c7" />
                   <strong>Tanda Tangan Pejabat ({penandatanganListAktif.length})</strong>
                 </div>
-                <button
-                  type="button"
-                  className="btn-primary-sm"
-                  onClick={handleTambahPenandatangan}
-                >
+                <button type="button" className="btn-primary-sm" onClick={handleTambahPenandatangan}>
                   <Plus size={13} /> Tambah Penandatangan
                 </button>
               </div>
@@ -1830,8 +1580,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                           style={{ margin: 0, cursor: "pointer", whiteSpace: "nowrap" }}
                           title="Unggah Gambar Tanda Tangan / Stempel"
                         >
-                          <PenTool size={12} />{" "}
-                          {sig.tandaTanganBase64 ? "Ganti TTD" : "Unggah TTD"}
+                          <PenTool size={12} /> {sig.tandaTanganBase64 ? "Ganti TTD" : "Unggah TTD"}
                           <input
                             type="file"
                             accept="image/*"
@@ -1958,19 +1707,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </div>
 
           <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="btn-primary-sm"
-              onClick={() => inputFotoRef.current?.click()}
-            >
+            <button type="button" className="btn-primary-sm" onClick={() => inputFotoRef.current?.click()}>
               <Camera size={14} /> {fotoSertifikatBase64 ? "Ubah Foto" : "Pilih Foto"}
             </button>
             {fotoSertifikatBase64 && (
-              <button
-                type="button"
-                className="btn-outline-sm"
-                onClick={handleHapusFotoSertifikat}
-              >
+              <button type="button" className="btn-outline-sm" onClick={handleHapusFotoSertifikat}>
                 <Trash2 size={14} /> Hapus Foto
               </button>
             )}

@@ -24,25 +24,14 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
       {/* HEADER PEMBERITAHUAN */}
       <header className="avenza-subpage-header">
         <div className="avenza-subpage-left">
-          <button
-            type="button"
-            className="avenza-back-btn"
-            onClick={onTutup}
-            title="Kembali"
-          >
+          <button type="button" className="avenza-back-btn" onClick={onTutup} title="Kembali">
             <ArrowLeft size={24} />
           </button>
           <h2>Pemberitahuan</h2>
         </div>
 
-        <button
-          type="button"
-          className="avenza-history-toggle-btn"
-          onClick={() => setLihatRiwayat((v) => !v)}
-        >
-          {lihatRiwayat
-            ? "Tampilan Utama"
-            : `Riwayat Notifikasi (${pengumumanList.length + tugasList.length})`}
+        <button type="button" className="avenza-history-toggle-btn" onClick={() => setLihatRiwayat((v) => !v)}>
+          {lihatRiwayat ? "Tampilan Utama" : `Riwayat Notifikasi (${pengumumanList.length + tugasList.length})`}
         </button>
       </header>
 
@@ -60,15 +49,23 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
         <div className="page-container">
           {pengumumanList.length === 0 && tugasList.length === 0 ? (
             <div className="section-card" style={{ textAlign: "center", padding: "40px 20px" }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#f1f5f3", color: "#64748b", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  background: "#f1f5f3",
+                  color: "#64748b",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 12
+                }}
+              >
                 <Bell size={28} />
               </div>
-              <h4 style={{ margin: "0 0 6px", fontSize: "1.05rem", color: "#1e293b" }}>
-                Belum Ada Riwayat Notifikasi
-              </h4>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>
-                Tidak ada pengumuman atau tugas pemetaan di perangkat ini.
-              </p>
+              <h4 style={{ margin: "0 0 6px", fontSize: "1.05rem", color: "#1e293b" }}>Belum Ada Riwayat Notifikasi</h4>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Tidak ada pengumuman atau tugas pemetaan di perangkat ini.</p>
             </div>
           ) : (
             <>
@@ -77,10 +74,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
                   <h3>📢 Pengumuman ({pengumumanList.length})</h3>
                   <div className="announcement-list">
                     {pengumumanList.map((p) => (
-                      <div
-                        key={p.id}
-                        className={`announcement-card ${p.penting ? "urgent" : ""}`}
-                      >
+                      <div key={p.id} className={`announcement-card ${p.penting ? "urgent" : ""}`}>
                         <div className="ann-header">
                           <span className="badge-kategori">{p.kategori}</span>
                           <span className="text-xs text-muted">
@@ -105,13 +99,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
                           <span className="badge-kategori">
                             {t.jenisTargetGeometri.toUpperCase()} • {t.kategoriTarget}
                           </span>
-                          <span
-                            className={`badge-sync ${
-                              t.status === "selesai"
-                                ? "status-terverifikasi"
-                                : "status-tersinkron"
-                            }`}
-                          >
+                          <span className={`badge-sync ${t.status === "selesai" ? "status-terverifikasi" : "status-tersinkron"}`}>
                             {t.status === "selesai" ? "✓ Selesai" : "⏳ Aktif"}
                           </span>
                         </div>
@@ -131,21 +119,13 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
                             className="btn-primary-sm"
                             onClick={() => {
                               onTutup();
-                              onBukaTargetDiPeta(
-                                t.koordinatAcuan.lat,
-                                t.koordinatAcuan.lng,
-                                t.judul
-                              );
+                              onBukaTargetDiPeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul);
                             }}
                           >
                             <MapPin size={14} /> Buka di Peta
                           </button>
                           {t.status !== "selesai" && (
-                            <button
-                              type="button"
-                              className="btn-outline-sm"
-                              onClick={() => onTandaiTugasSelesai(t.id)}
-                            >
+                            <button type="button" className="btn-outline-sm" onClick={() => onTandaiTugasSelesai(t.id)}>
                               <CheckCircle2 size={14} /> Selesai
                             </button>
                           )}

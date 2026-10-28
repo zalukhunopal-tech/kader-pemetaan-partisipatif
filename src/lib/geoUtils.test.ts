@@ -92,7 +92,12 @@ describe("jarak, panjang jalur, dan luas", () => {
   });
   it("titik kurang dari batas minimum menghasilkan 0", () => {
     expect(hitungPanjangGarisKm([{ lat: 0, lng: 0 }])).toBe(0);
-    expect(hitungLuasPoligonHa([{ lat: 0, lng: 0 }, { lat: 1, lng: 1 }])).toBe(0);
+    expect(
+      hitungLuasPoligonHa([
+        { lat: 0, lng: 0 },
+        { lat: 1, lng: 1 }
+      ])
+    ).toBe(0);
   });
 });
 

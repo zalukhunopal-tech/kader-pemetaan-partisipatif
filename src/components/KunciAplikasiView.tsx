@@ -64,8 +64,8 @@ export const SiapkanKunciCepat: React.FC<{ sesi: AkunSesi; onSelesai: (pesan: st
   return (
     <form id="form-siapkan-pin" className="verifikasi-identitas" onSubmit={simpan}>
       <p className="verifikasi-teks">
-        Buat <strong>PIN {PANJANG_PIN} angka</strong> untuk membuka GeoKader. Kode Google Authenticator cukup dimasukkan
-        sekali setiap <strong>8 jam</strong>; di antaranya aplikasi dibuka dengan PIN
+        Buat <strong>PIN {PANJANG_PIN} angka</strong> untuk membuka GeoKader. Kode Google Authenticator cukup dimasukkan sekali setiap{" "}
+        <strong>8 jam</strong>; di antaranya aplikasi dibuka dengan PIN
         {bioDidukung ? " atau sidik jari / pengenalan wajah" : ""}.
       </p>
       <label className="verifikasi-label" htmlFor="pin-baru">
@@ -108,7 +108,11 @@ export const SiapkanKunciCepat: React.FC<{ sesi: AkunSesi; onSelesai: (pesan: st
           {galat}
         </div>
       )}
-      <button type="submit" className="btn-primary verifikasi-tombol" disabled={sibuk || pin.length !== PANJANG_PIN || ulang.length !== PANJANG_PIN}>
+      <button
+        type="submit"
+        className="btn-primary verifikasi-tombol"
+        disabled={sibuk || pin.length !== PANJANG_PIN || ulang.length !== PANJANG_PIN}
+      >
         {sibuk ? "Menyimpan…" : "Simpan PIN"}
       </button>
       {bioDidukung && (

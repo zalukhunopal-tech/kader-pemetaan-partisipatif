@@ -21,9 +21,7 @@ export function hitungJarakMeter(a: KoordinatTitik, b: KoordinatTitik): number {
 
   const sinDLat = Math.sin(dLat / 2);
   const sinDLng = Math.sin(dLng / 2);
-  const h =
-    sinDLat * sinDLat +
-    Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+  const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
   const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
   return EARTH_RADIUS_M * c;
 }
@@ -70,9 +68,7 @@ export function hitungBearingDerajat(a: KoordinatTitik, b: KoordinatTitik): numb
   const lat2 = toRad(b.lat);
   const dLng = toRad(b.lng - a.lng);
   const y = Math.sin(dLng) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
   const brng = toDeg(Math.atan2(y, x));
   return Math.round((brng + 360) % 360);
 }
@@ -88,18 +84,14 @@ export function namaArahKompas(derajat: number): string {
     "B (Barat)",
     "BL (Barat Laut)"
   ];
-  const idx = Math.round(((derajat % 360) / 45)) % 8;
+  const idx = Math.round((derajat % 360) / 45) % 8;
   return arah[idx];
 }
 
 /**
  * Format koordinat ke Decimal Degrees (DD), Degrees Minutes Seconds (DMS), atau pendekatan UTM
  */
-export function formatKoordinatTeks(
-  lat: number,
-  lng: number,
-  format: FormatKoordinat = "DD"
-): string {
+export function formatKoordinatTeks(lat: number, lng: number, format: FormatKoordinat = "DD"): string {
   if (format === "DD") {
     return `${lat.toFixed(6)}°, ${lng.toFixed(6)}°`;
   }
@@ -141,11 +133,7 @@ export function konversiUTM(lat: number, lng: number): HasilUTM | null {
   const n3 = n2 * n;
   const n4 = n3 * n;
   const aBulat = (A_WGS84 / (1 + n)) * (1 + n2 / 4 + n4 / 64);
-  const alfa = [
-    n / 2 - (2 * n2) / 3 + (5 * n3) / 16,
-    (13 * n2) / 48 - (3 * n3) / 5,
-    (61 * n3) / 240
-  ];
+  const alfa = [n / 2 - (2 * n2) / 3 + (5 * n3) / 16, (13 * n2) / 48 - (3 * n3) / 5, (61 * n3) / 240];
   const e = Math.sqrt(F_WGS84 * (2 - F_WGS84));
 
   let lngNorm = ((((lng + 180) % 360) + 360) % 360) - 180;
@@ -218,14 +206,11 @@ export function keWKT(item: DataSpasialItem): string {
 }
 
 /** Posisi GeoJSON: elevasi hanya ditulis bila diketahui (tidak diganti 0) */
-const posisiGeoJSON = (p: KoordinatTitik): number[] =>
-  p.elevasi !== undefined ? [p.lng, p.lat, p.elevasi] : [p.lng, p.lat];
+const posisiGeoJSON = (p: KoordinatTitik): number[] => (p.elevasi !== undefined ? [p.lng, p.lat, p.elevasi] : [p.lng, p.lat]);
 
-const posisiKML = (p: KoordinatTitik): string =>
-  p.elevasi !== undefined ? `${p.lng},${p.lat},${p.elevasi}` : `${p.lng},${p.lat}`;
+const posisiKML = (p: KoordinatTitik): string => (p.elevasi !== undefined ? `${p.lng},${p.lat},${p.elevasi}` : `${p.lng},${p.lat}`);
 
-const eleGPX = (p: KoordinatTitik, awalan = ""): string =>
-  p.elevasi !== undefined ? `${awalan}<ele>${p.elevasi}</ele>\n` : "";
+const eleGPX = (p: KoordinatTitik, awalan = ""): string => (p.elevasi !== undefined ? `${awalan}<ele>${p.elevasi}</ele>\n` : "");
 
 /**
  * Ekspor daftar DataSpasialItem menjadi string GeoJSON FeatureCollection standar QGIS/ArcGIS
@@ -301,17 +286,11 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
  * Ekspor ke KML (Google Earth / Avenza Maps)
  */
 export function eksporKeKML(daftar: DataSpasialItem[]): string {
-  const esc = (s: string) =>
-    (s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+  const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   const placemarks = daftar
     .map((item) => {
-      const coords = item.koordinat
-        .map((p) => posisiKML(p))
-        .join(" ");
+      const coords = item.koordinat.map((p) => posisiKML(p)).join(" ");
       let geomXml: string;
       if (item.jenisGeometri === "point") {
         geomXml = `<Point><coordinates>${coords}</coordinates></Point>`;
@@ -345,11 +324,7 @@ ${placemarks}
  * Ekspor ke GPX (Garmin / AlpineQuest / Avenza)
  */
 export function eksporKeGPX(daftar: DataSpasialItem[]): string {
-  const esc = (s: string) =>
-    (s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+  const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   const wpts = daftar
     .filter((d) => d.jenisGeometri === "point" && d.koordinat[0])
@@ -365,12 +340,7 @@ ${eleGPX(p, "    ")}    <name>${esc(d.judul)}</name>
   const trks = daftar
     .filter((d) => d.jenisGeometri !== "point")
     .map((d) => {
-      const pts = d.koordinat
-        .map(
-          (p) =>
-            `      <trkpt lat="${p.lat}" lon="${p.lng}">${eleGPX(p)}</trkpt>`
-        )
-        .join("\n");
+      const pts = d.koordinat.map((p) => `      <trkpt lat="${p.lat}" lon="${p.lng}">${eleGPX(p)}</trkpt>`).join("\n");
       return `  <trk>
     <name>${esc(d.judul)} (${d.jenisGeometri})</name>
     <trkseg>

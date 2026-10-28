@@ -117,10 +117,7 @@ function mulaiGps() {
           posisi: {
             lat: Number(pos.coords.latitude.toFixed(7)),
             lng: Number(pos.coords.longitude.toFixed(7)),
-            elevasi:
-              pos.coords.altitude != null && Number.isFinite(pos.coords.altitude)
-                ? Math.round(pos.coords.altitude)
-                : undefined,
+            elevasi: pos.coords.altitude != null && Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : undefined,
             akurasi: Number(pos.coords.accuracy.toFixed(1)),
             timestamp: new Date(pos.timestamp).toISOString()
           }
@@ -181,11 +178,7 @@ function tanganiOrientasi(e: Event) {
   let arah: number | null = null;
   if (typeof ev.webkitCompassHeading === "number" && Number.isFinite(ev.webkitCompassHeading)) {
     arah = ev.webkitCompassHeading; // iOS
-  } else if (
-    (ev.type === "deviceorientationabsolute" || ev.absolute === true) &&
-    ev.alpha !== null &&
-    ev.alpha !== undefined
-  ) {
+  } else if ((ev.type === "deviceorientationabsolute" || ev.absolute === true) && ev.alpha !== null && ev.alpha !== undefined) {
     arah = kompasDariOrientasi(ev.alpha, ev.beta ?? 0, ev.gamma ?? 0);
   }
   // Orientasi relatif (alpha sembarang) tidak menunjuk utara, jadi diabaikan
@@ -279,5 +272,9 @@ function subscribe(fn: () => void) {
 }
 
 export function usePosisiPerangkat(): StatePosisiPerangkat {
-  return useSyncExternalStore(subscribe, () => state, () => state);
+  return useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => state
+  );
 }

@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  jarakDuaTitik,
-  jepitZoom,
-  langkahZoomRoda,
-  pecahanDiLayar,
-  pusatUntukJangkar,
-  tengahDuaTitik,
-  zoomCubit
-} from "./zoomPeta";
+import { jarakDuaTitik, jepitZoom, langkahZoomRoda, pecahanDiLayar, pusatUntukJangkar, tengahDuaTitik, zoomCubit } from "./zoomPeta";
 
 const W = 400;
 const H = 700;

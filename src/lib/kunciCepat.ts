@@ -1,12 +1,4 @@
-import {
-  AkunPengguna,
-  AkunSesi,
-  konfigUji,
-  muatSemuaAkun,
-  perbaruiKunciCepatAkun,
-  sisaMasaTotp,
-  turunkanKunci
-} from "./auth";
+import { AkunPengguna, AkunSesi, konfigUji, muatSemuaAkun, perbaruiKunciCepatAkun, sisaMasaTotp, turunkanKunci } from "./auth";
 import { aplikasiTerbuka, bukaAplikasi } from "./kunciAplikasi";
 import { bukaGerbangAdmin } from "./gerbangAdmin";
 import { ALG_ES256, ALG_RS256, dariBase64Url, keBase64Url, verifikasiAsersi } from "./webauthn";
@@ -211,7 +203,8 @@ export async function bukaDenganBiometrik(sesi: AkunSesi | null, tujuan: TujuanB
   if (sisaMasaTotp(akun.email) <= 0) return { sukses: false, pesan: PESAN_MASA_HABIS, perluAuthenticator: true };
   const bio = akun.biometrik;
   if (!bio) return { sukses: false, pesan: "Sidik jari/wajah belum diaktifkan. Gunakan PIN." };
-  if (typeof navigator === "undefined" || !navigator.credentials) return { sukses: false, pesan: "Browser ini tidak mendukung sidik jari/wajah." };
+  if (typeof navigator === "undefined" || !navigator.credentials)
+    return { sukses: false, pesan: "Browser ini tidak mendukung sidik jari/wajah." };
   const tantangan = acak(32);
   try {
     const asersi = (await navigator.credentials.get({
@@ -239,7 +232,8 @@ export async function bukaDenganBiometrik(sesi: AkunSesi | null, tujuan: TujuanB
     return { sukses: true, pesan: "Aplikasi dibuka." };
   } catch (err) {
     const nama = err instanceof DOMException ? err.name : "";
-    if (nama === "NotAllowedError" || nama === "AbortError") return { sukses: false, pesan: "Dibatalkan atau waktu habis. Coba lagi atau gunakan PIN." };
+    if (nama === "NotAllowedError" || nama === "AbortError")
+      return { sukses: false, pesan: "Dibatalkan atau waktu habis. Coba lagi atau gunakan PIN." };
     return { sukses: false, pesan: "Sidik jari/wajah tidak dapat dipakai sekarang. Gunakan PIN." };
   }
 }

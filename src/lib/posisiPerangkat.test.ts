@@ -18,7 +18,12 @@ describe("kompasDariOrientasi", () => {
 
   it("hasil selalu dalam rentang 0..360", () => {
     for (let a = 0; a < 360; a += 17) {
-      for (const [b, g] of [[0, 0], [90, 0], [45, 10], [80, -20]]) {
+      for (const [b, g] of [
+        [0, 0],
+        [90, 0],
+        [45, 10],
+        [80, -20]
+      ]) {
         const h = kompasDariOrientasi(a, b, g);
         expect(h).toBeGreaterThanOrEqual(0);
         expect(h).toBeLessThan(360);

@@ -16,7 +16,6 @@ const gerbang = buatGerbangMemori(BATAS_DIAM_APLIKASI_MS);
 /** Dipakai oleh auth.ts dan kunciCepat.ts setelah identitas terverifikasi */
 export const bukaAplikasi = (email: string, sekarang = Date.now()): void => gerbang.buka(email, sekarang);
 export const kunciAplikasi = (): void => gerbang.kunci();
-export const aplikasiTerbuka = (email: string | undefined | null, sekarang = Date.now()): boolean =>
-  gerbang.terbuka(email, sekarang);
+export const aplikasiTerbuka = (email: string | undefined | null, sekarang = Date.now()): boolean => gerbang.terbuka(email, sekarang);
 export const catatAktivitasAplikasi = (sekarang = Date.now()): void => gerbang.catatAktivitas(sekarang);
 export const useVersiKunciAplikasi = (): number => gerbang.useVersi();

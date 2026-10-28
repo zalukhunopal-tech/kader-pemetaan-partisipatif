@@ -42,7 +42,10 @@ describe("sesi Map Tiles API Google", () => {
     const segar = await import("./googleTiles");
     expect(segar.tokenSesiGoogle(1_900_000_000_000)).toBe("TOKEN-B");
     // lima menit sebelum kedaluwarsa dianggap habis
-    vi.stubGlobal("fetch", vi.fn(async () => balasan(200, { session: "TOKEN-C", expiry: "2100000000" })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => balasan(200, { session: "TOKEN-C", expiry: "2100000000" }))
+    );
     expect(segar.tokenSesiGoogle(2_000_000_000_000 - 60_000)).toBeNull();
   });
 
@@ -70,7 +73,11 @@ describe("sesi Map Tiles API Google", () => {
     const m = await muat();
     await m.buatSesiGoogle((async () => balasan(200, { session: "TOKEN-D", expiry: "4102444800" })) as unknown as typeof fetch);
     const ambil = vi.fn(async () => balasan(200, { copyright: "Imagery ©2026 Airbus, CNES / Airbus, Maxar Technologies" }));
-    const teks = await m.ambilAtribusiGoogle({ utara: 2.9, selatan: 2.8, timur: 117.4, barat: 117.3 }, 15.4, ambil as unknown as typeof fetch);
+    const teks = await m.ambilAtribusiGoogle(
+      { utara: 2.9, selatan: 2.8, timur: 117.4, barat: 117.3 },
+      15.4,
+      ambil as unknown as typeof fetch
+    );
     expect(teks).toBe("Imagery ©2026 Airbus, CNES / Airbus, Maxar Technologies");
     const url = new URL((ambil.mock.calls[0] as unknown as [string])[0]);
     expect(url.origin + url.pathname).toBe("https://tile.googleapis.com/tile/v1/viewport");
