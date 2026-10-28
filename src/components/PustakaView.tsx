@@ -52,20 +52,17 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [idTerpilih, setIdTerpilih] = useState<string[]>([]);
   const [menuItemTerbuka, setMenuItemTerbuka] = useState<string | null>(null);
 
-  // Modal Tambah Peta Baru / Buat Lapisan Baru
+  // Modal Tambah Peta Baru / Buat Lapisan Baru (tanpa nilai contoh)
   const [bukaModalPetaBaru, setBukaModalPetaBaru] = useState(false);
   const [namaPetaBaru, setNamaPetaBaru] = useState("");
-  const [ukuranMbBaru, setUkuranMbBaru] = useState("18.4");
-  const [jarakKmBaru, setJarakKmBaru] = useState("152.40");
+  const [ukuranMbBaru, setUkuranMbBaru] = useState("");
+  const [jarakKmBaru, setJarakKmBaru] = useState("");
 
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
 
-  // Hitung jumlah objek riil dari data spasial lapangan
   const hitungObjekLapisan = (lapisan: LapisanSpasial): number => {
-    return dataSpasial.filter(
-      (d) => d.kategori === lapisan.kategoriDefault
-    ).length;
+    return dataSpasial.filter((d) => d.kategori === lapisan.kategoriDefault).length;
   };
 
   const daftarPetaTampil = areaOffline
@@ -112,14 +109,16 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       zoomMin: 13,
       zoomMax: 18,
       jumlahTile: 980,
-      ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 15.2,
-      jarakKm: Number(jarakKmBaru.replace(",", ".")) || 120.5,
+      ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 10,
+      jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
       thumbnailType: "dem_atas",
       diunduhPada: new Date().toISOString(),
       jenisFile: "GeoPDF / GeoTIFF"
     };
     onTambahAreaOffline(itemBaru);
     setNamaPetaBaru("");
+    setUkuranMbBaru("");
+    setJarakKmBaru("");
     setBukaModalPetaBaru(false);
   };
 
@@ -150,9 +149,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           const hasil: DataSpasialItem[] = json.features.map(
             (f: Record<string, any>, idx: number) => ({
               id: `IMP-${Date.now()}-${idx}`,
-              idKader: "KDR-2026-014",
-              namaKader: "Budi Santoso",
-              desaWilayah: "Desa Rimba Lestari",
+              idKader: "KDR-IMP",
+              namaKader: "Impor File",
+              desaWilayah: "-",
               jenisGeometri:
                 f.geometry?.type === "Polygon"
                   ? "polygon"
@@ -160,7 +159,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   ? "line"
                   : "point",
               kategori: f.properties?.kategori || "Flora",
-              judul: f.properties?.judul || f.properties?.name || `Objek Impor #${idx + 1}`,
+              judul: f.properties?.judul || f.properties?.name || `Objek #${idx + 1}`,
               deskripsi: f.properties?.deskripsi || `Diimpor dari ${file.name}`,
               koordinat: [{ lat: -0.9475, lng: 100.4192, elevasi: 410 }],
               panjangKm: 0,
@@ -174,7 +173,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           onImporDataSpasial(hasil);
         }
       } catch {
-        // Jika file KML/KMZ/GeoPDF simulasi tambah lapisan baru
+        // lanjut buat entri lapisan
       }
       onTambahLapisan({
         id: `LYR-${Date.now().toString().slice(-4)}`,
@@ -273,11 +272,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <Search size={16} />
           <input
             type="text"
-            placeholder={
-              subTab === "peta"
-                ? "Cari nama peta kerja atau desa..."
-                : "Cari nama lapisan objek..."
-            }
+            placeholder={subTab === "peta" ? "Cari nama peta..." : "Cari nama lapisan..."}
             value={kataKunci}
             onChange={(e) => setKataKunci(e.target.value)}
           />
@@ -289,7 +284,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         </div>
       )}
 
-      {/* BAR MODE PILIH JIKA DIAKTIFKAN DARI MENU TITIK TIGA */}
+      {/* BAR MODE PILIH */}
       {modePilihAktif && (
         <div className="avenza-selection-banner">
           <span>{idTerpilih.length} item dipilih</span>
@@ -315,10 +310,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         </div>
       )}
 
-      {/* KONTEN TAB 1: PETA (SESUAI SCREENSHOT 1 & 3) */}
+      {/* KONTEN TAB 1: PETA */}
       {subTab === "peta" && (
         <div className="avenza-peta-content">
-          {/* KARTU BANNER "BUKA PETA DASAR" */}
           <div className="avenza-basemap-banner-wrap">
             <div className="avenza-basemap-banner" onClick={onBukaPetaDasar}>
               <svg
@@ -326,9 +320,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 viewBox="0 0 600 180"
                 preserveAspectRatio="none"
               >
-                {/* Daratan Abu-abu Muda */}
                 <rect width="600" height="180" fill="#e2e6e3" />
-                {/* Bukit / Vegetasi Hijau Lembut */}
                 <path
                   d="M0,0 L280,0 C260,45 210,80 140,120 C90,148 40,165 0,180 Z"
                   fill="#b7d7a8"
@@ -337,7 +329,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   d="M0,0 L190,0 C175,35 130,65 80,95 C40,118 15,135 0,145 Z"
                   fill="#a3c995"
                 />
-                {/* Kontur Punggungan */}
                 <path
                   d="M25,10 Q90,30 130,55 T230,25"
                   fill="none"
@@ -345,17 +336,14 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   strokeWidth="6"
                   strokeLinecap="round"
                 />
-                {/* Danau / Sungai Biru Cerah di Tengah-Bawah */}
                 <path
                   d="M75,180 C115,140 165,112 245,92 C310,76 355,65 375,58 L430,130 L405,180 Z"
                   fill="#7cc0f7"
                 />
-                {/* Jalan / Jalur Putih di Kanan */}
                 <path
                   d="M440,105 L535,88 L535,62 L575,62 L575,95 L440,118 Z"
                   fill="#f3f5f4"
                 />
-                {/* Kehijauan Kanan Bawah */}
                 <path
                   d="M520,180 C535,155 565,145 600,140 L600,180 Z"
                   fill="#b7d7a8"
@@ -375,7 +363,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             </div>
           </div>
 
-          {/* DAFTAR PETA KERJA OFFLINE / GEOPDF */}
           <div className="avenza-map-list">
             {daftarPetaTampil.map((item) => (
               <div
@@ -399,68 +386,31 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   />
                 )}
 
-                {/* THUMBNAIL PETA SESUAI SCREENSHOT */}
                 <div className={`avenza-map-thumb thumb-${item.thumbnailType || "radar"}`}>
-                  {item.thumbnailType === "radar" && (
-                    <svg viewBox="0 0 64 64" width="100%" height="100%">
-                      <rect width="64" height="64" fill="#2c7a21" />
-                      <path d="M0,0 L34,0 C28,22 16,36 0,44 Z" fill="#a21caf" />
-                      <circle cx="38" cy="28" r="1.5" fill="#fff" />
-                      <circle cx="44" cy="34" r="1.5" fill="#fff" />
-                      <circle cx="32" cy="42" r="1.5" fill="#fff" />
-                      <path
-                        d="M12,56 Q34,46 58,52"
-                        stroke="#bbf7d0"
-                        strokeWidth="2"
-                        fill="none"
-                      />
-                    </svg>
-                  )}
-                  {item.thumbnailType === "vector" && (
-                    <svg viewBox="0 0 64 64" width="100%" height="100%">
-                      <rect width="64" height="64" fill="#ffffff" />
-                      <path
-                        d="M14,0 L36,0 C38,24 46,42 58,64 L10,64 C18,46 8,24 14,0 Z"
-                        fill="#16a34a"
-                      />
-                      <path d="M36,0 L64,0 L64,52 C52,38 42,20 36,0 Z" fill="#a855f7" />
-                    </svg>
-                  )}
-                  {(item.thumbnailType === "dem_atas" ||
-                    item.thumbnailType === "dem_bawah" ||
-                    !item.thumbnailType) && (
-                    <svg viewBox="0 0 64 64" width="100%" height="100%">
-                      <defs>
-                        <radialGradient id="demGrad" cx="40%" cy="40%" r="70%">
-                          <stop offset="0%" stopColor="#eab308" />
-                          <stop offset="55%" stopColor="#84cc16" />
-                          <stop offset="100%" stopColor="#15803d" />
-                        </radialGradient>
-                      </defs>
-                      <rect width="64" height="64" fill="url(#demGrad)" />
-                      <path
-                        d="M8,12 Q28,24 22,44 T52,58"
-                        stroke="#713f12"
-                        strokeWidth="1.2"
-                        fill="none"
-                        opacity="0.65"
-                      />
-                      <path
-                        d="M4,32 Q26,28 44,14"
-                        stroke="#dc2626"
-                        strokeWidth="1"
-                        fill="none"
-                        opacity="0.55"
-                      />
-                    </svg>
-                  )}
+                  <svg viewBox="0 0 64 64" width="100%" height="100%">
+                    <defs>
+                      <radialGradient id="demGrad" cx="40%" cy="40%" r="70%">
+                        <stop offset="0%" stopColor="#eab308" />
+                        <stop offset="55%" stopColor="#84cc16" />
+                        <stop offset="100%" stopColor="#15803d" />
+                      </radialGradient>
+                    </defs>
+                    <rect width="64" height="64" fill="url(#demGrad)" />
+                    <path
+                      d="M8,12 Q28,24 22,44 T52,58"
+                      stroke="#713f12"
+                      strokeWidth="1.2"
+                      fill="none"
+                      opacity="0.65"
+                    />
+                  </svg>
                 </div>
 
                 <div className="avenza-map-info">
                   <div className="avenza-map-title">{item.namaArea}</div>
                   <div className="avenza-map-meta">
                     {formatAngkaIndo(item.ukuranMb)} MB <span className="dot-sep">•</span>{" "}
-                    {formatAngkaIndo(item.jarakKm ?? 150.25)} km
+                    {formatAngkaIndo(item.jarakKm ?? 0)} km
                   </div>
                 </div>
 
@@ -505,36 +455,27 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                       >
                         Hapus dari Pustaka
                       </button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              </div>
+            ))}
 
             {daftarPetaTampil.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 20px 80px", color: "#64748b" }}>
-                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
-                  <Layers size={30} />
+              <div style={{ textAlign: "center", padding: "36px 20px 80px", color: "#64748b" }}>
+                <div style={{ width: 58, height: 58, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                  <Layers size={28} />
                 </div>
-                <h4 style={{ margin: "0 0 8px", fontSize: "1.05rem", fontWeight: 700, color: "#1e293b" }}>
-                  Belum Ada Peta Offline Tersimpan
+                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>
+                  Pustaka Peta Kosong
                 </h4>
-                <p style={{ margin: "0 auto 16px", fontSize: "0.88rem", color: "#64748b", maxWidth: 360, lineHeight: 1.5 }}>
-                  Peta contoh telah dibersihkan. Anda dapat langsung membuka peta dasar daring atau mengunduh dan menambahkan peta baru melalui tombol (+) oranye di bawah.
+                <p style={{ margin: "0 auto 14px", fontSize: "0.84rem", color: "#64748b", maxWidth: 320 }}>
+                  Ketuk tombol (+) di kanan bawah untuk mengimpor peta kerja atau buka peta dasar.
                 </p>
-                <button
-                  type="button"
-                  className="btn-primary-sm"
-                  onClick={onBukaPetaDasar}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                >
-                  Buka Peta Dasar
-                </button>
               </div>
             )}
           </div>
 
-          {/* FLOATING ACTION BUTTON ORANYE (+) DI POJOK KANAN BAWAH */}
           <button
             type="button"
             className="avenza-fab-orange single-fab"
@@ -546,7 +487,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         </div>
       )}
 
-      {/* KONTEN TAB 2: LAPISAN (SESUAI SCREENSHOT 5) */}
+      {/* KONTEN TAB 2: LAPISAN */}
       {subTab === "lapisan" && (
         <div className="avenza-lapisan-content">
           <div className="avenza-layer-list">
@@ -624,9 +565,22 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </div>
               );
             })}
+
+            {daftarLapisanTampil.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
+                <div style={{ width: 58, height: 58, borderRadius: "50%", background: "#e8f5ee", color: "#0d7344", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                  <Layers size={28} />
+                </div>
+                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>
+                  Belum Ada Lapisan
+                </h4>
+                <p style={{ margin: "0 auto", fontSize: "0.84rem", color: "#64748b", maxWidth: 300 }}>
+                  Gunakan tombol "Buat lapisan" atau "Impor" di kanan bawah.
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* 2 FLOATING ACTION BUTTON ORANYE BERTUMPUK ("Buat lapisan" & "Impor") SESUAI SCREENSHOT 5 */}
           <div className="avenza-fab-stack">
             <div className="avenza-fab-row">
               <span
@@ -689,7 +643,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   type="text"
                   required
                   className="form-input"
-                  placeholder="Contoh: PetaKerja_Blok_Hutan_Desa_GeoPDF"
+                  placeholder="Masukkan nama peta kerja"
                   value={namaPetaBaru}
                   onChange={(e) => setNamaPetaBaru(e.target.value)}
                 />
@@ -700,6 +654,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <input
                     type="text"
                     className="form-input"
+                    placeholder="0"
                     value={ukuranMbBaru}
                     onChange={(e) => setUkuranMbBaru(e.target.value)}
                   />
@@ -709,6 +664,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <input
                     type="text"
                     className="form-input"
+                    placeholder="0"
                     value={jarakKmBaru}
                     onChange={(e) => setJarakKmBaru(e.target.value)}
                   />
@@ -752,7 +708,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   type="text"
                   required
                   className="form-input"
-                  placeholder={`Lapisan ${lapisanList.length + 1}`}
+                  placeholder="Masukkan nama lapisan"
                   value={namaLapisanBaru}
                   onChange={(e) => setNamaLapisanBaru(e.target.value)}
                 />
