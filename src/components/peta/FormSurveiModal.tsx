@@ -3,6 +3,7 @@ import { Camera, X } from "lucide-react";
 import { DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik, ProfilKader } from "../../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
 import { buatId } from "../../lib/id";
+import { capWilayah } from "../../lib/auth";
 import { kompresFoto, perkiraBytesDataUrl } from "../../lib/foto";
 
 /**
@@ -56,6 +57,7 @@ export function useFormSurvei() {
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
+      ...capWilayah(profil.idKader),
       jenisGeometri: modeRekam,
       kategori: kategoriInput,
       judul: judulInput.trim() || `${kategoriInput} - ${namaLokalInput || new Date().toLocaleDateString("id-ID")}`,

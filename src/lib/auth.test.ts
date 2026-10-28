@@ -13,6 +13,7 @@ import {
   buatAdminPertama,
   buatAkunOlehAdmin,
   buatHashSandi,
+  capWilayah,
   detikTertahan,
   konfigUji,
   migrasiAkunLama,
@@ -22,7 +23,9 @@ import {
   selesaikanPendaftaranTotp,
   siapkanAkunUji,
   ubahKataSandi,
-  validasiKataSandi
+  ubahWilayahAkunOlehAdmin,
+  validasiKataSandi,
+  wilayahAkun
 } from "./auth";
 import { hitungTotp, base32Decode } from "./totp";
 import { BATAS_DIAM_MS, catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
@@ -198,6 +201,35 @@ describe("tidak ada pendaftaran mandiri; admin pertama dan akun dari admin", () 
     expect(r.sukses).toBe(true);
     expect(muatSemuaAkun().find((a) => a.email === "dua@contoh.id")).toMatchObject({ peran: "admin" });
     expect(muatSemuaAkun().find((a) => a.email === "dua@contoh.id")!.idKader).toMatch(/^ADM-/);
+  });
+
+  it("wilayah tugas (provinsi sampai desa) tersimpan di akun, ikut di sesi, dan dicap pada data baru", async () => {
+    const admin = await siapkanAdmin();
+    const wilayah = { provinsi: "Jambi", kabupaten: " Kabupaten  Merangin ", kecamatan: "Bangko", desa: "Rantau Panjang" };
+    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "Siti Kader", email: "siti@contoh.id", wilayah, noHp: "-" });
+    expect(r.sukses).toBe(true);
+    const rapi = { ...wilayah, kabupaten: "Kabupaten Merangin" };
+    expect(r.akun).toMatchObject({ desaWilayah: "Rantau Panjang", wilayah: rapi });
+    expect(wilayahAkun(r.akun!.idKader)).toEqual(rapi);
+    expect(capWilayah(r.akun!.idKader)).toEqual({ wilayah: rapi });
+    // akun tanpa wilayah lengkap (mis. akun lama): data baru tidak dicap, tujuan ditentukan saat unggah
+    expect(capWilayah(admin.sesi.idKader)).toEqual({});
+  });
+
+  it("admin mengubah wilayah akun lama; isian harus lengkap dan hanya admin yang boleh", async () => {
+    const admin = await siapkanAdmin();
+    const kader = await buatKaderLengkap(admin.sesi);
+    const wilayah = { provinsi: "Jambi", kabupaten: "Kabupaten Merangin", kecamatan: "Bangko", desa: "Pulau Rengas" };
+    const sesiKader = (await masukPenuh(kader.email, kader.rahasia, kader.sandiBaru)).akun!;
+    expect(ubahWilayahAkunOlehAdmin(sesiKader, kader.email, wilayah).pesan).toMatch(/Hanya administrator/);
+    expect(muatSemuaAkun().find((a) => a.email === kader.email)!.wilayah).toBeUndefined();
+
+    await masukPenuh(admin.email, admin.rahasia);
+    await bukaGerbang(admin);
+    expect(ubahWilayahAkunOlehAdmin(admin.sesi, kader.email, { ...wilayah, kecamatan: " " }).pesan).toMatch(/Isi provinsi/);
+    expect(ubahWilayahAkunOlehAdmin(admin.sesi, "tidak@ada.id", wilayah).pesan).toMatch(/tidak ditemukan/);
+    expect(ubahWilayahAkunOlehAdmin(admin.sesi, kader.email, wilayah)).toMatchObject({ sukses: true });
+    expect(muatSemuaAkun().find((a) => a.email === kader.email)).toMatchObject({ wilayah, desaWilayah: "Pulau Rengas" });
   });
 
   it("alur lengkap akun baru: sandi sementara, ganti sandi, pasang Authenticator, lalu masuk", async () => {

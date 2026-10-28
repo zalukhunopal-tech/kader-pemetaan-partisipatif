@@ -1,4 +1,4 @@
-import { DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik } from "../types";
+import { DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik, WilayahAdministrasi } from "../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "./geoUtils";
 import { buatId } from "./id";
 
@@ -327,6 +327,7 @@ export interface KonteksImpor {
   idKader: string;
   namaKader: string;
   desaWilayah: string;
+  wilayah?: WilayahAdministrasi;
 }
 
 /** Mengubah fitur impor menjadi objek spasial milik pengimpor (status lokal, ditandai diimpor) */
@@ -337,6 +338,7 @@ export function fiturKeDataSpasial(f: FiturImpor, ctx: KonteksImpor): DataSpasia
     idKader: ctx.idKader,
     namaKader: ctx.namaKader,
     desaWilayah: ctx.desaWilayah,
+    ...(ctx.wilayah ? { wilayah: ctx.wilayah } : {}),
     jenisGeometri: f.jenisGeometri,
     kategori: f.kategori ?? "Flora",
     judul: f.judul ?? "Hasil impor",

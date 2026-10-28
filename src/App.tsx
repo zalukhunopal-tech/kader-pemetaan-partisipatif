@@ -3,7 +3,6 @@ import {
   AreaPetaOffline,
   DataSpasialItem,
   KaderAktifPresence,
-  KonfigurasiGDrive,
   LapisanSpasial,
   MenuTab,
   PembaruanObjek,
@@ -12,6 +11,7 @@ import {
   PesanKomunikasi,
   ProfilKader,
   SertifikatKader,
+  StatusGDrive,
   StatusSinkron,
   TugasPemetaan
 } from "./types";
@@ -19,7 +19,7 @@ import {
   muatAreaOffline,
   muatDataSpasial,
   muatKaderAktif,
-  muatKonfigGDrive,
+  muatStatusGDrive,
   muatLapisan,
   muatPengumuman,
   muatPesan,
@@ -29,7 +29,7 @@ import {
   simpanAreaOffline,
   simpanDataSpasial,
   simpanKaderAktif,
-  simpanKonfigGDrive,
+  simpanStatusGDrive,
   simpanLapisan,
   simpanPengumuman,
   simpanPesan,
@@ -37,11 +37,11 @@ import {
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { AkunSesi, aksesAdminSah, muatSesiPengguna, simpanSesiPengguna, sisaMasaTotp } from "./lib/auth";
+import { AkunSesi, aksesAdminSah, capWilayah, muatSesiPengguna, simpanSesiPengguna, sisaMasaTotp } from "./lib/auth";
 import { catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
 import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi, useVersiKunciAplikasi } from "./lib/kunciAplikasi";
 import { metodeKunciCepat } from "./lib/kunciCepat";
-import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
+import { gdriveTerpasang, sinkronkanDataKeGDrive } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
@@ -160,7 +160,7 @@ export const App: React.FC = () => {
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [pesanList, setPesanList] = useState<PesanKomunikasi[]>(() => muatPesan());
   const [kaderAktifList] = useState<KaderAktifPresence[]>(() => muatKaderAktif());
-  const [konfigGDrive, setKonfigGDrive] = useState<KonfigurasiGDrive>(() => muatKonfigGDrive());
+  const [statusGDrive, setStatusGDrive] = useState<StatusGDrive>(() => muatStatusGDrive());
 
   const [fokusKoordinat, setFokusKoordinat] = useState<{
     lat: number;
@@ -208,7 +208,7 @@ export const App: React.FC = () => {
   useEffect(() => simpanTugas(tugasList), [tugasList]);
   useEffect(() => simpanPesan(pesanList), [pesanList]);
   useEffect(() => simpanKaderAktif(kaderAktifList), [kaderAktifList]);
-  useEffect(() => simpanKonfigGDrive(konfigGDrive), [konfigGDrive]);
+  useEffect(() => simpanStatusGDrive(statusGDrive), [statusGDrive]);
 
   // Ikuti perubahan koneksi dari browser
   useEffect(() => {
@@ -388,7 +388,8 @@ export const App: React.FC = () => {
       const konteks = {
         idKader: profil.idKader,
         namaKader: profil.nama,
-        desaWilayah: profil.desaWilayah
+        desaWilayah: profil.desaWilayah,
+        ...capWilayah(profil.idKader)
       };
       const items = hasil.fitur.map((f) => fiturKeDataSpasial(f, konteks));
       const catatan = hasil.dilewati.length > 0 ? ` ${hasil.dilewati.length} dilewati: ${ringkasDilewati(hasil.dilewati)}.` : "";
@@ -502,17 +503,14 @@ export const App: React.FC = () => {
     setSedangSinkron(true);
     if (!otomatis) setPesanSinkron(null);
     try {
-      const res = await sinkronkanDataKeGDrive(dataSpasial, konfigGDrive);
+      const res = await sinkronkanDataKeGDrive(dataSpasial);
       // Hanya data yang dikonfirmasi tersimpan oleh Apps Script yang berubah status
       if (res.idTersinkron.length > 0) {
         const diterima = new Set(res.idTersinkron);
         setDataSpasial((prev) =>
           prev.map((d) => (diterima.has(d.id) && d.statusSinkron === "lokal" ? { ...d, statusSinkron: "tersinkron" } : d))
         );
-        setKonfigGDrive((prev) => ({
-          ...prev,
-          terakhirSinkron: new Date().toLocaleString("id-ID")
-        }));
+        setStatusGDrive({ terakhirSinkron: new Date().toLocaleString("id-ID") });
       }
       // Sinkron otomatis diam bila belum diatur; hasil lain selalu ditampilkan
       if (!(otomatis && res.belumDiatur)) {
@@ -532,21 +530,20 @@ export const App: React.FC = () => {
     }
   };
 
-  // Sinkron otomatis: saat ada internet dan ada antrean. Satu percobaan per perubahan antrean
-  // atau koneksi, jadi server yang gagal tidak membuat percobaan berulang tanpa henti.
+  // Sinkron otomatis (selalu aktif bila Google Drive terpasang di build ini): saat ada internet dan ada
+  // antrean. Satu percobaan per perubahan antrean atau koneksi, jadi server yang gagal tidak membuat
+  // percobaan berulang tanpa henti.
   const adaSesi = sesiPengguna !== null;
   useEffect(() => {
-    if (!adaSesi) return;
-    if (!sedangOnline || !konfigGDrive.autoSyncSaatOnline) return;
-    if (!urlAppsScriptValid(konfigGDrive.webAppUrl) || antreanLokalCount === 0) return;
+    if (!adaSesi || !sedangOnline || !gdriveTerpasang() || antreanLokalCount === 0) return;
     const t = window.setTimeout(() => {
       void handleSinkronkanSekarang(true);
     }, 2000);
     return () => window.clearTimeout(t);
-    // Sengaja hanya dipicu perubahan koneksi, pengaturan, dan antrean (bukan setiap render ulang),
+    // Sengaja hanya dipicu perubahan koneksi dan antrean (bukan setiap render ulang),
     // sehingga satu perubahan menghasilkan paling banyak satu percobaan sinkron otomatis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sedangOnline, konfigGDrive.autoSyncSaatOnline, konfigGDrive.webAppUrl, antreanLokalCount, adaSesi]);
+  }, [sedangOnline, antreanLokalCount, adaSesi]);
 
   // Handler Fokus ke Titik Koordinat di Peta
   const handleFokusKePeta = (lat: number, lng: number, label: string) => {
@@ -754,13 +751,12 @@ export const App: React.FC = () => {
             {tabAktif === "data_sync" && (
               <DatabaseSyncView
                 dataSpasial={dataSpasial}
-                konfigGDrive={konfigGDrive}
+                terakhirSinkron={statusGDrive.terakhirSinkron}
                 sedangSinkron={sedangSinkron}
                 pesanSinkron={pesanSinkron}
                 pesanSinkronGagal={pesanSinkronGagal}
                 sedangOnline={sedangOnline}
                 onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
-                onSimpanKonfigGDrive={setKonfigGDrive}
                 onFokusKePeta={handleFokusKePeta}
               />
             )}

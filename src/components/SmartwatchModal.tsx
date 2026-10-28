@@ -3,6 +3,7 @@ import { DataSpasialItem, KoordinatTitik, ProfilKader } from "../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { buatId } from "../lib/id";
+import { capWilayah } from "../lib/auth";
 import { usePosisiPerangkat } from "../lib/posisiPerangkat";
 import { muatGambarTile, urlTile } from "../lib/petaOffline";
 import { Bluetooth, Check, MapPin, Route, Square, Watch, X } from "lucide-react";
@@ -287,6 +288,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({ dataSpasial, p
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
+      ...capWilayah(profil.idKader),
       jenisGeometri: "point",
       kategori: "Tanda Batas",
       judul: `Titik Smartwatch ${new Date().toLocaleTimeString("id-ID", {
@@ -320,6 +322,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({ dataSpasial, p
           idKader: profil.idKader,
           namaKader: profil.nama,
           desaWilayah: profil.desaWilayah,
+          ...capWilayah(profil.idKader),
           jenisGeometri: "line",
           kategori: "Tanda Batas",
           judul: `Jalur Smartwatch (${panjangKm} km)`,
@@ -361,6 +364,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({ dataSpasial, p
           idKader: profil.idKader,
           namaKader: profil.nama,
           desaWilayah: profil.desaWilayah,
+          ...capWilayah(profil.idKader),
           jenisGeometri: "polygon",
           kategori: "Wilayah Adat / Lahan",
           judul: `Poligon Smartwatch (${luasHa} Ha)`,

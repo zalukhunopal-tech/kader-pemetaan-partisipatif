@@ -7,3 +7,6 @@ dev-dist
 dist-e2e
 test-results
 playwright-report
+# Berisi token Google Drive asli; jangan di-commit (repositori publik)
+.env
+.env.production

@@ -1,9 +1,10 @@
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { PeranPengguna } from "../types";
+import { PeranPengguna, WilayahAdministrasi } from "../types";
 import { buatKodePemulihan, buatRahasiaTotp, hashKodePemulihan, miripKodePemulihan, periksaTotp, uriOtpauth } from "./totp";
 import { bukaGerbangAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
 import { aplikasiTerbuka, bukaAplikasi, kunciAplikasi } from "./kunciAplikasi";
+import { rapikanWilayah, wilayahKosong, wilayahLengkap } from "./wilayah";
 
 /**
  * AUTENTIKASI SISI KLIEN
@@ -39,6 +40,8 @@ export interface AkunPengguna {
   email: string;
   peran: PeranPengguna;
   desaWilayah: string;
+  /** Wilayah tugas yang diisi admin; menentukan folder Google Drive tempat data akun ini disimpan */
+  wilayah?: WilayahAdministrasi;
   noHp: string;
   kelompokMasyarakat: string;
   namaOrganisasi: string;
@@ -140,6 +143,7 @@ export const keSesi = (a: AkunSesi): AkunSesi => ({
   email: a.email,
   peran: a.peran,
   desaWilayah: a.desaWilayah,
+  ...(a.wilayah ? { wilayah: a.wilayah } : {}),
   noHp: a.noHp,
   kelompokMasyarakat: a.kelompokMasyarakat,
   namaOrganisasi: a.namaOrganisasi,
@@ -435,7 +439,9 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
 interface DataAkunBaru {
   nama: string;
   email: string;
-  desaWilayah: string;
+  /** Nama desa saja (penyiapan admin pertama); akun buatan admin memakai `wilayah` */
+  desaWilayah?: string;
+  wilayah?: Partial<WilayahAdministrasi>;
   noHp: string;
   kelompokMasyarakat?: string;
 }
@@ -470,12 +476,14 @@ async function buatAkun(
   let idKader = idBaru();
   while (accounts.some((a) => a.idKader === idKader)) idKader = idBaru();
 
+  const wilayah = rapikanWilayah(data.wilayah);
   const akunBaru: AkunPengguna = {
     idKader,
     nama: data.nama.trim(),
     email: emailBersih,
     peran,
-    desaWilayah: data.desaWilayah.trim() || "-",
+    desaWilayah: wilayah.desa || data.desaWilayah?.trim() || "-",
+    ...(wilayahKosong(wilayah) ? {} : { wilayah }),
     noHp: data.noHp.trim() || "-",
     kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",
     namaOrganisasi: NAMA_ORGANISASI_BAWAAN,
@@ -749,6 +757,34 @@ export async function aturUlangSandiOlehAdmin(
   simpanSemuaAkun(accounts);
   hapusGagal(emailTarget);
   return { sukses: true, pesan: `Sandi sementara untuk ${accounts[idx].nama} dibuat.`, sandiSementara };
+}
+
+/** Admin mengubah wilayah tugas sebuah akun (termasuk akun lama yang dibuat sebelum ada isian wilayah) */
+export function ubahWilayahAkunOlehAdmin(
+  adminSesi: AkunSesi | null,
+  emailTarget: string,
+  wilayahBaru: Partial<WilayahAdministrasi>
+): { sukses: boolean; pesan: string } {
+  if (!adminSah(adminSesi)) return { sukses: false, pesan: "Hanya administrator yang dapat mengubah wilayah akun." };
+  const wilayah = rapikanWilayah(wilayahBaru);
+  if (!wilayahLengkap(wilayah)) return { sukses: false, pesan: "Isi provinsi, kabupaten/kota, kecamatan, dan kelurahan/desa." };
+  const accounts = muatSemuaAkun();
+  const idx = accounts.findIndex((a) => a.email.toLowerCase() === emailTarget.trim().toLowerCase());
+  if (idx === -1) return { sukses: false, pesan: "Akun tidak ditemukan." };
+  accounts[idx] = { ...accounts[idx], wilayah, desaWilayah: wilayah.desa };
+  simpanSemuaAkun(accounts);
+  return { sukses: true, pesan: `Wilayah ${accounts[idx].nama} diperbarui.` };
+}
+
+/** Wilayah tugas akun di perangkat ini (bisa belum lengkap), untuk menentukan folder Drive datanya */
+export function wilayahAkun(idKader: string): WilayahAdministrasi | undefined {
+  return muatSemuaAkun().find((a) => a.idKader === idKader)?.wilayah;
+}
+
+/** Cap wilayah untuk data baru: hanya bila wilayah akun pembuatnya sudah lengkap */
+export function capWilayah(idKader: string): { wilayah?: WilayahAdministrasi } {
+  const w = wilayahAkun(idKader);
+  return wilayahLengkap(w) ? { wilayah: rapikanWilayah(w) } : {};
 }
 
 /* ---------- Migrasi dan akun uji ---------- */

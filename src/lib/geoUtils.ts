@@ -246,6 +246,14 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
         idKader: item.idKader,
         namaKader: item.namaKader,
         desaWilayah: item.desaWilayah,
+        ...(item.wilayah
+          ? {
+              provinsi: item.wilayah.provinsi,
+              kabupatenKota: item.wilayah.kabupaten,
+              kecamatan: item.wilayah.kecamatan,
+              kelurahanDesa: item.wilayah.desa
+            }
+          : {}),
         jenisGeometri: item.jenisGeometri,
         kategori: item.kategori,
         judul: item.judul,

@@ -30,11 +30,26 @@ export interface PembaruanObjek {
   fotoBase64?: string;
 }
 
+/**
+ * Wilayah administrasi tempat kader bertugas. Menentukan folder tujuan di Google Drive:
+ * Provinsi / Kabupaten atau Kota / Kecamatan / Kelurahan atau Desa.
+ */
+export interface WilayahAdministrasi {
+  provinsi: string;
+  /** Kabupaten atau kota */
+  kabupaten: string;
+  kecamatan: string;
+  /** Kelurahan atau desa */
+  desa: string;
+}
+
 export interface DataSpasialItem {
   id: string;
   idKader: string;
   namaKader: string;
   desaWilayah: string;
+  /** Wilayah akun pembuat saat data direkam; data lama tanpa cap memakai wilayah akunnya saat ini */
+  wilayah?: WilayahAdministrasi;
   jenisGeometri: JenisGeometri;
   kategori: KategoriSurvei;
   judul: string;
@@ -190,12 +205,8 @@ export interface PesanKomunikasi {
   durasiSuaraDetik?: number;
 }
 
-export interface KonfigurasiGDrive {
-  webAppUrl: string; // URL Google Apps Script Web App
-  folderIdDatabase: string;
-  spreadsheetIdMaster: string;
-  autoSyncSaatOnline: boolean;
-  tokenBersama?: string; // dicocokkan dengan GEOKADER_TOKEN di Script Properties Apps Script
+/** Status unggahan ke Google Drive di perangkat ini. Alamat dan token Drive diisi saat build, bukan di aplikasi. */
+export interface StatusGDrive {
   terakhirSinkron?: string;
 }
 
