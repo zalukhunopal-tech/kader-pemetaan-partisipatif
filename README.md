@@ -1,6 +1,6 @@
 # GeoKader — Aplikasi Survei & Pemetaan Partisipatif Kader Masyarakat
 
-Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbasis masyarakat (*community-based participatory mapping*) dengan arsitektur **Offline-First**, sinkronisasi otomatis ke **Google Drive & Google Sheets**, serta sistem **gamifikasi/insentif berjenjang** (Sertifikat Kader Pemetaan & Upah Harian 1 HOK).
+Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbasis masyarakat (*community-based participatory mapping*) dengan arsitektur **Offline-First**, sinkronisasi otomatis ke **Google Drive & Google Sheets**, serta sertifikat kader yang diterbitkan dari data yang sudah diverifikasi admin.
 
 ## Fitur Utama (Sesuai PRD v1.0)
 
@@ -19,19 +19,43 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
    - Dilengkapi generator kode backend **Google Apps Script (`Code.gs`)** siap pakai untuk membuat folder `Database_Pemetaan > Data_Spasial & Foto_Lapangan` otomatis di Google Drive.
    - Status **Tersinkron** hanya diberikan pada data yang dikonfirmasi tersimpan oleh Apps Script. Tanpa URL Web App, tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil. Penyimpanan bersifat idempoten (kirim ulang tidak menggandakan baris) dan dilindungi token: isi `GEOKADER_TOKEN` di *Script Properties* dengan nilai yang sama seperti di Sinkronisasi > Konfigurasi > Token. Status online mengikuti koneksi browser, dan sinkron otomatis berjalan saat ada internet dan ada antrean. Pasang ulang `Code.gs` terbaru setiap kali berubah; Code.gs versi lama tetap bisa dipakai tetapi tanpa token dan tanpa penyimpanan idempoten.
 
-3. **Sistem Gamifikasi, Sertifikat Kader & Upah Harian (1 HOK)**
-   - **1 Paket Capaian**: Menyelesaikan **50 Titik Koordinat** ATAU **5,0 km Tracking Perjalanan** ATAU **5,0 Ha Pemetaan Poligon**.
-   - **Capaian Pertama (1x Target)**: Penerbitan **Sertifikat Kader Pemetaan** resmi (dilengkapi generator sertifikat digital PNG resolusi tinggi).
-   - **Capaian Berikutnya (Setiap 2x Target)**: Pembukaan tiket otomatis **Klaim Upah 1 Hari Kerja (1 HOK)**.
+3. **Capaian & Sertifikat Kader**
+   - **1 Paket Capaian**: **50 Titik Koordinat** ATAU **5,0 km Tracking Perjalanan** ATAU **5,0 Ha Pemetaan Poligon**.
+   - Hanya data **terverifikasi admin** yang dihitung untuk sertifikat. Data simulasi tidak pernah dihitung, dan data impor baru dihitung setelah diverifikasi. Pembaruan objek dibatasi satu per objek per 24 jam dan harus berisi kondisi yang berbeda.
+   - Admin menerbitkan sertifikat atas nama kader yang dipilih (bukan profil admin), dengan nomor unik dan satu sertifikat per kader. Sertifikat digital PNG memuat **kode QR yang benar-benar terbaca**; isi QR berupa tautan ke `VITE_URL_VERIFIKASI` bila diisi, atau teks bertanda `GEOKADER|nomor|ID kader|tanggal`.
 
 4. **Modul Tugas, Pengumuman, Diskusi Komunitas & Panel Admin**
    - Siaran pengumuman & penugasan spasial dengan tombol **Buka Lokasi Acuan di Peta**.
-   - **Ruang Diskusi Sesama Kader** (dengan berbagi pin koordinat & *voice note*) dan **Saluran Tanya Admin (Helpdesk)** berfitur antrean *offline*.
-   - **Panel Admin GIS**: Verifikasi data spasial kader, penerbitan sertifikat, pencairan HOK, dan pembuatan tugas baru.
+   - **Ruang Diskusi Sesama Kader** (dengan berbagi pin koordinat & *voice note*) dan **Saluran Tanya Admin (Helpdesk)**.
+   - **Panel Admin GIS**: verifikasi data spasial kader, penerbitan sertifikat, pembuatan tugas dan pengumuman, serta pengelolaan akun (atur ulang sandi kader).
+   - **Semua fitur di bagian ini hanya bekerja di satu perangkat** (lihat *Batasan* di bawah).
 
 ## Menjalankan Aplikasi
 
 ```bash
 npm install
-npm run dev
+npm run dev      # server pengembangan
+npm run build    # bangun versi produksi (PWA)
+npm test         # tes Vitest (lib/*: koordinat, skor, impor, sertifikat, QR, auth, penyimpanan, sinkronisasi, Code.gs)
+npm run lint     # pemeriksaan tipe (tsc --noEmit)
 ```
+
+Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: sumber tile (`VITE_TILE_*`), tautan verifikasi sertifikat (`VITE_URL_VERIFIKASI`), kode aktivasi admin (`VITE_KODE_ADMIN`), dan akun uji (`VITE_AKUN_UJI`).
+
+## Akun & Keamanan
+
+- Perangkat baru menawarkan pembuatan **Administrator pertama** saat mendaftar. Setelah admin ada, pendaftaran mandiri selalu menjadi kader. Bila `VITE_KODE_ADMIN` diisi, pembuatan admin pertama meminta kode itu (pencegah salah pakai, bukan rahasia: nilainya ikut tertanam di aplikasi).
+- Sandi disimpan sebagai hash PBKDF2-SHA256 (200.000 iterasi, garam acak), minimal 8 karakter, menolak sandi umum serta sandi yang memuat nama/email. Percobaan masuk dibatasi bertahap. Sesi divalidasi terhadap data akun sehingga peran yang diubah di penyimpanan peramban dicabut.
+- Tidak ada reset sandi mandiri: admin mengatur ulang sandi kader dari **Admin > Akun** (sandi sementara tampil sekali, wajib diganti saat masuk). Kader dapat mengganti sandi dari menu.
+- Akun uji dan kartu cepat-masuk hanya ada di build pengembangan atau bila `VITE_AKUN_UJI=true`; build produksi tidak memuatnya. Akun lama bersandi teks polos dimigrasikan otomatis, dan admin bawaan lama wajib mengganti sandi.
+
+## Penyimpanan Data
+
+Data aplikasi disimpan di **IndexedDB** (bukan localStorage yang hanya ±5 MB) dan dipindahkan otomatis dari versi lama. Foto lapangan dikecilkan (sisi maksimum 1280 px, ≤ ±350 KB). Bila penyimpanan penuh atau gagal menulis, aplikasi menampilkan peringatan (bukan gagal diam-diam), dan peringatan juga muncul saat ruang terpakai ≥ 80%. Aplikasi meminta penyimpanan persisten ke peramban agar data tidak dihapus otomatis.
+
+## Batasan yang Perlu Diketahui
+
+- **Belum ada server.** Akun, peran, pesan, tugas, pengumuman, dan status verifikasi hanya ada di perangkat tempat data dibuat. Pesan diskusi berstatus "tersimpan di perangkat ini", bukan "terkirim"; pengumuman dan tugas tidak sampai ke HP kader lain; monitor kader aktif belum tersedia. Hanya data spasial yang bisa dikirim ke luar perangkat, lewat Google Drive/Sheets. Penyelesaian tuntas (verifikasi lintas perangkat, akun dan peran di server) membutuhkan backend.
+- **Keamanan sisi klien ada batasnya.** Siapa pun yang dapat memodifikasi penyimpanan peramban di perangkat yang sama masih dapat melewatinya.
+- Peta offline hanya aktif untuk penyedia tile berlisensi yang Anda pasang sendiri; tiga layanan publik bawaan hanya untuk dilihat online.
+- Skrip Google Apps Script diuji terhadap tiruan layanan Google, belum di Apps Script sungguhan. Sensor GPS dan kompas diuji dengan lokasi/event buatan, belum di HP.

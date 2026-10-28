@@ -12,7 +12,7 @@ export default defineConfig({
         name: "GeoKader: Survei & Pemetaan Partisipatif",
         short_name: "GeoKader",
         description:
-          "Aplikasi survei keanekaragaman hayati & pemetaan partisipatif kader masyarakat (Offline-First GIS, Google Drive Sync, Gamifikasi Sertifikat & HOK)",
+          "Aplikasi survei keanekaragaman hayati & pemetaan partisipatif kader masyarakat (Offline-First GIS, Google Drive Sync, Sertifikat Kader)",
         theme_color: "#064e3b",
         background_color: "#061411",
         display: "standalone",

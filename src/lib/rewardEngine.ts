@@ -461,8 +461,7 @@ export function hitungPeringkatGis20Level(
 /**
  * Menghitung capaian gamifikasi & insentif kader sesuai PRD Bab 3.3:
  * - 1 Paket Capaian = 50 Titik Koordinat ATAU 5 km Tracking Perjalanan ATAU 5 Ha Pemetaan Poligon
- * - Capaian Pertama (1x Target) -> Sertifikat Kader Pemetaan
- * - Capaian Berikutnya (Setiap 2x Target) -> Upah Harian 1 Hari Kerja (1 HOK)
+ * - Capaian Pertama (1x Target) -> berhak atas Sertifikat Kader Pemetaan (hanya data terverifikasi)
  */
 export function hitungCapaianKader(
   semuaData: DataSpasialItem[],

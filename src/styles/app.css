@@ -1935,32 +1935,6 @@ body {
   border: 1px solid #e2e8f0;
 }
 
-.hok-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.hok-item {
-  background: #f8faf9;
-  border: 1px solid #d5dcd8;
-  border-radius: 12px;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.hok-nominal {
-  font-size: 1.02rem;
-  font-weight: 800;
-  color: var(--avenza-green);
-  margin-bottom: 4px;
-}
-
 /* TASKS & ANNOUNCEMENTS */
 .announcement-list {
   display: flex;
@@ -2930,56 +2904,6 @@ label {
   display: block;
   font-size: 0.72rem;
   color: #64748b;
-}
-
-.visual-hok-voucher {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1.5px dashed #16a34a;
-}
-
-.visual-hok-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.visual-hok-svg-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #86efac;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.visual-hok-title {
-  font-size: 0.74rem;
-  color: #166534;
-  font-weight: 700;
-}
-
-.visual-hok-price {
-  font-size: 1.15rem;
-  font-weight: 900;
-  color: #064e3b;
-}
-
-.visual-hok-badge {
-  background: #ffffff;
-  border: 1px solid #86efac;
-  color: #0d7344;
-  font-size: 0.76rem;
-  font-weight: 800;
-  padding: 5px 12px;
-  border-radius: 99px;
 }
 
 @media (max-width: 480px) {
