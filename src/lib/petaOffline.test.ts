@@ -276,3 +276,63 @@ describe("hapus tile area", () => {
     expect(await m.hapusTile(["https://t.example/1/1/1.png"])).toBe(0);
   });
 });
+
+describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
+  it("satelit bawaan = Sentinel-2 cloudless EOX (CC BY 4.0), bukan server Esri tanpa kunci", async () => {
+    const m = await muat();
+    const s = m.SUMBER_TILE.satelit;
+    expect(s.template).toMatch(/^https:\/\/tiles\.maps\.eox\.at\/.*s2cloudless_3857/);
+    expect(s.template).not.toMatch(/arcgisonline/);
+    expect(s.lisensi).toMatch(/CC BY 4\.0/);
+    expect(s.zoomMaks).toBe(13);
+    expect(s.templateCadangan?.length).toBeGreaterThan(0);
+  });
+
+  it("setiap sumber punya atribusi yang wajib tampil dan ringkasan lisensi", async () => {
+    const m = await muat();
+    for (const b of ["satelit", "osm", "topo"] as const) {
+      expect(m.SUMBER_TILE[b].atribusi.length).toBeGreaterThan(10);
+      expect(m.SUMBER_TILE[b].lisensi.length).toBeGreaterThan(10);
+    }
+    expect(m.SUMBER_TILE.osm.atribusi).toMatch(/OpenStreetMap/);
+    expect(m.SUMBER_TILE.topo.atribusi).toMatch(/OpenTopoMap/);
+  });
+
+  it("kunci API Esri dipakai bila diisi (gratis sampai kuota akun), tetap tidak boleh diunduh offline", async () => {
+    vi.stubEnv("VITE_ESRI_API_KEY", "kunci-uji");
+    const m = await muat();
+    expect(m.SUMBER_TILE.satelit.template).toMatch(/^https:\/\/ibasemaps-api\.arcgis\.com\/.*token=kunci-uji$/);
+    expect(m.SUMBER_TILE.satelit.atribusi).toMatch(/Powered by Esri/);
+    expect(m.SUMBER_TILE.satelit.bolehUnduh).toBe(false);
+    vi.unstubAllEnvs();
+  });
+
+  it("zoomSumber tidak melebihi zoom maksimum penyedia", async () => {
+    const m = await muat();
+    expect(m.zoomSumber("satelit", 17)).toBe(13);
+    expect(m.zoomSumber("satelit", 12)).toBe(12);
+    expect(m.zoomSumber("osm", 18)).toBe(18);
+    expect(m.zoomSumber("taktis", 18)).toBe(18);
+  });
+
+  it("templat cadangan dipakai setelah 6 kegagalan beruntun saat online tanpa satu pun berhasil", async () => {
+    const m = await muat();
+    m.setelUlangTemplatUntukUji();
+    const utama = m.templateAktif("satelit");
+    for (let i = 0; i < 5; i++) expect(m.laporHasilTile("satelit", false, true)).toBe(false);
+    expect(m.laporHasilTile("satelit", false, true)).toBe(true);
+    expect(m.templateAktif("satelit")).not.toBe(utama);
+    expect(m.urlTile("satelit", 10, 1, 2)).toMatch(/\/default\/g\/10\/2\/1\.jpg$/);
+  });
+
+  it("tidak berganti templat saat offline atau bila templat pernah berhasil", async () => {
+    const m = await muat();
+    m.setelUlangTemplatUntukUji();
+    const utama = m.templateAktif("satelit");
+    for (let i = 0; i < 10; i++) m.laporHasilTile("satelit", false, false);
+    expect(m.templateAktif("satelit")).toBe(utama);
+    m.laporHasilTile("satelit", true, true);
+    for (let i = 0; i < 10; i++) m.laporHasilTile("satelit", false, true);
+    expect(m.templateAktif("satelit")).toBe(utama);
+  });
+});

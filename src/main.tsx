@@ -3,7 +3,11 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { siapkanAutentikasi } from "./lib/auth";
 import { siapkanStorage } from "./lib/storage";
+import { pasangPendengarInstal } from "./lib/instal";
 import "./styles/app.css";
+
+// Tangkap event pemasangan PWA sedini mungkin agar tombol "Instal" bisa memakainya
+pasangPendengarInstal();
 
 // Migrasi akun lama (sandi teks polos -> hash) dan pemuatan data dari IndexedDB selesai
 // sebelum aplikasi membaca sesi dan data

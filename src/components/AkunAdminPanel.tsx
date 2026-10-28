@@ -7,10 +7,13 @@ import {
   buatAkunOlehAdmin,
   muatSemuaAkun
 } from "../lib/auth";
-import { PeranPengguna } from "../types";
+import { DataSpasialItem, PeranPengguna, SertifikatKader } from "../types";
 
 interface AkunAdminPanelProps {
   sesiAdmin: AkunSesi | null;
+  /** Untuk ringkasan per akun: admin dapat melihat isi akun user (user tidak dapat melihat akun admin) */
+  dataSpasial?: DataSpasialItem[];
+  sertifikatList?: SertifikatKader[];
 }
 
 const FORM_KOSONG = { nama: "", email: "", desaWilayah: "", noHp: "", kelompokMasyarakat: "", peran: "kader" as PeranPengguna };
@@ -19,7 +22,7 @@ const FORM_KOSONG = { nama: "", email: "", desaWilayah: "", noHp: "", kelompokMa
  * Akun di perangkat ini. Tidak ada pendaftaran mandiri: admin membuat akun (sandi sementara tampil sekali),
  * mengatur ulang sandi, dan menghapus Authenticator yang ponselnya hilang.
  */
-export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin }) => {
+export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataSpasial = [], sertifikatList = [] }) => {
   const [versi, setVersi] = useState(0);
   const [hasil, setHasil] = useState<{ judul: string; email: string; nama: string; sandi: string } | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -27,6 +30,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin }) => 
   const [tersalin, setTersalin] = useState(false);
   const [form, setForm] = useState(FORM_KOSONG);
   const [sibuk, setSibuk] = useState(false);
+  const [detailEmail, setDetailEmail] = useState<string | null>(null);
   const akun = muatSemuaAkun(); // dibaca ulang setiap render agar status terbaru tampil
   void versi;
 
@@ -181,8 +185,13 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin }) => 
             <tbody>
               {akun.map((a) => {
                 const diriSendiri = a.email.toLowerCase() === sesiAdmin?.email.toLowerCase();
+                const dataAkun = dataSpasial.filter((d) => d.idKader === a.idKader);
+                const terverifikasi = dataAkun.filter((d) => d.statusSinkron === "terverifikasi").length;
+                const sert = sertifikatList.find((x) => x.idKader === a.idKader);
+                const terbuka = detailEmail === a.email;
                 return (
-                  <tr key={a.email}>
+                  <React.Fragment key={a.email}>
+                  <tr>
                     <td>
                       <strong>{a.nama}</strong>
                       <div className="text-xs text-muted">{a.email}</div>
@@ -191,6 +200,14 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin }) => 
                     <td className="text-xs">{statusAkun(a)}</td>
                     <td>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          aria-expanded={terbuka}
+                          onClick={() => setDetailEmail(terbuka ? null : a.email)}
+                        >
+                          {terbuka ? "Tutup" : "Detail"}
+                        </button>
                         <button
                           type="button"
                           className="btn-outline-sm"
@@ -218,6 +235,23 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin }) => 
                       </div>
                     </td>
                   </tr>
+                  {terbuka && (
+                    <tr className="baris-detail-akun">
+                      <td colSpan={4}>
+                        <dl className="detail-akun">
+                          <div><dt>ID</dt><dd>{a.idKader}</dd></div>
+                          <div><dt>Desa / wilayah</dt><dd>{a.desaWilayah}</dd></div>
+                          <div><dt>No. HP</dt><dd>{a.noHp}</dd></div>
+                          <div><dt>Kelompok</dt><dd>{a.kelompokMasyarakat}</dd></div>
+                          <div><dt>Dibuat</dt><dd>{a.createdAt ? new Date(a.createdAt).toLocaleDateString("id-ID") : "-"}</dd></div>
+                          <div><dt>Authenticator</dt><dd>{a.totpRahasia ? `Terpasang · ${a.kodePemulihanHash?.length ?? 0} kode pemulihan tersisa` : "Belum terpasang"}</dd></div>
+                          <div><dt>Data lapangan</dt><dd>{dataAkun.length} objek · {terverifikasi} terverifikasi</dd></div>
+                          <div><dt>Sertifikat</dt><dd>{sert ? sert.nomorSertifikat : "Belum diterbitkan"}</dd></div>
+                        </dl>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

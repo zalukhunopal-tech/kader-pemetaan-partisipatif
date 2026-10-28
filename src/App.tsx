@@ -37,10 +37,12 @@ import {
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { AkunSesi, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
+import { AkunSesi, aksesAdminSah, muatSesiPengguna, simpanSesiPengguna } from "./lib/auth";
+import { BATAS_DIAM_MS, catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
 import { sinkronkanDataKeGDrive, urlAppsScriptValid } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
+import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
 import { formatUkuranByte, perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
@@ -64,6 +66,8 @@ import { KomunikasiView } from "./components/KomunikasiView";
 import { AdminDashboardView } from "./components/AdminDashboardView";
 import { SmartwatchModal } from "./components/SmartwatchModal";
 import { GantiSandiModal } from "./components/GantiSandiModal";
+import { GerbangAdminView } from "./components/GerbangAdminView";
+import { BannerInstal, TombolInstal } from "./components/InstalAplikasi";
 import {
   Award,
   Bell,
@@ -100,9 +104,29 @@ export const App: React.FC = () => {
   );
   const adalahAkunAdmin = sesiPengguna?.peran === "admin";
   const peran: PeranPengguna = adalahAkunAdmin ? peranTampilan : "kader";
-  const [tabAktif, setTabAktif] = useState<MenuTab>(() =>
-    sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka"
-  );
+  // Pemisahan admin dan user, dua lapis:
+  // lapis 1 (tampilan): konten admin hanya dirender saat aksesAdmin;
+  // lapis 2 (aksi): setiap aksi admin memeriksa ulang data akun terkini dan gerbang admin di memori
+  // (dibuka dengan kode Authenticator, terkunci saat dimuat ulang, diam, atau beralih ke Mode User).
+  useVersiGerbangAdmin();
+  const gerbangTerbuka = adalahAkunAdmin && gerbangAdminTerbuka(sesiPengguna?.email);
+  const modeAdminTerkunci = adalahAkunAdmin && peranTampilan === "admin" && !gerbangTerbuka;
+  const aksesAdmin = adalahAkunAdmin && peranTampilan === "admin" && gerbangTerbuka;
+  const [tabAktif, setTabAktif] = useState<MenuTab>(() => {
+    const bawaan: MenuTab = sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka";
+    // Pintasan aplikasi terpasang (mis. tekan lama ikon > "Peta") membuka ?tab=...
+    try {
+      const diminta = new URLSearchParams(window.location.search).get("tab");
+      const boleh: MenuTab[] = ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
+      if (diminta && boleh.includes(diminta as MenuTab)) {
+        window.history.replaceState(null, "", window.location.pathname);
+        return diminta as MenuTab;
+      }
+    } catch {
+      // abaikan
+    }
+    return bawaan;
+  });
   // Status jaringan nyata dari browser; tombol "Online/Offline" hanya menambah mode offline manual
   const [jaringanTersedia, setJaringanTersedia] = useState<boolean>(() =>
     typeof navigator === "undefined" ? true : navigator.onLine
@@ -254,6 +278,7 @@ export const App: React.FC = () => {
 
   // Handler Logout
   const handleLogout = () => {
+    kunciGerbangAdmin();
     simpanSesiPengguna(null);
     setSesiPengguna(null);
     tampilkanToast("Anda telah keluar dari aplikasi GeoKader.");
@@ -266,6 +291,8 @@ export const App: React.FC = () => {
       return;
     }
     setPeranTampilan(peranBaru);
+    // Keluar dari mode admin selalu mengunci gerbang; kembali ke mode admin meminta kode Authenticator lagi
+    if (peranBaru === "kader") kunciGerbangAdmin();
     if (peranBaru === "admin") {
       setTabAktif("admin");
       tampilkanToast("🛡️ Beralih ke Akun Administrator GIS.");
@@ -274,6 +301,51 @@ export const App: React.FC = () => {
       tampilkanToast("👤 Beralih ke Akun Kader Lapangan (User).");
     }
   };
+
+  // Geser kiri/kanan di area konten untuk berpindah tab (mengikuti urutan bilah navigasi bawah)
+  const urutanTab: MenuTab[] = peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
+  const awalGeserRef = useRef<Sentuhan | null>(null);
+  const [animasiGeser, setAnimasiGeser] = useState<"kiri" | "kanan" | null>(null);
+  const handleGeserMulai = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    awalGeserRef.current = e.touches.length === 1 && !abaikanGeserDari(e.target) ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+  };
+  const handleGeserSelesai = (e: React.TouchEvent) => {
+    const awal = awalGeserRef.current;
+    awalGeserRef.current = null;
+    const t = e.changedTouches[0];
+    if (!awal || !t) return;
+    const arah = arahGeser(awal, { x: t.clientX, y: t.clientY, t: Date.now() });
+    const tujuan = tabTujuan(urutanTab, tabAktif, arah);
+    if (tujuan === tabAktif) return;
+    setAnimasiGeser(arah === 1 ? "kiri" : "kanan");
+    setTabAktif(tujuan);
+  };
+  useEffect(() => {
+    if (!animasiGeser) return;
+    const t = window.setTimeout(() => setAnimasiGeser(null), 260);
+    return () => window.clearTimeout(t);
+  }, [animasiGeser, tabAktif]);
+
+  /** Lapis 2: setiap aksi admin diperiksa ulang; bila tidak sah, mode admin dikunci dan aksi dibatalkan */
+  const wajibAdmin =
+    <A extends unknown[]>(aksi: (...args: A) => void) =>
+    (...args: A) => {
+      if (peranTampilan !== "admin" || !aksesAdminSah(sesiPengguna)) {
+        kunciGerbangAdmin();
+        tampilkanToast("⛔ Aksi admin ditolak: mode admin terkunci atau sesi tidak sah.");
+        return;
+      }
+      catatAktivitasAdmin();
+      aksi(...args);
+    };
+
+  // Gerbang terkunci sendiri setelah diam; diperiksa berkala agar layar kunci langsung tampil
+  useEffect(() => {
+    if (!adalahAkunAdmin) return;
+    const t = window.setInterval(() => gerbangAdminTerbuka(sesiPengguna?.email), 15_000);
+    return () => window.clearInterval(t);
+  }, [adalahAkunAdmin, sesiPengguna?.email]);
 
   // Handler Ubah Nama & Jabatan Penandatangan Sertifikat oleh Admin
   const handleUbahPenandatanganSertifikat = (
@@ -507,10 +579,10 @@ export const App: React.FC = () => {
     const msgBaru: PesanKomunikasi = {
       id: buatId("MSG"),
       saluran,
-      idPengirim: peran === "admin" ? "ADMIN-01" : profil.idKader,
-      namaPengirim: peran === "admin" ? "Admin GIS Organisasi" : profil.nama,
-      peranPengirim: peran,
-      desaPengirim: peran === "admin" ? "Pusat" : profil.desaWilayah,
+      idPengirim: aksesAdmin ? "ADMIN-01" : profil.idKader,
+      namaPengirim: aksesAdmin ? "Admin GIS Organisasi" : profil.nama,
+      peranPengirim: aksesAdmin ? "admin" : "kader",
+      desaPengirim: aksesAdmin ? "Pusat" : profil.desaWilayah,
       teks,
       waktu: new Date().toTimeString().slice(0, 5),
       statusKirim: "tersimpan",
@@ -566,6 +638,8 @@ export const App: React.FC = () => {
       onClick={() => {
         if (bukaMenuTitikTiga) setBukaMenuTitikTiga(false);
       }}
+      onPointerDownCapture={() => catatAktivitasAdmin()}
+      onKeyDownCapture={() => catatAktivitasAdmin()}
     >
       {/* TOPBAR BERSIH: JUDUL TUNGGAL DI KIRI, TOOLBAR DISEMBUNYIKAN HINGGA DIKLIK AGAR TIDAK MENIMPA TEKS */}
       <header className="avenza-topbar">
@@ -712,6 +786,8 @@ export const App: React.FC = () => {
                 </button>
               )}
 
+              <TombolInstal className="avenza-overflow-item" onSelesai={tampilkanToast} />
+
               <button
                 type="button"
                 className="avenza-overflow-item"
@@ -738,6 +814,23 @@ export const App: React.FC = () => {
           )}
         </div>
       </header>
+
+      {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
+      {aksesAdmin && (
+        <div className="banner-mode-admin" role="status">
+          <ShieldCheck size={14} aria-hidden="true" />
+          <span>Mode Administrator · terkunci otomatis setelah {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas</span>
+          <button
+            type="button"
+            onClick={() => {
+              kunciGerbangAdmin();
+              tampilkanToast("🔒 Mode admin dikunci.");
+            }}
+          >
+            Kunci
+          </button>
+        </div>
+      )}
 
       {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (MUNCUL DI SEMUA TAB) */}
       {rekamLatar.status !== "idle" && (
@@ -793,6 +886,8 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {tabAktif === "pustaka" && <BannerInstal onSelesai={tampilkanToast} />}
+
       {/* PERINGATAN PENYIMPANAN: data baru yang tidak tersimpan harus terlihat, bukan hilang senyap */}
       {(statusPenyimpanan.galat || (ruangPenyimpanan && ruangPenyimpanan.persen >= 80)) && (
         <div className="banner-penyimpanan" role="alert">
@@ -809,7 +904,24 @@ export const App: React.FC = () => {
       {notifToast && <div className="avenza-toast">{notifToast}</div>}
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
-      <main className="app-main">
+      <main
+        className={`app-main ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
+        onTouchStart={handleGeserMulai}
+        onTouchEnd={handleGeserSelesai}
+        onTouchCancel={() => (awalGeserRef.current = null)}
+      >
+        {modeAdminTerkunci && sesiPengguna && (
+          <GerbangAdminView
+            sesi={sesiPengguna}
+            onTerbuka={(pesan) => {
+              tampilkanToast(`🛡️ ${pesan}`);
+              setTabAktif("admin");
+            }}
+            onModeUser={() => gantiPeranAkun("kader")}
+          />
+        )}
+        {!modeAdminTerkunci && (
+        <>
         {tabAktif === "pustaka" && (
           <PustakaView
             areaOffline={areaOffline}
@@ -849,6 +961,7 @@ export const App: React.FC = () => {
             profil={profil}
             areaOffline={areaOffline}
             fokusKoordinat={fokusKoordinat}
+            onFokusDipakai={() => setFokusKoordinat(null)}
             onSimpanDataBaru={handleSimpanDataBaru}
             onTambahPembaruanObjek={handleTambahPembaruanObjek}
             onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
@@ -875,12 +988,12 @@ export const App: React.FC = () => {
           <RewardView
             dataSpasial={dataSpasial}
             profil={profil}
-            peran={peran}
+            peran={aksesAdmin ? "admin" : "kader"}
             sertifikatList={sertifikatList}
             pesanList={pesanList}
             tugasList={tugasList}
             onUbahProfil={setProfil}
-            onUbahPenandatanganSertifikat={handleUbahPenandatanganSertifikat}
+            onUbahPenandatanganSertifikat={wajibAdmin(handleUbahPenandatanganSertifikat)}
           />
         )}
 
@@ -906,7 +1019,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {tabAktif === "admin" && peran === "admin" && (
+        {tabAktif === "admin" && aksesAdmin && (
           <AdminDashboardView
             dataSpasial={dataSpasial}
             profilKader={profil}
@@ -914,16 +1027,16 @@ export const App: React.FC = () => {
             tugasList={tugasList}
             kaderAktifList={kaderAktifList}
             sesiAdmin={sesiPengguna}
-            onVerifikasiData={(id: string, status: StatusSinkron, catatan?: string) =>
+            onVerifikasiData={wajibAdmin((id: string, status: StatusSinkron, catatan?: string) =>
               setDataSpasial((prev) =>
                 prev.map((d) =>
                   d.id === id ? { ...d, statusSinkron: status, catatanAdmin: catatan } : d
                 )
               )
-            }
-            onUbahDataSpasial={handleUbahDataSpasial}
-            onHapusDataSpasial={handleHapusDataSpasial}
-            onTerbitkanSertifikat={(sert) => {
+            )}
+            onUbahDataSpasial={wajibAdmin(handleUbahDataSpasial)}
+            onHapusDataSpasial={wajibAdmin(handleHapusDataSpasial)}
+            onTerbitkanSertifikat={wajibAdmin((sert: SertifikatKader) => {
               // Satu sertifikat per kader dan nomor tidak boleh kembar
               if (
                 sertifikatList.some(
@@ -935,17 +1048,19 @@ export const App: React.FC = () => {
               }
               setSertifikatList((prev) => [sert, ...prev]);
               tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
-            }}
-            onUbahPenandatanganSertifikat={(nama, jabatan) => {
+            })}
+            onUbahPenandatanganSertifikat={wajibAdmin((nama: string, jabatan: string) => {
               handleUbahPenandatanganSertifikat(nama, jabatan);
               tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
-            }}
-            onTambahPengumuman={(p) => setPengumumanList((prev) => [p, ...prev])}
-            onTambahTugas={handleTambahTugas}
-            onHapusTugas={handleHapusTugas}
-            onBalasPesanAdmin={(teks) => handleKirimPesan("admin", teks)}
+            })}
+            onTambahPengumuman={wajibAdmin((p: PengumumanBroadcast) => setPengumumanList((prev) => [p, ...prev]))}
+            onTambahTugas={wajibAdmin(handleTambahTugas)}
+            onHapusTugas={wajibAdmin(handleHapusTugas)}
+            onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}
             onFokusKePeta={handleFokusKePeta}
           />
+        )}
+        </>
         )}
       </main>
 

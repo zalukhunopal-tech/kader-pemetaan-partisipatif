@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { buatId } from "../lib/id";
+import { LatarPetaDasar } from "./LatarPetaDasar";
 import {
   ArrowUpDown,
   ChevronDown,
   Download,
   Filter,
   Layers,
+  Map as MapIcon,
   MoreHorizontal,
   Plus,
   Search,
@@ -292,40 +294,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         <div className="avenza-peta-content">
           <div className="avenza-basemap-banner-wrap">
             <div className="avenza-basemap-banner" onClick={onBukaPetaDasar}>
-              <svg
-                className="avenza-basemap-svg"
-                viewBox="0 0 600 180"
-                preserveAspectRatio="none"
-              >
-                <rect width="600" height="180" fill="#e2e6e3" />
-                <path
-                  d="M0,0 L280,0 C260,45 210,80 140,120 C90,148 40,165 0,180 Z"
-                  fill="#b7d7a8"
-                />
-                <path
-                  d="M0,0 L190,0 C175,35 130,65 80,95 C40,118 15,135 0,145 Z"
-                  fill="#a3c995"
-                />
-                <path
-                  d="M25,10 Q90,30 130,55 T230,25"
-                  fill="none"
-                  stroke="#cbe3be"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M75,180 C115,140 165,112 245,92 C310,76 355,65 375,58 L430,130 L405,180 Z"
-                  fill="#7cc0f7"
-                />
-                <path
-                  d="M440,105 L535,88 L535,62 L575,62 L575,95 L440,118 Z"
-                  fill="#f3f5f4"
-                />
-                <path
-                  d="M520,180 C535,155 565,145 600,140 L600,180 Z"
-                  fill="#b7d7a8"
-                />
-              </svg>
+              <LatarPetaDasar />
 
               <button
                 type="button"
@@ -335,7 +304,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   onBukaPetaDasar();
                 }}
               >
-                Buka peta dasar
+                <MapIcon size={17} aria-hidden="true" /> Buka peta dasar
               </button>
             </div>
           </div>

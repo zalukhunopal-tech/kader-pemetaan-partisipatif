@@ -7,7 +7,9 @@ import {
   adaAdmin,
   aturUlangAuthenticatorOlehAdmin,
   aturUlangSandiOlehAdmin,
+  aksesAdminSah,
   autentikasiLogin,
+  bukaGerbangAdminDenganKode,
   buatAdminPertama,
   buatAkunOlehAdmin,
   buatHashSandi,
@@ -23,6 +25,7 @@ import {
   validasiKataSandi
 } from "./auth";
 import { hitungTotp, base32Decode } from "./totp";
+import { BATAS_DIAM_MS, catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
 
 konfigUji.iterasi = 1000; // tes cepat; hash sungguhan memakai 200.000 iterasi
 
@@ -61,6 +64,13 @@ async function siapkanAdmin(n = "A") {
   const auth = await pasangAuthenticator(data(n).email);
   const masuk = await masukPenuh(data(n).email, auth.rahasia);
   return { ...auth, sesi: masuk.akun as AkunSesi, email: data(n).email.toLowerCase() };
+}
+
+/** Admin membuka lagi gerbang admin dengan kode Authenticator berikutnya (mis. setelah kader memakai perangkat) */
+async function bukaGerbang(admin: { sesi: AkunSesi; rahasia: string }) {
+  majuDetik(30);
+  const r = bukaGerbangAdminDenganKode(admin.sesi, hitungTotp(admin.rahasia)!);
+  expect(r.sukses).toBe(true);
 }
 
 /** Admin membuat kader, kader mengganti sandi sementara dan memasang Authenticator */
@@ -339,6 +349,7 @@ describe("Google Authenticator (TOTP)", () => {
 
   it("admin mengatur ulang Authenticator kader: rahasia dan kode pemulihan lama tidak berlaku, pemasangan ulang diminta", async () => {
     const { admin, kader } = await siapkanKader();
+    await bukaGerbang(admin); // kader yang memasang Authenticator mengunci gerbang admin
     expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, kader.email).sukses).toBe(true);
     const akun = muatSemuaAkun().find((a) => a.email === kader.email)!;
     expect(akun.totpRahasia).toBeUndefined();
@@ -357,6 +368,7 @@ describe("Google Authenticator (TOTP)", () => {
     expect(aturUlangAuthenticatorOlehAdmin(sesiKader, admin.email).sukses).toBe(false);
     expect(aturUlangAuthenticatorOlehAdmin({ ...sesiKader, peran: "admin" }, admin.email).sukses).toBe(false);
     expect(aturUlangAuthenticatorOlehAdmin(null, kader.email).sukses).toBe(false);
+    await bukaGerbang(admin);
     expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, admin.email).pesan).toMatch(/admin lain/);
     expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, "tidakada@contoh.id").pesan).toMatch(/tidak ditemukan/);
     expect(muatSemuaAkun().find((a) => a.email === admin.email)!.totpRahasia).toBeDefined();
@@ -370,6 +382,83 @@ describe("Google Authenticator (TOTP)", () => {
     const sesiDua = (await masukPenuh("dua@contoh.id", a2.rahasia, "KataBaruKu-2028")).akun!;
     expect(aturUlangAuthenticatorOlehAdmin(sesiDua, a1.email).sukses).toBe(true);
     expect(muatSemuaAkun().find((a) => a.email === a1.email)!.totpRahasia).toBeUndefined();
+  });
+});
+
+describe("gerbang admin: lapis pengaman kedua", () => {
+  it("login admin membuka gerbang; login atau pemasangan Authenticator kader menguncinya", async () => {
+    const admin = await siapkanAdmin();
+    expect(gerbangAdminTerbuka(admin.email)).toBe(true);
+    expect(aksesAdminSah(admin.sesi)).toBe(true);
+    const kader = await buatKaderLengkap(admin.sesi);
+    expect(gerbangAdminTerbuka(admin.email)).toBe(false);
+    expect(aksesAdminSah(admin.sesi)).toBe(false);
+    await bukaGerbang(admin);
+    await masukPenuh(kader.email, kader.rahasia, kader.sandiBaru);
+    expect(gerbangAdminTerbuka(admin.email)).toBe(false);
+  });
+
+  it("sesi admin yang sah saja tidak cukup: tanpa gerbang terbuka semua aksi admin ditolak", async () => {
+    const admin = await siapkanAdmin();
+    kunciGerbangAdmin();
+    expect(muatSesiPengguna()?.peran).toBe("admin"); // sesi tetap ada
+    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "x@contoh.id", desaWilayah: "-", noHp: "-" });
+    expect(r.sukses).toBe(false);
+    expect(r.pesan).toMatch(/mode admin terbuka/);
+    expect((await aturUlangSandiOlehAdmin(admin.sesi, "x@contoh.id")).sukses).toBe(false);
+    expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, "x@contoh.id").sukses).toBe(false);
+    await bukaGerbang(admin);
+    expect((await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "x@contoh.id", desaWilayah: "-", noHp: "-" })).sukses).toBe(true);
+  });
+
+  it(`terkunci sendiri setelah ${BATAS_DIAM_MS / 60000} menit tanpa aktivitas; aktivitas memperpanjangnya`, async () => {
+    const admin = await siapkanAdmin();
+    majuDetik(14 * 60);
+    catatAktivitasAdmin();
+    majuDetik(14 * 60);
+    expect(gerbangAdminTerbuka(admin.email)).toBe(true);
+    majuDetik(16 * 60);
+    expect(gerbangAdminTerbuka(admin.email)).toBe(false);
+    expect(aksesAdminSah(admin.sesi)).toBe(false);
+  });
+
+  it("membuka gerbang: kader ditolak, kode salah dihitung, kode yang sudah dipakai ditolak, kode pemulihan diterima", async () => {
+    const admin = await siapkanAdmin();
+    const kader = await buatKaderLengkap(admin.sesi);
+    const sesiKader = (await masukPenuh(kader.email, kader.rahasia, kader.sandiBaru)).akun!;
+    expect(bukaGerbangAdminDenganKode(sesiKader, hitungTotp(kader.rahasia)!).pesan).toMatch(/tidak memiliki akses/);
+    // sesi kader yang perannya dipalsukan tetap ditolak karena data akun berkata kader
+    expect(bukaGerbangAdminDenganKode({ ...sesiKader, peran: "admin" }, hitungTotp(kader.rahasia)!).sukses).toBe(false);
+    expect(gerbangAdminTerbuka(kader.email)).toBe(false);
+
+    majuDetik(30);
+    expect(bukaGerbangAdminDenganKode(admin.sesi, "000000").sukses).toBe(false);
+    const kode = hitungTotp(admin.rahasia)!;
+    expect(bukaGerbangAdminDenganKode(admin.sesi, kode).sukses).toBe(true);
+    kunciGerbangAdmin();
+    expect(bukaGerbangAdminDenganKode(admin.sesi, kode).sukses).toBe(false); // kode yang sama tidak bisa dipakai ulang
+    const pemulihan = bukaGerbangAdminDenganKode(admin.sesi, admin.kodePemulihan[0]);
+    expect(pemulihan.sukses).toBe(true);
+    expect(pemulihan.pesan).toMatch(/sisa 7/);
+  });
+
+  it("kode salah untuk gerbang ikut dibatasi (5 kali lalu ditahan)", async () => {
+    const admin = await siapkanAdmin();
+    kunciGerbangAdmin();
+    for (let i = 0; i < 5; i++) bukaGerbangAdminDenganKode(admin.sesi, "000000");
+    majuDetik(1);
+    expect(bukaGerbangAdminDenganKode(admin.sesi, hitungTotp(admin.rahasia)!).pesan).toMatch(/Terlalu banyak percobaan/);
+  });
+
+  it("gerbang tidak tersimpan: setelah halaman dimuat ulang (modul baru) gerbang tertutup walau sesi masih ada", async () => {
+    const admin = await siapkanAdmin();
+    expect(JSON.stringify(localStorage)).not.toMatch(/gerbang/i);
+    vi.resetModules();
+    const baru = await import("./auth");
+    const gerbangBaru = await import("./gerbangAdmin");
+    expect(baru.muatSesiPengguna()?.email).toBe(admin.email);
+    expect(gerbangBaru.gerbangAdminTerbuka(admin.email)).toBe(false);
+    expect(baru.aksesAdminSah(admin.sesi)).toBe(false);
   });
 });
 
@@ -430,6 +519,7 @@ describe("ganti dan atur ulang sandi", () => {
     expect((await aturUlangSandiOlehAdmin(sesiKader, admin.email)).sukses).toBe(false);
     expect((await aturUlangSandiOlehAdmin({ ...sesiKader, peran: "admin" }, admin.email)).sukses).toBe(false);
     expect((await aturUlangSandiOlehAdmin(null, kader.email)).sukses).toBe(false);
+    await bukaGerbang(admin);
     expect((await aturUlangSandiOlehAdmin(admin.sesi, admin.email)).pesan).toMatch(/sendiri/);
     expect((await aturUlangSandiOlehAdmin(admin.sesi, "tidakada@contoh.id")).pesan).toMatch(/tidak ditemukan/);
 

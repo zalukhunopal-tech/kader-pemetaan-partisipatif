@@ -16,6 +16,7 @@ import {
 } from "../lib/auth";
 import { hitungTotp, rahasiaUntukTampil } from "../lib/totp";
 import { KodeQrSvg } from "./KodeQrSvg";
+import { TombolInstal } from "./InstalAplikasi";
 import {
   AlertCircle,
   ArrowRight,
@@ -698,6 +699,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             </form>
           )}
         </div>
+        {(mode === "login" || mode === "setup_admin") && (
+          <div className="auth-instal">
+            <TombolInstal className="auth-instal-tombol" label="Pasang GeoKader di HP ini" />
+          </div>
+        )}
       </div>
     </div>
   );

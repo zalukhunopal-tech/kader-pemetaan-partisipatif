@@ -5,7 +5,7 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
 ## Fitur Utama (Sesuai PRD v1.0)
 
 1. **Modul Pemetaan & Navigasi Lapangan (Setara Avenza Maps / AlpineQuest)**
-   - **Multi-Basemap & Offline Tile Downloader**: Citra Satelit Gratis (Esri World Imagery), OpenTopoMap, OpenStreetMap, dan Peta Kontur Taktis Offline, dilengkapi pengunduh kotak wilayah (*bounding box*) serta impor GeoJSON, KML, dan GPX. Setiap fitur divalidasi (tipe geometri, rentang koordinat, jumlah titik); yang tidak valid dilewati dan dilaporkan. Unduhan peta offline menyimpan tile sungguhan di perangkat (Cache API), menampilkannya tanpa internet, dan menghitung jumlah serta ukuran dari tile yang benar-benar tersimpan. Unduhan hanya aktif untuk penyedia tile yang Anda pasang dan nyatakan berlisensi lewat `VITE_TILE_URL_*` dan `VITE_TILE_UNDUH_*=true` (lihat `.env.example`); tiga layanan publik bawaan hanya untuk dilihat online. Data hasil impor ditandai dan baru dihitung ke capaian setelah diverifikasi admin.
+   - **Multi-Basemap & Offline Tile Downloader**: Citra satelit Sentinel-2 (EOX, CC BY 4.0), OpenTopoMap, OpenStreetMap, dan Peta Kontur Taktis Offline, masing-masing dengan atribusi wajib di peta (lihat *Peta Dasar Gratis dan Legal*), dilengkapi pengunduh kotak wilayah (*bounding box*) serta impor GeoJSON, KML, dan GPX. Setiap fitur divalidasi (tipe geometri, rentang koordinat, jumlah titik); yang tidak valid dilewati dan dilaporkan. Unduhan peta offline menyimpan tile sungguhan di perangkat (Cache API), menampilkannya tanpa internet, dan menghitung jumlah serta ukuran dari tile yang benar-benar tersimpan. Unduhan hanya aktif untuk penyedia tile yang Anda pasang dan nyatakan berlisensi lewat `VITE_TILE_URL_*` dan `VITE_TILE_UNDUH_*=true` (lihat `.env.example`); tiga layanan publik bawaan hanya untuk dilihat online. Peta dibuka di posisi, zoom, dan basemap terakhir; GPS hanya dipakai untuk memusatkan peta pada pemakaian pertama. Data hasil impor ditandai dan baru dihitung ke capaian setelah diverifikasi admin.
    - **Perekaman Data Spasial Presisi**:
      - **Titik Koordinat (Waypoint / Point)**: Koordinat $(X, Y, Z/\text{elevasi})$, akurasi GPS, kategori (Flora, Fauna, Mata Air, Tanda Batas, Ancaman), Nama Lokal/Ilmiah, Manfaat, dan lampiran Foto Geotagging.
      - **Jalur Perjalanan (GPS Tracking / Line)**: Perekaman jejak langkah dari GPS perangkat dengan perhitungan panjang otomatis dalam **Kilometer (km)**. Tersedia tombol *Simulasi* (mati secara bawaan) untuk demo dan pelatihan tanpa GPS; data simulasi ditandai dan tidak dihitung ke capaian maupun skor level.
@@ -30,6 +30,34 @@ Aplikasi survei keanekaragaman hayati/keruangan dan pemetaan partisipatif berbas
    - **Panel Admin GIS**: verifikasi data spasial kader, penerbitan sertifikat, pembuatan tugas dan pengumuman, serta pengelolaan akun (membuat akun, atur ulang sandi, dan hapus Authenticator).
    - **Semua fitur di bagian ini hanya bekerja di satu perangkat** (lihat *Batasan* di bawah).
 
+## Memasang Aplikasi (PWA)
+
+GeoKader bisa dipasang seperti aplikasi biasa (ikon di layar utama, layar penuh, jalan tanpa internet):
+
+- **Android (Chrome, Edge, Samsung Internet):** ketuk **Instal** pada ajakan di Pustaka, menu **Instal aplikasi**, atau tombol di layar masuk. Bila tombol tidak memunculkan dialog, buka menu browser ⋮ → *Instal aplikasi*.
+- **iPhone/iPad (Safari):** ketuk **Bagikan** → **Tambahkan ke Layar Utama**. Aplikasi menampilkan panduan ini.
+- **PC (Chrome/Edge):** klik ikon Instal di bilah alamat atau tombol di aplikasi.
+
+Pemasangan hanya bisa dari alamat **https://** (atau `localhost`). Manifest memuat ikon PNG 192/512, ikon *maskable*, tangkapan layar untuk dialog pemasangan, dan pintasan **Peta**, **Pustaka**, **Sinkronisasi** (tekan lama ikon aplikasi).
+
+## Peta Dasar Gratis dan Legal
+
+Semua sumber bawaan gratis, boleh dipakai di aplikasi dengan atribusi yang tampil di pojok peta, dan **hanya untuk dilihat online**:
+
+| Basemap | Sumber | Lisensi / ketentuan | Offline |
+|---|---|---|---|
+| Satelit (bawaan) | Sentinel-2 cloudless 2016, EOX (s2maps.eu) | CC BY 4.0, resolusi 10 m (zoom maks 13, di atasnya diperbesar) | Tidak: layanan tile EOX untuk dipakai online |
+| Satelit resolusi tinggi (opsional) | Esri World Imagery lewat akun ArcGIS Location Platform, `VITE_ESRI_API_KEY` | Ketentuan Esri, kuota gratis bulanan untuk akun; wajib "Powered by Esri" | Tidak: Esri melarang pengambilan tile massal di luar perangkat lunaknya |
+| OpenStreetMap | tile.openstreetmap.org | Data ODbL; kebijakan tile OSMF | Tidak: kebijakan tile OSM melarang unduhan massal/offline |
+| Topografi | OpenTopoMap | CC-BY-SA | Tidak dijamin: pemakaian besar perlu menghubungi OpenTopoMap |
+
+Server Esri tanpa kunci (`server.arcgisonline.com`) tidak lagi dipakai karena ketentuan Esri mensyaratkan akun. Citra Sentinel-2 tahun 2018 ke atas dari EOX berlisensi CC BY-NC-SA 4.0 (non-komersial) dan tidak dipasang bawaan.
+
+**Cara legal untuk peta offline:** buat tile sendiri dari data terbuka lalu sajikan dari server/penyimpanan milik organisasi, kemudian isi `VITE_TILE_URL_<SUMBER>` dan `VITE_TILE_UNDUH_<SUMBER>=true`.
+- Citra: unduh Sentinel-2 dari Copernicus Data Space Ecosystem (data terbuka Copernicus, gratis dengan atribusi), olah di QGIS (*Generate XYZ tiles*) untuk wilayah dampingan.
+- Peta jalan/topografi: potong data OpenStreetMap (ODbL) untuk wilayah Anda, mis. ekstrak PMTiles Protomaps, lalu render menjadi tile raster; cantumkan "© Kontributor OpenStreetMap".
+- Peta Rupabumi Indonesia (BIG): ketentuan layanannya untuk aplikasi pihak ketiga belum jelas; tanyakan izin tertulis ke Badan Informasi Geospasial sebelum memasang.
+
 ## Menjalankan Aplikasi
 
 ```bash
@@ -51,6 +79,7 @@ Variabel lingkungan (`.env`, lihat `.env.example`) dibaca saat build: sumber til
 - Tidak ada reset sandi mandiri: admin mengatur ulang sandi kader (sandi sementara tampil sekali, wajib diganti saat masuk). Kader dapat mengganti sandi dari menu.
 - **Akun dan sesi dari versi sebelum Authenticator** tetap bisa dipakai sandinya, tetapi sesi lama dicabut dan akun wajib memasang Authenticator saat masuk berikutnya.
 - Akun uji dan kartu cepat-masuk hanya ada di build pengembangan atau bila `VITE_AKUN_UJI=true` (kode Authenticator akun uji dihitung otomatis); build produksi tidak memuatnya.
+- **Pemisahan admin dan user (dua lapis).** Lapis 1: tampilan admin (dasbor, pengaturan sertifikat, kirim sebagai admin) hanya dirender untuk akun admin dengan **gerbang admin** terbuka; akun user tidak punya menu, tombol, atau rute ke sana. Lapis 2: setiap aksi admin (verifikasi, ubah/hapus data, terbitkan sertifikat, penandatangan, tugas, pengumuman, buat/atur ulang akun) diperiksa ulang terhadap data akun terkini **dan** gerbang admin; bila gagal, aksi dibatalkan dan mode admin dikunci. Gerbang admin hanya ada di memori: dibuka oleh kode Google Authenticator (saat login admin atau di layar kunci) dan terkunci saat aplikasi dimuat ulang, 15 menit tanpa aktivitas, beralih ke Mode User, atau keluar. Admin dapat melihat detail akun user (profil, Authenticator, jumlah data, sertifikat) di Admin > Akun.
 - **Batas:** rahasia Authenticator tersimpan di perangkat yang sama dengan akunnya (belum ada server). Lapisan ini menahan orang yang hanya tahu sandi, bukan orang yang dapat membaca atau mengubah penyimpanan perangkat itu.
 
 ## Penyimpanan Data
@@ -61,5 +90,6 @@ Data aplikasi disimpan di **IndexedDB** (bukan localStorage yang hanya ±5 MB) d
 
 - **Belum ada server.** Akun, peran, pesan, tugas, pengumuman, dan status verifikasi hanya ada di perangkat tempat data dibuat. Pesan diskusi berstatus "tersimpan di perangkat ini", bukan "terkirim"; pengumuman dan tugas tidak sampai ke HP kader lain; monitor kader aktif belum tersedia. Hanya data spasial yang bisa dikirim ke luar perangkat, lewat Google Drive/Sheets. Penyelesaian tuntas (verifikasi lintas perangkat, akun dan peran di server) membutuhkan backend.
 - **Keamanan sisi klien ada batasnya.** Sandi dan Authenticator menahan orang yang tidak memegang perangkat, tetapi siapa pun yang dapat membaca atau mengubah penyimpanan peramban di perangkat yang sama masih dapat melewatinya.
-- Peta offline hanya aktif untuk penyedia tile berlisensi yang Anda pasang sendiri; tiga layanan publik bawaan hanya untuk dilihat online.
+- Peta offline hanya aktif untuk penyedia tile berlisensi yang Anda pasang sendiri; sumber bawaan hanya untuk dilihat online. Alamat tile Sentinel-2 EOX diambil dari katalog layanan publik dan belum bisa diuji dari lingkungan pengembangan; aplikasi otomatis mencoba jalur cadangan bila jalur utama gagal.
+- Geser kiri/kanan di area konten berpindah tab sesuai urutan bilah bawah; di atas peta, geseran tetap menggeser peta.
 - Skrip Google Apps Script diuji terhadap tiruan layanan Google, belum di Apps Script sungguhan. Sensor GPS dan kompas diuji dengan lokasi/event buatan, belum di HP.
