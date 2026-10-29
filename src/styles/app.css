@@ -1174,6 +1174,7 @@ body {
   overflow: hidden;
   border: 1px solid #cbd5e1;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  background: #061a14;
 }
 
 .map-canvas {
@@ -4765,19 +4766,17 @@ label {
   perspective: 1000px;
   perspective-origin: 50% 60%;
   border-radius: inherit;
+  background: #061a14;
 }
 
 .map-canvas-3d-inner {
   position: absolute;
-  top: -25%;
-  left: -25%;
-  width: 150%;
-  height: 150%;
   transform-origin: 50% 50%;
   will-change: transform;
   display: flex;
   align-items: stretch;
   justify-content: stretch;
+  background: #061a14;
 }
 
 .map-canvas-3d-inner .map-canvas {
@@ -4787,10 +4786,21 @@ label {
   touch-action: none;
 }
 
-.compass-reset-btn {
-  background: #ffffff !important;
+.compass-ctrl-btn {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.compass-ctrl-btn.compass-rotated {
   border-color: #ef4444 !important;
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25) !important;
+}
+
+.compass-ctrl-btn.compass-mode-active {
+  border-color: #10b981 !important;
+  background: #ecfdf5 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35) !important;
 }
 
 .toggle-3d-btn.active-3d {
@@ -4893,7 +4903,7 @@ label {
 }
 
 .quick-rot-btn {
-  padding: 4px 2px;
+  padding: 5px 2px;
   font-size: 0.68rem;
   font-weight: 600;
   border-radius: 6px;
@@ -4911,13 +4921,28 @@ label {
   border-color: var(--avenza-green);
 }
 
-.map-3d-hint {
-  font-size: 0.71rem;
-  color: #047857;
-  line-height: 1.35;
-  margin: 2px 0 0 0;
-  background: #f0fdf4;
-  border: 1px dashed #86efac;
-  border-radius: 6px;
+.compass-follow-toggle-btn {
+  width: 100%;
+  font-size: 0.74rem;
   padding: 6px 8px;
+  justify-content: center;
+  border-color: #cbd5e1;
+}
+
+.compass-follow-toggle-btn.active {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+  font-weight: 700;
+}
+
+.map-3d-guide-card {
+  font-size: 0.7rem;
+  color: #065f46;
+  line-height: 1.45;
+  margin-top: 4px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 10px;
 }

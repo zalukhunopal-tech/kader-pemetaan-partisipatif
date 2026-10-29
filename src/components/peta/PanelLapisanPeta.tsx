@@ -10,6 +10,8 @@ interface PanelLapisanPetaProps {
   tampilDaftarObjek: boolean;
   pitch?: number;
   bearing?: number;
+  modeIkutiKompas?: boolean;
+  onAlihModeIkutiKompas?: () => void;
   onUbahPitch?: (pitch: number) => void;
   onUbahBearing?: (bearing: number) => void;
   onReset3D?: () => void;
@@ -20,6 +22,18 @@ interface PanelLapisanPetaProps {
   onTutup: () => void;
 }
 
+function namaArahSingkat(deg: number): string {
+  const norm = ((deg % 360) + 360) % 360;
+  if (norm >= 337.5 || norm < 22.5) return "Utara (U)";
+  if (norm < 67.5) return "Timur Laut (TL)";
+  if (norm < 112.5) return "Timur (T)";
+  if (norm < 157.5) return "Tenggara (TG)";
+  if (norm < 202.5) return "Selatan (S)";
+  if (norm < 247.5) return "Barat Daya (BD)";
+  if (norm < 292.5) return "Barat (B)";
+  return "Barat Laut (BL)";
+}
+
 /** Popover tombol Lapisan: pilihan peta dasar beserta lisensinya, perspektif 3D & rotasi, unduh offline, impor berkas, daftar objek */
 export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
   basemap,
@@ -27,6 +41,8 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
   tampilDaftarObjek,
   pitch = 0,
   bearing = 0,
+  modeIkutiKompas = false,
+  onAlihModeIkutiKompas,
   onUbahPitch,
   onUbahBearing,
   onReset3D,
@@ -76,86 +92,106 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
       </p>
     )}
 
-    {/* PENGATURAN PERSPEKTIF 3D & ROTASI PETA */}
+    {/* PENGATURAN PERSPEKTIF 3D & ROTASI PETA (AVENZA MAPS & GOOGLE EARTH STYLE) */}
     <div className="map-3d-section">
       <div className="map-3d-header">
-        <strong>Perspektif 3D & Rotasi Peta</strong>
-        {(pitch > 0 || bearing !== 0) && (
+        <strong>Navigasi 3D & Arah Peta</strong>
+        {(pitch > 0 || bearing !== 0 || modeIkutiKompas) && (
           <button type="button" className="map-3d-reset-btn" onClick={onReset3D} title="Kembalikan ke tampilan 2D dan arah Utara">
             Reset 2D
           </button>
         )}
       </div>
 
-      <div className="map-3d-mode-toggles">
-        <button
-          type="button"
-          className={`map-3d-mode-btn ${pitch === 0 ? "active" : ""}`}
-          onClick={() => onUbahPitch?.(0)}
-        >
-          2D Datar
-        </button>
-        <button
-          type="button"
-          className={`map-3d-mode-btn ${pitch > 0 ? "active" : ""}`}
-          onClick={() => onUbahPitch?.(pitch > 0 ? pitch : 45)}
-        >
-          🏔️ 3D Perspektif
-        </button>
-      </div>
-
-      <div className="map-3d-slider-row">
-        <label htmlFor="input-pitch-peta">
-          <span>Kemiringan 3D (Pitch)</span>
-          <strong>{pitch}°</strong>
-        </label>
-        <input
-          id="input-pitch-peta"
-          type="range"
-          min={0}
-          max={60}
-          step={5}
-          value={pitch}
-          onChange={(e) => onUbahPitch?.(Number(e.target.value))}
-          className="map-3d-slider"
-        />
-      </div>
-
+      {/* KONTROL ROTASI & KOMPAS (AVENZA MAPS STYLE) */}
       <div className="map-3d-slider-row">
         <label htmlFor="input-bearing-peta">
-          <span>Rotasi Peta (Arah Hadap)</span>
-          <strong>{bearing}°</strong>
+          <span>Arah Hadap Peta (Rotasi)</span>
+          <strong style={{ color: modeIkutiKompas ? "#10b981" : undefined }}>
+            {bearing}° • {namaArahSingkat(bearing)}
+          </strong>
         </label>
         <input
           id="input-bearing-peta"
           type="range"
           min={0}
           max={359}
-          step={5}
+          step={1}
           value={bearing}
-          onChange={(e) => onUbahBearing?.(Number(e.target.value))}
+          onChange={(e) => {
+            onUbahBearing?.(Number(e.target.value));
+          }}
           className="map-3d-slider"
         />
       </div>
 
       <div className="map-3d-quick-rotations">
-        <button type="button" className={`quick-rot-btn ${bearing === 0 ? "active" : ""}`} onClick={() => onUbahBearing?.(0)}>
-          Utara (0°)
+        <button type="button" className={`quick-rot-btn ${bearing === 0 && !modeIkutiKompas ? "active" : ""}`} onClick={() => onUbahBearing?.(0)}>
+          🧭 Utara (0°)
         </button>
         <button type="button" className={`quick-rot-btn ${bearing === 90 ? "active" : ""}`} onClick={() => onUbahBearing?.(90)}>
-          Timur (90°)
+          ➡️ Timur (90°)
         </button>
         <button type="button" className={`quick-rot-btn ${bearing === 180 ? "active" : ""}`} onClick={() => onUbahBearing?.(180)}>
-          Selatan (180°)
+          ⬇️ Selatan (180°)
         </button>
         <button type="button" className={`quick-rot-btn ${bearing === 270 ? "active" : ""}`} onClick={() => onUbahBearing?.(270)}>
-          Barat (270°)
+          ⬅️ Barat (270°)
         </button>
       </div>
 
-      <p className="map-3d-hint">
-        ✌️ <strong>Tips Gestur:</strong> Angkat/geser 2 jari ke atas untuk memiringkan peta 3D. Putar 2 jari pada layar untuk memutar arah peta.
-      </p>
+      {onAlihModeIkutiKompas && (
+        <button
+          type="button"
+          className={`btn-outline-sm compass-follow-toggle-btn ${modeIkutiKompas ? "active" : ""}`}
+          onClick={onAlihModeIkutiKompas}
+          title="Peta otomatis berputar mengikuti sensor kompas HP saat berjalan di lapangan (seperti Avenza Maps)"
+        >
+          🧭 {modeIkutiKompas ? "✓ Mode Kompas Sensor HP Aktif" : "Ikuti Sensor Kompas HP (Avenza Mode)"}
+        </button>
+      )}
+
+      {/* KONTROL PERSPEKTIF 3D (GOOGLE EARTH STYLE) */}
+      <div className="map-3d-slider-row" style={{ marginTop: 6 }}>
+        <label htmlFor="input-pitch-peta">
+          <span>Kemiringan 3D (Pitch)</span>
+          <strong>{pitch}° {pitch === 0 ? "(2D Datar)" : pitch <= 30 ? "(Landai)" : pitch <= 45 ? "(3D Perspektif)" : "(Maksimal)"}</strong>
+        </label>
+        <input
+          id="input-pitch-peta"
+          type="range"
+          min={0}
+          max={60}
+          step={2}
+          value={pitch}
+          onChange={(e) => onUbahPitch?.(Number(e.target.value))}
+          className="map-3d-slider"
+        />
+      </div>
+
+      <div className="map-3d-quick-rotations">
+        <button type="button" className={`quick-rot-btn ${pitch === 0 ? "active" : ""}`} onClick={() => onUbahPitch?.(0)}>
+          Datar 0°
+        </button>
+        <button type="button" className={`quick-rot-btn ${pitch === 25 ? "active" : ""}`} onClick={() => onUbahPitch?.(25)}>
+          Landai 25°
+        </button>
+        <button type="button" className={`quick-rot-btn ${pitch === 45 ? "active" : ""}`} onClick={() => onUbahPitch?.(45)}>
+          🏔️ 3D 45°
+        </button>
+        <button type="button" className={`quick-rot-btn ${pitch === 60 ? "active" : ""}`} onClick={() => onUbahPitch?.(60)}>
+          Maks 60°
+        </button>
+      </div>
+
+      <div className="map-3d-guide-card">
+        <div style={{ fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+          <span>💡</span> <strong>Panduan Gestur Layar HP</strong>
+        </div>
+        <div>• <strong>Geser 2 Jari ke Atas/Bawah:</strong> Miringkan peta ke 3D horizon (Google Earth).</div>
+        <div>• <strong>Putar 2 Jari Melingkar:</strong> Putar orientasi peta secara bebas (Avenza).</div>
+        <div>• <strong>Cubit 2 Jari:</strong> Perbesar / perkecil peta.</div>
+      </div>
     </div>
 
     <div className="map-popover-actions">

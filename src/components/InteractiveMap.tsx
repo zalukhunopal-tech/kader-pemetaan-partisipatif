@@ -120,6 +120,32 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // Perspektif 3D (kemiringan 0-60°) dan rotasi arah peta (0-359°)
   const [pitch, setPitch] = useState<number>(() => posisiTersimpan?.pitch ?? 0);
   const [bearing, setBearing] = useState<number>(() => posisiTersimpan?.bearing ?? 0);
+  // Mode Kompas Otomatis (Avenza Maps Style): peta berputar dinamis mengikuti sensor arah hadap HP
+  const [modeIkutiKompas, setModeIkutiKompas] = useState<boolean>(false);
+
+  // Ukuran sisi persegi canvas 3D (selalu melingkupi seluruh viewport HP pada sudut rotasi 0-360° dan tilt 0-60°)
+  const [ukuranCanvas, setUkuranCanvas] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const diag = Math.hypot(window.innerWidth, window.innerHeight);
+      return Math.max(1200, Math.ceil(diag * 1.85));
+    }
+    return 1400;
+  });
+
+  useLayoutEffect(() => {
+    const el = wadahPetaRef.current;
+    if (!el) return;
+    const hitungUkuran = () => {
+      const rect = el.getBoundingClientRect();
+      const diag = Math.hypot(rect.width || window.innerWidth, rect.height || window.innerHeight);
+      const side = Math.max(1200, Math.ceil(diag * 1.85));
+      setUkuranCanvas((prev) => (Math.abs(prev - side) > 20 ? side : prev));
+    };
+    hitungUkuran();
+    window.addEventListener("resize", hitungUkuran);
+    return () => window.removeEventListener("resize", hitungUkuran);
+  }, []);
+
   // Peta dasar terakhir dipakai lagi bila masih tersedia (kunci API bisa dicabut); selain itu citra paling tajam
   const [basemap, setBasemap] = useState<BasemapType>(() =>
     posisiTersimpan && basemapTersedia(posisiTersimpan.basemap) ? posisiTersimpan.basemap : basemapBawaan()
@@ -152,6 +178,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const gpsPos: KoordinatTitik | null = simulasiAktif && rekamLatar.posisiTerakhir ? rekamLatar.posisiTerakhir : perangkat.posisi;
   const posisiNyata = perangkat.statusGps === "aktif" ? perangkat.posisi : null;
   const kompasDerajat: number | undefined = perangkat.arahDerajat ?? undefined;
+
+  // Rotasi peta aktif: mengikuti sensor kompas HP jika mode kompas aktif, atau rotasi manual (Avenza Maps mode)
+  const bearingAktif = modeIkutiKompas && kompasDerajat !== undefined ? kompasDerajat : bearing;
   const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() =>
     rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : null
   );
@@ -160,22 +189,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [detikTick, setDetikTick] = useState<number>(0);
 
   // Simpan posisi peta (ditunda sedikit) dan pastikan tersimpan saat aplikasi ditutup/disembunyikan
-  const posisiRef = useRef({ ...center, zoom, basemap, pitch, bearing });
+  const posisiRef = useRef({ ...center, zoom, basemap, pitch, bearing: bearingAktif });
   const pitchRef = useRef(pitch);
   const bearingRef = useRef(bearing);
   const zoomRef = useRef(zoom);
   const centerRef = useRef(center);
   useLayoutEffect(() => {
     pitchRef.current = pitch;
-    bearingRef.current = bearing;
+    bearingRef.current = bearingAktif;
     zoomRef.current = zoom;
     centerRef.current = center;
-    posisiRef.current = { ...center, zoom, basemap, pitch, bearing };
-  }, [center, zoom, basemap, pitch, bearing]);
+    posisiRef.current = { ...center, zoom, basemap, pitch, bearing: bearingAktif };
+  }, [center, zoom, basemap, pitch, bearingAktif]);
   useEffect(() => {
     const t = window.setTimeout(() => simpanPosisiPeta(posisiRef.current), 300);
     return () => window.clearTimeout(t);
-  }, [center, zoom, basemap, pitch, bearing]);
+  }, [center, zoom, basemap, pitch, bearingAktif]);
   useEffect(() => {
     const simpan = () => simpanPosisiPeta(posisiRef.current);
     const saatTersembunyi = () => {
@@ -239,9 +268,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     moved: false
   });
 
-  // Jari yang sedang menyentuh peta dan keadaan awal interaksi 2 jari (3D tilt, rotasi, zoom cubit)
+  // Jari yang sedang menyentuh peta dan keadaan awal interaksi 2 jari dengan intent lock
   const jariRef = useRef<Map<number, { clientX: number; clientY: number }>>(new Map());
   const duaJariRef = useRef<{
+    startP1: { x: number; y: number; id: number };
+    startP2: { x: number; y: number; id: number };
     jarakAwal: number;
     sudutAwal: number;
     midAwal: { x: number; y: number };
@@ -249,6 +280,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     bearingAwal: number;
     zoomAwal: number;
     jangkar: PecahanDunia;
+    mode: "undecided" | "tilt" | "rotate_zoom" | "zoom_only";
   } | null>(null);
 
   // Tinggi peta = sisa layar di bawah peta sampai bilah navigasi bawah (yang tingginya ikut ukuran
@@ -356,16 +388,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Gunakan clientWidth & clientHeight layout agar buffer tidak berkedip saat transformasi 3D
-    const rectW = canvas.clientWidth || 400;
-    const rectH = canvas.clientHeight || 400;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rectW * dpr;
-    canvas.height = rectH * dpr;
+    // Gunakan ukuran persegi ukuranCanvas agar seluruh sudut tertutup tanpa celah pada sudut apa pun
+    const W = ukuranCanvas;
+    const H = ukuranCanvas;
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
     ctx.scale(dpr, dpr);
-
-    const W = rectW;
-    const H = rectH;
 
     // 1. Latar Belakang Peta
     const grad = ctx.createLinearGradient(0, 0, W, H);
@@ -459,29 +488,36 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     kompasDerajat,
     objekTerpilih,
     targetGoTo,
+    ukuranCanvas,
     renderTick
   ]);
 
-  /** Dua jari menyentuh: inisialisasi gestur kemiringan 3D, rotasi bebas, dan zoom cubit */
+  /** Dua jari menyentuh: inisialisasi gestur 2 jari dengan intent locking (Avenza & Google Earth style) */
   const mulaiDuaJari = (kanvas: HTMLElement) => {
-    const jaris = Array.from(jariRef.current.values());
+    setModeIkutiKompas(false); // interaksi gestur manual menonaktifkan mode ikuti sensor otomatis
+    const jaris = Array.from(jariRef.current.entries());
     if (jaris.length < 2) return;
-    const [j1, j2] = jaris;
-    const jarak = Math.hypot(j2.clientX - j1.clientX, j2.clientY - j1.clientY);
-    const sudut = Math.atan2(j2.clientY - j1.clientY, j2.clientX - j1.clientX) * (180 / Math.PI);
-    const midX = (j1.clientX + j2.clientX) / 2;
-    const midY = (j1.clientY + j2.clientY) / 2;
+    const [p1Entry, p2Entry] = jaris;
+    const p1 = { x: p1Entry[1].clientX, y: p1Entry[1].clientY, id: p1Entry[0] };
+    const p2 = { x: p2Entry[1].clientX, y: p2Entry[1].clientY, id: p2Entry[0] };
+    const jarak = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const sudut = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
     const rect = wadahPetaRef.current?.getBoundingClientRect() || kanvas.getBoundingClientRect();
     const titikLayar = { x: midX - rect.left, y: midY - rect.top };
 
     duaJariRef.current = {
+      startP1: p1,
+      startP2: p2,
       jarakAwal: Math.max(10, jarak),
       sudutAwal: sudut,
       midAwal: { x: midX, y: midY },
       pitchAwal: pitchRef.current,
       bearingAwal: bearingRef.current,
       zoomAwal: zoomRef.current,
-      jangkar: pecahanDiLayar(centerRef.current, zoomRef.current, titikLayar, rect.width, rect.height)
+      jangkar: pecahanDiLayar(centerRef.current, zoomRef.current, titikLayar, rect.width, rect.height),
+      mode: "undecided"
     };
     dragRef.current.active = false;
     dragRef.current.moved = true; // gestur 2 jari tidak pernah dianggap ketukan objek
@@ -515,42 +551,89 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       jariRef.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
     }
 
-    // Interaksi 2 jari: kemiringan 3D saat diangkat, rotasi kompas saat diputar, dan zoom cubit
+    // Interaksi 2 jari dengan Gesture Intent Lock (Google Earth & Avenza Maps standard)
     if (duaJariRef.current && jariRef.current.size >= 2) {
-      const jaris = Array.from(jariRef.current.values());
-      const [j1, j2] = jaris;
-      const jarakKini = Math.hypot(j2.clientX - j1.clientX, j2.clientY - j1.clientY);
-      const sudutKini = Math.atan2(j2.clientY - j1.clientY, j2.clientX - j1.clientX) * (180 / Math.PI);
-      const midKiniX = (j1.clientX + j2.clientX) / 2;
-      const midKiniY = (j1.clientY + j2.clientY) / 2;
+      const jaris = Array.from(jariRef.current.entries());
+      const p1Entry = jaris.find(([id]) => id === duaJariRef.current?.startP1.id) || jaris[0];
+      const p2Entry = jaris.find(([id]) => id === duaJariRef.current?.startP2.id) || jaris[1];
+      if (!p1Entry || !p2Entry) return;
 
-      const { jarakAwal, sudutAwal, midAwal, pitchAwal, bearingAwal, zoomAwal, jangkar } = duaJariRef.current;
+      const p1 = p1Entry[1];
+      const p2 = p2Entry[1];
+      const jarakKini = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+      const sudutKini = Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * (180 / Math.PI);
 
-      // 1. Kemiringan 3D saat kedua jari diangkat / digeser ke atas ("ketika diangkat kedua jari")
-      const deltaY = midKiniY - midAwal.y;
-      const deltaPitch = -deltaY * 0.28;
-      const pitchBaru = Math.min(60, Math.max(0, Math.round(pitchAwal + deltaPitch)));
-      setPitch(pitchBaru);
+      const { startP1, startP2, jarakAwal, sudutAwal, pitchAwal, bearingAwal, zoomAwal, jangkar } = duaJariRef.current;
 
-      // 2. Rotasi peta saat kedua jari diputar ("peta dapat diputar-putar")
-      if (jarakKini > 35) {
-        let deltaSudut = sudutKini - sudutAwal;
-        while (deltaSudut > 180) deltaSudut -= 360;
-        while (deltaSudut < -180) deltaSudut += 360;
+      const dy1 = p1.clientY - startP1.y;
+      const dy2 = p2.clientY - startP2.y;
+      const dx1 = p1.clientX - startP1.x;
+      const dx2 = p2.clientX - startP2.x;
+      const avgDy = (dy1 + dy2) / 2;
+      const diffDy = Math.abs(dy1 - dy2);
+      const diffDx = Math.abs(dx1 - dx2);
+
+      let deltaSudut = sudutKini - sudutAwal;
+      while (deltaSudut > 180) deltaSudut -= 360;
+      while (deltaSudut < -180) deltaSudut += 360;
+      const absDeltaSudut = Math.abs(deltaSudut);
+      const deltaJarak = Math.abs(jarakKini - jarakAwal);
+
+      // 1. Klasifikasi Intent Gestur untuk mencegah konflik gerakan
+      if (duaJariRef.current.mode === "undecided") {
+        // TILT 3D: Geser 2 jari paralel ke atas/bawah bersamaan (Google Earth)
+        if (Math.abs(avgDy) > 16 && diffDy < 34 && diffDx < 34 && absDeltaSudut < 12 && deltaJarak < 32) {
+          duaJariRef.current.mode = "tilt";
+        }
+        // ROTASI: Putar 2 jari secara melingkar (Avenza Maps)
+        else if (absDeltaSudut > 8 && jarakKini > 40) {
+          duaJariRef.current.mode = "rotate_zoom";
+        }
+        // ZOOM: Cubit 2 jari (Pinch)
+        else if (deltaJarak > 22 && absDeltaSudut < 8) {
+          duaJariRef.current.mode = "zoom_only";
+        }
+      }
+
+      // 2. Eksekusi gerakan sesuai mode yang terkunci
+      if (duaJariRef.current.mode === "tilt") {
+        // Kunci rotasi dan zoom: HANYA ubah pitch kemiringan 3D
+        const deltaPitch = -avgDy * 0.28;
+        const pitchBaru = Math.min(60, Math.max(0, Math.round(pitchAwal + deltaPitch)));
+        setPitch(pitchBaru);
+        return;
+      }
+
+      if (duaJariRef.current.mode === "rotate_zoom") {
+        // Kunci pitch: HANYA ubah rotasi arah peta dan zoom cubit
         let bearingBaru = Math.round(bearingAwal + deltaSudut) % 360;
         if (bearingBaru < 0) bearingBaru += 360;
         setBearing(bearingBaru);
+
+        if (Math.abs(jarakKini / jarakAwal - 1) > 0.04) {
+          const rect = wadahPetaRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
+          const midKini = { x: (p1.clientX + p2.clientX) / 2 - rect.left, y: (p1.clientY + p2.clientY) / 2 - rect.top };
+          const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
+          setZoom(zBaru);
+          setCenter(pusatUntukJangkar(jangkar, zBaru, midKini, rect.width, rect.height));
+        }
+        return;
       }
 
-      // 3. Zoom cubit (pinch zoom)
-      const rasioJarak = jarakKini / jarakAwal;
-      if (Math.abs(rasioJarak - 1) > 0.04) {
+      if (duaJariRef.current.mode === "zoom_only") {
+        // Kunci pitch: HANYA ubah zoom cubit
         const rect = wadahPetaRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
-        const titikLayar = { x: midKiniX - rect.left, y: midKiniY - rect.top };
+        const midKini = { x: (p1.clientX + p2.clientX) / 2 - rect.left, y: (p1.clientY + p2.clientY) / 2 - rect.top };
         const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
         setZoom(zBaru);
-        setCenter(pusatUntukJangkar(jangkar, zBaru, titikLayar, rect.width, rect.height));
+        setCenter(pusatUntukJangkar(jangkar, zBaru, midKini, rect.width, rect.height));
+
+        if (absDeltaSudut > 14) {
+          duaJariRef.current.mode = "rotate_zoom";
+        }
+        return;
       }
+
       return;
     }
 
@@ -559,6 +642,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const dy = e.clientY - dragRef.current.startY;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
       dragRef.current.moved = true;
+      setModeIkutiKompas(false); // geser manual menonaktifkan mode kompas otomatis
     }
 
     // Rotasi dan proyeksi translasi layar ke koordinat peta lokal (memperhitungkan rotasi & kemiringan 3D)
@@ -619,13 +703,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const clickY = e.clientY - rect.top;
 
       if (!modeRekam) {
-        const canvas = canvasRef.current;
-        const cW = canvas.clientWidth || rect.width;
-        const cH = canvas.clientHeight || rect.height;
-        let ptLayar = { x: clickX + (cW - rect.width) / 2, y: clickY + (cH - rect.height) / 2 };
+        const cW = ukuranCanvas;
+        const cH = ukuranCanvas;
+        let ptLayar = {
+          x: cW / 2 + (clickX - rect.width / 2),
+          y: cH / 2 + (clickY - rect.height / 2)
+        };
 
-        if (pitch > 0 || bearing !== 0) {
-          const inv = layarKeKanvas(clickX, clickY, rect.width, rect.height, cW, cH, pitch, bearing);
+        if (pitch > 0 || bearingAktif !== 0) {
+          const inv = layarKeKanvas(clickX, clickY, rect.width, rect.height, cW, cH, pitch, bearingAktif);
           if (inv) ptLayar = inv;
         }
 
@@ -775,7 +861,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <div
             className="map-canvas-3d-inner"
             style={{
-              transform: `perspective(1000px) rotateX(${pitch}deg) rotateZ(${-bearing}deg)`,
+              width: `${ukuranCanvas}px`,
+              height: `${ukuranCanvas}px`,
+              left: "50%",
+              top: "50%",
+              marginLeft: `${-ukuranCanvas / 2}px`,
+              marginTop: `${-ukuranCanvas / 2}px`,
+              transform: `perspective(1000px) rotateX(${pitch}deg) rotateZ(${-bearingAktif}deg)`,
               transformOrigin: "50% 50%"
             }}
           >
@@ -826,29 +918,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </button>
           )}
 
-          {/* Tombol Kompas Rotasi Peta: Reset ke Utara (0°) & Tampilan 2D */}
-          {(bearing !== 0 || pitch !== 0) && (
-            <button
-              type="button"
-              className="map-ctrl-btn compass-reset-btn"
-              onClick={() => {
+          {/* Tombol Kompas Peta Avenza Style:
+              - Jika berputar / 3D: Ketuk untuk Reset ke Utara (0°) & 2D Datar
+              - Jika normal: Ketuk untuk Mode Kompas HP (Peta Berputar Otomatis Mengikuti Sensor HP) */}
+          <button
+            type="button"
+            className={`map-ctrl-btn compass-ctrl-btn ${modeIkutiKompas ? "compass-mode-active" : (bearingAktif !== 0 || pitch !== 0) ? "compass-rotated" : ""}`}
+            onClick={() => {
+              if (modeIkutiKompas) {
+                setModeIkutiKompas(false);
                 setBearing(0);
                 setPitch(0);
+              } else if (bearingAktif !== 0 || pitch !== 0) {
+                setModeIkutiKompas(false);
+                setBearing(0);
+                setPitch(0);
+              } else {
+                setModeIkutiKompas(true);
+              }
+            }}
+            title={
+              modeIkutiKompas
+                ? "Mode Kompas Sensor HP Aktif. Ketuk untuk matikan."
+                : (bearingAktif !== 0 || pitch !== 0)
+                ? `Rotasi: ${bearingAktif}°, Kemiringan: ${pitch}°. Ketuk untuk reset ke Utara (0°) & 2D Datar.`
+                : "Ketuk untuk Mode Kompas Sensor HP (Otomatis Putar Saat Berjalan)"
+            }
+          >
+            <Compass
+              size={18}
+              style={{
+                transform: `rotate(${-bearingAktif}deg)`,
+                transition: "transform 0.15s ease-out",
+                color: modeIkutiKompas ? "#10b981" : (bearingAktif !== 0 || pitch !== 0) ? "#ef4444" : "#475569"
               }}
-              title={`Rotasi: ${bearing}°, Kemiringan: ${pitch}°. Ketuk untuk reset ke Utara (0°) & 2D Datar`}
-            >
-              <Compass
-                size={17}
-                style={{
-                  transform: `rotate(${-bearing}deg)`,
-                  transition: "transform 0.15s ease-out",
-                  color: "#ef4444"
-                }}
-              />
-            </button>
-          )}
+            />
+          </button>
 
-          {/* Tombol Cepat Alih Mode 2D / 3D */}
+          {/* Tombol Cepat Alih Mode 2D / 3D (Google Earth Style) */}
           <button
             type="button"
             className={`map-ctrl-btn toggle-3d-btn ${pitch > 0 ? "active-3d" : ""}`}
@@ -901,10 +1008,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             jumlahObjek={dataSpasial.length}
             tampilDaftarObjek={tampilDaftarObjek}
             pitch={pitch}
-            bearing={bearing}
+            bearing={bearingAktif}
+            modeIkutiKompas={modeIkutiKompas}
+            onAlihModeIkutiKompas={() => setModeIkutiKompas((v) => !v)}
             onUbahPitch={(p) => setPitch(p)}
-            onUbahBearing={(b) => setBearing(b)}
+            onUbahBearing={(b) => {
+              setModeIkutiKompas(false);
+              setBearing(b);
+            }}
             onReset3D={() => {
+              setModeIkutiKompas(false);
               setPitch(0);
               setBearing(0);
             }}
