@@ -37,4 +37,17 @@ describe("posisi peta terakhir", () => {
       expect(bacaPosisiPeta()).toBeNull();
     }
   });
+  it("pitch dan bearing disimpan dan dibaca kembali dengan benar", () => {
+    simpanPosisiPeta({ lat: -0.9, lng: 100.4, zoom: 15, basemap: "satelit", pitch: 45, bearing: 120 });
+    expect(bacaPosisiPeta()).toEqual({ lat: -0.9, lng: 100.4, zoom: 15, basemap: "satelit", pitch: 45, bearing: 120 });
+  });
+
+  it("pitch dijepit 0-60 dan bearing dinormalisasi 0-359", () => {
+    localStorage.setItem(
+      KUNCI_POSISI_PETA,
+      JSON.stringify({ lat: -0.9, lng: 100.4, zoom: 15, basemap: "satelit", pitch: 85, bearing: 400 })
+    );
+    expect(bacaPosisiPeta()?.pitch).toBe(60);
+    expect(bacaPosisiPeta()?.bearing).toBe(40);
+  });
 });

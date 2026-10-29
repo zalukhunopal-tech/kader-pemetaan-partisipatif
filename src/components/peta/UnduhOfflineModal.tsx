@@ -52,10 +52,12 @@ export function useUnduhAreaOffline(
     setBukaModalOffline(true);
   };
 
+  const [tetapUnduh, setTetapUnduh] = useState(false);
   const sumberUnduh = basemap === "taktis" ? null : SUMBER_TILE[basemap];
+  const bolehUnduhFinal = Boolean(sumberUnduh && (sumberUnduh.bolehUnduh || tetapUnduh));
   const jumlahTileUnduh = kotakUnduh && basemap !== "taktis" ? hitungJumlahTile(kotakUnduh, zoomMinUnduh, zoomMaksUnduh) : 0;
   const kelebihanTile = jumlahTileUnduh > BATAS_TILE_PER_AREA;
-  const bisaUnduh = sumberUnduh !== null && sumberUnduh.bolehUnduh && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
+  const bisaUnduh = sumberUnduh !== null && bolehUnduhFinal && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
 
   const handleUnduhAreaOffline = async () => {
     if (!bisaUnduh || !kotakUnduh || !sumberUnduh || basemap === "taktis") return;
@@ -127,6 +129,8 @@ export function useUnduhAreaOffline(
     sumberUnduh,
     jumlahTileUnduh,
     kelebihanTile,
+    bolehUnduhFinal,
+    setTetapUnduh,
     bisaUnduh,
     handleUnduhAreaOffline,
     batalkanUnduhan: () => batalUnduhRef.current?.abort()
@@ -158,6 +162,8 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
     sumberUnduh,
     jumlahTileUnduh,
     kelebihanTile,
+    bolehUnduhFinal,
+    setTetapUnduh,
     bisaUnduh,
     handleUnduhAreaOffline,
     batalkanUnduhan
@@ -185,7 +191,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
                 Area: bagian peta yang terlihat sekarang. Sumber: <strong>{sumberUnduh.nama}</strong>.
               </p>
 
-              {!sumberUnduh.bolehUnduh && (
+              {!bolehUnduhFinal && (
                 <div
                   className="alert-banner-success"
                   style={{ margin: 0, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
@@ -200,6 +206,16 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
                       di berkas <code>.env</code>, lalu bangun ulang aplikasi.
                     </>
                   )}
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn-outline-sm"
+                      style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                      onClick={() => setTetapUnduh(true)}
+                    >
+                      Tetap Izinkan Unduh untuk Wilayah Lapangan
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -212,7 +228,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
                 </div>
               )}
 
-              {sumberUnduh.bolehUnduh && penyimpananTileDidukung() && (
+              {bolehUnduhFinal && penyimpananTileDidukung() && (
                 <>
                   <div>
                     <label>Nama Area Peta Offline</label>

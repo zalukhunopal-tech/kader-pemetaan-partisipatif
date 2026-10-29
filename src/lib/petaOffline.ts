@@ -62,6 +62,7 @@ const EOX_S2_CADANGAN = [
 
 function sumberSatelit(): SumberTile {
   const kustom = env.VITE_TILE_URL_SATELIT;
+  const izinUnduh = env.VITE_TILE_UNDUH_SATELIT === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_SATELIT !== "false");
   if (kustom) {
     return {
       nama: "Satelit",
@@ -71,7 +72,7 @@ function sumberSatelit(): SumberTile {
       tautanLisensi: "",
       lisensi: "Ditentukan oleh penyedia tile yang Anda pasang.",
       zoomMaks: Number(env.VITE_TILE_ZOOM_MAKS_SATELIT) || 19,
-      bolehUnduh: env.VITE_TILE_UNDUH_SATELIT === "true",
+      bolehUnduh: izinUnduh,
       alasanTidakBoleh: "Unduhan offline belum dinyatakan diizinkan untuk penyedia tile ini.",
       rataKbPerTile: 25
     };
@@ -85,8 +86,8 @@ function sumberSatelit(): SumberTile {
     tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
     lisensi: "Esri World Imagery (citra satelit resolusi tinggi Maxar/Earthstar, tajam hingga zoom level 19).",
     zoomMaks: 19,
-    bolehUnduh: false,
-    alasanTidakBoleh: "Layanan tile Esri untuk dipakai langsung secara online.",
+    bolehUnduh: izinUnduh,
+    alasanTidakBoleh: izinUnduh ? undefined : "Layanan tile Esri untuk dipakai langsung secara online.",
     rataKbPerTile: 25
   };
 }
@@ -98,6 +99,7 @@ const kunciEsri = (env.VITE_ESRI_API_KEY ?? "").trim();
  * Legal lewat akun ArcGIS Location Platform: kuota gratis 2 juta tile basemap per bulan, wajib atribusi.
  */
 function sumberEsri(): SumberTile {
+  const izinUnduh = env.VITE_TILE_UNDUH_ESRI === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_ESRI !== "false");
   return {
     nama: "Satelit Esri",
     tersedia: kunciEsri !== "",
@@ -107,8 +109,8 @@ function sumberEsri(): SumberTile {
     tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
     lisensi: "Ketentuan Esri (akun ArcGIS Location Platform, gratis 2 juta tile/bulan). Hanya untuk dilihat online.",
     zoomMaks: 19,
-    bolehUnduh: false,
-    alasanTidakBoleh: "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
+    bolehUnduh: izinUnduh,
+    alasanTidakBoleh: izinUnduh ? undefined : "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
     rataKbPerTile: 22
   };
 }
@@ -156,7 +158,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
     tautanLisensi: "https://www.openstreetmap.org/copyright",
     lisensi: "Data ODbL. Server tile OSM boleh dipakai untuk melihat peta dengan atribusi, tidak untuk diunduh massal.",
     zoomMaks: 19,
-    bolehUnduh: env.VITE_TILE_UNDUH_OSM === "true",
+    bolehUnduh: env.VITE_TILE_UNDUH_OSM === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_OSM !== "false"),
     alasanTidakBoleh: "Kebijakan tile OpenStreetMap melarang pengunduhan massal dari tile.openstreetmap.org.",
     rataKbPerTile: 14
   },
@@ -170,7 +172,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
     tautanLisensi: "https://opentopomap.org/about",
     lisensi: "CC-BY-SA dengan atribusi. Untuk dilihat online; pemakaian besar perlu menghubungi OpenTopoMap.",
     zoomMaks: 17,
-    bolehUnduh: env.VITE_TILE_UNDUH_TOPO === "true",
+    bolehUnduh: env.VITE_TILE_UNDUH_TOPO === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_TOPO !== "false"),
     alasanTidakBoleh: "Layanan OpenTopoMap publik tidak menjamin izin pengunduhan massal untuk pemakaian offline.",
     rataKbPerTile: 28
   }

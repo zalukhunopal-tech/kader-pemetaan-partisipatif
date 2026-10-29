@@ -2708,8 +2708,10 @@ label {
   position: absolute;
   top: 10px;
   right: 54px;
-  width: 230px;
+  width: 270px;
   max-width: calc(100vw - 80px);
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(8px);
   border: 1px solid #cbd5e1;
@@ -4746,4 +4748,176 @@ label {
 .map-bawah .recording-active-bar {
   position: static;
   flex: 1 1 100%;
+}
+
+
+/* ==========================================================================
+   FITUR PERSPEKTIF 3D & ROTASI PETA (DUA JARI & MENU LAPISAN)
+   ========================================================================== */
+
+.map-canvas-3d-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  perspective: 1000px;
+  perspective-origin: 50% 60%;
+  border-radius: inherit;
+}
+
+.map-canvas-3d-inner {
+  position: absolute;
+  top: -25%;
+  left: -25%;
+  width: 150%;
+  height: 150%;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.map-canvas-3d-inner .map-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.compass-reset-btn {
+  background: #ffffff !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25) !important;
+}
+
+.toggle-3d-btn.active-3d {
+  background: var(--avenza-green) !important;
+  color: #ffffff !important;
+  border-color: var(--avenza-green) !important;
+}
+
+/* KONTROL PERSPEKTIF 3D & ROTASI DALAM MENU LAPISAN PETA */
+.map-3d-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-3d-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #1e293b;
+}
+
+.map-3d-reset-btn {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.map-3d-reset-btn:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.map-3d-mode-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.map-3d-mode-btn {
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.map-3d-mode-btn.active {
+  background: var(--avenza-green);
+  color: #ffffff;
+  border-color: var(--avenza-green);
+  font-weight: 700;
+}
+
+.map-3d-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.map-3d-slider-row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.map-3d-slider-row label strong {
+  color: var(--avenza-green);
+}
+
+.map-3d-slider {
+  width: 100%;
+  accent-color: var(--avenza-green);
+  cursor: pointer;
+  margin: 2px 0;
+}
+
+.map-3d-quick-rotations {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.quick-rot-btn {
+  padding: 4px 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.quick-rot-btn.active {
+  background: var(--avenza-green);
+  color: #ffffff;
+  border-color: var(--avenza-green);
+}
+
+.map-3d-hint {
+  font-size: 0.71rem;
+  color: #047857;
+  line-height: 1.35;
+  margin: 2px 0 0 0;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  border-radius: 6px;
+  padding: 6px 8px;
 }
