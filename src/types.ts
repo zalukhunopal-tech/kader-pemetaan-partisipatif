@@ -203,6 +203,7 @@ export interface PesanKomunikasi {
   };
   lampiranFoto?: string;
   durasiSuaraDetik?: number;
+  eskalasiAdmin?: boolean;
 }
 
 /** Status unggahan ke Google Drive di perangkat ini. Alamat dan token Drive diisi saat build, bukan di aplikasi. */

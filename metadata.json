@@ -1,5 +1,8 @@
 {
   "name": "Titik Tapak",
   "description": "Aplikasi survei keanekaragaman hayati dan pemetaan partisipatif kader masyarakat dengan peta offline, sinkronisasi Google Drive, dan sertifikat kader dari data terverifikasi.",
-  "prompt": "Titik Tapak — Aplikasi Survei & Pemetaan Partisipatif Kader Masyarakat"
+  "prompt": "Titik Tapak — Aplikasi Survei & Pemetaan Partisipatif Kader Masyarakat",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

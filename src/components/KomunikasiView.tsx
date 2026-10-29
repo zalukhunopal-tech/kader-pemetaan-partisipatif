@@ -1,21 +1,37 @@
 import React, { useState, useRef, useEffect } from "react";
-import { PesanKomunikasi, ProfilKader } from "../types";
+import { PeranPengguna, PesanKomunikasi, ProfilKader } from "../types";
 import { CatatanPerangkat } from "./CatatanPerangkat";
-import { MapPin, Mic, Send, Users, ShieldAlert, Paperclip, Check, Search, Play, Pause, AlertTriangle, Compass } from "lucide-react";
+import { MapPin, Mic, Send, Users, ShieldAlert, Paperclip, Check, Search, Play, Pause, AlertTriangle, Compass, Bot, Sparkles } from "lucide-react";
 
 interface KomunikasiViewProps {
   pesanList: PesanKomunikasi[];
   profil: ProfilKader;
+  peranPengguna?: PeranPengguna;
   onKirimPesan: (
     saluran: "komunitas" | "admin",
     teks: string,
     pinKoordinat?: { lat: number; lng: number; label: string },
-    durasiSuaraDetik?: number
+    durasiSuaraDetik?: number,
+    kustomPengirim?: {
+      idPengirim: string;
+      namaPengirim: string;
+      peranPengirim: PeranPengguna;
+      desaPengirim: string;
+      eskalasiAdmin?: boolean;
+    }
   ) => void;
   onLihatPinDiPeta: (lat: number, lng: number, label: string) => void;
+  onEskalasiKeAdmin?: (pertanyaan: string, namaKader: string) => void;
 }
 
-export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profil, onKirimPesan, onLihatPinDiPeta }) => {
+export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
+  pesanList,
+  profil,
+  peranPengguna,
+  onKirimPesan,
+  onLihatPinDiPeta,
+  onEskalasiKeAdmin
+}) => {
   const [saluranAktif, setSaluranAktif] = useState<"komunitas" | "admin">("komunitas");
   const [teksPesan, setTeksPesan] = useState("");
   const [menuLampiranTerbuka, setMenuLampiranTerbuka] = useState(false);
@@ -26,6 +42,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
   const [cariKata, setCariKata] = useState("");
   const [tampilCari, setTampilCari] = useState(false);
   const [audioMemutar, setAudioMemutar] = useState<string | null>(null);
+  const [geminiSedangMengetik, setGeminiSedangMengetik] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -41,13 +58,71 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [daftarPesanSaluran.length, saluranAktif]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!teksPesan.trim()) return;
+    const pesanTeks = teksPesan.trim();
+    if (!pesanTeks) return;
 
-    onKirimPesan(saluranAktif, teksPesan.trim());
+    onKirimPesan(saluranAktif, pesanTeks);
     setTeksPesan("");
     setMenuLampiranTerbuka(false);
+
+    // Di saluran "admin", jika penanya bukan admin, Gemini AI menjawab pertanyaan
+    if (saluranAktif === "admin" && peranPengguna !== "admin") {
+      setGeminiSedangMengetik(true);
+      try {
+        const riwayat = daftarPesanSaluran.map((p) => ({
+          role: p.idPengirim === "GEMINI-AI" ? ("model" as const) : ("user" as const),
+          text: p.teks
+        }));
+        const res = await fetch("/api/gemini/chat-admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pesan: pesanTeks,
+            riwayat,
+            pengirim: { nama: profil.nama, desa: profil.desaWilayah, peran: profil.kelompokMasyarakat }
+          })
+        });
+        const data = await res.json();
+        if (data.sukses && data.balasan) {
+          onKirimPesan(
+            "admin",
+            data.balasan,
+            undefined,
+            undefined,
+            {
+              idPengirim: "GEMINI-AI",
+              namaPengirim: "Gemini AI (Asisten Admin)",
+              peranPengirim: "admin",
+              desaPengirim: "Asisten AI",
+              eskalasiAdmin: Boolean(data.butuhAdmin)
+            }
+          );
+          if (data.butuhAdmin) {
+            onEskalasiKeAdmin?.(pesanTeks, profil.nama);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal menghubungi Gemini:", err);
+        onKirimPesan(
+          "admin",
+          "Pertanyaan Anda telah kami catat dan otomatis diteruskan ke Administrator GIS (Nopal zalukhunopal@gmail.com) agar dapat dijawab secara langsung.",
+          undefined,
+          undefined,
+          {
+            idPengirim: "GEMINI-AI",
+            namaPengirim: "Gemini AI (Asisten Admin)",
+            peranPengirim: "admin",
+            desaPengirim: "Asisten AI",
+            eskalasiAdmin: true
+          }
+        );
+        onEskalasiKeAdmin?.(pesanTeks, profil.nama);
+      } finally {
+        setGeminiSedangMengetik(false);
+      }
+    }
   };
 
   const kirimLokasiCepat = () => {
@@ -243,10 +318,33 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
         </div>
       )}
 
-      {/* Pesan tidak dikirim ke perangkat lain: jelaskan agar tidak dikira terkirim */}
-      <CatatanPerangkat style={{ borderRadius: 0, border: "none", borderBottom: "1px solid #bfdbfe" }}>
-        Diskusi ini hanya tersimpan di perangkat ini. Pesan belum sampai ke kader atau admin lain karena aplikasi belum memakai server.
-      </CatatanPerangkat>
+      {/* Banner Khusus Saluran Admin: Penjelasan Gemini AI Bot */}
+      {saluranAktif === "admin" ? (
+        <div
+          style={{
+            background: "#f0fdf4",
+            borderBottom: "1px solid #bbf7d0",
+            padding: "8px 12px",
+            fontSize: "0.76rem",
+            color: "#166534",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            lineHeight: 1.45
+          }}
+        >
+          <Bot size={18} style={{ color: "#0d7344", flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <strong>Asisten Virtual Gemini AI aktif:</strong> Anda dapat bertanya seputar{" "}
+            <em>penggunaan aplikasi Titik Tapak, tugas survei kader, atau data publik</em>. Pertanyaan di luar topik
+            atau yang butuh konfirmasi khusus akan otomatis diteruskan ke Administrator (Nopal).
+          </div>
+        </div>
+      ) : (
+        <CatatanPerangkat style={{ borderRadius: 0, border: "none", borderBottom: "1px solid #bfdbfe" }}>
+          Diskusi ini tersimpan di perangkat ini. Bagikan info dan koordinat survei ke sesama kader lapangan.
+        </CatatanPerangkat>
+      )}
 
       {/* 2. CHAT BUBBLE AREA (WHATSAPP PATTERN STYLE) */}
       <div
@@ -300,7 +398,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
           </div>
         ) : (
           daftarPesanSaluran.map((m) => {
-            const adalahSaya = m.idPengirim === profil.idKader;
+            const adalahGemini = m.idPengirim === "GEMINI-AI";
+            const adalahSaya = !adalahGemini && (peranPengguna === "admin" ? m.peranPengirim === "admin" : m.idPengirim === profil.idKader);
 
             return (
               <div
@@ -315,7 +414,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
                   style={{
                     maxWidth: "86%",
                     minWidth: "110px",
-                    background: adalahSaya ? "#d9fdd3" : "#ffffff",
+                    background: adalahSaya ? "#d9fdd3" : adalahGemini ? "#f8fafc" : "#ffffff",
+                    border: adalahGemini ? "1.5px solid #86efac" : undefined,
                     borderRadius: adalahSaya ? "14px 4px 14px 14px" : "4px 14px 14px 14px",
                     padding: "8px 11px 6px",
                     boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
@@ -328,7 +428,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
                       style={{
                         fontWeight: 700,
                         fontSize: "0.76rem",
-                        color: m.peranPengirim === "admin" ? "#0284c7" : "#0f766e",
+                        color: adalahGemini ? "#059669" : m.peranPengirim === "admin" ? "#0284c7" : "#0f766e",
                         marginBottom: 4,
                         display: "flex",
                         alignItems: "center",
@@ -336,6 +436,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
                         gap: 5
                       }}
                     >
+                      {adalahGemini && <Bot size={13} style={{ color: "#059669" }} />}
                       <span>{m.namaPengirim}</span>
                       <span
                         style={{
@@ -343,11 +444,11 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
                           fontWeight: 600,
                           padding: "1px 6px",
                           borderRadius: 99,
-                          background: m.peranPengirim === "admin" ? "#e0f2fe" : "#dcfce7",
-                          color: m.peranPengirim === "admin" ? "#0369a1" : "#166534"
+                          background: adalahGemini ? "#dcfce7" : m.peranPengirim === "admin" ? "#e0f2fe" : "#dcfce7",
+                          color: adalahGemini ? "#166534" : m.peranPengirim === "admin" ? "#0369a1" : "#166534"
                         }}
                       >
-                        {m.peranPengirim === "admin" ? "Admin" : m.desaPengirim}
+                        {adalahGemini ? "✨ Asisten Cerdas" : m.peranPengirim === "admin" ? "Admin" : m.desaPengirim}
                       </span>
                     </div>
                   )}
@@ -474,6 +575,28 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
                     </div>
                   )}
 
+                  {/* Badge Eskalasi Notifikasi ke Admin */}
+                  {m.eskalasiAdmin && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        padding: "6px 8px",
+                        background: "#fef3c7",
+                        border: "1px solid #fde68a",
+                        borderRadius: 8,
+                        fontSize: "0.72rem",
+                        color: "#92400e",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        lineHeight: 1.35
+                      }}
+                    >
+                      <AlertTriangle size={14} style={{ flexShrink: 0, color: "#d97706" }} />
+                      <span>Pertanyaan ini telah diteruskan sebagai notifikasi ke Administrator (Nopal).</span>
+                    </div>
+                  )}
+
                   {/* Time & Double Checkmark Footer */}
                   <div
                     style={{
@@ -499,6 +622,27 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({ pesanList, profi
               </div>
             );
           })
+        )}
+        {geminiSedangMengetik && (
+          <div style={{ display: "flex", justifyContent: "flex-start", width: "100%" }}>
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #86efac",
+                borderRadius: "4px 14px 14px 14px",
+                padding: "8px 12px",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "0.8rem",
+                color: "#0d7344"
+              }}
+            >
+              <Sparkles size={15} style={{ animation: "pulse 1.5s infinite", color: "#059669" }} />
+              <span>Gemini AI sedang mengetik jawaban...</span>
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

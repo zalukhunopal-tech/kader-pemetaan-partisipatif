@@ -556,22 +556,45 @@ export const App: React.FC = () => {
     saluran: "komunitas" | "admin",
     teks: string,
     pinKoordinat?: { lat: number; lng: number; label: string },
-    durasiSuaraDetik?: number
+    durasiSuaraDetik?: number,
+    kustomPengirim?: {
+      idPengirim: string;
+      namaPengirim: string;
+      peranPengirim: PeranPengguna;
+      desaPengirim: string;
+      eskalasiAdmin?: boolean;
+    }
   ) => {
     const msgBaru: PesanKomunikasi = {
       id: buatId("MSG"),
       saluran,
-      idPengirim: aksesAdmin ? "ADMIN-01" : profil.idKader,
-      namaPengirim: aksesAdmin ? "Admin GIS Organisasi" : profil.nama,
-      peranPengirim: aksesAdmin ? "admin" : "kader",
-      desaPengirim: aksesAdmin ? "Pusat" : profil.desaWilayah,
+      idPengirim: kustomPengirim?.idPengirim ?? (aksesAdmin ? "ADMIN-01" : profil.idKader),
+      namaPengirim: kustomPengirim?.namaPengirim ?? (aksesAdmin ? "Admin GIS Organisasi" : profil.nama),
+      peranPengirim: kustomPengirim?.peranPengirim ?? (aksesAdmin ? "admin" : "kader"),
+      desaPengirim: kustomPengirim ? kustomPengirim.desaPengirim : aksesAdmin ? "Pusat" : profil.desaWilayah,
       teks,
       waktu: new Date().toTimeString().slice(0, 5),
       statusKirim: "tersimpan",
       pinKoordinat,
-      durasiSuaraDetik
+      durasiSuaraDetik,
+      eskalasiAdmin: kustomPengirim?.eskalasiAdmin
     };
     setPesanList((prev) => [...prev, msgBaru]);
+  };
+
+  const handleEskalasiKeAdmin = (pertanyaan: string, namaKader: string) => {
+    tampilkanToast(`📢 Pertanyaan diteruskan ke Admin Nopal: "${pertanyaan.slice(0, 45)}..."`);
+    const notif: PengumumanBroadcast = {
+      id: buatId("NTF"),
+      judul: `[Eskalasi AI] Pertanyaan dari ${namaKader}`,
+      isi: `Kader ${namaKader} menanyakan hal di luar cakupan bot atau membutuhkan konfirmasi langsung admin:\n\n"${pertanyaan}"\n\nSilakan cek tab Komunikasi > Saluran Admin untuk membalas secara langsung.`,
+      kategori: "Info Umum",
+      targetDesa: "Semua Wilayah",
+      olehAdmin: "Asisten AI",
+      tanggal: new Date().toISOString().slice(0, 10),
+      penting: true
+    };
+    setPengumumanList((prev) => [notif, ...prev]);
   };
 
   // JIKA PENGGUNA BELUM LOGIN, TAMPILKAN PORTAL LOGIN & DAFTAR LENGKAP
@@ -784,7 +807,14 @@ export const App: React.FC = () => {
             )}
 
             {tabAktif === "komunikasi" && (
-              <KomunikasiView pesanList={pesanList} profil={profil} onKirimPesan={handleKirimPesan} onLihatPinDiPeta={handleFokusKePeta} />
+              <KomunikasiView
+                pesanList={pesanList}
+                profil={profil}
+                peranPengguna={peran}
+                onKirimPesan={handleKirimPesan}
+                onLihatPinDiPeta={handleFokusKePeta}
+                onEskalasiKeAdmin={handleEskalasiKeAdmin}
+              />
             )}
 
             {tabAktif === "admin" && aksesAdmin && (
