@@ -4757,7 +4757,6 @@ label {
   flex: 1 1 100%;
 }
 
-
 /* ==========================================================================
    FITUR PERSPEKTIF 3D & ROTASI PETA (DUA JARI & MENU LAPISAN)
    ========================================================================== */
@@ -5130,7 +5129,9 @@ label {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 0 4px rgba(255, 255, 255, 0.8);
+  text-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.95),
+    0 0 4px rgba(255, 255, 255, 0.8);
 }
 
 .avenza-scale-bar-text {
@@ -5178,7 +5179,9 @@ label {
   justify-content: center;
   cursor: pointer;
   z-index: 30;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .avenza-gps-fab-btn:active {
@@ -5380,4 +5383,49 @@ label {
   font-size: 0.7rem;
   color: #64748b;
   font-style: italic;
+}
+
+.medan-3d,
+.medan-3d-map {
+  position: absolute;
+  inset: 0;
+}
+.medan-3d {
+  z-index: 1;
+}
+.medan-status {
+  position: absolute;
+  top: 55px;
+  left: 12px;
+  right: 68px;
+  z-index: 2;
+  background: #fff;
+  color: #163c31;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  box-shadow: 0 2px 6px #0002;
+  pointer-events: auto;
+}
+.medan-status button {
+  display: block;
+  margin-top: 6px;
+}
+.medan-3d .maplibregl-ctrl-bottom-right {
+  bottom: 72px;
+  max-width: 85%;
+  font-size: 10px;
+}
+.bidikan-peta {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  text-shadow:
+    1px 1px 2px #000,
+    -1px -1px 2px #000;
+  font-size: 32px;
+  z-index: 3;
+  pointer-events: none;
 }

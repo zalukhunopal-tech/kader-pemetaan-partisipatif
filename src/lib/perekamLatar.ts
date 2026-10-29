@@ -268,6 +268,12 @@ export const perekamLatar = {
     });
   },
 
+  hapusTitikTerakhir() {
+    if (state.status === "idle" || !state.titik.length) return;
+    const titik = state.titik.slice(0, -1);
+    setState({ titik, posisiTerakhir: titik[titik.length - 1] ?? null });
+  },
+
   /** Hentikan & kembalikan seluruh titik yang terekam */
   selesai(): KoordinatTitik[] {
     const hasil = state.titik;

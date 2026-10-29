@@ -1,3 +1,4 @@
+import { fraksiBarisGeografis } from "./rasterGeografis";
 import { AreaPetaOffline, DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik } from "../types";
 import { StatePosisiPerangkat } from "./posisiPerangkat";
 
@@ -131,6 +132,24 @@ export function gambarLembarPetaGeoPdf(
   const mapH = Math.abs(pBR.y - pTL.y);
 
   if (mapW < 6 || mapH < 6) return;
+
+  if (peta.rasterGeoreferensi && peta.petaKustomDataUrl) {
+    const img = muatGambarPetaKustom(peta.petaKustomDataUrl, saatGambarSiap);
+    ctx.fillStyle = "#e5e7eb";
+    ctx.fillRect(0, 0, W, H);
+    if (img) {
+      // Proyeksikan baris WGS84 ke Mercator agar objek GPS tetap sejajar
+      // dengan raster, termasuk pada lintang tinggi.
+      for (let y = Math.max(0, Math.floor(y0)); y < Math.min(H, Math.ceil(y0 + mapH)); y++) {
+        const top = Math.max(y, y0),
+          bottom = Math.min(y + 1, y0 + mapH);
+        const sy = fraksiBarisGeografis((top - y0) / mapH, peta.minLat, peta.maxLat) * img.height;
+        const ey = fraksiBarisGeografis((bottom - y0) / mapH, peta.minLat, peta.maxLat) * img.height;
+        if (ey > sy) ctx.drawImage(img, 0, sy, img.width, ey - sy, x0, top, mapW, bottom - top);
+      }
+    }
+    return;
+  }
 
   // Rasio lembar cetak A3 (lebar peta ~72%, margin kiri ~3.5%, margin atas ~12%, panel legenda kanan ~28%)
   const sheetMarginLeft = mapW * 0.035;

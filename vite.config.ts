@@ -43,7 +43,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,json,webp}"],
+        globPatterns: ["**/*.{js,mjs,css,html,svg,png,ico,json,webp}"],
         // Tangkapan layar hanya untuk dialog pemasangan, tidak perlu disimpan untuk offline
         globIgnores: ["**/screenshot-*"]
       }

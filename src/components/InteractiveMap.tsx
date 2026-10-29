@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AreaPetaOffline, BasemapType, DataSpasialItem, FormatKoordinat, JenisGeometri, KoordinatTitik, ProfilKader } from "../types";
 import {
   formatKoordinatTeks,
@@ -10,14 +10,7 @@ import {
 } from "../lib/geoUtils";
 import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta, ZOOM_MAKS_PETA, ZOOM_MIN_PETA } from "../lib/posisiPeta";
-import {
-  PecahanDunia,
-  jepitZoom,
-  langkahZoomRoda,
-  pecahanDiLayar,
-  pusatUntukJangkar,
-  zoomCubit
-} from "../lib/zoomPeta";
+import { PecahanDunia, jepitZoom, langkahZoomRoda, pecahanDiLayar, pusatUntukJangkar, zoomCubit } from "../lib/zoomPeta";
 import {
   KotakWilayah,
   SUMBER_TILE,
@@ -47,6 +40,8 @@ import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googl
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
 import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, Watch, X } from "lucide-react";
 
+const Medan3D = lazy(() => import("./peta/Medan3D"));
+
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
   profil: ProfilKader;
@@ -69,7 +64,6 @@ export function formatJudulAvenza(nama: string, maxLen = 22): string {
   if (nama.length <= maxLen) return nama;
   return nama.slice(0, maxLen - 3) + "...";
 }
-
 
 /**
  * Menghitung proyeksi terbalik dari koordinat piksel layar ke kanvas lokal
@@ -109,10 +103,7 @@ function layarKeKanvas(
 function hitungSkalaPeta(lat: number, zoom: number): { label: string; lebarPx: number } {
   const meterPerPiksel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
   const targetMeter = 100 * meterPerPiksel;
-  const opsiMeter = [
-    10, 20, 50, 100, 200, 500,
-    1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000
-  ];
+  const opsiMeter = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000];
   let terpilih = opsiMeter[0];
   for (const m of opsiMeter) {
     if (m <= targetMeter * 1.45) {
@@ -997,7 +988,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         ref={wadahPetaRef}
         style={tinggiPeta !== null ? { height: tinggiPeta } : undefined}
       >
-        <div className="map-canvas-3d-viewport">
+        <div className="map-canvas-3d-viewport" style={pitch > 0 && !petaKustomAktif ? { visibility: "hidden" } : undefined}>
           <div
             className="map-canvas-3d-inner"
             style={{
@@ -1020,6 +1011,34 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               onPointerCancel={handlePointerCancel}
             />
           </div>
+        </div>
+
+        {pitch > 0 && !petaKustomAktif && (
+          <Suspense fallback={<div className="medan-status">Memuat mesin medan 3D…</div>}>
+            <Medan3D
+              center={center}
+              zoom={zoom}
+              pitch={pitch}
+              bearing={bearingAktif}
+              basemap={basemap}
+              data={dataSpasial}
+              draft={titikDraft}
+              polygon={modeRekam === "polygon"}
+              gps={gpsPos}
+              onCamera={(c, z, p, b) => {
+                setCenter(c);
+                setZoom(z);
+                setPitch(p);
+                setBearing(b);
+              }}
+              onSelect={(id) => setObjekTerpilih(dataSpasial.find((d) => d.id === id) ?? null)}
+              onClose={() => setPitch(0)}
+            />
+          </Suspense>
+        )}
+
+        <div className="bidikan-peta" aria-hidden="true">
+          ＋
         </div>
 
         {/* PILL KOORDINAT RINGKAS DI KIRI ATAS (KETUK UNTUK GANTI DD/DMS/UTM) */}
@@ -1063,7 +1082,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               - Jika normal: Ketuk untuk Mode Kompas HP (Peta Berputar Otomatis Mengikuti Sensor HP) */}
           <button
             type="button"
-            className={`map-ctrl-btn compass-ctrl-btn ${modeIkutiKompas ? "compass-mode-active" : (bearingAktif !== 0 || pitch !== 0) ? "compass-rotated" : ""}`}
+            className={`map-ctrl-btn compass-ctrl-btn ${modeIkutiKompas ? "compass-mode-active" : bearingAktif !== 0 || pitch !== 0 ? "compass-rotated" : ""}`}
             onClick={() => {
               if (modeIkutiKompas) {
                 setModeIkutiKompas(false);
@@ -1080,9 +1099,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             title={
               modeIkutiKompas
                 ? "Mode Kompas Sensor HP Aktif. Ketuk untuk matikan."
-                : (bearingAktif !== 0 || pitch !== 0)
-                ? `Rotasi: ${bearingAktif}°, Kemiringan: ${pitch}°. Ketuk untuk reset ke Utara (0°) & 2D Datar.`
-                : "Ketuk untuk Mode Kompas Sensor HP (Otomatis Putar Saat Berjalan)"
+                : bearingAktif !== 0 || pitch !== 0
+                  ? `Rotasi: ${bearingAktif}°, Kemiringan: ${pitch}°. Ketuk untuk reset ke Utara (0°) & 2D Datar.`
+                  : "Ketuk untuk Mode Kompas Sensor HP (Otomatis Putar Saat Berjalan)"
             }
           >
             <Compass
@@ -1090,7 +1109,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               style={{
                 transform: `rotate(${-bearingAktif}deg)`,
                 transition: "transform 0.15s ease-out",
-                color: modeIkutiKompas ? "#10b981" : (bearingAktif !== 0 || pitch !== 0) ? "#ef4444" : "#475569"
+                color: modeIkutiKompas ? "#10b981" : bearingAktif !== 0 || pitch !== 0 ? "#ef4444" : "#475569"
               }}
             />
           </button>
@@ -1100,7 +1119,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             type="button"
             className={`map-ctrl-btn toggle-3d-btn ${pitch > 0 ? "active-3d" : ""}`}
             onClick={() => setPitch((p) => (p > 0 ? 0 : 45))}
-            title={pitch > 0 ? "Beralih ke Peta Datar 2D" : "Beralih ke Perspektif Peta 3D (45°)"}
+            title={pitch > 0 ? "Beralih ke Peta Datar 2D" : "Buka medan 3D dengan data elevasi"}
           >
             <span style={{ fontSize: "0.72rem", fontWeight: 800 }}>{pitch > 0 ? "2D" : "3D"}</span>
           </button>
@@ -1358,19 +1377,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <div className="modal-content avenza-info-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Informasi Peta Georeferensi</h3>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setBukaInfoPetaKustom(false)}
-                aria-label="Tutup"
-              >
+              <button type="button" className="modal-close-btn" onClick={() => setBukaInfoPetaKustom(false)} aria-label="Tutup">
                 <X size={20} />
               </button>
             </div>
             <div className="modal-body">
               <div className="avenza-info-row">
                 <span className="info-label">Nama Berkas Peta</span>
-                <span className="info-val" style={{ fontWeight: 600 }}>{petaKustomAktif.namaArea}</span>
+                <span className="info-val" style={{ fontWeight: 600 }}>
+                  {petaKustomAktif.namaArea}
+                </span>
               </div>
               <div className="avenza-info-row">
                 <span className="info-label">Format Dokumen</span>

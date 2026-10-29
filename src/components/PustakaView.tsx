@@ -2,8 +2,21 @@ import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
-import { ArrowUpDown, Check, ChevronDown, Download, FileUp, Filter, Layers, Map as MapIcon, MoreHorizontal, Plus, Search, X } from "lucide-react";
-import { bacaMetadataBerkasPeta, HasilMetadataPeta } from "../lib/metaPeta";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  Download,
+  FileUp,
+  Filter,
+  Layers,
+  Map as MapIcon,
+  MoreHorizontal,
+  Plus,
+  Search,
+  X
+} from "lucide-react";
+import { HasilMetadataPeta } from "../lib/metaPeta";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -49,7 +62,13 @@ export const MiniaturGeoPdfThumb: React.FC<{ size?: number }> = ({ size = 52 }) 
     {/* Aliran Sungai Kayan Biru */}
     <path d="M4,46 Q16,40 22,32 T36,22 T46,14" fill="none" stroke="#38bdf8" strokeWidth="2.4" strokeLinecap="round" />
     {/* Garis Batas Administrasi Ungu Tanjung Selor */}
-    <polygon points="8,14 24,11 36,16 43,24 39,38 33,46 20,50 9,46 6,32" fill="none" stroke="#9333ea" strokeWidth="1.8" strokeLinejoin="round" />
+    <polygon
+      points="8,14 24,11 36,16 43,24 39,38 33,46 20,50 9,46 6,32"
+      fill="none"
+      stroke="#9333ea"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
     {/* Batas Desa Merah */}
     <path d="M22,32 L26,40 L24,46" fill="none" stroke="#ea580c" strokeWidth="1" strokeDasharray="2,1" />
     {/* Titik Pusat Kota Tanjung Selor Hilir */}
@@ -104,6 +123,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [petaKustomDataUrlBaru, setPetaKustomDataUrlBaru] = useState<string | undefined>(undefined);
   const [sedangMemprosesBerkas, setSedangMemprosesBerkas] = useState(false);
 
+  const [galatImpor, setGalatImpor] = useState("");
+  const [rasterGeoreferensi, setRasterGeoreferensi] = useState(false);
+
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
 
@@ -143,28 +165,40 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     if (!file) return;
     setSedangMemprosesBerkas(true);
 
-    // Baca berkas sebagai dataURL agar peta otentik pengguna dapat langsung ditampilkan di kanvas
-    if (file.type.startsWith("image/") || /\.(pdf|geopdf|tif|tiff|geotiff|png|jpg|jpeg)$/i.test(file.name)) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const res = ev.target?.result;
-        if (typeof res === "string") {
-          setPetaKustomDataUrlBaru(res);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-
+    setGalatImpor("");
+    setMetadataPetaBaru(null);
+    setPetaKustomDataUrlBaru(undefined);
+    setRasterGeoreferensi(false);
     try {
-      const meta = await bacaMetadataBerkasPeta(file);
+      if (!/\.(pdf|geopdf)$/i.test(file.name))
+        throw new Error(
+          "Impor raster saat ini mendukung GeoPDF EPSG:4326. Untuk data vektor gunakan Impor Lapisan (GeoJSON/KML/GPX). Konversi GeoTIFF/MBTiles ke GeoPDF melalui GIS terlebih dahulu."
+        );
+      const { imporGeoPdf } = await import("../lib/geoPdf");
+      const hasil = await imporGeoPdf(file);
+      const ukuranMb = file.size / (1024 * 1024);
+      const meta: HasilMetadataPeta = {
+        ...hasil,
+        namaArea: file.name,
+        ukuranMb,
+        ukuranMbTeks: ukuranMb.toFixed(1).replace(".", ","),
+        jarakKm: 0,
+        jarakKmTeks: "0",
+        jenisFile: "GeoPDF / GeoTIFF",
+        thumbnailType: "geopdf_sheet",
+        sumberDeteksi: "geopdf",
+        crs: "EPSG:4326 (WGS 84)",
+        lebarPixel: hasil.width,
+        tinggiPixel: hasil.height
+      };
       setMetadataPetaBaru(meta);
       setNamaPetaBaru(meta.namaArea);
       setUkuranMbBaru(meta.ukuranMbTeks);
-      setJarakKmBaru(meta.jarakKmTeks);
-    } catch {
-      setNamaPetaBaru(file.name);
-      setUkuranMbBaru((file.size / (1024 * 1024)).toFixed(1).replace(".", ","));
       setJarakKmBaru("0");
+      setPetaKustomDataUrlBaru(hasil.dataUrl);
+      setRasterGeoreferensi(true);
+    } catch (err) {
+      setGalatImpor(err instanceof Error ? err.message : "Berkas peta gagal dibaca.");
     } finally {
       setSedangMemprosesBerkas(false);
       input.value = "";
@@ -173,28 +207,26 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
   const handleSimpanPetaBaru = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!namaPetaBaru.trim()) return;
-    const isTanjungSelor = /tanjung_selor|bulungan/i.test(namaPetaBaru);
+    if (!namaPetaBaru.trim() || !metadataPetaBaru || !petaKustomDataUrlBaru || sedangMemprosesBerkas || galatImpor) return;
     const itemBaru: AreaPetaOffline = {
       id: buatId("MAP-OFF"),
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
-      minLat: metadataPetaBaru?.minLat ?? 2.65,
-      maxLat: metadataPetaBaru?.maxLat ?? 3.05,
-      minLng: metadataPetaBaru?.minLng ?? 117.15,
-      maxLng: metadataPetaBaru?.maxLng ?? 117.65,
+      minLat: metadataPetaBaru.minLat,
+      maxLat: metadataPetaBaru.maxLat,
+      minLng: metadataPetaBaru.minLng,
+      maxLng: metadataPetaBaru.maxLng,
       zoomMin: 11,
       zoomMax: 18,
-      jumlahTile: 1250,
-      ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 12.5,
+      jumlahTile: 0,
+      rasterGeoreferensi,
+      ukuranMb: metadataPetaBaru.ukuranMb,
       jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
       thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
       petaKustomDataUrl: petaKustomDataUrlBaru,
-      petaKustomUrl: petaKustomDataUrlBaru ? undefined : (isTanjungSelor ? "/peta/tanjung_selor_lembar.jpg" : undefined),
-      thumbnailUrl: isTanjungSelor ? "/peta/tanjung_selor_thumb.jpg" : undefined,
       diunduhPada: new Date().toISOString(),
       jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
-      crs: metadataPetaBaru?.crs ?? (isTanjungSelor ? "EPSG:32650 (WGS 84 / UTM Zone 50N)" : "EPSG:4326 (WGS 84)"),
+      crs: metadataPetaBaru.crs,
       crsDeskripsi: metadataPetaBaru?.crsDeskripsi,
       pusatLat: metadataPetaBaru?.pusatLat,
       pusatLng: metadataPetaBaru?.pusatLng,
@@ -680,7 +712,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <input
                     id="upload-peta-input"
                     type="file"
-                    accept=".pdf,.geopdf,.tif,.tiff,.geotiff,.mbtiles,.kmz"
+                    accept=".pdf,.geopdf"
                     style={{ display: "none" }}
                     onChange={handlePilihBerkasPeta}
                   />
@@ -689,7 +721,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   </div>
                   <div className="peta-upload-text-wrap">
                     <strong>Pilih Berkas Peta dari Perangkat</strong>
-                    <span>Format: GeoPDF (.pdf, .geopdf), GeoTIFF (.tif, .geotiff), MBTiles (.mbtiles)</span>
+                    <span>GeoPDF WGS84 / EPSG:4326, halaman pertama, north-up. Maksimum 80 MB.</span>
                   </div>
                   <span className="peta-upload-btn-chip">Pilih Berkas</span>
                 </label>
@@ -700,18 +732,22 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 )}
                 {!sedangMemprosesBerkas && metadataPetaBaru && (
                   <div className="peta-upload-status success">
-                    <Check size={14} /> Berkas dipilih: <b>{metadataPetaBaru.namaArea}</b> ({metadataPetaBaru.ukuranMbTeks} MB • Jarak {metadataPetaBaru.jarakKmTeks} km)
+                    <Check size={14} /> Berkas dipilih: <b>{metadataPetaBaru.namaArea}</b> ({metadataPetaBaru.ukuranMbTeks} MB • Jarak{" "}
+                    {metadataPetaBaru.jarakKmTeks} km)
                   </div>
                 )}
               </div>
 
+              {galatImpor && (
+                <p role="alert" style={{ color: "#b42318" }}>
+                  {galatImpor}
+                </p>
+              )}
               {/* CARD DETEKSI OTOMATIS CRS & BOUNDING BOX */}
               {metadataPetaBaru && (
                 <div className="avenza-spatial-meta-card">
                   <div className="avenza-spatial-header">
-                    <span className="avenza-spatial-title">
-                      🌐 Sistem Koordinat (CRS) & Bounding Box
-                    </span>
+                    <span className="avenza-spatial-title">🌐 Sistem Koordinat (CRS) & Bounding Box</span>
                     <span className="avenza-spatial-badge">
                       <Check size={12} /> Terisi Otomatis
                     </span>
@@ -719,12 +755,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <div className="avenza-spatial-grid">
                     <div className="avenza-spatial-item full-width">
                       <span className="spatial-label">Sistem Koordinat Acuan (CRS):</span>
-                      <strong className="spatial-value crs-name">
-                        {metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}
-                      </strong>
-                      {metadataPetaBaru.crsDeskripsi && (
-                        <span className="spatial-desc">{metadataPetaBaru.crsDeskripsi}</span>
-                      )}
+                      <strong className="spatial-value crs-name">{metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}</strong>
+                      {metadataPetaBaru.crsDeskripsi && <span className="spatial-desc">{metadataPetaBaru.crsDeskripsi}</span>}
                     </div>
                     <div className="avenza-spatial-item">
                       <span className="spatial-label">Batas Lintang (Lat):</span>
@@ -761,37 +793,39 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               )}
 
               {/* PRATINJAU PETA SEBELUM MASUK (AVENZA STYLE) */}
-              <div className="avenza-preview-card">
-                <div className="avenza-preview-thumb">
-                  {petaKustomDataUrlBaru ? (
-                    <img
-                      src={petaKustomDataUrlBaru}
-                      alt="Pratinjau peta diunggah"
-                      className="avenza-real-thumb-img"
-                      width={56}
-                      height={56}
-                    />
-                  ) : (
-                    <MiniaturGeoPdfThumb size={56} />
-                  )}
-                </div>
-                <div className="avenza-preview-details">
-                  <div className="avenza-preview-tag">
-                    <Check size={12} /> Pratinjau Lembar Peta Georeferensi
+              {metadataPetaBaru && (
+                <div className="avenza-preview-card">
+                  <div className="avenza-preview-thumb">
+                    {petaKustomDataUrlBaru ? (
+                      <img
+                        src={petaKustomDataUrlBaru}
+                        alt="Pratinjau peta diunggah"
+                        className="avenza-real-thumb-img"
+                        width={56}
+                        height={56}
+                      />
+                    ) : (
+                      <MiniaturGeoPdfThumb size={56} />
+                    )}
                   </div>
-                  <div className="avenza-preview-title">
-                    {namaPetaBaru.trim() || "Peta_Fungsi_Kawasan_Hutan_Kec_Tanjung_Selor_A3_GeoPDF"}
-                  </div>
-                  <div className="avenza-preview-sub">
-                    <div>
-                      Cakupan: Lat {metadataPetaBaru?.minLat ?? 2.65}°–{metadataPetaBaru?.maxLat ?? 3.05}°, Lng {metadataPetaBaru?.minLng ?? 117.15}°–{metadataPetaBaru?.maxLng ?? 117.65}°
+                  <div className="avenza-preview-details">
+                    <div className="avenza-preview-tag">
+                      <Check size={12} /> Pratinjau Lembar Peta Georeferensi
                     </div>
-                    <div className="avenza-preview-status text-emerald">
-                      ● {ukuranMbBaru ? `${ukuranMbBaru} MB` : "12,5 MB"} • CRS: {metadataPetaBaru?.crs ? metadataPetaBaru.crs.replace(/\s*\(.*\)$/, "") : "WGS 84"} • Terhubung ke GPS
+                    <div className="avenza-preview-title">{namaPetaBaru.trim() || "Pilih GeoPDF untuk melihat pratinjau"}</div>
+                    <div className="avenza-preview-sub">
+                      <div>
+                        Cakupan: Lat {metadataPetaBaru?.minLat ?? 2.65}°–{metadataPetaBaru?.maxLat ?? 3.05}°, Lng{" "}
+                        {metadataPetaBaru?.minLng ?? 117.15}°–{metadataPetaBaru?.maxLng ?? 117.65}°
+                      </div>
+                      <div className="avenza-preview-status text-emerald">
+                        ● {ukuranMbBaru ? `${ukuranMbBaru} MB` : "Belum ada berkas"} • CRS:{" "}
+                        {metadataPetaBaru?.crs ? metadataPetaBaru.crs.replace(/\s*\(.*\)$/, "") : "WGS 84"} • Terhubung ke GPS
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
               <div>
                 <label>Nama File Peta Kerja (GeoPDF / GeoTIFF / MBTiles)</label>
                 <input
@@ -829,7 +863,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <button type="button" className="btn-outline-sm" onClick={() => setBukaModalPetaBaru(false)}>
                   Batal
                 </button>
-                <button type="submit" className="btn-primary">
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={!metadataPetaBaru || !petaKustomDataUrlBaru || sedangMemprosesBerkas || !!galatImpor}
+                >
                   Simpan ke Pustaka Peta
                 </button>
               </div>

@@ -339,3 +339,17 @@ describe("format durasi dan ringkasan", () => {
     ).toMatch(/^4 sudut • 1\.2\d* Ha$/);
   });
 });
+
+it("urungkan titik memperbarui rekaman tersimpan dan aman saat kosong", async () => {
+  pasangGpsTiruan();
+  const { perekamLatar } = await muat();
+  const awal = { lat: -1, lng: 100 };
+  perekamLatar.mulai("polygon", [awal, { lat: -1.01, lng: 100 }]);
+  perekamLatar.jeda();
+  perekamLatar.hapusTitikTerakhir();
+  expect(perekamLatar.getState().titik).toEqual([awal]);
+  expect(JSON.parse(localStorage.getItem(KUNCI)!).titik).toEqual([awal]);
+  perekamLatar.hapusTitikTerakhir();
+  perekamLatar.hapusTitikTerakhir();
+  expect(perekamLatar.getState().posisiTerakhir).toBeNull();
+});

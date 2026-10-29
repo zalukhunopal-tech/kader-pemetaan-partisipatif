@@ -91,6 +91,8 @@ export interface AreaPetaOffline {
   thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah" | "geopdf_sheet";
   thumbnailDataUrl?: string;
   thumbnailUrl?: string;
+  /** Raster telah dipotong sesuai viewport GEO; tanpa margin kertas buatan. */
+  rasterGeoreferensi?: boolean;
   petaKustomDataUrl?: string;
   petaKustomUrl?: string;
   statusTeks?: string;

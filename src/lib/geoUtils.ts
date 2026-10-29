@@ -40,24 +40,21 @@ export function hitungPanjangGarisKm(titik: KoordinatTitik[]): number {
 
 /**
  * Menghitung luas poligon pada permukaan bumi dalam Hektare (Ha)
- * Menggunakan rumus Spherical Excess / Shoelace Geodesic proyeksi lokal
+ * Integral luas sferis untuk poligon sederhana; hasil adalah luas horizontal, bukan luas lereng.
  */
 export function hitungLuasPoligonHa(titik: KoordinatTitik[]): number {
   if (titik.length < 3) return 0;
-  let areaM2 = 0;
-  const n = titik.length;
-  for (let i = 0; i < n; i++) {
-    const p1 = titik[i];
-    const p2 = titik[(i + 1) % n];
-    const x1 = toRad(p1.lng) * EARTH_RADIUS_M * Math.cos(toRad((p1.lat + p2.lat) / 2));
-    const y1 = toRad(p1.lat) * EARTH_RADIUS_M;
-    const x2 = toRad(p2.lng) * EARTH_RADIUS_M * Math.cos(toRad((p1.lat + p2.lat) / 2));
-    const y2 = toRad(p2.lat) * EARTH_RADIUS_M;
-    areaM2 += x1 * y2 - x2 * y1;
+  // Integral sferis: invariant terhadap urutan sudut dan aman di antimeridian.
+  let sum = 0;
+  for (let i = 0; i < titik.length; i++) {
+    const a = titik[i],
+      b = titik[(i + 1) % titik.length];
+    const delta = ((b.lng - a.lng + 540) % 360) - 180;
+    sum += toRad(delta) * (2 + Math.sin(toRad(a.lat)) + Math.sin(toRad(b.lat)));
   }
-  const luasMeterPersegi = Math.abs(areaM2) / 2;
-  // 1 Hektare = 10.000 m²
-  return Number((luasMeterPersegi / 10000).toFixed(3));
+  const sphere = 4 * Math.PI * EARTH_RADIUS_M ** 2;
+  const area = ((Math.abs(sum) * EARTH_RADIUS_M ** 2) / 2) % sphere;
+  return Number((Math.min(area, sphere - area) / 10000).toFixed(3));
 }
 
 /**
@@ -166,12 +163,7 @@ export function konversiUTM(lat: number, lng: number): HasilUTM | null {
  * Konversi koordinat UTM (Easting, Northing, Zona, Belahan) ke koordinat geografis WGS84 (Lat, Lng).
  * Menggunakan invers deret Krüger dengan akurasi milimeter yang reversibel dengan konversiUTM.
  */
-export function konversiUtmKeWgs84(
-  timur: number,
-  utara: number,
-  zona: number,
-  belahan: "N" | "S"
-): { lat: number; lng: number } {
+export function konversiUtmKeWgs84(timur: number, utara: number, zona: number, belahan: "N" | "S"): { lat: number; lng: number } {
   const A_WGS84 = 6378137;
   const F_WGS84 = 1 / 298.257223563;
   const K0 = 0.9996;
@@ -180,11 +172,7 @@ export function konversiUtmKeWgs84(
   const n3 = n2 * n;
   const n4 = n3 * n;
   const aBulat = (A_WGS84 / (1 + n)) * (1 + n2 / 4 + n4 / 64);
-  const beta = [
-    n / 2 - (2 * n2) / 3 + (37 * n3) / 96,
-    n2 / 48 + n3 / 15,
-    (17 * n3) / 480
-  ];
+  const beta = [n / 2 - (2 * n2) / 3 + (37 * n3) / 96, n2 / 48 + n3 / 15, (17 * n3) / 480];
   const e = Math.sqrt(F_WGS84 * (2 - F_WGS84));
 
   const e0 = 500000;
@@ -219,7 +207,7 @@ export function konversiUtmKeWgs84(
     const c = Math.cos(phi);
     const curPsi = Math.atanh(s) - e * Math.atanh(e * s);
     const diff = curPsi - psi;
-    const deriv = (1 - e * e) / (((1 - e * e * s * s) * c) || 1e-12);
+    const deriv = (1 - e * e) / ((1 - e * e * s * s) * c || 1e-12);
     phi -= diff / deriv;
     if (Math.abs(diff) < 1e-12) break;
   }
