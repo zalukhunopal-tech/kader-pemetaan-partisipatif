@@ -2,21 +2,8 @@ import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
-import {
-  ArrowUpDown,
-  Check,
-  ChevronDown,
-  Download,
-  FileUp,
-  Filter,
-  Layers,
-  Map as MapIcon,
-  MoreHorizontal,
-  Plus,
-  Search,
-  X
-} from "lucide-react";
-import { HasilMetadataPeta } from "../lib/metaPeta";
+import { AlertOctagon, AlertTriangle, ArrowUpDown, Check, ChevronDown, Download, Eye, FileText, FileUp, Filter, Layers, Map as MapIcon, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { bacaMetadataBerkasPeta, HasilMetadataPeta } from "../lib/metaPeta";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -35,59 +22,27 @@ interface PustakaViewProps {
 }
 
 /**
- * Komponen pratinjau thumbnail miniatur lembar peta GeoPDF A3 (Avenza Maps style).
- * Menampilkan tata letak lembar cetak, batas ungu Tanjung Selor, aliran Sungai Kayan,
- * zona warna fungsi hutan, dan kolom legenda di sebelah kanan.
+ * Komponen thumbnail netral dokumen peta georeferensi.
  */
-export const MiniaturGeoPdfThumb: React.FC<{ size?: number }> = ({ size = 52 }) => (
-  <svg
-    viewBox="0 0 64 64"
-    width={size}
-    height={size}
-    style={{ borderRadius: "8px", overflow: "hidden", display: "block", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}
-    aria-label="Pratinjau Lembar Peta GeoPDF"
+export const ThumbnailDokumenPeta: React.FC<{ size?: number }> = ({ size = 52 }) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      borderRadius: "8px",
+      background: "#f1f5f9",
+      border: "1px solid #cbd5e1",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#059669",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+      flexShrink: 0
+    }}
+    aria-label="Dokumen Lembar Peta"
   >
-    {/* Kertas Lembar Peta Putih */}
-    <rect width="64" height="64" fill="#ffffff" />
-    {/* Relief Topografi Peta */}
-    <rect x="3" y="6" width="45" height="54" fill="#f8f7f2" />
-    {/* Pita Header Hijau Tua */}
-    <rect x="3" y="3" width="58" height="4.5" fill="#144e2b" rx="0.5" />
-    {/* Zona APL Kuning */}
-    <polygon points="6,16 32,14 40,26 32,42 10,38" fill="#fef08a" opacity="0.9" />
-    {/* Zona HPT Hijau Muda */}
-    <polygon points="10,38 32,42 38,52 14,54" fill="#86efac" opacity="0.9" />
-    {/* Zona HL Hijau Tua */}
-    <polygon points="14,54 38,52 36,58 12,58" fill="#22c55e" opacity="0.9" />
-    {/* Aliran Sungai Kayan Biru */}
-    <path d="M4,46 Q16,40 22,32 T36,22 T46,14" fill="none" stroke="#38bdf8" strokeWidth="2.4" strokeLinecap="round" />
-    {/* Garis Batas Administrasi Ungu Tanjung Selor */}
-    <polygon
-      points="8,14 24,11 36,16 43,24 39,38 33,46 20,50 9,46 6,32"
-      fill="none"
-      stroke="#9333ea"
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-    />
-    {/* Batas Desa Merah */}
-    <path d="M22,32 L26,40 L24,46" fill="none" stroke="#ea580c" strokeWidth="1" strokeDasharray="2,1" />
-    {/* Titik Pusat Kota Tanjung Selor Hilir */}
-    <circle cx="22" cy="32" r="2.2" fill="#ef4444" />
-    <circle cx="22" cy="32" r="1" fill="#ffffff" />
-    {/* Bingkai Peta (Neatline) */}
-    <rect x="3" y="6" width="45" height="54" fill="none" stroke="#0f172a" strokeWidth="0.8" />
-    {/* Kolom Legenda Kanan (Collar Sheet) */}
-    <rect x="49" y="8" width="12" height="52" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
-    {/* Inset Peta Mini */}
-    <rect x="51" y="10" width="8" height="6" fill="#f1f5f9" stroke="#9333ea" strokeWidth="0.5" />
-    {/* Blok Warna Legenda */}
-    <rect x="51" y="20" width="4" height="2" fill="#22c55e" />
-    <rect x="51" y="24" width="4" height="2" fill="#86efac" />
-    <rect x="51" y="28" width="4" height="2" fill="#fef08a" />
-    <line x1="51" y1="34" x2="57" y2="34" stroke="#9333ea" strokeWidth="0.8" />
-    <line x1="51" y1="38" x2="57" y2="38" stroke="#38bdf8" strokeWidth="1" />
-    <line x1="51" y1="42" x2="57" y2="42" stroke="#ea580c" strokeWidth="0.8" />
-  </svg>
+    <MapIcon size={Math.round(size * 0.46)} />
+  </div>
 );
 
 export const PustakaView: React.FC<PustakaViewProps> = ({
@@ -128,6 +83,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
+  const [petaPratinjauAktif, setPetaPratinjauAktif] = useState<AreaPetaOffline | null>(null);
 
   const hitungObjekLapisan = (lapisan: LapisanSpasial): number => {
     return dataSpasial.filter((d) => d.kategori === lapisan.kategoriDefault).length;
@@ -243,6 +199,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     setPetaKustomDataUrlBaru(undefined);
     setMetadataPetaBaru(null);
     setBukaModalPetaBaru(false);
+    // Tampilkan pratinjau peta setelah berhasil di-upload ke aplikasi
+    setPetaPratinjauAktif(itemBaru);
   };
 
   const handleSimpanLapisanBaru = (e: React.FormEvent) => {
@@ -431,32 +389,27 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   />
                 )}
 
-                <div className="avenza-map-thumb-wrap">
-                  {item.thumbnailUrl || item.thumbnailDataUrl ? (
+                <div
+                  className="avenza-map-thumb-wrap"
+                  onClick={(e) => {
+                    if (!modePilihAktif) {
+                      e.stopPropagation();
+                      setPetaPratinjauAktif(item);
+                    }
+                  }}
+                  title="Lihat Pratinjau Lembar Peta"
+                >
+                  {item.thumbnailUrl || item.thumbnailDataUrl || item.petaKustomUrl || item.petaKustomDataUrl ? (
                     <img
-                      src={item.thumbnailUrl || item.thumbnailDataUrl}
+                      src={item.thumbnailUrl || item.thumbnailDataUrl || item.petaKustomUrl || item.petaKustomDataUrl}
                       alt={item.namaArea}
                       className="avenza-real-thumb-img"
                       width={52}
                       height={52}
                       loading="lazy"
                     />
-                  ) : item.thumbnailType === "geopdf_sheet" || /geopdf|kawasan_hutan/i.test(item.namaArea) ? (
-                    <MiniaturGeoPdfThumb size={52} />
                   ) : (
-                    <div className={`avenza-map-thumb thumb-${item.thumbnailType || "radar"}`}>
-                      <svg viewBox="0 0 64 64" width="100%" height="100%">
-                        <defs>
-                          <radialGradient id={`demGrad-${item.id}`} cx="40%" cy="40%" r="70%">
-                            <stop offset="0%" stopColor="#eab308" />
-                            <stop offset="55%" stopColor="#84cc16" />
-                            <stop offset="100%" stopColor="#15803d" />
-                          </radialGradient>
-                        </defs>
-                        <rect width="64" height="64" fill={`url(#demGrad-${item.id})`} />
-                        <path d="M8,12 Q28,24 22,44 T52,58" stroke="#713f12" strokeWidth="1.2" fill="none" opacity="0.65" />
-                      </svg>
-                    </div>
+                    <ThumbnailDokumenPeta size={52} />
                   )}
                 </div>
 
@@ -498,6 +451,15 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
                   {menuItemTerbuka === item.id && (
                     <div className="avenza-row-dropdown">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuItemTerbuka(null);
+                          setPetaPratinjauAktif(item);
+                        }}
+                      >
+                        Pratinjau Lembar Peta
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -792,40 +754,42 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </div>
               )}
 
-              {/* PRATINJAU PETA SEBELUM MASUK (AVENZA STYLE) */}
-              {metadataPetaBaru && (
-                <div className="avenza-preview-card">
-                  <div className="avenza-preview-thumb">
-                    {petaKustomDataUrlBaru ? (
-                      <img
-                        src={petaKustomDataUrlBaru}
-                        alt="Pratinjau peta diunggah"
-                        className="avenza-real-thumb-img"
-                        width={56}
-                        height={56}
-                      />
-                    ) : (
-                      <MiniaturGeoPdfThumb size={56} />
-                    )}
-                  </div>
-                  <div className="avenza-preview-details">
-                    <div className="avenza-preview-tag">
-                      <Check size={12} /> Pratinjau Lembar Peta Georeferensi
-                    </div>
-                    <div className="avenza-preview-title">{namaPetaBaru.trim() || "Pilih GeoPDF untuk melihat pratinjau"}</div>
-                    <div className="avenza-preview-sub">
-                      <div>
-                        Cakupan: Lat {metadataPetaBaru?.minLat ?? 2.65}°–{metadataPetaBaru?.maxLat ?? 3.05}°, Lng{" "}
-                        {metadataPetaBaru?.minLng ?? 117.15}°–{metadataPetaBaru?.maxLng ?? 117.65}°
-                      </div>
-                      <div className="avenza-preview-status text-emerald">
-                        ● {ukuranMbBaru ? `${ukuranMbBaru} MB` : "Belum ada berkas"} • CRS:{" "}
-                        {metadataPetaBaru?.crs ? metadataPetaBaru.crs.replace(/\s*\(.*\)$/, "") : "WGS 84"} • Terhubung ke GPS
+              {/* PENGINGAT KETIKA DATA TERLALU BESAR */}
+              {metadataPetaBaru && (() => {
+                const mb = Number(ukuranMbBaru.replace(",", ".")) || metadataPetaBaru.ukuranMb;
+                if (mb > 100) {
+                  return (
+                    <div className="peta-warning-banner danger">
+                      <AlertOctagon size={22} className="warning-banner-icon" />
+                      <div className="warning-banner-content">
+                        <strong>🚨 Perhatian: Ukuran Berkas Sangat Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
+                        <p>
+                          Ukuran berkas melebihi 100 MB. Berkas sebesar ini berisiko membebani memori ponsel atau membuat peramban melambat saat membuka lembar peta di lapangan. Disarankan mengompresi gambar atau menggunakan format MBTiles.
+                        </p>
                       </div>
                     </div>
+                  );
+                }
+                if (mb > 50) {
+                  return (
+                    <div className="peta-warning-banner caution">
+                      <AlertTriangle size={22} className="warning-banner-icon" />
+                      <div className="warning-banner-content">
+                        <strong>⚠️ Pengingat: Ukuran Berkas Cukup Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
+                        <p>
+                          Berkas di atas 50 MB memerlukan kapasitas memori cache lebih banyak di HP. Pastikan sisa penyimpanan ponsel Anda mencukupi agar render peta tetap cepat secara offline.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="peta-size-optimal-badge">
+                    <Check size={14} className="text-emerald" />
+                    <span>Ukuran berkas optimal untuk perangkat seluler ({metadataPetaBaru.ukuranMbTeks} MB)</span>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               <div>
                 <label>Nama File Peta Kerja (GeoPDF / GeoTIFF / MBTiles)</label>
                 <input
@@ -907,6 +871,124 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL PRATINJAU LEMBAR PETA SETELAH DI-UPLOAD KE APLIKASI */}
+      {petaPratinjauAktif && (
+        <div className="modal-backdrop" onClick={() => setPetaPratinjauAktif(null)}>
+          <div className="modal-card avenza-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="avenza-preview-modal-head">
+                <Eye size={20} className="text-emerald" />
+                <h3 className="avenza-preview-modal-title">Pratinjau Lembar Peta</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-icon-close"
+                onClick={() => setPetaPratinjauAktif(null)}
+                title="Tutup Pratinjau"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="avenza-preview-modal-body">
+              {/* VIEWPORT LEMBAR PETA OTENTIK */}
+              <div className="avenza-preview-stage">
+                {petaPratinjauAktif.petaKustomDataUrl || petaPratinjauAktif.petaKustomUrl || petaPratinjauAktif.thumbnailUrl ? (
+                  <img
+                    src={
+                      petaPratinjauAktif.petaKustomDataUrl ||
+                      petaPratinjauAktif.petaKustomUrl ||
+                      petaPratinjauAktif.thumbnailUrl
+                    }
+                    alt={petaPratinjauAktif.namaArea}
+                    className="avenza-preview-stage-img"
+                  />
+                ) : (
+                  <div className="avenza-preview-placeholder">
+                    <MapIcon size={48} className="text-emerald" />
+                    <span>Lembar Dokumen Peta</span>
+                  </div>
+                )}
+                <div className="avenza-preview-stage-badge">
+                  <Check size={12} /> Dokumen Peta Terunggah
+                </div>
+              </div>
+
+              {/* INFORMASI SPASIAL LENGKAP */}
+              <div className="avenza-preview-info-card">
+                <div className="avenza-preview-map-name">{petaPratinjauAktif.namaArea}</div>
+
+                <div className="avenza-preview-meta-row">
+                  <span className="meta-badge-crs">
+                    {petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)"}
+                  </span>
+                  <span className="meta-text-size">
+                    {formatAngkaIndo(petaPratinjauAktif.ukuranMb)} MB
+                  </span>
+                  <span className="meta-text-status text-emerald font-semibold">
+                    ● {petaPratinjauAktif.statusTeks || "Pada peta"}
+                  </span>
+                  {petaPratinjauAktif.jarakKm !== undefined && petaPratinjauAktif.jarakKm > 0 && (
+                    <span className="meta-text-distance">
+                      Jarak: {formatAngkaIndo(petaPratinjauAktif.jarakKm)} km
+                    </span>
+                  )}
+                </div>
+
+                <div className="avenza-preview-spatial-grid">
+                  <div className="spatial-grid-item">
+                    <span className="spatial-grid-label">Batas Lintang (Lat):</span>
+                    <span className="spatial-grid-val">
+                      {petaPratinjauAktif.minLat.toFixed(4)}° s/d {petaPratinjauAktif.maxLat.toFixed(4)}°
+                    </span>
+                  </div>
+                  <div className="spatial-grid-item">
+                    <span className="spatial-grid-label">Batas Bujur (Lng):</span>
+                    <span className="spatial-grid-val">
+                      {petaPratinjauAktif.minLng.toFixed(4)}° s/d {petaPratinjauAktif.maxLng.toFixed(4)}°
+                    </span>
+                  </div>
+                  {petaPratinjauAktif.pusatLat !== undefined && petaPratinjauAktif.pusatLng !== undefined && (
+                    <div className="spatial-grid-item">
+                      <span className="spatial-grid-label">Titik Pusat:</span>
+                      <span className="spatial-grid-val">
+                        {petaPratinjauAktif.pusatLat.toFixed(4)}°, {petaPratinjauAktif.pusatLng.toFixed(4)}°
+                      </span>
+                    </div>
+                  )}
+                  {petaPratinjauAktif.crsDeskripsi && (
+                    <div className="spatial-grid-item full-width">
+                      <span className="spatial-grid-label">Deskripsi Proyeksi:</span>
+                      <span className="spatial-grid-val">{petaPratinjauAktif.crsDeskripsi}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer avenza-preview-modal-footer">
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() => setPetaPratinjauAktif(null)}
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  const target = petaPratinjauAktif;
+                  setPetaPratinjauAktif(null);
+                  onBukaAreaPeta(target);
+                }}
+              >
+                <MapIcon size={16} /> Buka di Peta Survei
+              </button>
+            </div>
           </div>
         </div>
       )}

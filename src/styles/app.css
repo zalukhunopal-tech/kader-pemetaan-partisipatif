@@ -5428,4 +5428,255 @@ label {
   font-size: 32px;
   z-index: 3;
   pointer-events: none;
+
+/* =========================================================
+   PENGINGAT KETIKA DATA TERLALU BESAR (UPLOAD MODAL)
+   ========================================================= */
+.peta-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-top: 10px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.peta-warning-banner.caution {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  color: #92400e;
+}
+
+.peta-warning-banner.danger {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  color: #991b1b;
+}
+
+.warning-banner-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.peta-warning-banner.caution .warning-banner-icon {
+  color: #d97706;
+}
+
+.peta-warning-banner.danger .warning-banner-icon {
+  color: #dc2626;
+}
+
+.warning-banner-content {
+  flex: 1;
+}
+
+.warning-banner-content strong {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.warning-banner-content p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+.peta-size-optimal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+/* =========================================================
+   MODAL PRATINJAU LEMBAR PETA SETELAH DI-UPLOAD KE APLIKASI
+   ========================================================= */
+.avenza-preview-modal {
+  max-width: 500px;
+  width: 92%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.avenza-preview-modal .modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.avenza-preview-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avenza-preview-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.avenza-preview-modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Panggung/Stage tampilan visual lembar peta asli */
+.avenza-preview-stage {
+  position: relative;
+  background: #34373c;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  max-height: 320px;
+  padding: 12px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.avenza-preview-stage-img {
+  max-width: 100%;
+  max-height: 290px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.avenza-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  padding: 40px 20px;
+}
+
+.avenza-preview-stage-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.02em;
+}
+
+.avenza-preview-info-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.avenza-preview-map-name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.avenza-preview-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.meta-badge-crs {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.meta-text-size {
+  color: #475569;
+  font-weight: 600;
+}
+
+.meta-text-distance {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.avenza-preview-spatial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.spatial-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spatial-grid-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.spatial-grid-label {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.spatial-grid-val {
+  font-size: 0.76rem;
+  color: #1e293b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.avenza-preview-modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
