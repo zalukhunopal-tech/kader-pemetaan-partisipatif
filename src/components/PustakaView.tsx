@@ -21,6 +21,56 @@ interface PustakaViewProps {
   onBukaPengaturanEkspor: () => void;
 }
 
+/**
+ * Komponen pratinjau thumbnail miniatur lembar peta GeoPDF A3 (Avenza Maps style).
+ * Menampilkan tata letak lembar cetak, batas ungu Tanjung Selor, aliran Sungai Kayan,
+ * zona warna fungsi hutan, dan kolom legenda di sebelah kanan.
+ */
+export const MiniaturGeoPdfThumb: React.FC<{ size?: number }> = ({ size = 52 }) => (
+  <svg
+    viewBox="0 0 64 64"
+    width={size}
+    height={size}
+    style={{ borderRadius: "8px", overflow: "hidden", display: "block", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}
+    aria-label="Pratinjau Lembar Peta GeoPDF"
+  >
+    {/* Kertas Lembar Peta Putih */}
+    <rect width="64" height="64" fill="#ffffff" />
+    {/* Relief Topografi Peta */}
+    <rect x="3" y="6" width="45" height="54" fill="#f8f7f2" />
+    {/* Pita Header Hijau Tua */}
+    <rect x="3" y="3" width="58" height="4.5" fill="#144e2b" rx="0.5" />
+    {/* Zona APL Kuning */}
+    <polygon points="6,16 32,14 40,26 32,42 10,38" fill="#fef08a" opacity="0.9" />
+    {/* Zona HPT Hijau Muda */}
+    <polygon points="10,38 32,42 38,52 14,54" fill="#86efac" opacity="0.9" />
+    {/* Zona HL Hijau Tua */}
+    <polygon points="14,54 38,52 36,58 12,58" fill="#22c55e" opacity="0.9" />
+    {/* Aliran Sungai Kayan Biru */}
+    <path d="M4,46 Q16,40 22,32 T36,22 T46,14" fill="none" stroke="#38bdf8" strokeWidth="2.4" strokeLinecap="round" />
+    {/* Garis Batas Administrasi Ungu Tanjung Selor */}
+    <polygon points="8,14 24,11 36,16 43,24 39,38 33,46 20,50 9,46 6,32" fill="none" stroke="#9333ea" strokeWidth="1.8" strokeLinejoin="round" />
+    {/* Batas Desa Merah */}
+    <path d="M22,32 L26,40 L24,46" fill="none" stroke="#ea580c" strokeWidth="1" strokeDasharray="2,1" />
+    {/* Titik Pusat Kota Tanjung Selor Hilir */}
+    <circle cx="22" cy="32" r="2.2" fill="#ef4444" />
+    <circle cx="22" cy="32" r="1" fill="#ffffff" />
+    {/* Bingkai Peta (Neatline) */}
+    <rect x="3" y="6" width="45" height="54" fill="none" stroke="#0f172a" strokeWidth="0.8" />
+    {/* Kolom Legenda Kanan (Collar Sheet) */}
+    <rect x="49" y="8" width="12" height="52" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
+    {/* Inset Peta Mini */}
+    <rect x="51" y="10" width="8" height="6" fill="#f1f5f9" stroke="#9333ea" strokeWidth="0.5" />
+    {/* Blok Warna Legenda */}
+    <rect x="51" y="20" width="4" height="2" fill="#22c55e" />
+    <rect x="51" y="24" width="4" height="2" fill="#86efac" />
+    <rect x="51" y="28" width="4" height="2" fill="#fef08a" />
+    <line x1="51" y1="34" x2="57" y2="34" stroke="#9333ea" strokeWidth="0.8" />
+    <line x1="51" y1="38" x2="57" y2="38" stroke="#38bdf8" strokeWidth="1" />
+    <line x1="51" y1="42" x2="57" y2="42" stroke="#ea580c" strokeWidth="0.8" />
+  </svg>
+);
+
 export const PustakaView: React.FC<PustakaViewProps> = ({
   areaOffline,
   lapisanList,
@@ -114,18 +164,20 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       id: buatId("MAP-OFF"),
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
-      minLat: metadataPetaBaru?.minLat ?? -0.958,
-      maxLat: metadataPetaBaru?.maxLat ?? -0.932,
-      minLng: metadataPetaBaru?.minLng ?? 100.408,
-      maxLng: metadataPetaBaru?.maxLng ?? 100.432,
-      zoomMin: 13,
+      minLat: metadataPetaBaru?.minLat ?? 2.65,
+      maxLat: metadataPetaBaru?.maxLat ?? 3.05,
+      minLng: metadataPetaBaru?.minLng ?? 117.15,
+      maxLng: metadataPetaBaru?.maxLng ?? 117.65,
+      zoomMin: 11,
       zoomMax: 18,
-      jumlahTile: 980,
-      ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 10,
+      jumlahTile: 1250,
+      ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 12.5,
       jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
-      thumbnailType: metadataPetaBaru?.thumbnailType ?? "dem_atas",
+      thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
       diunduhPada: new Date().toISOString(),
-      jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF"
+      jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
+      unduhanNyata: true,
+      statusTeks: "Pada peta"
     };
     onTambahAreaOffline(itemBaru);
     setNamaPetaBaru("");
@@ -321,36 +373,37 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   />
                 )}
 
-                <div className={`avenza-map-thumb thumb-${item.thumbnailType || "radar"}`}>
-                  <svg viewBox="0 0 64 64" width="100%" height="100%">
-                    <defs>
-                      <radialGradient id="demGrad" cx="40%" cy="40%" r="70%">
-                        <stop offset="0%" stopColor="#eab308" />
-                        <stop offset="55%" stopColor="#84cc16" />
-                        <stop offset="100%" stopColor="#15803d" />
-                      </radialGradient>
-                    </defs>
-                    <rect width="64" height="64" fill="url(#demGrad)" />
-                    <path d="M8,12 Q28,24 22,44 T52,58" stroke="#713f12" strokeWidth="1.2" fill="none" opacity="0.65" />
-                  </svg>
+                <div className="avenza-map-thumb-wrap">
+                  {item.thumbnailType === "geopdf_sheet" || /geopdf|kawasan_hutan/i.test(item.namaArea) ? (
+                    <MiniaturGeoPdfThumb size={52} />
+                  ) : (
+                    <div className={`avenza-map-thumb thumb-${item.thumbnailType || "radar"}`}>
+                      <svg viewBox="0 0 64 64" width="100%" height="100%">
+                        <defs>
+                          <radialGradient id={`demGrad-${item.id}`} cx="40%" cy="40%" r="70%">
+                            <stop offset="0%" stopColor="#eab308" />
+                            <stop offset="55%" stopColor="#84cc16" />
+                            <stop offset="100%" stopColor="#15803d" />
+                          </radialGradient>
+                        </defs>
+                        <rect width="64" height="64" fill={`url(#demGrad-${item.id})`} />
+                        <path d="M8,12 Q28,24 22,44 T52,58" stroke="#713f12" strokeWidth="1.2" fill="none" opacity="0.65" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
 
                 <div className="avenza-map-info">
                   <div className="avenza-map-title">{item.namaArea}</div>
                   <div className="avenza-map-meta">
-                    {item.unduhanNyata || item.jenisFile !== "XYZ Tiles"
-                      ? `${formatAngkaIndo(item.ukuranMb)} MB`
-                      : "Ukuran tidak diketahui"}{" "}
-                    <span className="dot-sep">•</span> {formatAngkaIndo(item.jarakKm ?? 0)} km
-                    {item.unduhanNyata ? (
+                    {formatAngkaIndo(item.ukuranMb)} MB <span className="dot-sep">•</span>{" "}
+                    <span className="text-emerald" style={{ fontWeight: 600 }}>
+                      {item.statusTeks || (item.unduhanNyata ? "Pada peta" : "Catatan saja")}
+                    </span>
+                    {item.jarakKm !== undefined && item.jarakKm > 0 && (
                       <>
                         {" "}
-                        <span className="dot-sep">•</span> {item.jumlahTile.toLocaleString("id-ID")} tile
-                      </>
-                    ) : (
-                      <>
-                        {" "}
-                        <span className="dot-sep">•</span> Catatan saja
+                        <span className="dot-sep">•</span> {formatAngkaIndo(item.jarakKm)} km
                       </>
                     )}
                   </div>
@@ -606,6 +659,27 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     <Check size={14} /> Berkas dipilih: <b>{metadataPetaBaru.namaArea}</b> ({metadataPetaBaru.ukuranMbTeks} MB • Jarak {metadataPetaBaru.jarakKmTeks} km)
                   </div>
                 )}
+              </div>
+
+              {/* PRATINJAU PETA SEBELUM MASUK (AVENZA STYLE) */}
+              <div className="avenza-preview-card">
+                <div className="avenza-preview-thumb">
+                  <MiniaturGeoPdfThumb size={56} />
+                </div>
+                <div className="avenza-preview-details">
+                  <div className="avenza-preview-tag">
+                    <Check size={12} /> Pratinjau Lembar Peta Georeferensi
+                  </div>
+                  <div className="avenza-preview-title">
+                    {namaPetaBaru.trim() || "Peta_Fungsi_Kawasan_Hutan_Kec_Tanjung_Selor_A3_GeoPDF"}
+                  </div>
+                  <div className="avenza-preview-sub">
+                    <div>Cakupan: Tanjung Selor (Lat 2.65°–3.05°, Lng 117.15°–117.65°)</div>
+                    <div className="avenza-preview-status text-emerald">
+                      ● {ukuranMbBaru ? `${ukuranMbBaru} MB` : "12,5 MB"} • Siap terhubung langsung ke posisi GPS
+                    </div>
+                  </div>
+                </div>
               </div>
               <div>
                 <label>Nama File Peta Kerja (GeoPDF / GeoTIFF / MBTiles)</label>

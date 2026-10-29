@@ -162,6 +162,7 @@ export const App: React.FC = () => {
   const [kaderAktifList] = useState<KaderAktifPresence[]>(() => muatKaderAktif());
   const [statusGDrive, setStatusGDrive] = useState<StatusGDrive>(() => muatStatusGDrive());
 
+  const [petaKustomAktif, setPetaKustomAktif] = useState<AreaPetaOffline | null>(null);
   const [fokusKoordinat, setFokusKoordinat] = useState<{
     lat: number;
     lng: number;
@@ -744,8 +745,12 @@ export const App: React.FC = () => {
                 dataSpasial={dataSpasial}
                 modePilihAktif={modePilihPustaka}
                 onMatikanModePilih={() => setModePilihPustaka(false)}
-                onBukaPetaDasar={() => setTabAktif("peta")}
+                onBukaPetaDasar={() => {
+                  setPetaKustomAktif(null);
+                  setTabAktif("peta");
+                }}
                 onBukaAreaPeta={(area) => {
+                  setPetaKustomAktif(area);
                   setFokusKoordinat({
                     lat: (area.minLat + area.maxLat) / 2,
                     lng: (area.minLng + area.maxLng) / 2,
@@ -773,6 +778,11 @@ export const App: React.FC = () => {
                 dataSpasial={dataSpasial}
                 profil={profil}
                 areaOffline={areaOffline}
+                petaKustomAktif={petaKustomAktif}
+                onTutupPetaKustom={() => {
+                  setPetaKustomAktif(null);
+                  setTabAktif("pustaka");
+                }}
                 fokusKoordinat={fokusKoordinat}
                 onFokusDipakai={() => setFokusKoordinat(null)}
                 onSimpanDataBaru={handleSimpanDataBaru}

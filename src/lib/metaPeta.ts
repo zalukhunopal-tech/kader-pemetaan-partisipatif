@@ -30,9 +30,10 @@ export function deteksiJenisPeta(namaBerkas: string): "GeoPDF / GeoTIFF" | "MBTi
 }
 
 /** Tentukan tipe thumbnail visual kartu peta */
-export function deteksiThumbnailPeta(namaBerkas: string): "vector" | "dem_atas" | "radar" {
+export function deteksiThumbnailPeta(namaBerkas: string): "vector" | "dem_atas" | "radar" | "geopdf_sheet" {
   if (/\.mbtiles$/i.test(namaBerkas)) return "vector";
   if (/\.(tif|tiff|geotiff)$/i.test(namaBerkas)) return "dem_atas";
+  if (/\.geopdf$/i.test(namaBerkas) || /geopdf/i.test(namaBerkas) || /kawasan_hutan/i.test(namaBerkas)) return "geopdf_sheet";
   return "radar";
 }
 
@@ -140,6 +141,11 @@ export async function bacaMetadataBerkasPeta(
     batas = ekstrakBatasDariTeks(teksCuplikan);
   } catch {
     // Abaikan jika berkas biner tidak dapat di-parse sebagai teks
+  }
+
+  // Jika nama berkas merujuk pada wilayah Tanjung Selor / Bulungan, gunakan koordinat definitif
+  if (!batas && /tanjung_selor|bulungan/i.test(file.name)) {
+    batas = { minLat: 2.65, maxLat: 3.05, minLng: 117.15, maxLng: 117.65 };
   }
 
   // Jika batas tidak ditemukan di header, gunakan wilayah di sekitar posisi acuan

@@ -45,12 +45,14 @@ import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googleTiles";
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
-import { Crosshair, Layers, MapPin, Navigation, Plus, Route, Square, X, Watch, Compass } from "lucide-react";
+import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, Watch, X } from "lucide-react";
 
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
   profil: ProfilKader;
   areaOffline: AreaPetaOffline[];
+  petaKustomAktif?: AreaPetaOffline | null;
+  onTutupPetaKustom?: () => void;
   fokusKoordinat?: { lat: number; lng: number; label?: string } | null;
   /** Dipanggil setelah fokus dipakai, agar fokus lama tidak menimpa posisi terakhir saat peta dibuka lagi */
   onFokusDipakai?: () => void;
@@ -96,10 +98,33 @@ function layarKeKanvas(
   };
 }
 
+/** Hitung panjang batang dan label skala peta dinamis (Avenza Maps style) */
+function hitungSkalaPeta(lat: number, zoom: number): { label: string; lebarPx: number } {
+  const meterPerPiksel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+  const targetMeter = 100 * meterPerPiksel;
+  const opsiMeter = [
+    10, 20, 50, 100, 200, 500,
+    1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000
+  ];
+  let terpilih = opsiMeter[0];
+  for (const m of opsiMeter) {
+    if (m <= targetMeter * 1.45) {
+      terpilih = m;
+    } else {
+      break;
+    }
+  }
+  const lebarPx = Math.max(52, Math.min(160, Math.round(terpilih / meterPerPiksel)));
+  const label = terpilih >= 1000 ? `${terpilih / 1000} km` : `${terpilih} m`;
+  return { label, lebarPx };
+}
+
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   dataSpasial,
   profil,
   areaOffline,
+  petaKustomAktif,
+  onTutupPetaKustom,
   fokusKoordinat,
   onFokusDipakai,
   onSimpanDataBaru,
@@ -110,6 +135,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
+  const [bukaInfoPetaKustom, setBukaInfoPetaKustom] = useState<boolean>(false);
+  const [cariKoordInput, setCariKoordInput] = useState<string>("");
+  const [cariKoordTerbuka, setCariKoordTerbuka] = useState<boolean>(false);
 
   // Peta dibuka di posisi, zoom, dan basemap terakhir (bukan lokasi bawaan)
   const [posisiTersimpan] = useState(() => bacaPosisiPeta());
@@ -472,7 +500,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       titikDraft,
       targetGoTo,
       gpsPos,
-      kompasDerajat
+      kompasDerajat,
+      petaKustomAktif
     });
   }, [
     center,
@@ -486,6 +515,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     modeRekam,
     gpsPos,
     kompasDerajat,
+    petaKustomAktif,
     objekTerpilih,
     targetGoTo,
     ukuranCanvas,
@@ -822,9 +852,78 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const belokKeTarget = bearingKeTarget !== null && kompasDerajat !== undefined ? selisihArah(bearingKeTarget, kompasDerajat) : null;
   const infoGps = teksStatusGps(perangkat, simulasiAktif);
   const infoKompas = teksStatusKompas(perangkat);
+  const skalaInfo = hitungSkalaPeta(center.lat, zoom);
 
   return (
-    <div className="map-module-wrapper clean-map-mode">
+    <div className={`map-module-wrapper clean-map-mode ${petaKustomAktif ? "avenza-custom-active" : ""}`}>
+      {/* HEADER BAR KHUSUS LEMBAR PETA GEOPDF (AVENZA MAPS STYLE) */}
+      {petaKustomAktif && (
+        <header className="avenza-map-header-bar">
+          <button
+            type="button"
+            className="avenza-head-btn"
+            onClick={onTutupPetaKustom}
+            title="Kembali ke Pustaka Peta"
+            aria-label="Kembali"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <div className="avenza-head-title-wrap">
+            <span className="avenza-head-title" title={petaKustomAktif.namaArea}>
+              {petaKustomAktif.namaArea}
+            </span>
+          </div>
+          <div className="avenza-head-actions">
+            <button
+              type="button"
+              className="avenza-head-btn"
+              title="Informasi Lembar Peta GeoPDF"
+              onClick={() => setBukaInfoPetaKustom(true)}
+              aria-label="Info Peta"
+            >
+              <Info size={20} />
+            </button>
+            <button
+              type="button"
+              className="avenza-head-btn"
+              title="Cari Koordinat / Wilayah"
+              onClick={() => setCariKoordTerbuka((v) => !v)}
+              aria-label="Cari di Peta"
+            >
+              <Search size={20} />
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* KOTAK PENCARIAN CEPAT DI DALAM PETA */}
+      {cariKoordTerbuka && (
+        <div className="avenza-map-search-bar">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="Cari koordinat (mis. 2.857, 117.377) atau Tanjung Selor..."
+            value={cariKoordInput}
+            onChange={(e) => setCariKoordInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && cariKoordInput.trim()) {
+                const match = cariKoordInput.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+                if (match) {
+                  setCenter({ lat: parseFloat(match[1]), lng: parseFloat(match[2]) });
+                  setCariKoordTerbuka(false);
+                } else if (/tanjung|selor|bulungan/i.test(cariKoordInput)) {
+                  setCenter({ lat: 2.857134, lng: 117.377556 });
+                  setCariKoordTerbuka(false);
+                }
+              }
+            }}
+          />
+          <button type="button" onClick={() => setCariKoordTerbuka(false)}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* BANNER NAVIGASI GO-TO WAYPOINT JIKA AKTIF */}
       {targetGoTo && (
         <div className="goto-nav-banner">
@@ -1120,6 +1219,38 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </div>
           )}
         </div>
+
+        {/* BATANG SKALA DINAMIS (AVENZA MAPS STYLE) */}
+        <div className="avenza-scale-bar-wrap">
+          <div className="avenza-scale-bar-text">{skalaInfo.label}</div>
+          <div className="avenza-scale-bar-ruler" style={{ width: `${skalaInfo.lebarPx}px` }}>
+            <div className="avenza-scale-tick-left" />
+            <div className="avenza-scale-line" />
+            <div className="avenza-scale-tick-right" />
+          </div>
+        </div>
+
+        {/* TOMBOL PUSATKAN KE GPS (AVENZA MAPS FAB STYLE) */}
+        <button
+          type="button"
+          className="avenza-gps-fab-btn"
+          onClick={() => {
+            if (gpsPos) {
+              setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+              setZoom((z) => Math.max(z, 15));
+            } else if (petaKustomAktif) {
+              setCenter({
+                lat: (petaKustomAktif.minLat + petaKustomAktif.maxLat) / 2,
+                lng: (petaKustomAktif.minLng + petaKustomAktif.maxLng) / 2
+              });
+              setZoom(14);
+            }
+          }}
+          title={gpsPos ? "Pusatkan ke posisi GPS saya" : "Pusatkan ke peta GeoPDF"}
+          aria-label="Pusatkan ke GPS"
+        >
+          <MapPin size={26} color="#059669" fill="#059669" />
+        </button>
       </div>
 
       {/* PANEL DETAIL OBJEK EXISTING KETIKA DIKLIK DI PETA */}
@@ -1175,6 +1306,61 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* MODAL PENGUNDUH PETA SATELIT OFFLINE */}
       {unduh.bukaModalOffline && <UnduhOfflineModal basemap={basemap} areaOffline={areaOffline} unduh={unduh} onBukaArea={setCenter} />}
+
+      {/* MODAL INFORMASI PETA GEOPDF KUSTOM */}
+      {bukaInfoPetaKustom && petaKustomAktif && (
+        <div className="modal-backdrop" onClick={() => setBukaInfoPetaKustom(false)}>
+          <div className="modal-content avenza-info-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Informasi Peta Georeferensi</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setBukaInfoPetaKustom(false)}
+                aria-label="Tutup"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="avenza-info-row">
+                <span className="info-label">Nama Berkas Peta</span>
+                <span className="info-val" style={{ fontWeight: 600 }}>{petaKustomAktif.namaArea}</span>
+              </div>
+              <div className="avenza-info-row">
+                <span className="info-label">Format Dokumen</span>
+                <span className="info-val">{petaKustomAktif.jenisFile || "GeoPDF / GeoTIFF"}</span>
+              </div>
+              <div className="avenza-info-row">
+                <span className="info-label">Ukuran Berkas</span>
+                <span className="info-val">{petaKustomAktif.ukuranMb.toFixed(1).replace(".", ",")} MB</span>
+              </div>
+              <div className="avenza-info-row">
+                <span className="info-label">Status Georeferensi</span>
+                <span className="info-val text-emerald" style={{ fontWeight: 700 }}>
+                  {petaKustomAktif.statusTeks || "Pada peta (Tersinkronisasi GPS)"}
+                </span>
+              </div>
+              <div className="avenza-info-row">
+                <span className="info-label">Sistem Koordinat (CRS)</span>
+                <span className="info-val">WGS 1984 / UTM Zona 50N</span>
+              </div>
+              <div className="avenza-info-row">
+                <span className="info-label">Batas Geografis</span>
+                <span className="info-val">
+                  Lat: {petaKustomAktif.minLat.toFixed(4)}° s/d {petaKustomAktif.maxLat.toFixed(4)}°<br />
+                  Lng: {petaKustomAktif.minLng.toFixed(4)}° s/d {petaKustomAktif.maxLng.toFixed(4)}°
+                </span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-primary" onClick={() => setBukaInfoPetaKustom(false)}>
+                Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -88,7 +88,10 @@ export interface AreaPetaOffline {
   jumlahTile: number;
   ukuranMb: number;
   jarakKm?: number;
-  thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah";
+  thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah" | "geopdf_sheet";
+  thumbnailDataUrl?: string;
+  petaKustomDataUrl?: string;
+  statusTeks?: string;
   diunduhPada: string;
   jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";
   /** true bila tile benar-benar tersimpan di perangkat; selain itu entri hanya catatan */

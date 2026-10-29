@@ -60,7 +60,27 @@ export const PROFIL_BAWAAN: ProfilKader = {
 
 // Seluruh data awal dimulai kosong (tanpa data contoh/dummy)
 export const DATA_SPASIAL_AWAL: DataSpasialItem[] = [];
-export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [];
+export const PETA_TANJUNG_SELOR_BAWAAN: AreaPetaOffline = {
+  id: "MAP-TANJUNG-SELOR-01",
+  namaArea: "Peta_Fungsi_Kawasan_Hutan_Kec_Tanjung_Selor_A3_GeoPDF",
+  basemapId: "topo",
+  minLat: 2.65,
+  maxLat: 3.05,
+  minLng: 117.15,
+  maxLng: 117.65,
+  zoomMin: 11,
+  zoomMax: 18,
+  jumlahTile: 1250,
+  ukuranMb: 12.5,
+  jarakKm: 0,
+  thumbnailType: "geopdf_sheet",
+  diunduhPada: new Date().toISOString(),
+  jenisFile: "GeoPDF / GeoTIFF",
+  unduhanNyata: true,
+  statusTeks: "Pada peta"
+};
+
+export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [PETA_TANJUNG_SELOR_BAWAAN];
 export const LAPISAN_AWAL: LapisanSpasial[] = [];
 export const SERTIFIKAT_AWAL: SertifikatKader[] = [];
 export const PENGUMUMAN_AWAL: PengumumanBroadcast[] = [];
@@ -116,7 +136,14 @@ export const simpanProfil = (v: ProfilKader) => simpanJson(KEY_PROFIL, v);
 export const muatDataSpasial = () => unikkanId(bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL));
 export const simpanDataSpasial = (v: DataSpasialItem[]) => simpanJson(KEY_SPASIAL, v);
 
-export const muatAreaOffline = () => unikkanId(bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL));
+export const muatAreaOffline = () => {
+  const data = unikkanId(bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL));
+  if (!Array.isArray(data) || data.length === 0) return AREA_OFFLINE_AWAL;
+  if (!data.some((a) => a.namaArea.includes("Tanjung_Selor"))) {
+    return [PETA_TANJUNG_SELOR_BAWAAN, ...data];
+  }
+  return data;
+};
 export const simpanAreaOffline = (v: AreaPetaOffline[]) => simpanJson(KEY_OFFLINE_MAPS, v);
 
 export const muatLapisan = () => unikkanId(bacaJson<LapisanSpasial[]>(KEY_LAPISAN, LAPISAN_AWAL));

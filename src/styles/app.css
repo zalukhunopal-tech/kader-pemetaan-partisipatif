@@ -4946,3 +4946,264 @@ label {
   border-radius: 8px;
   padding: 8px 10px;
 }
+
+/* =========================================================
+   AVENZA MAPS STYLE GEOPDF SHEET & CONTROLS
+   ========================================================= */
+
+/* Header bar khusus lembar peta GeoPDF (Screenshots 1 & 2) */
+.avenza-map-header-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  z-index: 40;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.avenza-head-btn {
+  background: transparent;
+  border: none;
+  color: #1e293b;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.avenza-head-btn:hover {
+  background: #f1f5f9;
+}
+
+.avenza-head-title-wrap {
+  flex: 1;
+  min-width: 0;
+  margin: 0 8px;
+}
+
+.avenza-head-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.avenza-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Kotak pencarian koordinat cepat di dalam peta */
+.avenza-map-search-bar {
+  position: absolute;
+  top: 58px;
+  left: 12px;
+  right: 12px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+  z-index: 45;
+  border: 1px solid #cbd5e1;
+}
+
+.avenza-map-search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.85rem;
+  color: #0f172a;
+  background: transparent;
+}
+
+.avenza-map-search-bar button {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Batang skala dinamis (Avenza Maps Style: 20 km / 5 km dengan garis dan tick) */
+.avenza-scale-bar-wrap {
+  position: absolute;
+  bottom: 84px;
+  left: 16px;
+  z-index: 25;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 0 4px rgba(255, 255, 255, 0.8);
+}
+
+.avenza-scale-bar-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+
+.avenza-scale-bar-ruler {
+  position: relative;
+  height: 8px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.avenza-scale-line {
+  flex: 1;
+  height: 2px;
+  background: #0f172a;
+}
+
+.avenza-scale-tick-left,
+.avenza-scale-tick-right {
+  width: 2px;
+  height: 7px;
+  background: #0f172a;
+  flex-shrink: 0;
+}
+
+/* Tombol Floating Action Button GPS Hijau (Avenza GPS Pin Style) */
+.avenza-gps-fab-btn {
+  position: absolute;
+  bottom: 82px;
+  right: 16px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 30;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avenza-gps-fab-btn:active {
+  transform: scale(0.92);
+}
+
+/* Thumbnail wrapper di daftar peta */
+.avenza-map-thumb-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Card Pratinjau Peta di Modal Input Peta Baru */
+.avenza-preview-card {
+  display: flex;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.avenza-preview-thumb {
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.avenza-preview-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.avenza-preview-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #047857;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.avenza-preview-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.avenza-preview-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.avenza-preview-status {
+  font-weight: 600;
+}
+
+/* Modal Informasi GeoPDF */
+.avenza-info-modal {
+  max-width: 440px;
+  width: 90%;
+}
+
+.avenza-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.82rem;
+  gap: 12px;
+}
+
+.avenza-info-row:last-child {
+  border-bottom: none;
+}
+
+.avenza-info-row .info-label {
+  color: #64748b;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.avenza-info-row .info-val {
+  color: #0f172a;
+  text-align: right;
+  word-break: break-word;
+}
