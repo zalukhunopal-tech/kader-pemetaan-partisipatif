@@ -1,9 +1,27 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
-import { AlertOctagon, AlertTriangle, ArrowUpDown, Check, ChevronDown, Download, Eye, FileText, FileUp, Filter, Layers, Map as MapIcon, MoreHorizontal, Plus, Search, X } from "lucide-react";
-import { bacaMetadataBerkasPeta, HasilMetadataPeta } from "../lib/metaPeta";
+import {
+  LayoutGrid,
+  List,
+  AlertOctagon,
+  AlertTriangle,
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  Download,
+  Eye,
+  FileUp,
+  Filter,
+  Layers,
+  Map as MapIcon,
+  MoreHorizontal,
+  Plus,
+  Search,
+  X
+} from "lucide-react";
+import { HasilMetadataPeta } from "../lib/metaPeta";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -64,7 +82,32 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [urutPeta, setUrutPeta] = useState<"baru_dilihat" | "nama" | "ukuran">("baru_dilihat");
   const [urutLapisan, setUrutLapisan] = useState<"terbaru" | "nama">("terbaru");
   const [filterItem, setFilterItem] = useState<"semua" | "geopdf" | "tiles">("semua");
-  const [cariTerbuka, setCariTerbuka] = useState(false);
+  const [cariTerbuka, setCariTerbuka] = useState(true);
+  const [tampilanKisi, setTampilanKisi] = useState(false);
+  const [riwayat, setRiwayat] = useState<Record<string, number>>(() => {
+    try {
+      const value = JSON.parse(localStorage.getItem("pustaka-terakhir-dibuka") || "{}");
+      return Object.fromEntries(Object.entries(value).filter(([, v]) => typeof v === "number" && Number.isFinite(v))) as Record<
+        string,
+        number
+      >;
+    } catch {
+      return {};
+    }
+  });
+  const bukaPeta = useCallback(
+    (item: AreaPetaOffline) => {
+      const next = { ...riwayat, [item.id]: Date.now() };
+      setRiwayat(next);
+      try {
+        localStorage.setItem("pustaka-terakhir-dibuka", JSON.stringify(next));
+      } catch {
+        /* Peta tetap dapat dibuka. */
+      }
+      onBukaAreaPeta(item);
+    },
+    [riwayat, onBukaAreaPeta]
+  );
   const [kataKunci, setKataKunci] = useState("");
   const [idTerpilih, setIdTerpilih] = useState<string[]>([]);
   const [menuItemTerbuka, setMenuItemTerbuka] = useState<string | null>(null);
@@ -101,7 +144,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     .sort((a, b) => {
       if (urutPeta === "nama") return a.namaArea.localeCompare(b.namaArea);
       if (urutPeta === "ukuran") return b.ukuranMb - a.ukuranMb;
-      return new Date(b.diunduhPada).getTime() - new Date(a.diunduhPada).getTime();
+      return (riwayat[b.id] || new Date(b.diunduhPada).getTime()) - (riwayat[a.id] || new Date(a.diunduhPada).getTime());
     });
 
   const daftarLapisanTampil = lapisanList
@@ -245,7 +288,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const formatAngkaIndo = (num: number) => num.toString().replace(".", ",");
 
   return (
-    <div className="avenza-pustaka-container">
+    <div className="avenza-pustaka-container pustaka-field">
       {/* SEGMENTED PILL TABS: PETA | LAPISAN */}
       <div className="avenza-segmented-wrap">
         <div className="avenza-segmented-control">
@@ -269,7 +312,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             <div className="avenza-pill-select-wrap">
               <ArrowUpDown size={15} className="avenza-pill-icon" />
               <select className="avenza-pill-select" value={urutPeta} onChange={(e) => setUrutPeta(e.target.value as typeof urutPeta)}>
-                <option value="baru_dilihat">Baru dilihat</option>
+                <option value="baru_dilihat">Terakhir dibuka</option>
                 <option value="nama">Nama (A-Z)</option>
                 <option value="ukuran">Ukuran File</option>
               </select>
@@ -295,7 +338,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             <select className="avenza-pill-select" value={filterItem} onChange={(e) => setFilterItem(e.target.value as typeof filterItem)}>
               <option value="semua">Semua item</option>
               <option value="geopdf">GeoPDF / Peta</option>
-              <option value="tiles">Peta Satelit</option>
+              <option value="tiles">Tile offline</option>
             </select>
             <ChevronDown size={15} className="avenza-pill-caret" />
           </div>
@@ -308,10 +351,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
       {/* KOTAK PENCARIAN JIKA DIAKTIFKAN */}
       {cariTerbuka && (
-        <div className="avenza-search-bar">
+        <div className="avenza-search-bar" role="search">
           <Search size={16} />
           <input
             type="text"
+            aria-label="Cari peta atau lapisan"
             placeholder={subTab === "peta" ? "Cari nama peta..." : "Cari nama lapisan..."}
             value={kataKunci}
             onChange={(e) => setKataKunci(e.target.value)}
@@ -330,7 +374,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <span>{idTerpilih.length} item dipilih</span>
           <div style={{ display: "flex", gap: "8px" }}>
             <button type="button" className="btn-outline-sm" onClick={onBukaPengaturanEkspor}>
-              Ekspor Pilihan
+              Pengaturan Ekspor
             </button>
             <button
               type="button"
@@ -352,6 +396,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <div className="avenza-basemap-banner-wrap">
             <div className="avenza-basemap-banner" onClick={onBukaPetaDasar}>
               <LatarPetaDasar />
+              <span className="pustaka-terrain-badge">2D / 3D</span>
 
               <button
                 type="button"
@@ -366,16 +411,39 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             </div>
           </div>
 
-          <div className="avenza-map-list">
+          <div className="pustaka-list-heading">
+            <span>
+              Peta saya <b>{daftarPetaTampil.length}</b>
+            </span>
+            <div>
+              <button type="button" aria-label="Tampilan daftar" aria-pressed={!tampilanKisi} onClick={() => setTampilanKisi(false)}>
+                <List size={18} />
+              </button>
+              <button type="button" aria-label="Tampilan kisi" aria-pressed={tampilanKisi} onClick={() => setTampilanKisi(true)}>
+                <LayoutGrid size={18} />
+              </button>
+            </div>
+          </div>
+          <div className={`avenza-map-list ${tampilanKisi ? "pustaka-grid" : ""}`}>
             {daftarPetaTampil.map((item) => (
               <div
                 key={item.id}
                 className="avenza-map-row"
+                tabIndex={0}
+                role="button"
+                aria-label={`Buka peta ${item.namaArea}`}
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    if (modePilihAktif) togglePilihId(item.id);
+                    else bukaPeta(item);
+                  }
+                }}
                 onClick={() => {
                   if (modePilihAktif) {
                     togglePilihId(item.id);
                   } else {
-                    onBukaAreaPeta(item);
+                    bukaPeta(item);
                   }
                 }}
               >
@@ -445,12 +513,12 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     setMenuItemTerbuka(menuItemTerbuka === item.id ? null : item.id);
                   }}
                 >
-                  <button type="button" className="avenza-more-dots-btn" title="Opsi Peta">
+                  <button type="button" className="avenza-more-dots-btn" title="Opsi Peta" aria-expanded={menuItemTerbuka === item.id}>
                     <MoreHorizontal size={20} />
                   </button>
 
                   {menuItemTerbuka === item.id && (
-                    <div className="avenza-row-dropdown">
+                    <div className="avenza-row-dropdown" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() => {
@@ -464,7 +532,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                         type="button"
                         onClick={() => {
                           setMenuItemTerbuka(null);
-                          onBukaAreaPeta(item);
+                          bukaPeta(item);
                         }}
                       >
                         Buka di Peta Survei
@@ -511,7 +579,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 >
                   <Layers size={28} />
                 </div>
-                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>Pustaka Peta Kosong</h4>
+                <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>
+                  {kataKunci || filterItem !== "semua" ? "Tidak ada peta yang cocok" : "Peta Anda, siap dibawa ke lapangan"}
+                </h4>
                 <p style={{ margin: "0 auto 14px", fontSize: "0.84rem", color: "#64748b", maxWidth: 320 }}>
                   Ketuk tombol (+) di kanan bawah untuk mengimpor peta kerja atau buka peta dasar.
                 </p>
@@ -567,7 +637,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     </button>
 
                     {menuItemTerbuka === lapisan.id && (
-                      <div className="avenza-row-dropdown">
+                      <div className="avenza-row-dropdown" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => {
@@ -755,41 +825,44 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               )}
 
               {/* PENGINGAT KETIKA DATA TERLALU BESAR */}
-              {metadataPetaBaru && (() => {
-                const mb = Number(ukuranMbBaru.replace(",", ".")) || metadataPetaBaru.ukuranMb;
-                if (mb > 100) {
-                  return (
-                    <div className="peta-warning-banner danger">
-                      <AlertOctagon size={22} className="warning-banner-icon" />
-                      <div className="warning-banner-content">
-                        <strong>🚨 Perhatian: Ukuran Berkas Sangat Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
-                        <p>
-                          Ukuran berkas melebihi 100 MB. Berkas sebesar ini berisiko membebani memori ponsel atau membuat peramban melambat saat membuka lembar peta di lapangan. Disarankan mengompresi gambar atau menggunakan format MBTiles.
-                        </p>
+              {metadataPetaBaru &&
+                (() => {
+                  const mb = Number(ukuranMbBaru.replace(",", ".")) || metadataPetaBaru.ukuranMb;
+                  if (mb > 100) {
+                    return (
+                      <div className="peta-warning-banner danger">
+                        <AlertOctagon size={22} className="warning-banner-icon" />
+                        <div className="warning-banner-content">
+                          <strong>🚨 Perhatian: Ukuran Berkas Sangat Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
+                          <p>
+                            Ukuran berkas melebihi 100 MB. Berkas sebesar ini berisiko membebani memori ponsel atau membuat peramban
+                            melambat saat membuka lembar peta di lapangan. Disarankan mengompresi gambar atau menggunakan format MBTiles.
+                          </p>
+                        </div>
                       </div>
+                    );
+                  }
+                  if (mb > 50) {
+                    return (
+                      <div className="peta-warning-banner caution">
+                        <AlertTriangle size={22} className="warning-banner-icon" />
+                        <div className="warning-banner-content">
+                          <strong>⚠️ Pengingat: Ukuran Berkas Cukup Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
+                          <p>
+                            Berkas di atas 50 MB memerlukan kapasitas memori cache lebih banyak di HP. Pastikan sisa penyimpanan ponsel Anda
+                            mencukupi agar render peta tetap cepat secara offline.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="peta-size-optimal-badge">
+                      <Check size={14} className="text-emerald" />
+                      <span>Ukuran berkas optimal untuk perangkat seluler ({metadataPetaBaru.ukuranMbTeks} MB)</span>
                     </div>
                   );
-                }
-                if (mb > 50) {
-                  return (
-                    <div className="peta-warning-banner caution">
-                      <AlertTriangle size={22} className="warning-banner-icon" />
-                      <div className="warning-banner-content">
-                        <strong>⚠️ Pengingat: Ukuran Berkas Cukup Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
-                        <p>
-                          Berkas di atas 50 MB memerlukan kapasitas memori cache lebih banyak di HP. Pastikan sisa penyimpanan ponsel Anda mencukupi agar render peta tetap cepat secara offline.
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="peta-size-optimal-badge">
-                    <Check size={14} className="text-emerald" />
-                    <span>Ukuran berkas optimal untuk perangkat seluler ({metadataPetaBaru.ukuranMbTeks} MB)</span>
-                  </div>
-                );
-              })()}
+                })()}
               <div>
                 <label>Nama File Peta Kerja (GeoPDF / GeoTIFF / MBTiles)</label>
                 <input
@@ -883,12 +956,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <Eye size={20} className="text-emerald" />
                 <h3 className="avenza-preview-modal-title">Pratinjau Lembar Peta</h3>
               </div>
-              <button
-                type="button"
-                className="btn-icon-close"
-                onClick={() => setPetaPratinjauAktif(null)}
-                title="Tutup Pratinjau"
-              >
+              <button type="button" className="btn-icon-close" onClick={() => setPetaPratinjauAktif(null)} title="Tutup Pratinjau">
                 <X size={18} />
               </button>
             </div>
@@ -898,11 +966,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               <div className="avenza-preview-stage">
                 {petaPratinjauAktif.petaKustomDataUrl || petaPratinjauAktif.petaKustomUrl || petaPratinjauAktif.thumbnailUrl ? (
                   <img
-                    src={
-                      petaPratinjauAktif.petaKustomDataUrl ||
-                      petaPratinjauAktif.petaKustomUrl ||
-                      petaPratinjauAktif.thumbnailUrl
-                    }
+                    src={petaPratinjauAktif.petaKustomDataUrl || petaPratinjauAktif.petaKustomUrl || petaPratinjauAktif.thumbnailUrl}
                     alt={petaPratinjauAktif.namaArea}
                     className="avenza-preview-stage-img"
                   />
@@ -922,19 +986,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <div className="avenza-preview-map-name">{petaPratinjauAktif.namaArea}</div>
 
                 <div className="avenza-preview-meta-row">
-                  <span className="meta-badge-crs">
-                    {petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)"}
-                  </span>
-                  <span className="meta-text-size">
-                    {formatAngkaIndo(petaPratinjauAktif.ukuranMb)} MB
-                  </span>
-                  <span className="meta-text-status text-emerald font-semibold">
-                    ● {petaPratinjauAktif.statusTeks || "Pada peta"}
-                  </span>
+                  <span className="meta-badge-crs">{petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)"}</span>
+                  <span className="meta-text-size">{formatAngkaIndo(petaPratinjauAktif.ukuranMb)} MB</span>
+                  <span className="meta-text-status text-emerald font-semibold">● {petaPratinjauAktif.statusTeks || "Pada peta"}</span>
                   {petaPratinjauAktif.jarakKm !== undefined && petaPratinjauAktif.jarakKm > 0 && (
-                    <span className="meta-text-distance">
-                      Jarak: {formatAngkaIndo(petaPratinjauAktif.jarakKm)} km
-                    </span>
+                    <span className="meta-text-distance">Jarak: {formatAngkaIndo(petaPratinjauAktif.jarakKm)} km</span>
                   )}
                 </div>
 
@@ -970,11 +1026,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             </div>
 
             <div className="modal-footer avenza-preview-modal-footer">
-              <button
-                type="button"
-                className="btn-outline-sm"
-                onClick={() => setPetaPratinjauAktif(null)}
-              >
+              <button type="button" className="btn-outline-sm" onClick={() => setPetaPratinjauAktif(null)}>
                 Tutup
               </button>
               <button
@@ -983,7 +1035,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 onClick={() => {
                   const target = petaPratinjauAktif;
                   setPetaPratinjauAktif(null);
-                  onBukaAreaPeta(target);
+                  bukaPeta(target);
                 }}
               >
                 <MapIcon size={16} /> Buka di Peta Survei

@@ -137,6 +137,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [bukaInfoPetaKustom, setBukaInfoPetaKustom] = useState<boolean>(false);
   const [cariKoordInput, setCariKoordInput] = useState<string>("");
   const [cariKoordTerbuka, setCariKoordTerbuka] = useState<boolean>(false);
+  const [pilihPetaTerbuka, setPilihPetaTerbuka] = useState(false);
+  const [galatPencarian, setGalatPencarian] = useState("");
+  const cariKoordinat = () => {
+    const match = cariKoordInput.trim().match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
+    if (!match || Math.abs(Number(match[1])) > 85 || Math.abs(Number(match[2])) > 180) {
+      setGalatPencarian("Masukkan lintang −85 sampai 85 dan bujur −180 sampai 180, misalnya −6.1754, 106.8272.");
+      return;
+    }
+    setCenter({ lat: Number(match[1]), lng: Number(match[2]) });
+    setCariKoordTerbuka(false);
+    setGalatPencarian("");
+  };
 
   // Peta dibuka di posisi, zoom, dan basemap terakhir (bukan lokasi bawaan)
   const [posisiTersimpan] = useState(() => bacaPosisiPeta());
@@ -339,7 +351,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       window.removeEventListener("resize", hitung);
       ro?.disconnect();
     };
-  }, []);
+  }, [cariKoordTerbuka, pilihPetaTerbuka, petaKustomAktif, targetGoTo]);
 
   // Roda tetikus dan cubit trackpad (PC/laptop): perbesar/perkecil di sekitar penunjuk.
   // Didaftarkan manual karena onWheel React bersifat pasif dan tidak bisa mencegah gulir halaman.
@@ -375,17 +387,19 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (fokusKoordinat) {
       sudahPusatRef.current = true; // lokasi yang dituju menang atas pemusatan GPS otomatis
       // Permintaan fokus dari tab lain dipakai sekali lalu dikosongkan lewat onFokusDipakai
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCenter({ lat: fokusKoordinat.lat, lng: fokusKoordinat.lng });
-      setZoom(16);
-      if (fokusKoordinat.label) {
-        setTargetGoTo({
-          lat: fokusKoordinat.lat,
-          lng: fokusKoordinat.lng,
-          judul: fokusKoordinat.label
-        });
-      }
-      onFokusDipakai?.();
+      const frame = requestAnimationFrame(() => {
+        setCenter({ lat: fokusKoordinat.lat, lng: fokusKoordinat.lng });
+        setZoom(16);
+        if (fokusKoordinat.label) {
+          setTargetGoTo({
+            lat: fokusKoordinat.lat,
+            lng: fokusKoordinat.lng,
+            judul: fokusKoordinat.label
+          });
+        }
+        onFokusDipakai?.();
+      });
+      return () => cancelAnimationFrame(frame);
     }
   }, [fokusKoordinat, onFokusDipakai]);
 
@@ -860,7 +874,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const skalaInfo = hitungSkalaPeta(center.lat, zoom);
 
   return (
-    <div className={`map-module-wrapper clean-map-mode ${petaKustomAktif ? "avenza-custom-active" : ""}`}>
+    <div className={`map-module-wrapper clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""}`}>
       {/* HEADER BAR KHUSUS LEMBAR PETA GEOPDF (AVENZA MAPS STYLE) */}
       {petaKustomAktif && (
         <header className="avenza-map-header-bar">
@@ -901,59 +915,114 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </header>
       )}
 
-      {/* BAR PARTISI PEMISAH: LEMBAR PETA SAYA VS PETA DASAR ONLINE */}
-      <div className={`avenza-partition-bar ${petaKustomAktif ? "in-custom-mode" : "in-basemap-mode"}`}>
+      <div className="temukan-toolbar">
         <button
           type="button"
-          className={`partition-btn ${petaKustomAktif ? "active" : ""}`}
-          onClick={() => {
-            if (!petaKustomAktif && areaOffline.length > 0) {
-              const utama = areaOffline.find((a) => a.namaArea.includes("Tanjung_Selor")) || areaOffline[0];
-              onPilihPetaKustom?.(utama);
-            }
-          }}
-          title="Lembar Peta Kustom Mandiri (Terisolasi dari Peta Dasar)"
+          className="temukan-search-trigger"
+          aria-expanded={cariKoordTerbuka}
+          onClick={() => setCariKoordTerbuka((v) => !v)}
         >
-          📄 Lembar Peta Saya
+          <Search size={19} />
+          <span>Cari koordinat atau objek</span>
         </button>
         <button
           type="button"
-          className={`partition-btn ${!petaKustomAktif ? "active" : ""}`}
-          onClick={() => {
-            if (petaKustomAktif) onTutupPetaKustom?.();
-          }}
-          title="Beralih ke Peta Dasar Online (Satelit / Google / Topo)"
+          className="temukan-map-picker"
+          aria-expanded={pilihPetaTerbuka}
+          onClick={() => setPilihPetaTerbuka((v) => !v)}
         >
-          🌐 Peta Dasar (Online)
+          <Layers size={18} />
+          <span>Peta saya</span>
         </button>
       </div>
-
-      {/* KOTAK PENCARIAN CEPAT DI DALAM PETA */}
-      {cariKoordTerbuka && (
-        <div className="avenza-map-search-bar">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Cari koordinat (mis. 2.857, 117.377) atau Tanjung Selor..."
-            value={cariKoordInput}
-            onChange={(e) => setCariKoordInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && cariKoordInput.trim()) {
-                const match = cariKoordInput.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
-                if (match) {
-                  setCenter({ lat: parseFloat(match[1]), lng: parseFloat(match[2]) });
-                  setCariKoordTerbuka(false);
-                } else if (/tanjung|selor|bulungan/i.test(cariKoordInput)) {
-                  setCenter({ lat: 2.857134, lng: 117.377556 });
-                  setCariKoordTerbuka(false);
-                }
-              }
+      {pilihPetaTerbuka && (
+        <section className="temukan-map-list" aria-label="Pilih peta tersimpan">
+          <div className="temukan-panel-title">
+            <strong>Pilih peta</strong>
+            <button type="button" aria-label="Tutup pilihan peta" onClick={() => setPilihPetaTerbuka(false)}>
+              <X size={18} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onTutupPetaKustom?.();
+              setPilihPetaTerbuka(false);
             }}
-          />
-          <button type="button" onClick={() => setCariKoordTerbuka(false)}>
-            <X size={16} />
+          >
+            <MapPin size={18} />
+            <span>
+              Peta dasar<small>Peta online dan medan 3D</small>
+            </span>
           </button>
-        </div>
+          {areaOffline.map((area) => (
+            <button
+              type="button"
+              key={area.id}
+              onClick={() => {
+                onPilihPetaKustom?.(area);
+                setPilihPetaTerbuka(false);
+              }}
+            >
+              <Layers size={18} />
+              <span>
+                {area.namaArea}
+                <small>{area.jenisFile || "Peta tersimpan"}</small>
+              </span>
+            </button>
+          ))}
+          {!areaOffline.length && <p>Belum ada peta tersimpan. Impor peta dari tab Pustaka.</p>}
+        </section>
+      )}
+      {cariKoordTerbuka && (
+        <section className="temukan-search-panel" aria-label="Pencarian peta">
+          <form
+            className="avenza-map-search-bar"
+            onSubmit={(e) => {
+              e.preventDefault();
+              cariKoordinat();
+            }}
+          >
+            <Search size={16} />
+            <input
+              autoFocus
+              aria-label="Koordinat atau nama objek"
+              placeholder="−6.1754, 106.8272 atau nama objek"
+              value={cariKoordInput}
+              onChange={(e) => {
+                setCariKoordInput(e.target.value);
+                setGalatPencarian("");
+              }}
+            />
+            <button type="submit">Cari</button>
+            <button type="button" aria-label="Tutup pencarian peta" onClick={() => setCariKoordTerbuka(false)}>
+              <X size={16} />
+            </button>
+          </form>
+          {galatPencarian && <p role="alert">{galatPencarian}</p>}
+          {cariKoordInput.trim() &&
+            dataSpasial
+              .filter((d) => d.judul.toLocaleLowerCase().includes(cariKoordInput.trim().toLocaleLowerCase()))
+              .slice(0, 8)
+              .map((d) => (
+                <button
+                  className="temukan-search-result"
+                  type="button"
+                  key={d.id}
+                  onClick={() => {
+                    if (d.koordinat[0]) setCenter(d.koordinat[0]);
+                    setObjekTerpilih(d);
+                    setCariKoordTerbuka(false);
+                  }}
+                >
+                  <MapPin size={16} />
+                  <span>
+                    {d.judul}
+                    <small>{d.jenisGeometri === "point" ? "Titik" : d.jenisGeometri === "line" ? "Jalur" : "Poligon"}</small>
+                  </span>
+                </button>
+              ))}
+        </section>
       )}
 
       {/* BANNER NAVIGASI GO-TO WAYPOINT JIKA AKTIF */}
@@ -1298,6 +1367,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <button
           type="button"
           className="avenza-gps-fab-btn"
+          disabled={!gpsPos && !petaKustomAktif}
           onClick={() => {
             if (gpsPos) {
               setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });

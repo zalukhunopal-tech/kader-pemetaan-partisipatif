@@ -5428,6 +5428,7 @@ label {
   font-size: 32px;
   z-index: 3;
   pointer-events: none;
+}
 
 /* =========================================================
    PENGINGAT KETIKA DATA TERLALU BESAR (UPLOAD MODAL)
@@ -5562,7 +5563,9 @@ label {
   object-fit: contain;
   background: #ffffff;
   border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    0 1px 3px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s ease;
 }
 
@@ -5679,4 +5682,341 @@ label {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Pustaka / Temukan: pustaka dokumen dan alat lapangan. */
+.pustaka-field {
+  --field-green: #287946;
+  color: #27332d;
+}
+.pustaka-field .avenza-segmented-wrap {
+  padding: 12px 16px 8px;
+}
+.pustaka-field .avenza-segmented-control {
+  height: 38px;
+  border-color: #287946;
+}
+.pustaka-field .avenza-segment-btn.active {
+  background: #287946;
+}
+.pustaka-field .avenza-filter-row {
+  padding: 8px 16px;
+  gap: 6px;
+  border: 0;
+}
+.pustaka-field .avenza-pill-select-wrap {
+  background: #f2f4f1;
+  border-color: transparent;
+}
+.pustaka-field .avenza-search-bar {
+  margin: 0 16px 12px;
+  padding: 10px 12px;
+  background: #f1f3f1;
+  border: 1px solid #e4e8e3;
+  border-radius: 8px;
+}
+.pustaka-field .avenza-search-bar input {
+  min-width: 0;
+  background: transparent;
+}
+.pustaka-field .avenza-basemap-banner-wrap {
+  padding: 0 16px;
+}
+.pustaka-field .avenza-basemap-banner {
+  border-radius: 10px;
+  min-height: 160px;
+  box-shadow: none;
+}
+.pustaka-terrain-badge {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  background: #fffef2;
+  color: #215d38;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.pustaka-field .avenza-buka-peta-btn {
+  background: #fff;
+  color: #236d40;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px #0002;
+}
+.pustaka-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 16px 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.pustaka-list-heading b {
+  margin-left: 6px;
+  border-radius: 12px;
+  padding: 2px 7px;
+  background: #eef2eb;
+  color: #67725f;
+  font-size: 11px;
+}
+.pustaka-list-heading > div {
+  display: flex;
+  gap: 4px;
+}
+.pustaka-list-heading button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: #788176;
+}
+.pustaka-list-heading button[aria-pressed="true"] {
+  color: #277745;
+  background: #eaf2e9;
+}
+.pustaka-field .avenza-map-list {
+  padding: 0 16px 100px;
+}
+.pustaka-field .avenza-map-row {
+  padding: 16px 0;
+  border-bottom: 1px solid #e8ece5;
+  gap: 14px;
+  background: #fff;
+}
+.pustaka-field .avenza-map-thumb-wrap {
+  width: 64px;
+  height: 72px;
+  border: 1px solid #e4e8e1;
+  border-radius: 5px;
+  background: #f5f6f2;
+  flex-shrink: 0;
+}
+.pustaka-field .avenza-map-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.pustaka-field .avenza-map-title {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 650;
+}
+.pustaka-field .avenza-map-meta {
+  font-size: 11px;
+  margin-top: 6px;
+  line-height: 1.7;
+}
+.pustaka-field .avenza-more-dots-btn {
+  min-width: 36px;
+  min-height: 40px;
+}
+.pustaka-field .pustaka-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+.pustaka-field .pustaka-grid .avenza-map-row {
+  position: relative;
+  flex-wrap: wrap;
+  padding: 12px;
+  border: 1px solid #e4e8e1;
+  border-radius: 8px;
+  align-content: start;
+}
+.pustaka-field .pustaka-grid .avenza-map-thumb-wrap {
+  width: 100%;
+  height: 130px;
+}
+.pustaka-field .pustaka-grid .avenza-map-info {
+  width: 100%;
+  flex: auto;
+  padding-right: 20px;
+}
+.pustaka-field .pustaka-grid .avenza-map-more-wrap {
+  position: absolute;
+  right: 2px;
+  bottom: 8px;
+}
+.pustaka-field .single-fab {
+  border-radius: 50%;
+  background: #ee6d20;
+  width: 58px;
+  height: 58px;
+  box-shadow: 0 4px 10px #0003;
+}
+.pustaka-field button:focus-visible,
+.temukan-field button:focus-visible,
+.pustaka-field [role="button"]:focus-visible {
+  outline: 3px solid #ed8c25;
+  outline-offset: 3px;
+}
+.temukan-field {
+  position: relative;
+  background: #f4f5f0;
+}
+.temukan-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e4e8e1;
+}
+.temukan-toolbar button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e4e8e1;
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 8px 12px;
+  background: #f4f5f2;
+  color: #52634e;
+  font-size: 12px;
+}
+.temukan-search-trigger {
+  flex: 1;
+  text-align: left;
+}
+.temukan-map-picker {
+  flex-shrink: 0;
+}
+.temukan-field .clean-canvas {
+  border-radius: 0;
+}
+.temukan-field .map-ctrl-btn {
+  border-radius: 8px;
+  background: #fff;
+  color: #405b42;
+  border: 1px solid #e0e5dc;
+  box-shadow: 0 2px 6px #0002;
+  width: 40px;
+  height: 40px;
+}
+.temukan-field .toggle-3d-btn {
+  background: #edf5e9;
+  color: #24683a;
+  border-color: #b7cfae;
+}
+.temukan-field .toggle-3d-btn.active-3d {
+  background: #287946;
+  color: white;
+}
+.temukan-field .map-coord-mini-pill {
+  background: #fffffff2;
+  color: #31422f;
+  border: 1px solid #dfe5da;
+  box-shadow: 0 1px 5px #0001;
+}
+.temukan-field .map-fab-record-trigger {
+  border-radius: 24px;
+  background: #ee6d20;
+  color: #fff;
+  padding: 13px 18px;
+  box-shadow: 0 3px 8px #0003;
+}
+.temukan-field .map-compact-record-pills {
+  border-radius: 12px;
+  background: #fff;
+  padding: 5px;
+  box-shadow: 0 2px 10px #0002;
+  flex-wrap: wrap;
+}
+.temukan-field .avenza-gps-fab-btn {
+  border-radius: 50%;
+  border: 1px solid #dce5d7;
+}
+.temukan-map-list,
+.temukan-search-panel {
+  background: #fff;
+  border-bottom: 1px solid #dfe5da;
+  max-height: 38vh;
+  overflow: auto;
+  padding: 10px 12px;
+}
+.temukan-map-list > button,
+.temukan-search-result {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  background: #fff;
+  color: #304b34;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid #eef1eb;
+}
+.temukan-map-list span,
+.temukan-search-result span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.temukan-map-list small,
+.temukan-search-result small {
+  display: block;
+  color: #7a8476;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.temukan-panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px 10px;
+}
+.temukan-panel-title button {
+  border: 0;
+  background: transparent;
+  padding: 6px;
+}
+.temukan-map-list p,
+.temukan-search-panel p {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #75532c;
+}
+.temukan-search-panel .avenza-map-search-bar {
+  position: static;
+  margin: 0;
+  box-shadow: none;
+}
+.temukan-search-panel input {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 380px) {
+  .temukan-map-picker span {
+    display: none;
+  }
+  .pustaka-field .avenza-filter-row {
+    padding-inline: 10px;
+  }
+  .pustaka-field .avenza-pill-select {
+    font-size: 11px;
+  }
+}
+.temukan-field .avenza-map-header-bar {
+  position: relative;
+  inset: auto;
+  flex-shrink: 0;
+}
+.temukan-field.avenza-custom-active {
+  padding-top: 0;
+}
+.temukan-field .map-coord-mini-pill {
+  max-width: 100%;
+}
+.temukan-field .map-coord-mini-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.temukan-field .avenza-gps-fab-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
