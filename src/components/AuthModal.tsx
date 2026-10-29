@@ -9,6 +9,7 @@ import {
   ubahKataSandi
 } from "../lib/auth";
 import { rahasiaUntukTampil } from "../lib/totp";
+import { useWallpaperLoginHarian } from "../lib/wallpaperLogin";
 import { KodeQrSvg } from "./KodeQrSvg";
 import { TombolInstal } from "./InstalAplikasi";
 import { AlertCircle, CheckCircle2, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone } from "lucide-react";
@@ -52,6 +53,9 @@ const gayaTautan: React.CSSProperties = {
 const gayaIkonKiri: React.CSSProperties = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" };
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
+  // Wallpaper harian otomatis dari Google Drive yang berganti tiap hari
+  const { urlGambar } = useWallpaperLoginHarian();
+
   // Halaman yang pertama kali terbuka selalu halaman login akun pengguna (kader / admin)
   const [mode, setMode] = useState<Mode>("login");
 
@@ -230,7 +234,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
         position: "fixed",
         inset: 0,
         zIndex: 999,
-        background: "linear-gradient(135deg, #022c22 0%, #064e3b 50%, #042f2e 100%)",
+        background: urlGambar
+          ? `linear-gradient(135deg, rgba(2, 44, 34, 0.88), rgba(4, 47, 46, 0.94)), url(${urlGambar}) center/cover no-repeat`
+          : "linear-gradient(135deg, #022c22 0%, #064e3b 50%, #042f2e 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -244,23 +250,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
           maxWidth: "440px",
           background: "#ffffff",
           borderRadius: "20px",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.4)",
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.45)",
           overflow: "hidden",
           margin: "auto"
         }}
       >
-        {/* HEADER BRANDING */}
+        {/* HEADER BRANDING DENGAN WALLPAPER HARIAN */}
         <div
           style={{
-            background: "linear-gradient(135deg, #064e3b, #0d7344)",
+            position: "relative",
+            backgroundImage: urlGambar
+              ? `linear-gradient(to bottom, rgba(2, 44, 34, 0.45) 0%, rgba(4, 47, 46, 0.85) 100%), url(${urlGambar})`
+              : "linear-gradient(135deg, #064e3b, #0d7344)",
+            backgroundColor: "#064e3b",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
             color: "#ffffff",
-            padding: "20px 16px 18px",
-            textAlign: "center"
+            padding: "24px 16px 20px",
+            textAlign: "center",
+            overflow: "hidden"
           }}
         >
-          <img src="./icon.svg" alt="" width={56} height={56} style={{ display: "block", margin: "0 auto 8px" }} />
-          <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>Titik Tapak</h2>
-          <p style={{ margin: 0, fontSize: "0.78rem", color: "#a7f3d0" }}>Pemetaan Partisipatif Masyarakat</p>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <img
+              src="./icon.svg"
+              alt=""
+              width={58}
+              height={58}
+              style={{
+                display: "block",
+                margin: "0 auto 8px",
+                filter: "drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6))"
+              }}
+            />
+            <h2
+              style={{
+                margin: "0 0 4px",
+                fontSize: "1.35rem",
+                fontWeight: 800,
+                color: "#ffffff",
+                letterSpacing: "0.02em",
+                textShadow: "0 2px 6px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.95)"
+              }}
+            >
+              Titik Tapak
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.82rem",
+                fontWeight: 600,
+                color: "#ecfdf5",
+                textShadow: "0 1px 4px rgba(0, 0, 0, 0.95)"
+              }}
+            >
+              Pemetaan Partisipatif Masyarakat
+            </p>
+          </div>
         </div>
 
         <div style={{ padding: "18px" }}>
