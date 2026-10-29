@@ -4,7 +4,8 @@ import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
 import { gdriveTerpasang, tujuanDrive } from "../lib/gdriveSync";
 import { muatSemuaAkun } from "../lib/auth";
 import { teksWilayah, wilayahLengkap } from "../lib/wilayah";
-import { CloudUpload, CheckCircle2, Clock, Download, Folder, Image as ImageIcon, X, MapPin } from "lucide-react";
+import { CloudUpload, CheckCircle2, Clock, Download, Folder, Image as ImageIcon, X, MapPin, Copy, Check, FileCode, ExternalLink } from "lucide-react";
+import { KODE_APPS_SCRIPT, MANIFES_APPS_SCRIPT } from "../lib/skripAppsScript";
 
 interface DatabaseSyncViewProps {
   dataSpasial: DataSpasialItem[];
@@ -43,6 +44,12 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
 
   // Modal Lightbox Preview Gambar
   const [previewFoto, setPreviewFoto] = useState<DataSpasialItem | null>(null);
+
+  // Modal Panduan & Salin Skrip Apps Script
+  const [bukaPanduanScript, setBukaPanduanScript] = useState<boolean>(false);
+  const [salinCodeGs, setSalinCodeGs] = useState<boolean>(false);
+  const [salinManifest, setSalinManifest] = useState<boolean>(false);
+  const [tabPanduan, setTabPanduan] = useState<"code" | "manifest">("code");
 
   const jmlLokal = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
   const sudahTersambung = gdriveTerpasang();
@@ -88,9 +95,65 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           <div
             id="gdrive-belum-aktif"
             className="alert-banner-success"
-            style={{ marginTop: 12, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
+            style={{
+              marginTop: 12,
+              background: "#fef3c7",
+              borderColor: "#f59e0b",
+              color: "#92400e",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px"
+            }}
           >
-            Unggahan ke Google Drive belum aktif di aplikasi ini. Data tetap aman di HP; hubungi admin.
+            <div>
+              Unggahan ke Google Drive belum aktif di aplikasi ini. Data tetap aman di HP; hubungi admin.
+            </div>
+            <button
+              type="button"
+              className="btn-outline-sm"
+              onClick={() => setBukaPanduanScript(true)}
+              style={{
+                fontSize: "0.8rem",
+                padding: "5px 11px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "#ffffff",
+                borderColor: "#d97706",
+                color: "#92400e",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: 600
+              }}
+            >
+              <FileCode size={14} />
+              Lihat & Salin File Code.gs
+            </button>
+          </div>
+        )}
+        {sudahTersambung && (
+          <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={() => setBukaPanduanScript(true)}
+              style={{
+                fontSize: "0.8rem",
+                color: "#059669",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: 0,
+                textDecoration: "underline"
+              }}
+            >
+              <FileCode size={13} />
+              Lihat Skrip Apps Script (Code.gs)
+            </button>
           </div>
         )}
         {antreanTanpaWilayah > 0 && (
@@ -488,6 +551,197 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                   Tutup
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Panduan & Salin Skrip Google Apps Script (Code.gs) */}
+      {bukaPanduanScript && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setBukaPanduanScript(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px"
+          }}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#ffffff",
+              borderRadius: "14px",
+              maxWidth: "680px",
+              width: "100%",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.25)"
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#f8fafc"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ background: "#d1fae5", padding: "7px", borderRadius: "8px", color: "#065f46", display: "flex" }}>
+                  <FileCode size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", color: "#0f172a" }}>Skrip Google Apps Script (Code.gs)</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+                    Berkas di proyek: <code>apps-script/Code.gs</code>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBukaPanduanScript(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: 4 }}
+                title="Tutup"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "18px 20px", overflowY: "auto", fontSize: "0.88rem", color: "#334155" }}>
+              <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px" }}>
+                <strong style={{ color: "#065f46", display: "block", marginBottom: "4px" }}>💡 Panduan Singkat Pemasangan:</strong>
+                <ol style={{ margin: 0, paddingLeft: "18px", lineHeight: "1.6", color: "#047857", fontSize: "0.84rem" }}>
+                  <li>
+                    Buka <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline", fontWeight: 600, color: "#047857" }}>script.google.com</a> dengan akun Google Anda, buat <b>Proyek baru</b>.
+                  </li>
+                  <li>Klik tombol hijau <b>Salin Seluruh Kode</b> di bawah, lalu tempel ke file <code>Code.gs</code> di Apps Script.</li>
+                  <li>Pilih fungsi <b>pasangTitikTapak</b> (atau <code>pasangGeoKader</code>) lalu klik <b>Jalankan</b> (izinkan akses Drive).</li>
+                  <li>Klik <b>Terapkan &gt; Deployment baru &gt; Aplikasi web</b> (Akses: <i>Siapa saja</i>). Salin URL <code>/exec</code> dan token dari log.</li>
+                </ol>
+              </div>
+
+              {/* Tabs */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setTabPanduan("code")}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "6px",
+                    fontSize: "0.84rem",
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                    background: tabPanduan === "code" ? "#0d7344" : "#f1f5f9",
+                    color: tabPanduan === "code" ? "#ffffff" : "#475569"
+                  }}
+                >
+                  📄 File: apps-script/Code.gs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTabPanduan("manifest")}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "6px",
+                    fontSize: "0.84rem",
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                    background: tabPanduan === "manifest" ? "#0d7344" : "#f1f5f9",
+                    color: tabPanduan === "manifest" ? "#ffffff" : "#475569"
+                  }}
+                >
+                  ⚙️ File: apps-script/appsscript.json
+                </button>
+              </div>
+
+              {/* Actions & Code Box */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                  {tabPanduan === "code" ? "Skrip penerima data Titik Tapak (400 baris)" : "Manifes zona waktu Asia/Jakarta"}
+                </span>
+                <button
+                  type="button"
+                  className="btn-primary-sm"
+                  onClick={() => {
+                    const teks = tabPanduan === "code" ? KODE_APPS_SCRIPT : MANIFES_APPS_SCRIPT;
+                    navigator.clipboard.writeText(teks);
+                    if (tabPanduan === "code") {
+                      setSalinCodeGs(true);
+                      setTimeout(() => setSalinCodeGs(false), 2000);
+                    } else {
+                      setSalinManifest(true);
+                      setTimeout(() => setSalinManifest(false), 2000);
+                    }
+                  }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "6px 12px" }}
+                >
+                  {(tabPanduan === "code" ? salinCodeGs : salinManifest) ? (
+                    <>
+                      <Check size={14} /> Berhasil Disalin!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} /> Salin Seluruh Kode
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <pre
+                style={{
+                  background: "#0f172a",
+                  color: "#e2e8f0",
+                  padding: "14px",
+                  borderRadius: "8px",
+                  fontSize: "0.78rem",
+                  lineHeight: "1.5",
+                  maxHeight: "320px",
+                  overflowY: "auto",
+                  margin: 0,
+                  fontFamily: "monospace"
+                }}
+              >
+                <code>{tabPanduan === "code" ? KODE_APPS_SCRIPT : MANIFES_APPS_SCRIPT}</code>
+              </pre>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "12px 20px",
+                borderTop: "1px solid #e2e8f0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#f8fafc"
+              }}
+            >
+              <a
+                href="https://script.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "0.84rem", color: "#0d7344", fontWeight: 600 }}
+              >
+                Buka script.google.com <ExternalLink size={13} />
+              </a>
+              <button type="button" className="btn-outline-sm" onClick={() => setBukaPanduanScript(false)}>
+                Tutup
+              </button>
             </div>
           </div>
         </div>

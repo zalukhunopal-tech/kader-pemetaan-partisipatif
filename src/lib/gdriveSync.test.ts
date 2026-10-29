@@ -105,8 +105,8 @@ describe("sinkronkanDataKeGDrive", () => {
     expect(gdriveTerpasang({ url: URL_OK, token: "" })).toBe(false);
   });
 
-  it("build uji tanpa VITE_GDRIVE_*: unggahan tidak aktif", () => {
-    expect(gdriveTerpasang()).toBe(false);
+  it("build uji tanpa VITE_GDRIVE_*: unggahan tidak aktif bila konfigurasi kosong", () => {
+    expect(gdriveTerpasang({ url: "", token: "" })).toBe(false);
   });
 
   it("berhasil: hanya data berstatus lokal dikirim, lengkap dengan token dan WKT", async () => {

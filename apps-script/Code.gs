@@ -89,6 +89,11 @@ function pasangTitikTapak() {
   return { folder: induk.getUrl(), spreadsheet: ss.getUrl(), token: token };
 }
 
+/** Alias kompatibilitas: memanggil pasangTitikTapak */
+function pasangGeoKader() {
+  return pasangTitikTapak();
+}
+
 /** Membuka URL Web App di browser menampilkan status, untuk memeriksa pemasangan */
 function doGet() {
   return balas_({ sukses: true, pesan: "Penerima data Titik Tapak aktif." });
