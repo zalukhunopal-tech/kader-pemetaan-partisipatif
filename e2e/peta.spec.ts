@@ -125,6 +125,10 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   expect(await sampai(async () => /-1\.61/.test(await p.locator(".map-coord-mini-pill").first().innerText()), 8000)).toBe(true);
   await p.locator(".map-fab-record-trigger").click();
   await p.locator(".compact-rec-pill", { hasText: "Titik" }).click();
+  await p.getByRole("button", { name: "Batal" }).click();
+  await expect(p.locator(".map-fab-record-trigger")).toBeVisible();
+  await p.locator(".map-fab-record-trigger").click();
+  await p.locator(".compact-rec-pill", { hasText: "Titik" }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Pohon Meranti uji");
   await p.locator(".modal-form button[type=submit]").click();
   expect(await sampai(async () => /Pohon Meranti uji/.test(await teksToast(p)))).toBe(true);

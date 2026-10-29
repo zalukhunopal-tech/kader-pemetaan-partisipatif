@@ -890,7 +890,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           panjangDraftKm={panjangDraftKm}
           luasDraftHa={luasDraftHa}
           onSimpan={handleSimpanForm}
-          onTutup={() => setBukaModalForm(false)}
+          onTutup={() => {
+            setBukaModalForm(false);
+            if (modeRekam === "point") {
+              setModeRekam(null);
+              setTitikDraft([]);
+            }
+          }}
         />
       )}
 
