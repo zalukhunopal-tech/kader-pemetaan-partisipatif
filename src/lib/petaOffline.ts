@@ -49,20 +49,14 @@ export interface SumberTile {
 
 const env = import.meta.env;
 
-/** Citra Satelit Resolusi Tinggi Esri World Imagery (Maxar, GeoEye, Earthstar Geographics, Airbus, zoom hingga level 19) */
-const ESRI_WORLD_IMAGERY = [
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-];
-
 const EOX_S2_CADANGAN = [
-  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg",
-  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2016_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg",
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2016_3857/default/g/{z}/{y}/{x}.jpg"
 ];
 
 function sumberSatelit(): SumberTile {
   const kustom = env.VITE_TILE_URL_SATELIT;
-  const izinUnduh = env.VITE_TILE_UNDUH_SATELIT === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_SATELIT !== "false");
+  const izinUnduh = !!kustom && env.VITE_TILE_UNDUH_SATELIT === "true";
   if (kustom) {
     return {
       nama: "Satelit",
@@ -78,16 +72,16 @@ function sumberSatelit(): SumberTile {
     };
   }
   return {
-    nama: "Satelit Resolusi Tinggi (Esri)",
+    nama: "Sentinel-2 (EOX, 2016)",
     tersedia: true,
-    template: ESRI_WORLD_IMAGERY[0],
-    templateCadangan: [ESRI_WORLD_IMAGERY[1], ...EOX_S2_CADANGAN],
-    atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USGS, AeroGRID, IGN, dan Komunitas GIS",
-    tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
-    lisensi: "Esri World Imagery (citra satelit resolusi tinggi Maxar/Earthstar, tajam hingga zoom level 19).",
-    zoomMaks: 19,
-    bolehUnduh: izinUnduh,
-    alasanTidakBoleh: izinUnduh ? undefined : "Layanan tile Esri untuk dipakai langsung secara online.",
+    template: EOX_S2_CADANGAN[0],
+    templateCadangan: EOX_S2_CADANGAN.slice(1),
+    atribusi: "Sentinel-2 cloudless 2016 © EOX IT Services GmbH (CC BY 4.0)",
+    tautanLisensi: "https://s2maps.eu/",
+    lisensi: "Sentinel-2 cloudless 2016, CC BY 4.0. Tile publik untuk dilihat online.",
+    zoomMaks: 13,
+    bolehUnduh: false,
+    alasanTidakBoleh: "Tile publik EOX untuk dilihat online; gunakan penyedia berlisensi untuk offline.",
     rataKbPerTile: 25
   };
 }
@@ -99,7 +93,7 @@ const kunciEsri = (env.VITE_ESRI_API_KEY ?? "").trim();
  * Legal lewat akun ArcGIS Location Platform: kuota gratis 2 juta tile basemap per bulan, wajib atribusi.
  */
 function sumberEsri(): SumberTile {
-  const izinUnduh = env.VITE_TILE_UNDUH_ESRI === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_ESRI !== "false");
+  const izinUnduh = false;
   return {
     nama: "Satelit Esri",
     tersedia: kunciEsri !== "",
@@ -158,7 +152,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
     tautanLisensi: "https://www.openstreetmap.org/copyright",
     lisensi: "Data ODbL. Server tile OSM boleh dipakai untuk melihat peta dengan atribusi, tidak untuk diunduh massal.",
     zoomMaks: 19,
-    bolehUnduh: env.VITE_TILE_UNDUH_OSM === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_OSM !== "false"),
+    bolehUnduh: !!env.VITE_TILE_URL_OSM && env.VITE_TILE_UNDUH_OSM === "true",
     alasanTidakBoleh: "Kebijakan tile OpenStreetMap melarang pengunduhan massal dari tile.openstreetmap.org.",
     rataKbPerTile: 14
   },
@@ -172,7 +166,7 @@ export const SUMBER_TILE: Record<BasemapTile, SumberTile> = {
     tautanLisensi: "https://opentopomap.org/about",
     lisensi: "CC-BY-SA dengan atribusi. Untuk dilihat online; pemakaian besar perlu menghubungi OpenTopoMap.",
     zoomMaks: 17,
-    bolehUnduh: env.VITE_TILE_UNDUH_TOPO === "true" || (env.MODE !== "test" && env.VITE_TILE_UNDUH_TOPO !== "false"),
+    bolehUnduh: !!env.VITE_TILE_URL_TOPO && env.VITE_TILE_UNDUH_TOPO === "true",
     alasanTidakBoleh: "Layanan OpenTopoMap publik tidak menjamin izin pengunduhan massal untuk pemakaian offline.",
     rataKbPerTile: 28
   }

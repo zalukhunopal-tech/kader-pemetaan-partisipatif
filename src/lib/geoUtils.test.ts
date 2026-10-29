@@ -172,7 +172,31 @@ describe("ekspor tidak memalsukan elevasi dan menetralkan CSV Formula Injection"
     expect(sanitasiFormulaCsv("-2+3")).toBe("'-2+3");
     expect(sanitasiFormulaCsv("@SUM(1,2)")).toBe("'@SUM(1,2)");
     expect(sanitasiFormulaCsv("-0.9475")).toBe("-0.9475");
-    const csv = eksporKeCSV([{ ...tanpa, judul: "=HYPERLINK(\"https://jahat.tld\")" }]);
-    expect(csv).toContain("\"'=HYPERLINK(\"\"https://jahat.tld\"\")\"");
+    const csv = eksporKeCSV([{ ...tanpa, judul: '=HYPERLINK("https://jahat.tld")' }]);
+    expect(csv).toContain('"\'=HYPERLINK(""https://jahat.tld"")"');
+  });
+});
+
+describe("luas sferis lapangan", () => {
+  it("sesuai luas analitis persegi lintang tinggi dan tidak bergantung arah sudut", () => {
+    const points = [
+      { lat: 60, lng: 110 },
+      { lat: 60, lng: 111 },
+      { lat: 61, lng: 111 },
+      { lat: 61, lng: 110 }
+    ];
+    const expected = (((6371008.8 ** 2 * Math.PI) / 180) * (Math.sin((61 * Math.PI) / 180) - Math.sin((60 * Math.PI) / 180))) / 10000;
+    expect(hitungLuasPoligonHa(points)).toBeCloseTo(expected, 2);
+    expect(hitungLuasPoligonHa([...points].reverse())).toBe(hitungLuasPoligonHa(points));
+  });
+  it("menghitung bidang yang melintasi antimeridian dengan rentang pendek", () => {
+    const points = [
+      { lat: 0, lng: 179.9 },
+      { lat: 0, lng: -179.9 },
+      { lat: 0.1, lng: -179.9 },
+      { lat: 0.1, lng: 179.9 }
+    ];
+    expect(hitungLuasPoligonHa(points)).toBeGreaterThan(24000);
+    expect(hitungLuasPoligonHa(points)).toBeLessThan(25000);
   });
 });

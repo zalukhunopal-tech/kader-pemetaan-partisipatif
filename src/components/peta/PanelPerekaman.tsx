@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, Pause, Play, Plus, Radio, X } from "lucide-react";
+import { Check, Pause, Play, Plus, Radio, Undo2, X } from "lucide-react";
 import { JenisGeometri } from "../../types";
 import { StatePerekamLatar, durasiRekamMs, formatDurasi, perekamLatar } from "../../lib/perekamLatar";
 
@@ -47,9 +47,19 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
       </div>
     </div>
 
+    {rekamLatar.galat && <span role="alert">{rekamLatar.galat}</span>}
     <div className="recording-actions">
       <button type="button" className="btn-tool" onClick={onTambahTitik} title="Tambah titik dari bidikan tengah peta">
         <Plus size={14} /> +Titik
+      </button>
+      <button
+        type="button"
+        className="btn-tool"
+        disabled={!jumlahTitik}
+        onClick={() => perekamLatar.hapusTitikTerakhir()}
+        title="Hapus titik terakhir; jeda GPS agar tidak menambah titik otomatis"
+      >
+        <Undo2 size={14} /> Urungkan
       </button>
       <button
         type="button"

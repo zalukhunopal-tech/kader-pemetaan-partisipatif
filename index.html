@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://tile.googleapis.com https://*.arcgis.com https://*.arcgisonline.com https://tiles.maps.eox.at https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://tile.uji.example; object-src 'none'; base-uri 'self'; form-action 'self';"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' blob: ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://tile.googleapis.com https://*.arcgis.com https://*.arcgisonline.com https://tiles.maps.eox.at https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://tile.uji.example https://tile.openstreetmap.org https://elevation-tiles-prod.s3.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self';"
     />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png" />
