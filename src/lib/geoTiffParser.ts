@@ -33,9 +33,6 @@ const GEOKEY_GEOG_CITATION = 2049;
 const GEOKEY_PROJECTED_CS_TYPE = 3072;
 const GEOKEY_PCS_CITATION = 3073;
 const GEOKEY_PROJ_NAT_ORIGIN_LONG = 3080;
-const GEOKEY_PROJ_NAT_ORIGIN_LAT = 3081;
-const GEOKEY_PROJ_FALSE_EASTING = 3082;
-const GEOKEY_PROJ_FALSE_NORTHING = 3083;
 
 /**
  * Membaca buffer biner GeoTIFF (Little Endian atau Big Endian) dan mengekstrak:
@@ -97,7 +94,7 @@ export function parseGeoTiffBuffer(buffer: ArrayBuffer | Uint8Array): HasilDetek
   let geoAsciiParams = "";
 
   // Helper membaca nilai berdasarkan tipe TIFF
-  function bacaNilaiTag(tipe: number, count: number, valOffset: number): any {
+  function bacaNilaiTag(tipe: number, count: number, valOffset: number): string | number[] | null {
     if (valOffset + count > bytes.length && tipe !== 3 && tipe !== 4) return null;
     switch (tipe) {
       case 2: {
@@ -174,17 +171,23 @@ export function parseGeoTiffBuffer(buffer: ArrayBuffer | Uint8Array): HasilDetek
       const v = bacaNilaiTag(tipe, 1, offsetUntukBaca);
       imageLength = Array.isArray(v) ? v[0] : Number(v) || 0;
     } else if (tag === TAG_MODEL_PIXEL_SCALE) {
-      pixelScale = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      const v = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      pixelScale = Array.isArray(v) ? v : null;
     } else if (tag === TAG_MODEL_TIEPOINT) {
-      tiepoint = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      const v = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      tiepoint = Array.isArray(v) ? v : null;
     } else if (tag === TAG_MODEL_TRANSFORMATION) {
-      modelTransform = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      const v = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      modelTransform = Array.isArray(v) ? v : null;
     } else if (tag === TAG_GEO_KEY_DIRECTORY) {
-      geoKeyDirRaw = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      const v = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      geoKeyDirRaw = Array.isArray(v) ? v : null;
     } else if (tag === TAG_GEO_DOUBLE_PARAMS) {
-      geoDoubleParams = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      const v = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      geoDoubleParams = Array.isArray(v) ? v : null;
     } else if (tag === TAG_GEO_ASCII_PARAMS) {
-      geoAsciiParams = bacaNilaiTag(tipe, count, offsetUntukBaca) || "";
+      const v = bacaNilaiTag(tipe, count, offsetUntukBaca);
+      geoAsciiParams = typeof v === "string" ? v : "";
     }
 
     curOffset += entrySize;
@@ -210,7 +213,7 @@ export function parseGeoTiffBuffer(buffer: ArrayBuffer | Uint8Array): HasilDetek
           geoKeys[keyId] = geoDoubleParams[valOffset];
         }
       } else if (tagLoc === TAG_GEO_ASCII_PARAMS && geoAsciiParams) {
-        let str = geoAsciiParams.slice(valOffset, valOffset + count).replace(/\|/g, "").trim();
+        const str = geoAsciiParams.slice(valOffset, valOffset + count).replace(/\|/g, "").trim();
         geoKeys[keyId] = str;
       }
     }
@@ -283,10 +286,10 @@ export function parseGeoTiffBuffer(buffer: ArrayBuffer | Uint8Array): HasilDetek
   }
 
   // 7. Hitung Bounding Box (Model Coordinates)
-  let minModelX = 0;
-  let maxModelX = 0;
-  let minModelY = 0;
-  let maxModelY = 0;
+  let minModelX: number;
+  let maxModelX: number;
+  let minModelY: number;
+  let maxModelY: number;
 
   const w = imageWidth || 1000;
   const h = imageLength || 1000;
@@ -330,10 +333,10 @@ export function parseGeoTiffBuffer(buffer: ArrayBuffer | Uint8Array): HasilDetek
   }
 
   // 8. Transformasi koordinat model ke WGS 84 geografis (Lat, Lng)
-  let minLat = 0;
-  let maxLat = 0;
-  let minLng = 0;
-  let maxLng = 0;
+  let minLat: number;
+  let maxLat: number;
+  let minLng: number;
+  let maxLng: number;
 
   // Deteksi otomatis jika koordinat model sudah dalam derajat geografis
   const tampakGeografis =
