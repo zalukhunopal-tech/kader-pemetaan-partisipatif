@@ -55,8 +55,20 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
                 <span className="badge-kategori">
                   {t.jenisTargetGeometri.toUpperCase()} • {t.kategoriTarget}
                 </span>
-                <span className={`badge-sync ${t.status === "selesai" ? "status-terverifikasi" : "status-tersinkron"}`}>
-                  {t.status === "selesai" ? "✓ Selesai" : "⏳ Aktif"}
+                <span
+                  className={`badge-sync ${
+                    t.status === "selesai"
+                      ? "status-terverifikasi"
+                      : t.status === "menunggu_verifikasi"
+                        ? "status-lokal"
+                        : "status-tersinkron"
+                  }`}
+                >
+                  {t.status === "selesai"
+                    ? "✓ Selesai"
+                    : t.status === "menunggu_verifikasi"
+                      ? "⏳ Menunggu Verifikasi Admin"
+                      : "⏳ Aktif"}
                 </span>
               </div>
 
@@ -83,9 +95,9 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
                 >
                   <MapPin size={14} /> Buka Lokasi Acuan di Peta
                 </button>
-                {t.status !== "selesai" && (
+                {t.status === "aktif" && (
                   <button type="button" className="btn-outline-sm" onClick={() => onTandaiTugasSelesai(t.id)}>
-                    <CheckCircle2 size={14} /> Tandai Selesai
+                    <CheckCircle2 size={14} /> Ajukan Selesai
                   </button>
                 )}
               </div>

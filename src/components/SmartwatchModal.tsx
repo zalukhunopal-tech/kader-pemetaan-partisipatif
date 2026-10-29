@@ -40,6 +40,19 @@ interface BluetoothPerangkat {
   addEventListener?: (jenis: string, fn: () => void) => void;
 }
 
+/** Filter perangkat BLE khusus jam tangan pintar/kebugaran (menghindari acceptAllDevices: true) */
+export const FILTER_BLUETOOTH_SMARTWATCH = [
+  { services: ["battery_service"] },
+  { services: ["heart_rate"] },
+  { namePrefix: "Garmin" },
+  { namePrefix: "Amazfit" },
+  { namePrefix: "Coros" },
+  { namePrefix: "Suunto" },
+  { namePrefix: "Galaxy" },
+  { namePrefix: "Watch" },
+  { namePrefix: "Smartwatch" }
+];
+
 interface WebBluetooth {
   requestDevice: (opts: Record<string, unknown>) => Promise<BluetoothPerangkat>;
 }
@@ -88,7 +101,7 @@ export const SmartwatchModal: React.FC<SmartwatchModalProps> = ({ dataSpasial, p
     setStatusBt("menyambungkan");
     try {
       const device = await navBt.bluetooth.requestDevice({
-        acceptAllDevices: true,
+        filters: FILTER_BLUETOOTH_SMARTWATCH,
         optionalServices: ["battery_service", "generic_access", "heart_rate"]
       });
       if (!device.gatt) throw new Error("perangkat tidak menyediakan GATT");

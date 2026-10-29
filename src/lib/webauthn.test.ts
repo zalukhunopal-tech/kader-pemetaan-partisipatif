@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { ALG_ES256, ALG_RS256, dariBase64Url, derKeMentah, keBase64Url, verifikasiAsersi } from "./webauthn";
+import { ALG_ES256, ALG_RS256, bacaSignCount, dariBase64Url, derKeMentah, keBase64Url, verifikasiAsersi } from "./webauthn";
 
 const enc = new TextEncoder();
 const ASAL = "https://geokader.contoh.id";
@@ -20,16 +20,16 @@ function mentahKeDer(mentah: Uint8Array): Uint8Array {
   return Uint8Array.from([0x30, r.length + s.length, ...r, ...s]);
 }
 
-function dataAutentikator(bendera: number, rp = RP): Uint8Array {
+function dataAutentikator(bendera: number, rp = RP, signCount = 7): Uint8Array {
   const ad = new Uint8Array(37);
   ad.set(sha256(enc.encode(rp)), 0);
   ad[32] = bendera;
-  ad.set([0, 0, 0, 7], 33); // penghitung tanda tangan
+  new DataView(ad.buffer).setUint32(33, signCount, false);
   return ad;
 }
 
 async function buatAsersi(
-  opsi: { alg?: number; bendera?: number; jenis?: string; asal?: string; rp?: string; tantanganLain?: boolean } = {}
+  opsi: { alg?: number; bendera?: number; jenis?: string; asal?: string; rp?: string; tantanganLain?: boolean; signCount?: number } = {}
 ) {
   const alg = opsi.alg ?? ALG_ES256;
   const pasangan =
@@ -46,7 +46,7 @@ async function buatAsersi(
   const dataKlienJson = enc.encode(
     JSON.stringify({ type: opsi.jenis ?? "webauthn.get", challenge: keBase64Url(dikirim), origin: opsi.asal ?? ASAL })
   );
-  const ad = dataAutentikator(opsi.bendera ?? 0x05, opsi.rp);
+  const ad = dataAutentikator(opsi.bendera ?? 0x05, opsi.rp, opsi.signCount ?? 7);
   const pesan = new Uint8Array([...ad, ...sha256(dataKlienJson)]);
   const ttd =
     alg === ALG_ES256
@@ -83,6 +83,14 @@ describe("verifikasi sidik jari / wajah (WebAuthn)", () => {
     const lain = await buatAsersi();
     expect(await verifikasiAsersi({ ...a, kunciPublikSpki: lain.kunciPublikSpki })).toBe(false);
     expect(await verifikasiAsersi({ ...a, alg: -8 })).toBe(false);
+  });
+
+  it("mendeteksi kloning/replay autentikator lewat signCount (bacaSignCount & signCountTerakhir)", async () => {
+    const a = await buatAsersi({ signCount: 10 });
+    expect(bacaSignCount(a.dataAutentikator)).toBe(10);
+    expect(await verifikasiAsersi({ ...a, signCountTerakhir: 9 })).toBe(true);
+    expect(await verifikasiAsersi({ ...a, signCountTerakhir: 10 })).toBe(false);
+    expect(await verifikasiAsersi({ ...a, signCountTerakhir: 15 })).toBe(false);
   });
 
   it("DER ke r||s mentah, termasuk bilangan berawalan nol dan DER rusak", () => {

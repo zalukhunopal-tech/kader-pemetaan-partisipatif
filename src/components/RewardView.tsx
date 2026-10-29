@@ -40,6 +40,8 @@ import {
   FileText
 } from "lucide-react";
 
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 interface RewardViewProps {
   dataSpasial: DataSpasialItem[];
   profil: ProfilKader;
@@ -306,6 +308,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
     if (!canvas || !sertifikatSaya) return;
     lukisSertifikatKeCanvas(canvas, sertifikatTampil, fotoElement, logoImagesMap, ttdImagesMap);
     const dataUrl = canvas.toDataURL("image/png");
+    if (!dataUrl.startsWith("data:image/png;base64,")) return;
 
     const win = window.open("", "_blank");
     if (!win) {
@@ -319,7 +322,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Cetak Sertifikat - ${sertifikatTampil.namaKader}</title>
+          <title>${escapeHtml(`Cetak Sertifikat - ${sertifikatTampil.namaKader}`)}</title>
           <style>
             @page {
               size: A4 landscape;

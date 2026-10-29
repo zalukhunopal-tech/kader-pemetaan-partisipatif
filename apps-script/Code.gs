@@ -18,14 +18,18 @@
  * Nama berkas = nama akun pembuat, nama data (judul objek), bulan dan tahun perekaman. Wilayah diambil dari
  * akun pembuat yang diisi admin; tingkat yang kosong masuk folder Wilayah_Belum_Diisi.
  *
- * Penyimpanan idempoten: data dengan ID yang sama diperbarui, bukan digandakan, sehingga pengiriman ulang
- * setelah gangguan jaringan aman. Bila nama atau wilayah data berubah, data dipindah ke berkas barunya.
+ * Penyimpanan idempoten & diperkeras (hardened):
+ * - Perbandingan token waktu-tetap (constant-time)
+ * - Pencegahan timpa lintas kader (anti-IDOR berdasarkan ID_Kader)
+ * - Sanitasi formula spreadsheet (mencegah CSV/Spreadsheet Formula Injection pada sel berawalan =,+,-,@)
+ * - Batas ukuran blob foto (maksimal 2 MB per foto)
  */
 
 var NAMA_FOLDER_INDUK = "Titik_Tapak_Database";
 var NAMA_SPREADSHEET = "Master_Data_Titik_Tapak";
 var NAMA_TAB = "Data_Spasial";
 var BELUM_DIISI = "Wilayah_Belum_Diisi";
+var BATAS_FOTO_BYTE = 2 * 1024 * 1024;
 var NAMA_BULAN = [
   "januari",
   "februari",
@@ -99,6 +103,30 @@ function doGet() {
   return balas_({ sukses: true, pesan: "Penerima data Titik Tapak aktif." });
 }
 
+/** Perbandingan waktu-tetap agar token tidak dapat ditebak karakter demi karakter lewat selisih waktu */
+function samaWaktuTetap_(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  var selisih = 0;
+  for (var i = 0; i < a.length; i++) {
+    selisih |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return selisih === 0;
+}
+
+/** Menetralkan awalan formula berbahaya (=, +, -, @, tab, CR) agar tidak dieksekusi di Google Sheets */
+function sanitasiSel_(nilai) {
+  if (nilai === undefined || nilai === null) return "";
+  if (typeof nilai === "number") return nilai;
+  var s = String(nilai);
+  if (/^[=+\-@]/.test(s) && !/^-[0-9]+(\.[0-9]+)?$/.test(s)) {
+    return "'" + s;
+  }
+  if (/^[\t\r]/.test(s)) {
+    return "'" + s;
+  }
+  return s;
+}
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
@@ -112,7 +140,7 @@ function doPost(e) {
         pesan: "TITIK_TAPAK_TOKEN belum diatur. Jalankan fungsi pasangTitikTapak sekali di editor Apps Script."
       });
     }
-    if (body.token !== tokenTersimpan) {
+    if (!samaWaktuTetap_(body.token, tokenTersimpan)) {
       return balas_({ sukses: false, pesan: "Token tidak cocok. Samakan VITE_GDRIVE_TOKEN aplikasi dengan token dari pasangTitikTapak." });
     }
 
@@ -166,10 +194,21 @@ function simpanRekaman_(r, fitur, konteks) {
   var baris = konteks.barisAda[id];
   var lama = baris ? konteks.sheet.getRange(baris, 1, 1, KOLOM.length).getValues()[0] : null;
 
-  // Foto lebih dulu: foto rusak menggagalkan data ini sebelum ada yang ditulis ke berkas GeoJSON
+  // Cegah penimpaan data lintas kader (Anti-IDOR)
+  if (lama) {
+    var idKaderLama = String(lama[K.ID_Kader] || "");
+    if (idKaderLama && r.idKader && idKaderLama !== String(r.idKader)) {
+      throw new Error("ID data milik kader lain tidak boleh ditimpa.");
+    }
+  }
+
+  // Foto lebih dulu: foto rusak atau terlalu besar menggagalkan data ini sebelum ada yang ditulis ke berkas GeoJSON
   var fotoUrl = lama ? String(lama[K.Tautan_Foto_Drive] || "") : "";
   if (!fotoUrl && r.fotoBase64 && String(r.fotoBase64).indexOf("base64,") !== -1) {
     var bytes = Utilities.base64Decode(String(r.fotoBase64).split("base64,")[1]);
+    if (bytes.length > BATAS_FOTO_BYTE) {
+      throw new Error("Ukuran foto melebihi batas 2 MB.");
+    }
     var namaFoto = nama + "_foto_" + nomorFotoBerikut_(folderDesa, nama) + ".jpg";
     fotoUrl = folderDesa.createFile(Utilities.newBlob(bytes, "image/jpeg", namaFoto)).getUrl();
   }
@@ -181,27 +220,27 @@ function simpanRekaman_(r, fitur, konteks) {
   // Status yang diubah admin langsung di spreadsheet tidak ditimpa saat data dikirim ulang
   var status = lama ? String(lama[K.Status_Verifikasi] || "Tersinkron_GDrive") : "Tersinkron_GDrive";
   var nilai = [
-    id,
-    r.idKader,
-    r.namaKader,
-    w.provinsi,
-    w.kabupaten,
-    w.kecamatan,
-    w.desa,
-    r.jenisGeometri,
-    r.kategori,
-    r.judul,
-    r.namaLokal,
-    r.namaIlmiah,
+    sanitasiSel_(id),
+    sanitasiSel_(r.idKader),
+    sanitasiSel_(r.namaKader),
+    sanitasiSel_(w.provinsi),
+    sanitasiSel_(w.kabupaten),
+    sanitasiSel_(w.kecamatan),
+    sanitasiSel_(w.desa),
+    sanitasiSel_(r.jenisGeometri),
+    sanitasiSel_(r.kategori),
+    sanitasiSel_(r.judul),
+    sanitasiSel_(r.namaLokal),
+    sanitasiSel_(r.namaIlmiah),
     r.jumlahIndividu,
     r.panjangKm,
     r.luasHa,
-    r.wkt,
-    nama,
+    sanitasiSel_(r.wkt),
+    sanitasiSel_(nama),
     berkas.getUrl(),
     fotoUrl,
-    status,
-    r.createdAt,
+    sanitasiSel_(status),
+    sanitasiSel_(r.createdAt),
     konteks.waktu,
     berkas.getId()
   ];
@@ -292,9 +331,11 @@ function simpanFitur_(folder, namaBerkas, id, fitur) {
 function hapusFiturLama_(idBerkas, id) {
   try {
     var berkas = DriveApp.getFileById(idBerkas);
+    if (!/.geojson$/i.test(berkas.getName())) return;
     var koleksi = JSON.parse(berkas.getBlob().getDataAsString());
+    if (!koleksi || koleksi.type !== "FeatureCollection" || !Array.isArray(koleksi.features)) return;
     var sisa = [];
-    for (var i = 0; i < (koleksi.features || []).length; i++) {
+    for (var i = 0; i < koleksi.features.length; i++) {
       if (String(koleksi.features[i].id) !== id) sisa.push(koleksi.features[i]);
     }
     if (sisa.length === 0) {

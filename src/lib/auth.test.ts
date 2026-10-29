@@ -22,6 +22,7 @@ import {
   muatSesiPengguna,
   selesaikanPendaftaranTotp,
   siapkanAkunUji,
+  sisaMasaTotp,
   ubahKataSandi,
   ubahWilayahAkunOlehAdmin,
   validasiKataSandi,
@@ -516,7 +517,7 @@ describe("gerbang admin: lapis pengaman kedua", () => {
   });
 });
 
-describe("peran dan sesi (K1/T5)", () => {
+describe("peran, sesi, dan anti-tampering (K1/T5/VULN-03)", () => {
   it("mengubah peran di sesi menjadi admin tidak berhasil (sesi dicek ke data akun)", async () => {
     const admin = await siapkanAdmin();
     const kader = await buatKaderLengkap(admin.sesi);
@@ -525,6 +526,31 @@ describe("peran dan sesi (K1/T5)", () => {
     localStorage.setItem("geokader_current_session_v5", JSON.stringify({ ...sesi, peran: "admin" }));
     expect(muatSesiPengguna()).toBeNull();
     expect(localStorage.getItem("geokader_current_session_v5")).toBeNull();
+  });
+
+  it("mengubah peran kader menjadi admin langsung di geokader_accounts_v5 ditolak oleh sigPeran dan peranMemori", async () => {
+    const admin = await siapkanAdmin();
+    const kader = await buatKaderLengkap(admin.sesi);
+    const daftar = JSON.parse(localStorage.getItem("geokader_accounts_v5")!) as AkunPengguna[];
+    const dipalsukan = daftar.map((a) => (a.email === kader.email ? { ...a, peran: "admin" as const } : a));
+    localStorage.setItem("geokader_accounts_v5", JSON.stringify(dipalsukan));
+    expect(muatSemuaAkun().find((a) => a.email === kader.email)?.peran).toBe("kader");
+  });
+
+  it("memalsukan cap waktu geokader_verifikasi_totp_v1 di localStorage ditolak oleh tag HMAC sig", async () => {
+    const admin = await siapkanAdmin();
+    expect(sisaMasaTotp(admin.email)).toBeGreaterThan(0);
+    const v = JSON.parse(localStorage.getItem("geokader_verifikasi_totp_v1")!);
+    localStorage.setItem("geokader_verifikasi_totp_v1", JSON.stringify({ ...v, pada: Date.now() + 999_000 }));
+    expect(sisaMasaTotp(admin.email)).toBe(0);
+  });
+
+  it("menghapus geokader_login_gagal_v5 di localStorage saat akun ada tidak mereset penahanan brute-force", async () => {
+    await buatAdminPertama(data("A"));
+    for (let i = 0; i < 5; i++) await autentikasiLogin("budia@contoh.id", "SalahSalah-1");
+    expect(detikTertahan("budia@contoh.id")).toBe(30);
+    localStorage.removeItem("geokader_login_gagal_v5");
+    expect(detikTertahan("budia@contoh.id")).toBe(30);
   });
 
   it("sesi untuk akun yang sudah tidak ada ditolak", async () => {

@@ -4,7 +4,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
  * SIDIK JARI / PENGENALAN WAJAH lewat WebAuthn dengan autentikator bawaan perangkat (sensor sidik
  * jari Android, Face ID/Touch ID, Windows Hello). Data biometrik tidak pernah keluar dari perangkat:
  * yang disimpan aplikasi hanya kunci publik, dan setiap pembukaan diverifikasi dengan memeriksa
- * tanda tangan atas tantangan acak baru. Fungsi di sini murni (tanpa penyimpanan) agar mudah diuji.
+ * tanda tangan atas tantangan acak baru serta kenaikan penghitung tanda tangan (signCount).
  */
 
 export const ALG_ES256 = -7;
@@ -62,6 +62,12 @@ export function derKeMentah(der: Uint8Array, panjang = 32): Uint8Array | null {
   return hasil;
 }
 
+/** Membaca penghitung tanda tangan 32-bit big-endian (byte 33..36) dari authenticatorData */
+export function bacaSignCount(dataAutentikator: Uint8Array): number {
+  if (dataAutentikator.length < 37) return 0;
+  return new DataView(dataAutentikator.buffer, dataAutentikator.byteOffset + 33, 4).getUint32(0, false);
+}
+
 export interface DataAsersi {
   kunciPublikSpki: Uint8Array;
   alg: number;
@@ -74,11 +80,14 @@ export interface DataAsersi {
   dataKlienJson: Uint8Array;
   dataAutentikator: Uint8Array;
   tandaTangan: Uint8Array;
+  /** Penghitung tanda tangan terakhir yang tercatat untuk mendeteksi kloning/replay autentikator */
+  signCountTerakhir?: number;
 }
 
 /**
  * Memeriksa jawaban autentikator: jenis dan tantangan cocok, origin dan host benar, pengguna
- * terverifikasi (UV: sidik jari/wajah/PIN perangkat, bukan sekadar sentuhan), dan tanda tangan sah.
+ * terverifikasi (UV: sidik jari/wajah/PIN perangkat, bukan sekadar sentuhan), penghitung signCount
+ * tidak mundur/kembar (bila didukung autentikator), dan tanda tangan sah.
  */
 export async function verifikasiAsersi(d: DataAsersi): Promise<boolean> {
   try {
@@ -92,6 +101,12 @@ export async function verifikasiAsersi(d: DataAsersi): Promise<boolean> {
     for (let i = 0; i < 32; i++) if (ad[i] !== hashRp[i]) return false;
     const bendera = ad[32];
     if ((bendera & 0x01) === 0 || (bendera & 0x04) === 0) return false; // UP dan UV wajib
+    if (d.signCountTerakhir !== undefined) {
+      const signCountBaru = bacaSignCount(ad);
+      if ((signCountBaru > 0 || d.signCountTerakhir > 0) && signCountBaru <= d.signCountTerakhir) {
+        return false; // penghitung tidak naik: indikasi kloning atau replay
+      }
+    }
     const pesan = new Uint8Array(ad.length + 32);
     pesan.set(ad, 0);
     pesan.set(sha256(d.dataKlienJson), ad.length);

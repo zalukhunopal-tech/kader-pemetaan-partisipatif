@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  eksporKeCSV,
   eksporKeGPX,
   eksporKeGeoJSON,
   eksporKeKML,
@@ -7,7 +8,8 @@ import {
   hitungJarakMeter,
   hitungLuasPoligonHa,
   hitungPanjangGarisKm,
-  konversiUTM
+  konversiUTM,
+  sanitasiFormulaCsv
 } from "./geoUtils";
 import { DataSpasialItem } from "../types";
 
@@ -119,7 +121,7 @@ const item = (koordinat: DataSpasialItem["koordinat"], jenis: DataSpasialItem["j
   riwayatPembaruan: []
 });
 
-describe("ekspor tidak memalsukan elevasi", () => {
+describe("ekspor tidak memalsukan elevasi dan menetralkan CSV Formula Injection", () => {
   const tanpa = item([{ lat: -1.6, lng: 103.6 }], "point");
   const dengan = item([{ lat: -1.6, lng: 103.6, elevasi: 53 }], "point");
 
@@ -141,5 +143,14 @@ describe("ekspor tidak memalsukan elevasi", () => {
     const f = JSON.parse(eksporKeGeoJSON([sim, imp])).features;
     expect(f[0].properties.simulasi).toBe(true);
     expect(f[1].properties.diimpor).toBe(true);
+  });
+  it("CSV: menetralkan awalan formula (=, +, -, @) tetapi membiarkan angka negatif murni", () => {
+    expect(sanitasiFormulaCsv("=CMD|' /C calc'!A0")).toBe("'=CMD|' /C calc'!A0");
+    expect(sanitasiFormulaCsv("+SUM(A1:A2)")).toBe("'+SUM(A1:A2)");
+    expect(sanitasiFormulaCsv("-2+3")).toBe("'-2+3");
+    expect(sanitasiFormulaCsv("@SUM(1,2)")).toBe("'@SUM(1,2)");
+    expect(sanitasiFormulaCsv("-0.9475")).toBe("-0.9475");
+    const csv = eksporKeCSV([{ ...tanpa, judul: "=HYPERLINK(\"https://jahat.tld\")" }]);
+    expect(csv).toContain("\"'=HYPERLINK(\"\"https://jahat.tld\"\")\"");
   });
 });

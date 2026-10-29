@@ -32,6 +32,7 @@ interface AdminDashboardViewProps {
   onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
   onTambahPengumuman: (p: PengumumanBroadcast) => void;
   onTambahTugas: (t: TugasPemetaan) => void;
+  onVerifikasiTugas?: (id: string) => void;
   onHapusTugas: (id: string) => void;
   onBalasPesanAdmin: (teks: string) => void;
   onFokusKePeta: (lat: number, lng: number, label: string) => void;
@@ -51,6 +52,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onUbahPenandatanganSertifikat,
   onTambahPengumuman,
   onTambahTugas,
+  onVerifikasiTugas,
   onHapusTugas,
   onFokusKePeta
 }) => {
@@ -508,12 +510,33 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     }}
                   >
                     <div>
-                      <span className="badge-kategori">{t.kategoriTarget}</span> <strong>{t.judul}</strong>
+                      <span className="badge-kategori">{t.kategoriTarget}</span> <strong>{t.judul}</strong>{" "}
+                      <span
+                        className={`badge-sync ${
+                          t.status === "selesai"
+                            ? "status-terverifikasi"
+                            : t.status === "menunggu_verifikasi"
+                              ? "status-lokal"
+                              : "status-tersinkron"
+                        }`}
+                      >
+                        {t.status === "selesai" ? "SELESAI" : t.status === "menunggu_verifikasi" ? "MENUNGGU VERIF" : "AKTIF"}
+                      </span>
                       <div className="text-xs text-muted">
                         {t.targetKuantitas} • {t.targetWilayah}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
+                      {t.status !== "selesai" && onVerifikasiTugas && (
+                        <button
+                          type="button"
+                          className="btn-primary-sm"
+                          onClick={() => onVerifikasiTugas(t.id)}
+                          title="Sahkan penyelesaian tugas (+60 poin level)"
+                        >
+                          <Check size={13} /> Sahkan
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn-outline-sm"

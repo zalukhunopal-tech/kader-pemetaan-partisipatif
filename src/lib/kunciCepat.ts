@@ -1,7 +1,7 @@
 import { AkunPengguna, AkunSesi, konfigUji, muatSemuaAkun, perbaruiKunciCepatAkun, sisaMasaTotp, turunkanKunci } from "./auth";
 import { aplikasiTerbuka, bukaAplikasi } from "./kunciAplikasi";
 import { bukaGerbangAdmin } from "./gerbangAdmin";
-import { ALG_ES256, ALG_RS256, dariBase64Url, keBase64Url, verifikasiAsersi } from "./webauthn";
+import { ALG_ES256, ALG_RS256, bacaSignCount, dariBase64Url, keBase64Url, verifikasiAsersi } from "./webauthn";
 
 /**
  * KUNCI CEPAT: PIN atau sidik jari / pengenalan wajah untuk membuka aplikasi yang terkunci.
@@ -175,7 +175,8 @@ export async function daftarkanBiometrik(sesi: AkunSesi | null): Promise<HasilKu
         idKredensial: keBase64Url(new Uint8Array(kredensial.rawId)),
         kunciPublik: keBase64(new Uint8Array(spki)),
         alg,
-        dibuat: new Date().toISOString()
+        dibuat: new Date().toISOString(),
+        signCount: 0
       }
     });
     return { sukses: true, pesan: "Sidik jari / pengenalan wajah aktif." };
@@ -194,7 +195,7 @@ export function hapusBiometrik(sesi: AkunSesi | null): HasilKunci {
   return { sukses: true, pesan: "Sidik jari / pengenalan wajah dimatikan." };
 }
 
-/** Membuka aplikasi dengan sidik jari/wajah: tantangan acak baru, tanda tangan diperiksa dengan kunci publik tersimpan */
+/** Membuka aplikasi dengan sidik jari/wajah: tantangan acak baru, tanda tangan & signCount diperiksa */
 export async function bukaDenganBiometrik(sesi: AkunSesi | null, tujuan: TujuanBuka = "aplikasi"): Promise<HasilKunci> {
   const akun = akunSesi(sesi);
   if (!akun) return { sukses: false, pesan: "Sesi tidak sah. Keluar lalu masuk kembali." };
@@ -217,6 +218,7 @@ export async function bukaDenganBiometrik(sesi: AkunSesi | null, tujuan: TujuanB
     })) as PublicKeyCredential | null;
     if (!asersi) return { sukses: false, pesan: "Dibatalkan." };
     const r = asersi.response as AuthenticatorAssertionResponse;
+    const dataAutentikator = new Uint8Array(r.authenticatorData);
     const sah = await verifikasiAsersi({
       kunciPublikSpki: dariBase64(bio.kunciPublik),
       alg: bio.alg,
@@ -224,10 +226,15 @@ export async function bukaDenganBiometrik(sesi: AkunSesi | null, tujuan: TujuanB
       asal: window.location.origin,
       rpId: window.location.hostname,
       dataKlienJson: new Uint8Array(r.clientDataJSON),
-      dataAutentikator: new Uint8Array(r.authenticatorData),
-      tandaTangan: new Uint8Array(r.signature)
+      dataAutentikator,
+      tandaTangan: new Uint8Array(r.signature),
+      signCountTerakhir: bio.signCount
     });
     if (!sah) return { sukses: false, pesan: "Verifikasi sidik jari/wajah tidak sah. Gunakan PIN." };
+    const signCountBaru = bacaSignCount(dataAutentikator);
+    if (signCountBaru > (bio.signCount ?? 0)) {
+      perbaruiKunciCepatAkun(akun.email, { biometrik: { ...bio, signCount: signCountBaru } });
+    }
     bukaSesuaiTujuan(akun, tujuan);
     return { sukses: true, pesan: "Aplikasi dibuka." };
   } catch (err) {

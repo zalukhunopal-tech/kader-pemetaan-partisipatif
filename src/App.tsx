@@ -49,7 +49,7 @@ import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
 import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
-import { usePerekamLatar } from "./lib/perekamLatar";
+import { perekamLatar, usePerekamLatar } from "./lib/perekamLatar";
 import { AuthModal } from "./components/AuthModal";
 import { PustakaView } from "./components/PustakaView";
 import { PemberitahuanView } from "./components/PemberitahuanView";
@@ -255,6 +255,7 @@ export const App: React.FC = () => {
 
   // Handler Logout
   const handleLogout = () => {
+    perekamLatar.batal();
     kunciGerbangAdmin();
     kunciAplikasi();
     simpanSesiPengguna(null);
@@ -485,6 +486,17 @@ export const App: React.FC = () => {
     tampilkanToast("✓ Tugas pemetaan dihapus.");
   };
 
+  // Handler Klaim / Verifikasi Penyelesaian Tugas (Kader mengajukan -> Admin mengesahkan untuk +60 poin)
+  const handleTandaiTugasSelesai = (id: string) => {
+    if (aksesAdmin && aksesAdminSah(sesiPengguna)) {
+      setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)));
+      tampilkanToast("✓ Tugas pemetaan disahkan selesai oleh Admin.");
+      return;
+    }
+    setTugasList((prev) => prev.map((t) => (t.id === id && t.status === "aktif" ? { ...t, status: "menunggu_verifikasi" } : t)));
+    tampilkanToast("✓ Tugas diajukan selesai dan menunggu verifikasi Admin GIS.");
+  };
+
   // Handler Sinkronisasi ke Google Drive & Sheets
   const handleSinkronkanSekarang = async (otomatis: boolean = false) => {
     if (sinkronBerjalanRef.current) return;
@@ -631,7 +643,7 @@ export const App: React.FC = () => {
         tugasList={tugasList}
         onTutup={() => setBukaPemberitahuan(false)}
         onBukaTargetDiPeta={handleFokusKePeta}
-        onTandaiTugasSelesai={(id) => setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)))}
+        onTandaiTugasSelesai={handleTandaiTugasSelesai}
       />
     );
   }
@@ -802,7 +814,7 @@ export const App: React.FC = () => {
                 pengumumanList={pengumumanList}
                 tugasList={tugasList}
                 onBukaTargetDiPeta={handleFokusKePeta}
-                onTandaiTugasSelesai={(id) => setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)))}
+                onTandaiTugasSelesai={handleTandaiTugasSelesai}
               />
             )}
 
@@ -845,6 +857,10 @@ export const App: React.FC = () => {
                 })}
                 onTambahPengumuman={wajibAdmin((p: PengumumanBroadcast) => setPengumumanList((prev) => [p, ...prev]))}
                 onTambahTugas={wajibAdmin(handleTambahTugas)}
+                onVerifikasiTugas={wajibAdmin((id: string) => {
+                  setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)));
+                  tampilkanToast("✓ Penyelesaian tugas disahkan oleh Admin (+60 poin level).");
+                })}
                 onHapusTugas={wajibAdmin(handleHapusTugas)}
                 onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}
                 onFokusKePeta={handleFokusKePeta}

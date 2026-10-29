@@ -181,7 +181,7 @@ export interface TugasPemetaan {
   batasWaktu: string;
   koordinatAcuan: KoordinatTitik;
   batasPoligonAcuan?: KoordinatTitik[];
-  status: "aktif" | "selesai";
+  status: "aktif" | "menunggu_verifikasi" | "selesai";
   dibuatOleh: string;
 }
 

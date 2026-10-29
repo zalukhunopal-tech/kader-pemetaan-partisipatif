@@ -142,6 +142,7 @@ export const rahasiaUntukTampil = (rahasiaBase32: string): string => rahasiaBase
 /* ---------- Kode pemulihan ---------- */
 
 export const JUMLAH_KODE_PEMULIHAN = 8;
+export const ITERASI_HASH_PEMULIHAN = 2048;
 
 /** Bentuk XXXXX-XXXXX (10 karakter dari 32 huruf/angka = 50 bit) */
 export function buatKodePemulihan(jumlah = JUMLAH_KODE_PEMULIHAN): string[] {
@@ -160,7 +161,15 @@ export const miripKodePemulihan = (kode: string): boolean => normalisasiKodePemu
 const enc = new TextEncoder();
 const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 
-/** Hash kode pemulihan dengan garam akun; kode berentropi tinggi dan acak sehingga SHA-256 berlapis garam cukup */
+/**
+ * Hash kode pemulihan dengan garam akun menggunakan rantai peregangan kunci HMAC-SHA256
+ * (ITERASI_HASH_PEMULIHAN putaran) untuk memperlambat tebakan offline.
+ */
 export function hashKodePemulihan(kode: string, garamAkun: string): string {
-  return hex(sha256(enc.encode(`${garamAkun}|${normalisasiKodePemulihan(kode)}`)));
+  const kunciGaram = enc.encode(`totp-pemulihan-v2|${garamAkun}`);
+  let digest = hmac(sha256, kunciGaram, enc.encode(normalisasiKodePemulihan(kode)));
+  for (let i = 1; i < ITERASI_HASH_PEMULIHAN; i++) {
+    digest = hmac(sha256, kunciGaram, digest);
+  }
+  return hex(digest);
 }

@@ -365,6 +365,17 @@ ${trks}
 </gpx>`;
 }
 
+/** Menetralkan awalan formula berbahaya (=, +, -, @, tab, CR) agar tidak dieksekusi di Excel/Calc/Sheets */
+export function sanitasiFormulaCsv(str: string): string {
+  if (/^[=+\-@]/.test(str) && !/^-[0-9]+(\.[0-9]+)?$/.test(str)) {
+    return `'${str}`;
+  }
+  if (/^[\t\r]/.test(str)) {
+    return `'${str}`;
+  }
+  return str;
+}
+
 /**
  * Ekspor ke CSV Master Tabel (Format Google Sheets Database)
  */
@@ -387,8 +398,8 @@ export function eksporKeCSV(daftar: DataSpasialItem[]): string {
     "Waktu_Rekam"
   ];
   const escCsv = (val: unknown) => {
-    const str = String(val ?? "");
-    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    const str = sanitasiFormulaCsv(String(val ?? ""));
+    if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;

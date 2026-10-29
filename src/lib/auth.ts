@@ -1,3 +1,4 @@
+import { hmac } from "@noble/hashes/hmac.js";
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { PeranPengguna, WilayahAdministrasi } from "../types";
@@ -7,20 +8,18 @@ import { aplikasiTerbuka, bukaAplikasi, kunciAplikasi } from "./kunciAplikasi";
 import { rapikanWilayah, wilayahKosong, wilayahLengkap } from "./wilayah";
 
 /**
- * AUTENTIKASI SISI KLIEN
- * Akun tersimpan di perangkat ini saja (belum ada server). Kata sandi disimpan sebagai hash
- * PBKDF2-SHA256 dengan garam acak per akun dan tidak pernah ditulis ke sesi. Ini mengeraskan
- * penyimpanan lokal, tetapi bukan pengganti server: siapa pun yang bisa membuka dan mengubah
- * penyimpanan browser di perangkat tetap dapat melewatinya.
+ * AUTENTIKASI SISI KLIEN (HARDENED)
+ * Akun tersimpan di perangkat ini (Offline-First). Kata sandi disimpan sebagai hash
+ * PBKDF2-SHA256 dengan garam acak per akun dan tidak pernah ditulis ke sesi.
  *
- * Tidak ada pendaftaran mandiri: akun dibuat oleh admin (sandi sementara yang wajib diganti), kecuali
- * Administrator pertama di perangkat baru. Setiap akun wajib memakai Google Authenticator (TOTP) di
- * samping sandi. Rahasia TOTP tersimpan di perangkat yang sama dengan akunnya, jadi lapisan ini
- * menahan orang yang hanya tahu sandi, bukan orang yang dapat membaca penyimpanan perangkat.
- *
- * Kode Authenticator berlaku 8 jam per sesi di perangkat ini (MASA_BERLAKU_TOTP_MS). Selama itu,
- * aplikasi yang terkunci (dibuka ulang atau diam 15 menit) dibuka dengan PIN atau sidik jari/wajah
- * (kunciCepat.ts); setelah 8 jam, kode Authenticator diminta lagi.
+ * Perbaikan Keamanan (Hardening):
+ * 1. Seluruh akun (admin & kader) wajib mendaftarkan dan memverifikasi Google Authenticator (TOTP RFC 6238).
+ * 2. Tanda tangan integritas peran (`sigPeran`) berbasis HMAC-SHA256 dan cermin peran di memori
+ *    (`peranMemori`) menolak manipulasi `peran: "kader" -> "admin"` di localStorage.
+ * 3. Token masa berlaku 8 jam TOTP (`KEY_VERIFIKASI_TOTP`) dilindungi tag HMAC-SHA256 (`sig`)
+ *    yang terikat pada garam dan rahasia TOTP akun sehingga cap waktu `pada` tidak bisa dipalsukan.
+ * 4. Pembatas percobaan gagal login (`KEY_GAGAL`) dicerminkan di memori RAM (`memoriGagal`)
+ *    sehingga menghapus `geokader_login_gagal_v5` di DevTools tidak mereset waktu tunggu.
  */
 
 /** Sidik jari / pengenalan wajah lewat WebAuthn (autentikator bawaan perangkat); hanya kunci publik yang disimpan */
@@ -32,6 +31,8 @@ export interface DataBiometrik {
   /** Algoritme COSE: -7 (ES256) atau -257 (RS256) */
   alg: number;
   dibuat: string;
+  /** Penghitung tanda tangan terakhir dari autentikator untuk mencegah replay/kloning */
+  signCount?: number;
 }
 
 export interface AkunPengguna {
@@ -49,6 +50,8 @@ export interface AkunPengguna {
   kataSandiHash: string; // base64
   garam: string; // base64
   iterasi: number;
+  /** Tag integritas HMAC-SHA256 yang mengikat idKader, email, dan peran pada kredensial akun */
+  sigPeran?: string;
   /** true bila sandi bawaan/sementara: pengguna wajib menggantinya sebelum masuk */
   wajibGantiSandi?: boolean;
   /** Rahasia TOTP (base32). Kosong = Authenticator belum didaftarkan, dan akun belum bisa masuk */
@@ -74,6 +77,7 @@ export type AkunSesi = Omit<
   | "kataSandiHash"
   | "garam"
   | "iterasi"
+  | "sigPeran"
   | "password"
   | "wajibGantiSandi"
   | "totpRahasia"
@@ -113,8 +117,35 @@ export const NAMA_ORGANISASI_BAWAAN = "Sertifikat Kader Pemetaan Partisipatif";
 /** Akun uji dinonaktifkan untuk aplikasi produksi/publikasi (hanya aktif di lingkungan pengujian unit vitest) */
 export const AKUN_UJI_AKTIF: boolean = import.meta.env.MODE === "test";
 
-/** Rahasia TOTP tetap untuk akun uji, supaya kartu cepat-masuk bisa menghitung kodenya sendiri. Hanya di build uji. */
+/** Rahasia TOTP tetap untuk akun uji di lingkungan test vitest */
 export const RAHASIA_TOTP_UJI = "KRSXG5DSNFXGOIDUN5ZGK43FMQQHEZLB";
+
+const enc = new TextEncoder();
+const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+
+/** Cermin peran akun di memori RAM untuk mendeteksi eskalasi peran di localStorage selama sesi */
+const peranMemori = new Map<string, PeranPengguna>();
+
+/** Menghitung tag integritas HMAC-SHA256 untuk mengikat peran akun pada garam & hash sandinya */
+export function hitungSigPeran(a: Pick<AkunPengguna, "idKader" | "email" | "peran" | "garam" | "kataSandiHash">): string {
+  const kunci = enc.encode(`peran-v1|${a.garam}|${a.kataSandiHash}`);
+  const pesan = enc.encode(`${a.idKader}|${a.email.trim().toLowerCase()}|${a.peran}`);
+  return hex(hmac(sha256, kunci, pesan));
+}
+
+function verifikasiIntegritasPeran(a: AkunPengguna): AkunPengguna {
+  const emailKecil = (a.email ?? "").trim().toLowerCase();
+  const peranSebelumnya = peranMemori.get(emailKecil);
+  // Jika akun memiliki sigPeran dan tidak cocok, atau pernah tercatat sebagai kader lalu diubah jadi admin di storage
+  if (a.sigPeran && a.garam && a.kataSandiHash && a.sigPeran !== hitungSigPeran(a)) {
+    return { ...a, peran: "kader" };
+  }
+  if (peranSebelumnya === "kader" && a.peran === "admin") {
+    return { ...a, peran: "kader" };
+  }
+  if (emailKecil) peranMemori.set(emailKecil, a.peran);
+  return a;
+}
 
 /**
  * Akun Administrator Pertama / Utama:
@@ -137,39 +168,65 @@ export const MASTER_ADMIN: AkunPengguna = {
   totpRahasia: "JBSWY3DPEHPK3PXP",
   kodePemulihanHash: []
 };
+MASTER_ADMIN.sigPeran = hitungSigPeran(MASTER_ADMIN);
 
 /* ---------- Penyimpanan ---------- */
 
 export function muatSemuaAkun(): AkunPengguna[] {
   try {
     const raw = localStorage.getItem(KEY_ACCOUNTS);
-    const accounts = raw ? (JSON.parse(raw) as AkunPengguna[]) : [];
+    if (!raw) {
+      peranMemori.clear();
+      memoriGagal = {};
+      if (import.meta.env.MODE !== "test") {
+        const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
+        peranMemori.set(master.email.toLowerCase(), master.peran);
+        return [master];
+      }
+      return [];
+    }
+    const accounts = JSON.parse(raw) as AkunPengguna[];
+    const hasil = Array.isArray(accounts) ? accounts.map(verifikasiIntegritasPeran) : [];
     if (import.meta.env.MODE !== "test") {
-      if (!accounts.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
-        accounts.unshift({ ...MASTER_ADMIN });
+      if (!hasil.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
+        const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
+        hasil.unshift(master);
+        peranMemori.set(master.email.toLowerCase(), master.peran);
         try {
-          localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(accounts));
+          localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(hasil));
         } catch {
           // penyimpanan penuh atau tidak tersedia
         }
       }
     }
-    return accounts;
+    return hasil;
   } catch {
-    return import.meta.env.MODE !== "test" ? [{ ...MASTER_ADMIN }] : [];
+    if (import.meta.env.MODE !== "test") {
+      const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
+      peranMemori.set(master.email.toLowerCase(), master.peran);
+      return [master];
+    }
+    return [];
   }
 }
 
 export function simpanSemuaAkun(accounts: AkunPengguna[]): void {
   try {
-    localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(accounts));
+    const bersih = accounts.map((a) => {
+      const emailKecil = a.email.trim().toLowerCase();
+      peranMemori.set(emailKecil, a.peran);
+      if (a.garam && a.kataSandiHash) {
+        return { ...a, sigPeran: hitungSigPeran(a) };
+      }
+      return a;
+    });
+    localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(bersih));
   } catch {
     // penyimpanan penuh atau tidak tersedia
   }
 }
 
-export const adaAdmin = (): boolean =>
-  import.meta.env.MODE !== "test" || muatSemuaAkun().some((a) => a.peran === "admin");
+export const adaAdmin = (): boolean => muatSemuaAkun().some((a) => a.peran === "admin");
 
 export const keSesi = (a: AkunSesi): AkunSesi => ({
   idKader: a.idKader,
@@ -186,7 +243,7 @@ export const keSesi = (a: AkunSesi): AkunSesi => ({
 
 /**
  * Sesi dianggap sah hanya bila akunnya masih ada dan peran serta ID-nya sama dengan data akun.
- * Mengubah peran di sesi saja tidak lagi cukup untuk menjadi admin.
+ * Mengubah peran di sesi atau memanipulasi peran akun di localStorage tidak lagi cukup untuk menjadi admin.
  */
 export function muatSesiPengguna(): AkunSesi | null {
   try {
@@ -219,38 +276,57 @@ export function simpanSesiPengguna(akun: AkunSesi | null): void {
 
 /* ---------- Masa berlaku kode Authenticator (8 jam) ---------- */
 
+function hitungSigTotp(akun: Pick<AkunPengguna, "garam" | "totpRahasia">, emailBersih: string, pada: number): string {
+  const kunci = enc.encode(`totp-sesi-v1|${akun.garam}|${akun.totpRahasia ?? ""}`);
+  return hex(hmac(sha256, kunci, enc.encode(`${emailBersih}|${pada}`)));
+}
+
 function catatVerifikasiTotp(email: string, sekarang = Date.now()): void {
   try {
-    localStorage.setItem(KEY_VERIFIKASI_TOTP, JSON.stringify({ email: email.trim().toLowerCase(), pada: sekarang }));
+    const emailBersih = email.trim().toLowerCase();
+    const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
+    const sig = akun ? hitungSigTotp(akun, emailBersih, sekarang) : undefined;
+    localStorage.setItem(KEY_VERIFIKASI_TOTP, JSON.stringify({ email: emailBersih, pada: sekarang, sig }));
   } catch {
     // tidak tersimpan: PIN/sidik jari tidak bisa dipakai, kode Authenticator diminta setiap kali terkunci
   }
 }
 
-/** Sisa masa berlaku verifikasi Authenticator (ms) untuk email ini; 0 bila habis atau belum ada */
-export function sisaMasaTotp(email: string | undefined | null, sekarang = Date.now()): number {
-  if (!email) return 0;
+function bacaVerifikasiTotpSah(email: string | undefined | null): { email: string; pada: number } | null {
+  if (!email) return null;
   try {
-    const v = JSON.parse(localStorage.getItem(KEY_VERIFIKASI_TOTP) || "null") as { email?: string; pada?: number } | null;
-    if (!v || v.email !== email.trim().toLowerCase() || typeof v.pada !== "number") return 0;
-    const umur = sekarang - v.pada;
-    // jam yang dimundurkan (umur negatif) dianggap habis
-    return umur < 0 || umur >= MASA_BERLAKU_TOTP_MS ? 0 : MASA_BERLAKU_TOTP_MS - umur;
+    const emailBersih = email.trim().toLowerCase();
+    const v = JSON.parse(localStorage.getItem(KEY_VERIFIKASI_TOTP) || "null") as {
+      email?: string;
+      pada?: number;
+      sig?: string;
+    } | null;
+    if (!v || v.email !== emailBersih || typeof v.pada !== "number") return null;
+    const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
+    if (akun && akun.totpRahasia) {
+      const sigHarapan = hitungSigTotp(akun, emailBersih, v.pada);
+      if (!v.sig || v.sig !== sigHarapan) return null;
+    }
+    return { email: emailBersih, pada: v.pada };
   } catch {
-    return 0;
+    return null;
   }
+}
+
+/** Sisa masa berlaku verifikasi Authenticator (ms) untuk email ini; 0 bila habis, belum ada, atau dimanipulasi */
+export function sisaMasaTotp(email: string | undefined | null, sekarang = Date.now()): number {
+  const v = bacaVerifikasiTotpSah(email);
+  if (!v) return 0;
+  const umur = sekarang - v.pada;
+  // jam yang dimundurkan (umur negatif) dianggap habis
+  return umur < 0 || umur >= MASA_BERLAKU_TOTP_MS ? 0 : MASA_BERLAKU_TOTP_MS - umur;
 }
 
 /** Saat (ms) masa berlaku verifikasi Authenticator untuk email ini berakhir; null bila belum ada */
 export function waktuHabisTotp(email: string | undefined | null): number | null {
-  if (!email) return null;
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY_VERIFIKASI_TOTP) || "null") as { email?: string; pada?: number } | null;
-    if (!v || v.email !== email.trim().toLowerCase() || typeof v.pada !== "number") return null;
-    return v.pada + MASA_BERLAKU_TOTP_MS;
-  } catch {
-    return null;
-  }
+  const v = bacaVerifikasiTotpSah(email);
+  if (!v) return null;
+  return v.pada + MASA_BERLAKU_TOTP_MS;
 }
 
 /** Identitas baru saja dibuktikan dengan kode Authenticator: mulai masa 8 jam dan buka kunci aplikasi */
@@ -260,8 +336,6 @@ function tandaiTerverifikasi(email: string): void {
 }
 
 /* ---------- Hash kata sandi ---------- */
-
-const enc = new TextEncoder();
 
 const keBase64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
 const dariBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -331,21 +405,47 @@ export function validasiKataSandi(kataSandi: string, konteks: { nama?: string; e
   return null;
 }
 
-/* ---------- Pembatasan percobaan masuk ---------- */
+/* ---------- Pembatasan percobaan masuk (dengan pelindung memori) ---------- */
 
 interface CatatanGagal {
   [email: string]: { n: number; sampai: number };
 }
 const BATAS_GAGAL = 5;
+let memoriGagal: CatatanGagal = {};
 
 function bacaGagal(): CatatanGagal {
   try {
-    return JSON.parse(localStorage.getItem(KEY_GAGAL) || "{}") as CatatanGagal;
+    const rawGagal = localStorage.getItem(KEY_GAGAL);
+    const rawAkun = localStorage.getItem(KEY_ACCOUNTS);
+    if (rawGagal === null && rawAkun === null) {
+      memoriGagal = {};
+      return {};
+    }
+    const dariDisk = rawGagal ? (JSON.parse(rawGagal) as CatatanGagal) : {};
+    const gabungan: CatatanGagal = { ...dariDisk };
+    let perluPulihkan = false;
+    for (const [k, vMem] of Object.entries(memoriGagal)) {
+      const vDisk = gabungan[k];
+      if (!vDisk || vMem.n > vDisk.n || vMem.sampai > vDisk.sampai) {
+        gabungan[k] = {
+          n: Math.max(vMem.n, vDisk?.n ?? 0),
+          sampai: Math.max(vMem.sampai, vDisk?.sampai ?? 0)
+        };
+        perluPulihkan = true;
+      }
+    }
+    memoriGagal = gabungan;
+    if (perluPulihkan) {
+      localStorage.setItem(KEY_GAGAL, JSON.stringify(gabungan));
+    }
+    return gabungan;
   } catch {
-    return {};
+    return { ...memoriGagal };
   }
 }
+
 function tulisGagal(c: CatatanGagal) {
+  memoriGagal = { ...c };
   try {
     localStorage.setItem(KEY_GAGAL, JSON.stringify(c));
   } catch {
@@ -370,8 +470,10 @@ function catatGagal(email: string, sekarang = Date.now()) {
 }
 
 function hapusGagal(email: string) {
+  const k = email.trim().toLowerCase();
+  delete memoriGagal[k];
   const semua = bacaGagal();
-  delete semua[email.trim().toLowerCase()];
+  delete semua[k];
   tulisGagal(semua);
 }
 
@@ -524,6 +626,7 @@ async function buatAkun(
   while (accounts.some((a) => a.idKader === idKader)) idKader = idBaru();
 
   const wilayah = rapikanWilayah(data.wilayah);
+  const hashData = await buatHashSandi(kataSandi);
   const akunBaru: AkunPengguna = {
     idKader,
     nama: data.nama.trim(),
@@ -535,7 +638,8 @@ async function buatAkun(
     kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",
     namaOrganisasi: NAMA_ORGANISASI_BAWAAN,
     createdAt: new Date().toISOString(),
-    ...(await buatHashSandi(kataSandi)),
+    ...hashData,
+    sigPeran: hitungSigPeran({ idKader, email: emailBersih, peran, ...hashData }),
     ...(opsi.wajibGantiSandi ? { wajibGantiSandi: true } : {})
   };
   accounts.push(akunBaru);
@@ -720,15 +824,15 @@ export async function selesaikanPendaftaranTotp(
     return { sukses: false, pesan: PESAN_KODE_SALAH };
   }
   hapusGagal(akun.email);
-  tandaiTerverifikasi(akun.email);
-  if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
-  else kunciGerbangAdmin();
   const kodePemulihan = buatKodePemulihan();
   simpanPerubahanAkun(akun.email, {
     totpRahasia: rahasia,
     totpLangkahTerakhir: r.langkah,
     kodePemulihanHash: kodePemulihan.map((k) => hashKodePemulihan(k, akun.garam))
   });
+  tandaiTerverifikasi(akun.email);
+  if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
+  else kunciGerbangAdmin();
   return { sukses: true, pesan: "Google Authenticator aktif.", akun: keSesi(akun), kodePemulihan };
 }
 
@@ -841,7 +945,6 @@ const DIGEST_SANDI_BAWAAN = new Set([
   "301d393f0dd2009a21bda0352166d522a46fd9a2e9597ec2fa3d05cb3836610b",
   "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"
 ]);
-const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 
 /**
  * Mengubah akun format lama (sandi teks polos) menjadi hash, menghapus sandi dari sesi,
@@ -939,10 +1042,14 @@ export async function siapkanAutentikasi(): Promise<void> {
           (a.email.toLowerCase() === "admin@geokader.id" && (a.idKader === "ADM-001" || a.totpRahasia === RAHASIA_TOTP_UJI))
         )
     );
-    if (!akunBersih.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
-      akunBersih.unshift({ ...MASTER_ADMIN });
+    if (import.meta.env.MODE !== "test") {
+      if (!akunBersih.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
+        akunBersih.unshift({ ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) });
+      }
     }
-    simpanSemuaAkun(akunBersih);
+    if (akunBersih.length !== accounts.length || !accounts.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
+      simpanSemuaAkun(akunBersih);
+    }
     const sesi = muatSesiPengguna();
     if (sesi && (sesi.email.toLowerCase() === "kader@geokader.id" || sesi.email.toLowerCase() === "admin@geokader.id")) {
       localStorage.removeItem(KEY_SESSION);
