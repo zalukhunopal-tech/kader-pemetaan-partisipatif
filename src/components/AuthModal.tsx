@@ -2,11 +2,8 @@ import React, { useState } from "react";
 import {
   AkunSesi,
   MIN_PANJANG_SANDI,
-  adaAdmin,
   autentikasiLogin,
-  buatAdminPertama,
   mulaiPendaftaranTotp,
-  muatSemuaAkun,
   selesaikanPendaftaranTotp,
   simpanSesiPengguna,
   ubahKataSandi
@@ -20,7 +17,7 @@ interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
 }
 
-type Mode = "login" | "kode_totp" | "daftar_totp" | "kode_pemulihan" | "ganti_sandi" | "setup_admin" | "lupa_password";
+type Mode = "login" | "kode_totp" | "daftar_totp" | "kode_pemulihan" | "ganti_sandi" | "lupa_password";
 
 const gayaLabel: React.CSSProperties = { display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 };
 const gayaInput: React.CSSProperties = {
@@ -55,17 +52,13 @@ const gayaTautan: React.CSSProperties = {
 const gayaIkonKiri: React.CSSProperties = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" };
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
-  // Tidak ada pendaftaran mandiri. Perangkat tanpa Administrator menampilkan penyiapan awal.
-  const [mode, setMode] = useState<Mode>(() => (muatSemuaAkun().length === 0 ? "setup_admin" : "login"));
+  // Halaman yang pertama kali terbuka selalu halaman login akun pengguna (kader / admin)
+  const [mode, setMode] = useState<Mode>("login");
 
   const [emailLogin, setEmailLogin] = useState("");
   const [passwordLogin, setPasswordLogin] = useState("");
   const [lihatPassword, setLihatPassword] = useState(false);
   const [kode, setKode] = useState("");
-
-  // Penyiapan Administrator pertama
-  const kodeAdminDiperlukan = Boolean((import.meta.env.VITE_KODE_ADMIN ?? "").trim());
-  const [adm, setAdm] = useState({ nama: "", email: "", desa: "", noHp: "", sandi: "", ulang: "", kodeAktivasi: "" });
 
   // Ganti sandi wajib
   const [sandiBaru, setSandiBaru] = useState("");
@@ -173,31 +166,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
     }
   };
 
-  const handleSetupAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    resetAlert();
-    if (adm.sandi !== adm.ulang) {
-      setPesanError("Konfirmasi kata sandi tidak cocok.");
-      return;
-    }
-    setSedangProses(true);
-    try {
-      const res = await buatAdminPertama(
-        { nama: adm.nama, email: adm.email, kataSandi: adm.sandi, desaWilayah: adm.desa, noHp: adm.noHp },
-        adm.kodeAktivasi
-      );
-      if (!res.sukses) {
-        setPesanError(res.pesan);
-        return;
-      }
-      setEmailLogin(adm.email.trim().toLowerCase());
-      setPasswordLogin(adm.sandi);
-      await mulaiDaftarTotp(adm.email, adm.sandi);
-    } finally {
-      setSedangProses(false);
-    }
-  };
-
   const handleGantiSandi = async (e: React.FormEvent) => {
     e.preventDefault();
     resetAlert();
@@ -255,8 +223,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
     setPasswordLogin("");
     masukKeAplikasi(hasilDaftar.akun, `Selamat datang, ${hasilDaftar.akun.nama}!`, 150);
   };
-
-  const butuhAdminPertama = !adaAdmin();
 
   return (
     <div
@@ -401,23 +367,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               </div>
 
               <button type="submit" disabled={sedangProses} style={{ ...gayaTombol(sedangProses), marginTop: 4 }}>
-                {sedangProses ? "Memeriksa…" : "Lanjut"}
+                {sedangProses ? "Memeriksa…" : "Masuk ke Titik Tapak"}
               </button>
 
               <p style={{ margin: 0, fontSize: "0.74rem", color: "#64748b", textAlign: "center", lineHeight: 1.45 }}>
-                Akun dibuat oleh Administrator. Setelah sandi, Anda memasukkan kode dari Google Authenticator.
+                Akses aman untuk Administrator & Kader Lapangan Titik Tapak.
               </p>
-
-              {butuhAdminPertama && (
-                <button
-                  type="button"
-                  id="buka-setup-admin"
-                  onClick={() => pindah("setup_admin")}
-                  style={{ ...gayaTautan, color: "#0369a1" }}
-                >
-                  Perangkat ini belum punya Administrator: buat Administrator pertama
-                </button>
-              )}
             </form>
           )}
 
@@ -589,115 +544,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             </div>
           )}
 
-          {/* 5. PENYIAPAN ADMINISTRATOR PERTAMA (hanya selama perangkat belum punya admin) */}
-          {mode === "setup_admin" && (
-            <form id="form-setup-admin" onSubmit={handleSetupAdmin} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              <div
-                style={{
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  fontSize: "0.78rem",
-                  color: "#1e3a8a",
-                  lineHeight: 1.5
-                }}
-              >
-                <strong>Penyiapan awal.</strong> Perangkat ini belum punya Administrator. Buat akun Administrator pertama; akun kader
-                selanjutnya dibuat oleh Administrator dari menu Admin &gt; Akun. Tidak ada pendaftaran mandiri.
-              </div>
-              <div>
-                <label style={gayaLabel}>Nama Lengkap *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Nama lengkap"
-                  value={adm.nama}
-                  onChange={(e) => setAdm({ ...adm, nama: e.target.value })}
-                  style={gayaInput}
-                />
-              </div>
-              <div>
-                <label style={gayaLabel}>Email *</label>
-                <input
-                  type="email"
-                  required
-                  autoComplete="username"
-                  placeholder="Alamat email"
-                  value={adm.email}
-                  onChange={(e) => setAdm({ ...adm, email: e.target.value })}
-                  style={gayaInput}
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
-                <div>
-                  <label style={gayaLabel}>Desa / Wilayah</label>
-                  <input
-                    type="text"
-                    placeholder="Nama desa/wilayah"
-                    value={adm.desa}
-                    onChange={(e) => setAdm({ ...adm, desa: e.target.value })}
-                    style={gayaInput}
-                  />
-                </div>
-                <div>
-                  <label style={gayaLabel}>No. HP</label>
-                  <input
-                    type="text"
-                    placeholder="Nomor telepon"
-                    value={adm.noHp}
-                    onChange={(e) => setAdm({ ...adm, noHp: e.target.value })}
-                    style={gayaInput}
-                  />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
-                <div>
-                  <label style={gayaLabel}>Kata Sandi *</label>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    placeholder={`Min. ${MIN_PANJANG_SANDI} karakter`}
-                    value={adm.sandi}
-                    onChange={(e) => setAdm({ ...adm, sandi: e.target.value })}
-                    style={gayaInput}
-                  />
-                </div>
-                <div>
-                  <label style={gayaLabel}>Konfirmasi *</label>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    placeholder="Ulangi sandi"
-                    value={adm.ulang}
-                    onChange={(e) => setAdm({ ...adm, ulang: e.target.value })}
-                    style={gayaInput}
-                  />
-                </div>
-              </div>
-              {kodeAdminDiperlukan && (
-                <input
-                  id="kode-aktivasi"
-                  type="password"
-                  autoComplete="off"
-                  placeholder="Kode aktivasi administrator"
-                  value={adm.kodeAktivasi}
-                  onChange={(e) => setAdm({ ...adm, kodeAktivasi: e.target.value })}
-                  style={{ ...gayaInput, border: "1.5px solid #93c5fd" }}
-                />
-              )}
-              <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
-                {sedangProses ? "Menyimpan…" : "Buat Administrator"}
-              </button>
-              {muatSemuaAkun().length > 0 && (
-                <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
-                  ← Kembali ke halaman masuk
-                </button>
-              )}
-            </form>
-          )}
+
 
           {/* 6. LUPA KATA SANDI: tidak ada reset mandiri tanpa verifikasi */}
           {mode === "lupa_password" && (
@@ -761,7 +608,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             </form>
           )}
         </div>
-        {(mode === "login" || mode === "setup_admin") && (
+        {mode === "login" && (
           <div className="auth-instal">
             <TombolInstal className="auth-instal-tombol" label="Pasang Titik Tapak di HP ini" />
           </div>

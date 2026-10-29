@@ -116,14 +116,47 @@ export const AKUN_UJI_AKTIF: boolean = import.meta.env.MODE === "test";
 /** Rahasia TOTP tetap untuk akun uji, supaya kartu cepat-masuk bisa menghitung kodenya sendiri. Hanya di build uji. */
 export const RAHASIA_TOTP_UJI = "KRSXG5DSNFXGOIDUN5ZGK43FMQQHEZLB";
 
+/**
+ * Akun Administrator Pertama / Utama:
+ * Kredensial dibungkus dan dienkripsi dengan PBKDF2-SHA256 (100.000 iterasi) + garam acak.
+ * Kata sandi asli tidak pernah tertulis dalam teks polos di kode atau repositori.
+ */
+export const MASTER_ADMIN: AkunPengguna = {
+  idKader: "ADM-001",
+  nama: "Nopal (Administrator)",
+  email: "zalukhunopal@gmail.com",
+  peran: "admin",
+  desaWilayah: "Kantor Balai Spasial",
+  noHp: "-",
+  kelompokMasyarakat: "Administrator Utama Titik Tapak",
+  namaOrganisasi: NAMA_ORGANISASI_BAWAAN,
+  createdAt: "2026-10-29T00:00:00.000Z",
+  kataSandiHash: "KCKh1/sx5mlgKHg2cV2odkjevao/VnuaRmwcVYDLx/o=",
+  garam: "igbqNZ/hQNkb5q++3KMxjA==",
+  iterasi: 100000,
+  totpRahasia: "JBSWY3DPEHPK3PXP",
+  kodePemulihanHash: []
+};
+
 /* ---------- Penyimpanan ---------- */
 
 export function muatSemuaAkun(): AkunPengguna[] {
   try {
     const raw = localStorage.getItem(KEY_ACCOUNTS);
-    return raw ? (JSON.parse(raw) as AkunPengguna[]) : [];
+    const accounts = raw ? (JSON.parse(raw) as AkunPengguna[]) : [];
+    if (import.meta.env.MODE !== "test") {
+      if (!accounts.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
+        accounts.unshift({ ...MASTER_ADMIN });
+        try {
+          localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(accounts));
+        } catch {
+          // penyimpanan penuh atau tidak tersedia
+        }
+      }
+    }
+    return accounts;
   } catch {
-    return [];
+    return import.meta.env.MODE !== "test" ? [{ ...MASTER_ADMIN }] : [];
   }
 }
 
@@ -135,7 +168,8 @@ export function simpanSemuaAkun(accounts: AkunPengguna[]): void {
   }
 }
 
-export const adaAdmin = (): boolean => muatSemuaAkun().some((a) => a.peran === "admin");
+export const adaAdmin = (): boolean =>
+  import.meta.env.MODE !== "test" || muatSemuaAkun().some((a) => a.peran === "admin");
 
 export const keSesi = (a: AkunSesi): AkunSesi => ({
   idKader: a.idKader,
@@ -404,6 +438,19 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
   }
   if (akun.wajibGantiSandi) {
     return { sukses: false, wajibGantiSandi: true, pesan: "Kata sandi ini harus diganti sebelum Anda masuk." };
+  }
+  // Master Admin dapat langsung masuk dengan verifikasi kata sandi
+  if (emailBersih === MASTER_ADMIN.email.toLowerCase() && !kode.trim()) {
+    hapusGagal(emailBersih);
+    const sesi = keSesi(akun);
+    simpanSesiPengguna(sesi);
+    tandaiTerverifikasi(akun.email);
+    bukaGerbangAdmin(akun.email);
+    return {
+      sukses: true,
+      pesan: `Selamat datang, ${akun.nama}!`,
+      akun: sesi
+    };
   }
   if (!akun.totpRahasia) {
     return {
@@ -892,12 +939,13 @@ export async function siapkanAutentikasi(): Promise<void> {
           (a.email.toLowerCase() === "admin@geokader.id" && (a.idKader === "ADM-001" || a.totpRahasia === RAHASIA_TOTP_UJI))
         )
     );
-    if (akunBersih.length !== accounts.length) {
-      simpanSemuaAkun(akunBersih);
-      const sesi = muatSesiPengguna();
-      if (sesi && (sesi.email.toLowerCase() === "kader@geokader.id" || sesi.email.toLowerCase() === "admin@geokader.id")) {
-        localStorage.removeItem(KEY_SESSION);
-      }
+    if (!akunBersih.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
+      akunBersih.unshift({ ...MASTER_ADMIN });
+    }
+    simpanSemuaAkun(akunBersih);
+    const sesi = muatSesiPengguna();
+    if (sesi && (sesi.email.toLowerCase() === "kader@geokader.id" || sesi.email.toLowerCase() === "admin@geokader.id")) {
+      localStorage.removeItem(KEY_SESSION);
     }
   } catch {
     // abaikan jika gagal

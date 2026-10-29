@@ -293,13 +293,12 @@ describe("hapus tile area", () => {
 });
 
 describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
-  it("satelit bawaan = Sentinel-2 cloudless EOX (CC BY 4.0), bukan server Esri tanpa kunci", async () => {
+  it("satelit bawaan = Esri World Imagery resolusi tinggi (zoom hingga 19)", async () => {
     const m = await muat();
     const s = m.SUMBER_TILE.satelit;
-    expect(s.template).toMatch(/^https:\/\/tiles\.maps\.eox\.at\/.*s2cloudless_3857/);
-    expect(s.template).not.toMatch(/arcgisonline/);
-    expect(s.lisensi).toMatch(/CC BY 4\.0/);
-    expect(s.zoomMaks).toBe(13);
+    expect(s.template).toMatch(/arcgisonline\.com/);
+    expect(s.lisensi).toMatch(/Esri World Imagery/);
+    expect(s.zoomMaks).toBe(19);
     expect(s.templateCadangan?.length).toBeGreaterThan(0);
   });
 
@@ -313,7 +312,7 @@ describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
     expect(m.SUMBER_TILE.topo.atribusi).toMatch(/OpenTopoMap/);
   });
 
-  it("tanpa kunci API: Satelit Google dan Esri tidak muncul, peta awal Sentinel-2", async () => {
+  it("tanpa kunci API: Satelit Google dan Esri khusus tidak muncul, peta awal Satelit Esri bawaan", async () => {
     vi.stubEnv("VITE_ESRI_API_KEY", "");
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
     const m = await muat();
@@ -325,14 +324,14 @@ describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("kunci API Esri: pilihan Satelit Esri terpisah (Sentinel-2 tetap ada), tidak boleh diunduh offline", async () => {
+  it("kunci API Esri: pilihan Satelit Esri terpisah dengan token, tidak boleh diunduh offline", async () => {
     vi.stubEnv("VITE_ESRI_API_KEY", "kunci-uji");
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
     const m = await muat();
     expect(m.SUMBER_TILE.esri.template).toMatch(/^https:\/\/ibasemaps-api\.arcgis\.com\/.*token=kunci-uji$/);
     expect(m.SUMBER_TILE.esri.atribusi).toMatch(/Powered by Esri/);
     expect(m.SUMBER_TILE.esri.bolehUnduh).toBe(false);
-    expect(m.SUMBER_TILE.satelit.template).toMatch(/eox\.at/);
+    expect(m.SUMBER_TILE.satelit.template).toMatch(/arcgisonline/);
     expect(m.basemapBawaan()).toBe("esri");
     vi.unstubAllEnvs();
   });
@@ -353,7 +352,8 @@ describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
 
   it("zoomSumber tidak melebihi zoom maksimum penyedia", async () => {
     const m = await muat();
-    expect(m.zoomSumber("satelit", 17)).toBe(13);
+    expect(m.zoomSumber("satelit", 17)).toBe(17);
+    expect(m.zoomSumber("satelit", 22)).toBe(19);
     expect(m.zoomSumber("satelit", 12)).toBe(12);
     expect(m.zoomSumber("osm", 18)).toBe(18);
     expect(m.zoomSumber("taktis", 18)).toBe(18);
@@ -366,7 +366,7 @@ describe("sumber peta gratis dan legal (bawaan tanpa konfigurasi)", () => {
     for (let i = 0; i < 5; i++) expect(m.laporHasilTile("satelit", false, true)).toBe(false);
     expect(m.laporHasilTile("satelit", false, true)).toBe(true);
     expect(m.templateAktif("satelit")).not.toBe(utama);
-    expect(m.urlTile("satelit", 10, 1, 2)).toMatch(/\/default\/g\/10\/2\/1\.jpg$/);
+    expect(m.urlTile("satelit", 10, 1, 2)).toMatch(/services\.arcgisonline\.com\/.*\/10\/2\/1$/);
   });
 
   it("tidak berganti templat saat offline atau bila templat pernah berhasil", async () => {

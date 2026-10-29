@@ -49,8 +49,13 @@ export interface SumberTile {
 
 const env = import.meta.env;
 
-/** Sentinel-2 cloudless 2016 dari EOX: CC BY 4.0, boleh dipakai komersial maupun non-komersial dengan atribusi */
-const EOX_S2_2016 = [
+/** Citra Satelit Resolusi Tinggi Esri World Imagery (Maxar, GeoEye, Earthstar Geographics, Airbus, zoom hingga level 19) */
+const ESRI_WORLD_IMAGERY = [
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+];
+
+const EOX_S2_CADANGAN = [
   "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg",
   "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"
 ];
@@ -68,21 +73,21 @@ function sumberSatelit(): SumberTile {
       zoomMaks: Number(env.VITE_TILE_ZOOM_MAKS_SATELIT) || 19,
       bolehUnduh: env.VITE_TILE_UNDUH_SATELIT === "true",
       alasanTidakBoleh: "Unduhan offline belum dinyatakan diizinkan untuk penyedia tile ini.",
-      rataKbPerTile: 22
+      rataKbPerTile: 25
     };
   }
   return {
-    nama: "Satelit Sentinel-2",
+    nama: "Satelit Resolusi Tinggi (Esri)",
     tersedia: true,
-    template: EOX_S2_2016[0],
-    templateCadangan: EOX_S2_2016.slice(1),
-    atribusi: "Sentinel-2 cloudless – s2maps.eu oleh EOX IT Services GmbH (data Copernicus Sentinel 2016 yang dimodifikasi)",
-    tautanLisensi: "https://s2maps.eu",
-    lisensi: "CC BY 4.0 (citra 2016, resolusi 10 m). Gratis dengan atribusi; layanan EOX hanya untuk dipakai online.",
-    zoomMaks: 13,
+    template: ESRI_WORLD_IMAGERY[0],
+    templateCadangan: [ESRI_WORLD_IMAGERY[1], ...EOX_S2_CADANGAN],
+    atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USGS, AeroGRID, IGN, dan Komunitas GIS",
+    tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
+    lisensi: "Esri World Imagery (citra satelit resolusi tinggi Maxar/Earthstar, tajam hingga zoom level 19).",
+    zoomMaks: 19,
     bolehUnduh: false,
-    alasanTidakBoleh: "Layanan tile EOX diizinkan untuk dipakai langsung secara online, bukan untuk diunduh massal.",
-    rataKbPerTile: 22
+    alasanTidakBoleh: "Layanan tile Esri untuk dipakai langsung secara online.",
+    rataKbPerTile: 25
   };
 }
 
