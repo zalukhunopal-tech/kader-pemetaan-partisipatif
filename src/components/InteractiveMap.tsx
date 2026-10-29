@@ -53,6 +53,7 @@ interface InteractiveMapProps {
   areaOffline: AreaPetaOffline[];
   petaKustomAktif?: AreaPetaOffline | null;
   onTutupPetaKustom?: () => void;
+  onPilihPetaKustom?: (area: AreaPetaOffline) => void;
   fokusKoordinat?: { lat: number; lng: number; label?: string } | null;
   /** Dipanggil setelah fokus dipakai, agar fokus lama tidak menimpa posisi terakhir saat peta dibuka lagi */
   onFokusDipakai?: () => void;
@@ -61,6 +62,12 @@ interface InteractiveMapProps {
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
   onImporBerkas: (namaBerkas: string, isi: string) => boolean;
   onBukaSmartwatch?: () => void;
+}
+
+/** Format nama peta agar tidak melebar atau meluap keluar layar (Avenza style) */
+export function formatJudulAvenza(nama: string, maxLen = 22): string {
+  if (nama.length <= maxLen) return nama;
+  return nama.slice(0, maxLen - 3) + "...";
 }
 
 
@@ -125,6 +132,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   areaOffline,
   petaKustomAktif,
   onTutupPetaKustom,
+  onPilihPetaKustom,
   fokusKoordinat,
   onFokusDipakai,
   onSimpanDataBaru,
@@ -424,25 +432,30 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     canvas.height = Math.round(H * dpr);
     ctx.scale(dpr, dpr);
 
-    // 1. Latar Belakang Peta
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    if (basemap === "satelit") {
-      grad.addColorStop(0, "#071f18");
-      grad.addColorStop(0.5, "#0a291f");
-      grad.addColorStop(1, "#051611");
-    } else if (basemap === "topo") {
-      grad.addColorStop(0, "#1c2826");
-      grad.addColorStop(1, "#121d1b");
+    // 1. Latar Belakang Peta: Jika partisi Lembar Peta Kustom aktif, gunakan meja netral terisolasi tanpa basemap
+    if (petaKustomAktif) {
+      ctx.fillStyle = "#4a4d52";
+      ctx.fillRect(0, 0, W, H);
     } else {
-      grad.addColorStop(0, "#0b1724");
-      grad.addColorStop(1, "#071018");
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      if (basemap === "satelit") {
+        grad.addColorStop(0, "#071f18");
+        grad.addColorStop(0.5, "#0a291f");
+        grad.addColorStop(1, "#051611");
+      } else if (basemap === "topo") {
+        grad.addColorStop(0, "#1c2826");
+        grad.addColorStop(1, "#121d1b");
+      } else {
+        grad.addColorStop(0, "#0b1724");
+        grad.addColorStop(1, "#071018");
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
     }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
 
-    // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo
-    // Di atas zoom maksimum penyedia (mis. Sentinel-2 sampai z13), tile zoom tertinggi diperbesar
-    if (basemap !== "taktis") {
+    // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo (HANYA PADA PARTISI PETA DASAR ONLINE)
+    // Pemisahan tegas: saat partisi lembar peta aktif, tile basemap TIDAK digambar agar tidak bercampur!
+    if (!petaKustomAktif && basemap !== "taktis") {
       const zTile = zoomSumber(basemap, zoom);
       const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
       const centerTx = lngToTileX(center.lng, zTile);
@@ -501,7 +514,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       targetGoTo,
       gpsPos,
       kompasDerajat,
-      petaKustomAktif
+      petaKustomAktif,
+      saatGambarSiap: () => setRenderTick((t) => t + 1)
     });
   }, [
     center,
@@ -870,7 +884,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </button>
           <div className="avenza-head-title-wrap">
             <span className="avenza-head-title" title={petaKustomAktif.namaArea}>
-              {petaKustomAktif.namaArea}
+              {formatJudulAvenza(petaKustomAktif.namaArea)}
             </span>
           </div>
           <div className="avenza-head-actions">
@@ -895,6 +909,33 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         </header>
       )}
+
+      {/* BAR PARTISI PEMISAH: LEMBAR PETA SAYA VS PETA DASAR ONLINE */}
+      <div className={`avenza-partition-bar ${petaKustomAktif ? "in-custom-mode" : "in-basemap-mode"}`}>
+        <button
+          type="button"
+          className={`partition-btn ${petaKustomAktif ? "active" : ""}`}
+          onClick={() => {
+            if (!petaKustomAktif && areaOffline.length > 0) {
+              const utama = areaOffline.find((a) => a.namaArea.includes("Tanjung_Selor")) || areaOffline[0];
+              onPilihPetaKustom?.(utama);
+            }
+          }}
+          title="Lembar Peta Kustom Mandiri (Terisolasi dari Peta Dasar)"
+        >
+          📄 Lembar Peta Saya
+        </button>
+        <button
+          type="button"
+          className={`partition-btn ${!petaKustomAktif ? "active" : ""}`}
+          onClick={() => {
+            if (petaKustomAktif) onTutupPetaKustom?.();
+          }}
+          title="Beralih ke Peta Dasar Online (Satelit / Google / Topo)"
+        >
+          🌐 Peta Dasar (Online)
+        </button>
+      </div>
 
       {/* KOTAK PENCARIAN CEPAT DI DALAM PETA */}
       {cariKoordTerbuka && (
@@ -1132,8 +1173,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             Bila tidak muat dalam satu baris (layar sempit, huruf besar, panel rekam), tombol naik ke atas
             atribusi sehingga tidak pernah saling menutupi. */}
         <div className="map-bawah">
-          {/* Atribusi sumber peta wajib tampil menurut lisensi/ketentuan penyedia */}
-          {basemap === "google" ? (
+          {/* Atribusi sumber peta: jika lembar peta kustom terisolasi, sembunyikan atribusi tile online */}
+          {petaKustomAktif ? (
+            <div id="atribusi-peta" className="map-atribusi map-atribusi-custom">
+              <span>Lembar Peta: {formatJudulAvenza(petaKustomAktif.namaArea, 26)} • WGS 84</span>
+            </div>
+          ) : basemap === "google" ? (
             // Ketentuan Google: logo Google tidak boleh tertutup dan teks hak cipta dari Google wajib tampil
             <div id="atribusi-peta" className="map-atribusi map-atribusi-google">
               {logoGoogleGagal ? (

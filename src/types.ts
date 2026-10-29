@@ -90,7 +90,9 @@ export interface AreaPetaOffline {
   jarakKm?: number;
   thumbnailType?: "radar" | "vector" | "dem_atas" | "dem_bawah" | "geopdf_sheet";
   thumbnailDataUrl?: string;
+  thumbnailUrl?: string;
   petaKustomDataUrl?: string;
+  petaKustomUrl?: string;
   statusTeks?: string;
   diunduhPada: string;
   jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";

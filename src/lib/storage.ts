@@ -74,6 +74,8 @@ export const PETA_TANJUNG_SELOR_BAWAAN: AreaPetaOffline = {
   ukuranMb: 12.5,
   jarakKm: 0,
   thumbnailType: "geopdf_sheet",
+  petaKustomUrl: "/peta/tanjung_selor_lembar.jpg",
+  thumbnailUrl: "/peta/tanjung_selor_thumb.jpg",
   diunduhPada: new Date().toISOString(),
   jenisFile: "GeoPDF / GeoTIFF",
   unduhanNyata: true,
@@ -142,7 +144,17 @@ export const muatAreaOffline = () => {
   if (!data.some((a) => a.namaArea.includes("Tanjung_Selor"))) {
     return [PETA_TANJUNG_SELOR_BAWAAN, ...data];
   }
-  return data;
+  return data.map((item) => {
+    if (item.namaArea.includes("Tanjung_Selor")) {
+      return {
+        ...item,
+        petaKustomUrl: item.petaKustomUrl || "/peta/tanjung_selor_lembar.jpg",
+        thumbnailUrl: item.thumbnailUrl || "/peta/tanjung_selor_thumb.jpg",
+        statusTeks: item.statusTeks || "Pada peta"
+      };
+    }
+    return item;
+  });
 };
 export const simpanAreaOffline = (v: AreaPetaOffline[]) => simpanJson(KEY_OFFLINE_MAPS, v);
 

@@ -566,12 +566,18 @@ body {
 }
 
 .avenza-map-title {
-  font-size: 0.96rem;
-  font-weight: 500;
+  font-size: 0.94rem;
+  font-weight: 600;
   color: #181a19;
   line-height: 1.35;
-  word-break: break-word;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   margin-bottom: 3px;
+  max-width: 100%;
 }
 
 .avenza-map-meta {
@@ -4957,15 +4963,19 @@ label {
   top: 0;
   left: 0;
   right: 0;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
   height: 52px;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 10px;
   z-index: 40;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   border-bottom: 1px solid #e2e8f0;
+  overflow: hidden;
 }
 
 .avenza-head-btn {
@@ -4979,6 +4989,7 @@ label {
   justify-content: center;
   border-radius: 50%;
   cursor: pointer;
+  flex-shrink: 0;
   transition: background 0.15s ease;
 }
 
@@ -4987,26 +4998,90 @@ label {
 }
 
 .avenza-head-title-wrap {
-  flex: 1;
+  flex: 1 1 0%;
   min-width: 0;
-  margin: 0 8px;
+  max-width: calc(100vw - 130px);
+  overflow: hidden;
+  margin: 0 6px;
 }
 
 .avenza-head-title {
   display: block;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.01em;
+  max-width: 100%;
 }
 
 .avenza-head-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Partisi Pemisah: Lembar Peta Saya vs Peta Dasar Online */
+.avenza-partition-bar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 99px;
+  padding: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  border: 1px solid #cbd5e1;
+  z-index: 38;
+  max-width: calc(100vw - 24px);
+  overflow: hidden;
+}
+
+.avenza-partition-bar.in-custom-mode {
+  top: 58px;
+}
+
+.avenza-partition-bar.in-basemap-mode {
+  top: 12px;
+}
+
+.partition-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.partition-btn.active {
+  background: #047857;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(4, 120, 87, 0.35);
+}
+
+.partition-btn:hover:not(.active) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.avenza-real-thumb-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+  flex-shrink: 0;
 }
 
 /* Kotak pencarian koordinat cepat di dalam peta */

@@ -781,7 +781,14 @@ export const App: React.FC = () => {
                 petaKustomAktif={petaKustomAktif}
                 onTutupPetaKustom={() => {
                   setPetaKustomAktif(null);
-                  setTabAktif("pustaka");
+                }}
+                onPilihPetaKustom={(a) => {
+                  setPetaKustomAktif(a);
+                  setFokusKoordinat({
+                    lat: (a.minLat + a.maxLat) / 2,
+                    lng: (a.minLng + a.maxLng) / 2,
+                    label: a.namaArea
+                  });
                 }}
                 fokusKoordinat={fokusKoordinat}
                 onFokusDipakai={() => setFokusKoordinat(null)}

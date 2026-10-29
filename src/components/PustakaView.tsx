@@ -101,6 +101,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [ukuranMbBaru, setUkuranMbBaru] = useState("");
   const [jarakKmBaru, setJarakKmBaru] = useState("");
   const [metadataPetaBaru, setMetadataPetaBaru] = useState<HasilMetadataPeta | null>(null);
+  const [petaKustomDataUrlBaru, setPetaKustomDataUrlBaru] = useState<string | undefined>(undefined);
   const [sedangMemprosesBerkas, setSedangMemprosesBerkas] = useState(false);
 
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
@@ -141,6 +142,19 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     const file = input.files?.[0];
     if (!file) return;
     setSedangMemprosesBerkas(true);
+
+    // Baca berkas sebagai dataURL agar peta otentik pengguna dapat langsung ditampilkan di kanvas
+    if (file.type.startsWith("image/") || /\.(pdf|geopdf|tif|tiff|geotiff|png|jpg|jpeg)$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const res = ev.target?.result;
+        if (typeof res === "string") {
+          setPetaKustomDataUrlBaru(res);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
     try {
       const meta = await bacaMetadataBerkasPeta(file);
       setMetadataPetaBaru(meta);
@@ -160,6 +174,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const handleSimpanPetaBaru = (e: React.FormEvent) => {
     e.preventDefault();
     if (!namaPetaBaru.trim()) return;
+    const isTanjungSelor = /tanjung_selor|bulungan/i.test(namaPetaBaru);
     const itemBaru: AreaPetaOffline = {
       id: buatId("MAP-OFF"),
       namaArea: namaPetaBaru.trim(),
@@ -174,6 +189,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 12.5,
       jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
       thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
+      petaKustomDataUrl: petaKustomDataUrlBaru,
+      petaKustomUrl: petaKustomDataUrlBaru ? undefined : (isTanjungSelor ? "/peta/tanjung_selor_lembar.jpg" : undefined),
+      thumbnailUrl: isTanjungSelor ? "/peta/tanjung_selor_thumb.jpg" : undefined,
       diunduhPada: new Date().toISOString(),
       jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
       unduhanNyata: true,
@@ -183,6 +201,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     setNamaPetaBaru("");
     setUkuranMbBaru("");
     setJarakKmBaru("");
+    setPetaKustomDataUrlBaru(undefined);
     setMetadataPetaBaru(null);
     setBukaModalPetaBaru(false);
   };
@@ -374,7 +393,16 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 )}
 
                 <div className="avenza-map-thumb-wrap">
-                  {item.thumbnailType === "geopdf_sheet" || /geopdf|kawasan_hutan/i.test(item.namaArea) ? (
+                  {item.thumbnailUrl || item.thumbnailDataUrl ? (
+                    <img
+                      src={item.thumbnailUrl || item.thumbnailDataUrl}
+                      alt={item.namaArea}
+                      className="avenza-real-thumb-img"
+                      width={52}
+                      height={52}
+                      loading="lazy"
+                    />
+                  ) : item.thumbnailType === "geopdf_sheet" || /geopdf|kawasan_hutan/i.test(item.namaArea) ? (
                     <MiniaturGeoPdfThumb size={52} />
                   ) : (
                     <div className={`avenza-map-thumb thumb-${item.thumbnailType || "radar"}`}>
@@ -664,7 +692,17 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               {/* PRATINJAU PETA SEBELUM MASUK (AVENZA STYLE) */}
               <div className="avenza-preview-card">
                 <div className="avenza-preview-thumb">
-                  <MiniaturGeoPdfThumb size={56} />
+                  {petaKustomDataUrlBaru ? (
+                    <img
+                      src={petaKustomDataUrlBaru}
+                      alt="Pratinjau peta diunggah"
+                      className="avenza-real-thumb-img"
+                      width={56}
+                      height={56}
+                    />
+                  ) : (
+                    <MiniaturGeoPdfThumb size={56} />
+                  )}
                 </div>
                 <div className="avenza-preview-details">
                   <div className="avenza-preview-tag">
