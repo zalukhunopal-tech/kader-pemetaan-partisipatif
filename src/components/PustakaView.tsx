@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
-import { ArrowUpDown, ChevronDown, Download, Filter, Layers, Map as MapIcon, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { ArrowUpDown, Check, ChevronDown, Download, FileUp, Filter, Layers, Map as MapIcon, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { bacaMetadataBerkasPeta, HasilMetadataPeta } from "../lib/metaPeta";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -49,6 +50,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [namaPetaBaru, setNamaPetaBaru] = useState("");
   const [ukuranMbBaru, setUkuranMbBaru] = useState("");
   const [jarakKmBaru, setJarakKmBaru] = useState("");
+  const [metadataPetaBaru, setMetadataPetaBaru] = useState<HasilMetadataPeta | null>(null);
+  const [sedangMemprosesBerkas, setSedangMemprosesBerkas] = useState(false);
 
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
@@ -83,6 +86,27 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     setIdTerpilih((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
+  const handlePilihBerkasPeta = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    setSedangMemprosesBerkas(true);
+    try {
+      const meta = await bacaMetadataBerkasPeta(file);
+      setMetadataPetaBaru(meta);
+      setNamaPetaBaru(meta.namaArea);
+      setUkuranMbBaru(meta.ukuranMbTeks);
+      setJarakKmBaru(meta.jarakKmTeks);
+    } catch {
+      setNamaPetaBaru(file.name);
+      setUkuranMbBaru((file.size / (1024 * 1024)).toFixed(1).replace(".", ","));
+      setJarakKmBaru("0");
+    } finally {
+      setSedangMemprosesBerkas(false);
+      input.value = "";
+    }
+  };
+
   const handleSimpanPetaBaru = (e: React.FormEvent) => {
     e.preventDefault();
     if (!namaPetaBaru.trim()) return;
@@ -90,23 +114,24 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       id: buatId("MAP-OFF"),
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
-      minLat: -0.958,
-      maxLat: -0.932,
-      minLng: 100.408,
-      maxLng: 100.432,
+      minLat: metadataPetaBaru?.minLat ?? -0.958,
+      maxLat: metadataPetaBaru?.maxLat ?? -0.932,
+      minLng: metadataPetaBaru?.minLng ?? 100.408,
+      maxLng: metadataPetaBaru?.maxLng ?? 100.432,
       zoomMin: 13,
       zoomMax: 18,
       jumlahTile: 980,
       ukuranMb: Number(ukuranMbBaru.replace(",", ".")) || 10,
       jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
-      thumbnailType: "dem_atas",
+      thumbnailType: metadataPetaBaru?.thumbnailType ?? "dem_atas",
       diunduhPada: new Date().toISOString(),
-      jenisFile: "GeoPDF / GeoTIFF"
+      jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF"
     };
     onTambahAreaOffline(itemBaru);
     setNamaPetaBaru("");
     setUkuranMbBaru("");
     setJarakKmBaru("");
+    setMetadataPetaBaru(null);
     setBukaModalPetaBaru(false);
   };
 
@@ -552,6 +577,36 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               </button>
             </div>
             <form onSubmit={handleSimpanPetaBaru} className="modal-form">
+              {/* UPLOAD BERKAS PETA DARI PERANGKAT */}
+              <div className="peta-upload-container">
+                <label className="peta-upload-dropzone" htmlFor="upload-peta-input">
+                  <input
+                    id="upload-peta-input"
+                    type="file"
+                    accept=".pdf,.geopdf,.tif,.tiff,.geotiff,.mbtiles,.kmz"
+                    style={{ display: "none" }}
+                    onChange={handlePilihBerkasPeta}
+                  />
+                  <div className="peta-upload-icon-wrap">
+                    <FileUp size={24} />
+                  </div>
+                  <div className="peta-upload-text-wrap">
+                    <strong>Pilih Berkas Peta dari Perangkat</strong>
+                    <span>Format: GeoPDF (.pdf, .geopdf), GeoTIFF (.tif, .geotiff), MBTiles (.mbtiles)</span>
+                  </div>
+                  <span className="peta-upload-btn-chip">Pilih Berkas</span>
+                </label>
+                {sedangMemprosesBerkas && (
+                  <div className="peta-upload-status loading">
+                    <span>Membaca metadata berkas dan menghitung jarak referensi…</span>
+                  </div>
+                )}
+                {!sedangMemprosesBerkas && metadataPetaBaru && (
+                  <div className="peta-upload-status success">
+                    <Check size={14} /> Berkas dipilih: <b>{metadataPetaBaru.namaArea}</b> ({metadataPetaBaru.ukuranMbTeks} MB • Jarak {metadataPetaBaru.jarakKmTeks} km)
+                  </div>
+                )}
+              </div>
               <div>
                 <label>Nama File Peta Kerja (GeoPDF / GeoTIFF / MBTiles)</label>
                 <input

@@ -35,7 +35,7 @@ const sert = (nomor: string, idKader = "X"): SertifikatKader => ({
   jabatanPenandatangan: "J"
 });
 
-const info = { namaOrganisasi: "Org", ditandatanganiOleh: "Pejabat", jabatanPenandatangan: "Koordinator", sekarang: new Date(2026, 9, 28) };
+const info = { namaOrganisasi: "Org", ditandatanganiOleh: "Pejabat", jabatanPenandatangan: "Koordinator", sekarang: new Date("2026-10-28T12:00:00Z") };
 
 describe("nomorSertifikatBerikut", () => {
   it("mulai dari 0001 dan memakai bulan Romawi serta tahun", () => {
