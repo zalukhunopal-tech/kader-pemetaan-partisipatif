@@ -5282,3 +5282,102 @@ label {
   text-align: right;
   word-break: break-word;
 }
+
+/* Badge Sistem Koordinat (CRS) di Daftar Peta Pustaka */
+.avenza-crs-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Kartu Deteksi Otomatis Sistem Koordinat & Bounding Box (Modal Tambah Peta) */
+.avenza-spatial-meta-card {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.avenza-spatial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.avenza-spatial-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avenza-spatial-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.avenza-spatial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.avenza-spatial-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.avenza-spatial-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.avenza-spatial-item .spatial-label {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.avenza-spatial-item .spatial-value {
+  font-size: 0.78rem;
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.avenza-spatial-item .spatial-value.crs-name {
+  color: #047857;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.avenza-spatial-item .spatial-desc {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-style: italic;
+}

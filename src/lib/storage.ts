@@ -73,6 +73,8 @@ export const PETA_TANJUNG_SELOR_BAWAAN: AreaPetaOffline = {
   jumlahTile: 1250,
   ukuranMb: 12.5,
   jarakKm: 0,
+  crs: "EPSG:32650 (WGS 84 / UTM Zone 50N)",
+  crsDeskripsi: "WGS 84 / UTM Zona 50 Utara (Kecamatan Tanjung Selor, Bulungan)",
   thumbnailType: "geopdf_sheet",
   petaKustomUrl: "/peta/tanjung_selor_lembar.jpg",
   thumbnailUrl: "/peta/tanjung_selor_thumb.jpg",

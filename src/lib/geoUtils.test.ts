@@ -9,6 +9,8 @@ import {
   hitungLuasPoligonHa,
   hitungPanjangGarisKm,
   konversiUTM,
+  konversiUtmKeWgs84,
+  konversiWebMercatorKeWgs84,
   sanitasiFormulaCsv
 } from "./geoUtils";
 import { DataSpasialItem } from "../types";
@@ -56,6 +58,26 @@ describe("konversiUTM", () => {
   it("formatKoordinatTeks UTM menuliskan zona, belahan, timur, dan utara", () => {
     expect(formatKoordinatTeks(-0.9475, 100.4192, "UTM")).toBe("UTM 47S 657916mE 9895240mN");
     expect(formatKoordinatTeks(89, 10, "UTM")).toMatch(/tidak berlaku/);
+  });
+
+  it.each(ACUAN_UTM)("konversiUtmKeWgs84 membalikkan titik %s secara akurat", (_nama, lat, lng, zona, belahan, timur, utara) => {
+    const balik = konversiUtmKeWgs84(timur, utara, zona, belahan);
+    // Toleransi dalam derajat (~1 meter = 0.000009 derajat)
+    expect(Math.abs(balik.lat - lat)).toBeLessThan(0.00003);
+    expect(Math.abs(balik.lng - lng)).toBeLessThan(0.00003);
+  });
+
+  it("konversiWebMercatorKeWgs84 mengubah koordinat x,y Web Mercator ke WGS84", () => {
+    // Titik khatulistiwa (0, 0)
+    const nol = konversiWebMercatorKeWgs84(0, 0);
+    expect(nol.lat).toBe(0);
+    expect(nol.lng).toBe(0);
+
+    // Titik Tanjung Selor (lng ~ 117.377, lat ~ 2.857)
+    // Web Mercator: x = 117.377 * 20037508.34 / 180 = 13066347
+    const pt = konversiWebMercatorKeWgs84(13066347, 318320);
+    expect(pt.lng).toBeCloseTo(117.377, 2);
+    expect(pt.lat).toBeCloseTo(2.857, 2);
   });
 });
 

@@ -74,4 +74,99 @@ describe("metaPeta", () => {
     expect(meta.jarakKm).toBe(0);
     expect(meta.jarakKmTeks).toBe("0");
   });
+
+  it("mendeteksi CRS dan menghitung bounding box otomatis saat berkas GeoTIFF diunggah", async () => {
+    // Siapkan buffer GeoTIFF Little Endian (WGS 84 / UTM Zone 50N)
+    const buf = new ArrayBuffer(512);
+    const view = new DataView(buf);
+    const u8 = new Uint8Array(buf);
+    u8[0] = 0x49;
+    u8[1] = 0x49;
+    view.setUint16(2, 42, true);
+    view.setUint32(4, 8, true);
+    view.setUint16(8, 5, true); // 5 tags
+
+    let off = 10;
+    // ImageWidth 1000
+    view.setUint16(off, 256, true);
+    view.setUint16(off + 2, 3, true);
+    view.setUint32(off + 4, 1, true);
+    view.setUint16(off + 8, 1000, true);
+
+    // ImageLength 800
+    off += 12;
+    view.setUint16(off, 257, true);
+    view.setUint16(off + 2, 3, true);
+    view.setUint32(off + 4, 1, true);
+    view.setUint16(off + 8, 800, true);
+
+    // ModelPixelScaleTag (10 m/px)
+    off += 12;
+    view.setUint16(off, 33550, true);
+    view.setUint16(off + 2, 12, true);
+    view.setUint32(off + 4, 3, true);
+    view.setUint32(off + 8, 200, true);
+    view.setFloat64(200, 10.0, true);
+    view.setFloat64(208, 10.0, true);
+    view.setFloat64(216, 0.0, true);
+
+    // ModelTiepointTag (Easting 540000, Northing 320000)
+    off += 12;
+    view.setUint16(off, 33922, true);
+    view.setUint16(off + 2, 12, true);
+    view.setUint32(off + 4, 6, true);
+    view.setUint32(off + 8, 230, true);
+    view.setFloat64(230, 0, true);
+    view.setFloat64(238, 0, true);
+    view.setFloat64(246, 0, true);
+    view.setFloat64(254, 540000.0, true);
+    view.setFloat64(262, 320000.0, true);
+    view.setFloat64(270, 0, true);
+
+    // GeoKeyDirectoryTag (EPSG:32650)
+    off += 12;
+    view.setUint16(off, 34735, true);
+    view.setUint16(off + 2, 3, true);
+    view.setUint32(off + 4, 8, true);
+    view.setUint32(off + 8, 300, true);
+    view.setUint16(300, 1, true);
+    view.setUint16(302, 1, true);
+    view.setUint16(304, 0, true);
+    view.setUint16(306, 1, true);
+    view.setUint16(308, 3072, true);
+    view.setUint16(310, 0, true);
+    view.setUint16(312, 1, true);
+    view.setUint16(314, 32650, true);
+
+    const file = new File([buf], "citra_satelit_tanjung_selor.tif", { type: "image/tiff" });
+    const meta = await bacaMetadataBerkasPeta(file, { lat: 2.85, lng: 117.37 });
+
+    expect(meta.sumberDeteksi).toBe("geotiff");
+    expect(meta.crs).toContain("EPSG:32650");
+    expect(meta.crs).toContain("UTM Zone 50N");
+    expect(meta.minLat).toBeGreaterThan(2.7);
+    expect(meta.maxLat).toBeLessThan(3.0);
+    expect(meta.minLng).toBeGreaterThan(117.2);
+    expect(meta.maxLng).toBeLessThan(117.6);
+  });
+
+  it("mendeteksi CRS dan menghitung bounding box otomatis saat berkas MBTiles diunggah", async () => {
+    const buf = new ArrayBuffer(1024);
+    const u8 = new Uint8Array(buf);
+    const magic = [0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00];
+    for (let i = 0; i < magic.length; i++) u8[i] = magic[i];
+
+    const teksMetadata = "INSERT INTO metadata VALUES('bounds','117.15,2.65,117.65,3.05');INSERT INTO metadata VALUES('name','Peta_Hutan_MBTiles');";
+    for (let i = 0; i < teksMetadata.length; i++) u8[100 + i] = teksMetadata.charCodeAt(i);
+
+    const file = new File([buf], "peta_kawasan.mbtiles", { type: "application/x-sqlite3" });
+    const meta = await bacaMetadataBerkasPeta(file, { lat: 2.85, lng: 117.37 });
+
+    expect(meta.sumberDeteksi).toBe("mbtiles");
+    expect(meta.crs).toContain("EPSG:3857");
+    expect(meta.minLng).toBe(117.15);
+    expect(meta.minLat).toBe(2.65);
+    expect(meta.maxLng).toBe(117.65);
+    expect(meta.maxLat).toBe(3.05);
+  });
 });

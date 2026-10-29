@@ -163,6 +163,87 @@ export function konversiUTM(lat: number, lng: number): HasilUTM | null {
 }
 
 /**
+ * Konversi koordinat UTM (Easting, Northing, Zona, Belahan) ke koordinat geografis WGS84 (Lat, Lng).
+ * Menggunakan invers deret Krüger dengan akurasi milimeter yang reversibel dengan konversiUTM.
+ */
+export function konversiUtmKeWgs84(
+  timur: number,
+  utara: number,
+  zona: number,
+  belahan: "N" | "S"
+): { lat: number; lng: number } {
+  const A_WGS84 = 6378137;
+  const F_WGS84 = 1 / 298.257223563;
+  const K0 = 0.9996;
+  const n = F_WGS84 / (2 - F_WGS84);
+  const n2 = n * n;
+  const n3 = n2 * n;
+  const n4 = n3 * n;
+  const aBulat = (A_WGS84 / (1 + n)) * (1 + n2 / 4 + n4 / 64);
+  const beta = [
+    n / 2 - (2 * n2) / 3 + (37 * n3) / 96,
+    n2 / 48 + n3 / 15,
+    (17 * n3) / 480
+  ];
+  const e = Math.sqrt(F_WGS84 * (2 - F_WGS84));
+
+  const e0 = 500000;
+  const n0 = belahan === "S" ? 10000000 : 0;
+  const eta = (timur - e0) / (K0 * aBulat);
+  const xi = (utara - n0) / (K0 * aBulat);
+
+  let xiAksen = xi;
+  let etaAksen = eta;
+  for (let j = 1; j <= 3; j++) {
+    xiAksen -= beta[j - 1] * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta);
+    etaAksen -= beta[j - 1] * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta);
+  }
+
+  const sinhEtaAksen = Math.sinh(etaAksen);
+  const sinXiAksen = Math.sin(xiAksen);
+  const cosXiAksen = Math.cos(xiAksen);
+
+  const denom = Math.sqrt(sinhEtaAksen * sinhEtaAksen + cosXiAksen * cosXiAksen);
+  const sinhPsi = sinXiAksen / (denom || 1e-12);
+  const psi = Math.asinh(sinhPsi);
+  const dLambda = Math.atan2(sinhEtaAksen, cosXiAksen);
+
+  const lambda0 = toRad((zona - 1) * 6 - 180 + 3);
+  let lng = toDeg(lambda0 + dLambda);
+  lng = ((((lng + 180) % 360) + 360) % 360) - 180;
+
+  // Invers Newton-Raphson untuk lat geodetik
+  let phi = 2 * Math.atan(Math.exp(psi)) - Math.PI / 2;
+  for (let i = 0; i < 7; i++) {
+    const s = Math.sin(phi);
+    const c = Math.cos(phi);
+    const curPsi = Math.atanh(s) - e * Math.atanh(e * s);
+    const diff = curPsi - psi;
+    const deriv = (1 - e * e) / (((1 - e * e * s * s) * c) || 1e-12);
+    phi -= diff / deriv;
+    if (Math.abs(diff) < 1e-12) break;
+  }
+  const lat = toDeg(phi);
+
+  return {
+    lat: Number(lat.toFixed(7)),
+    lng: Number(lng.toFixed(7))
+  };
+}
+
+/**
+ * Konversi koordinat Web Mercator (EPSG:3857) ke WGS84 geografis (Lat, Lng)
+ */
+export function konversiWebMercatorKeWgs84(x: number, y: number): { lat: number; lng: number } {
+  const lng = (x / 20037508.342789244) * 180;
+  const lat = (Math.atan(Math.sinh(y / 6378137.0)) * 180) / Math.PI;
+  return {
+    lat: Math.max(-85.05112878, Math.min(85.05112878, Number(lat.toFixed(7)))),
+    lng: Math.max(-180, Math.min(180, Number(lng.toFixed(7))))
+  };
+}
+
+/**
  * True bila ada titik hasil mode simulasi (bukan GPS perangkat).
  */
 export function adalahDataSimulasi(item: DataSpasialItem): boolean {

@@ -96,6 +96,13 @@ export interface AreaPetaOffline {
   statusTeks?: string;
   diunduhPada: string;
   jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";
+  crs?: string;
+  crsDeskripsi?: string;
+  pusatLat?: number;
+  pusatLng?: number;
+  lebarPixel?: number;
+  tinggiPixel?: number;
+  resolusiMeter?: number;
   /** true bila tile benar-benar tersimpan di perangkat; selain itu entri hanya catatan */
   unduhanNyata?: boolean;
   /** Templat URL tile saat diunduh (untuk menghapus tile area ini) */

@@ -1,5 +1,7 @@
 import { AreaPetaOffline } from "../types";
 import { hitungJarakMeter } from "./geoUtils";
+import { parseGeoTiffBuffer, HasilDeteksiGeoTiff } from "./geoTiffParser";
+import { parseMBTilesBuffer, HasilDeteksiMBTiles } from "./mbtilesParser";
 import { bacaPosisiPeta, POSISI_AWAL_PETA } from "./posisiPeta";
 
 export interface HasilMetadataPeta {
@@ -14,6 +16,16 @@ export interface HasilMetadataPeta {
   maxLat: number;
   minLng: number;
   maxLng: number;
+  crs?: string;
+  crsDeskripsi?: string;
+  pusatLat?: number;
+  pusatLng?: number;
+  rentangLat?: number;
+  rentangLng?: number;
+  lebarPixel?: number;
+  tinggiPixel?: number;
+  resolusiMeter?: number;
+  sumberDeteksi: "geotiff" | "mbtiles" | "geopdf" | "teks" | "bawaan";
 }
 
 /** Format angka MB atau km dengan tanda koma (gaya bahasa Indonesia) */
@@ -38,10 +50,16 @@ export function deteksiThumbnailPeta(namaBerkas: string): "vector" | "dem_atas" 
 }
 
 /**
- * Cari batas koordinat spasial (minLat, maxLat, minLng, maxLng) dari cuplikan teks header berkas.
+ * Cari batas koordinat spasial (minLat, maxLat, minLng, maxLng) dan CRS dari cuplikan teks berkas.
  * Mendukung format string bounds MBTiles (west,south,east,north) dan GeoPDF / GPTS.
  */
-export function ekstrakBatasDariTeks(teks: string): { minLat: number; maxLat: number; minLng: number; maxLng: number } | null {
+export function ekstrakBatasDariTeks(teks: string): {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  crs?: string;
+} | null {
   // Pola 1: MBTiles metadata "bounds", "-104.5,-1.2,100.5,1.5"
   const polaBounds = /bounds['"]?\s*[,:]\s*['"]?(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/i;
   const matchBounds = teks.match(polaBounds);
@@ -51,7 +69,13 @@ export function ekstrakBatasDariTeks(teks: string): { minLat: number; maxLat: nu
     const e = parseFloat(matchBounds[3]);
     const n = parseFloat(matchBounds[4]);
     if (w >= -180 && e <= 180 && s >= -90 && n <= 90 && w <= e && s <= n) {
-      return { minLng: w, maxLng: e, minLat: s, maxLat: n };
+      return {
+        minLng: w,
+        maxLng: e,
+        minLat: s,
+        maxLat: n,
+        crs: "EPSG:3857 / EPSG:4326 (WGS 84)"
+      };
     }
   }
 
@@ -76,11 +100,18 @@ export function ekstrakBatasDariTeks(teks: string): { minLat: number; maxLat: nu
         }
       }
       if (lats.length >= 2 && lngs.length >= 2) {
+        // Cek juga apakah ada indikasi CRS GeoPDF
+        let crsGeoPdf = "WGS 84 (GeoPDF ISO 32000-2 / OGC)";
+        if (/UTM\s*Zone\s*(\d+[NS]?)/i.test(teks)) {
+          const zMatch = teks.match(/UTM\s*Zone\s*(\d+[NS]?)/i);
+          crsGeoPdf = `WGS 84 / UTM Zone ${zMatch ? zMatch[1] : "50N"}`;
+        }
         return {
           minLat: Math.min(...lats),
           maxLat: Math.max(...lats),
           minLng: Math.min(...lngs),
-          maxLng: Math.max(...lngs)
+          maxLng: Math.max(...lngs),
+          crs: crsGeoPdf
         };
       }
     }
@@ -115,11 +146,10 @@ export function hitungJarakReferensiKm(
 }
 
 /**
- * Membaca berkas peta dari perangkat (GeoPDF, GeoTIFF, MBTiles) dan menghasilkan metadata lengkap:
- * - Ukuran file (MB)
- * - Jarak referensi (km)
- * - Tipe file & thumbnail
- * - Estimasi koordinat batas wilayah (bounding box)
+ * Membaca berkas peta dari perangkat (GeoTIFF, MBTiles, GeoPDF) dan melakukan:
+ * 1. Deteksi otomatis Sistem Koordinat Referensi (CRS)
+ * 2. Perhitungan otomatis batas koordinat spasial (Bounding Box: minLat, maxLat, minLng, maxLng)
+ * 3. Ekstraksi ukuran file (MB), resolusi (meter/pixel), dan jarak acuan GPS pengguna
  */
 export async function bacaMetadataBerkasPeta(
   file: File,
@@ -133,33 +163,124 @@ export async function bacaMetadataBerkasPeta(
   // Posisi acuan dasar jika tidak disediakan: posisi tersimpan peta atau lokasi default
   const posisiRef = posisiAcuan || (typeof window !== "undefined" ? bacaPosisiPeta() : null) || POSISI_AWAL_PETA;
 
-  // Baca sampel header berkas (maks 256 KB) untuk mendeteksi metadata koordinat
-  let batas: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null = null;
-  try {
-    const potongan = file.slice(0, Math.min(file.size, 262144));
-    const teksCuplikan = await potongan.text();
-    batas = ekstrakBatasDariTeks(teksCuplikan);
-  } catch {
-    // Abaikan jika berkas biner tidak dapat di-parse sebagai teks
+  let minLat: number | null = null;
+  let maxLat: number | null = null;
+  let minLng: number | null = null;
+  let maxLng: number | null = null;
+  let pusatLat: number | undefined = undefined;
+  let pusatLng: number | undefined = undefined;
+  let crs: string | undefined = undefined;
+  let crsDeskripsi: string | undefined = undefined;
+  let lebarPixel: number | undefined = undefined;
+  let tinggiPixel: number | undefined = undefined;
+  let resolusiMeter: number | undefined = undefined;
+  let sumberDeteksi: HasilMetadataPeta["sumberDeteksi"] = "bawaan";
+
+  const namaKecil = file.name.toLowerCase();
+  const maxBacaBiner = Math.min(file.size, 1024 * 1024); // Maks 1 MB untuk deteksi metadata spasial
+
+  // 1. Uji parsing biner GeoTIFF jika ekstensi tif/geotiff atau nama berkas relevan
+  const isTiffCandidate = /\.(tif|tiff|geotiff)$/i.test(namaKecil);
+  if (isTiffCandidate || file.size > 16) {
+    try {
+      const potongan = file.slice(0, maxBacaBiner);
+      const buffer = await potongan.arrayBuffer();
+      const deteksiTiff: HasilDeteksiGeoTiff | null = parseGeoTiffBuffer(buffer);
+      if (deteksiTiff) {
+        minLat = deteksiTiff.minLat;
+        maxLat = deteksiTiff.maxLat;
+        minLng = deteksiTiff.minLng;
+        maxLng = deteksiTiff.maxLng;
+        pusatLat = deteksiTiff.pusatLat;
+        pusatLng = deteksiTiff.pusatLng;
+        crs = deteksiTiff.crs;
+        crsDeskripsi = deteksiTiff.crsDeskripsi;
+        lebarPixel = deteksiTiff.lebarPixel;
+        tinggiPixel = deteksiTiff.tinggiPixel;
+        resolusiMeter = deteksiTiff.resolusiMeter;
+        sumberDeteksi = "geotiff";
+      }
+    } catch {
+      // Lanjut ke metode berikutnya jika buffer TIFF tidak valid
+    }
   }
 
-  // Jika nama berkas merujuk pada wilayah Tanjung Selor / Bulungan, gunakan koordinat definitif
-  if (!batas && /tanjung_selor|bulungan/i.test(file.name)) {
-    batas = { minLat: 2.65, maxLat: 3.05, minLng: 117.15, maxLng: 117.65 };
+  // 2. Uji parsing biner MBTiles jika ekstensi mbtiles atau basis data SQLite
+  if (!crs && (/\.mbtiles$/i.test(namaKecil) || file.size > 100)) {
+    try {
+      const potongan = file.slice(0, maxBacaBiner);
+      const buffer = await potongan.arrayBuffer();
+      const deteksiMb: HasilDeteksiMBTiles | null = parseMBTilesBuffer(buffer);
+      if (deteksiMb) {
+        minLat = deteksiMb.minLat;
+        maxLat = deteksiMb.maxLat;
+        minLng = deteksiMb.minLng;
+        maxLng = deteksiMb.maxLng;
+        pusatLat = deteksiMb.pusatLat;
+        pusatLng = deteksiMb.pusatLng;
+        crs = deteksiMb.crs;
+        crsDeskripsi = deteksiMb.crsDeskripsi;
+        sumberDeteksi = "mbtiles";
+      }
+    } catch {
+      // Lanjut jika bukan format MBTiles SQLite
+    }
   }
 
-  // Jika batas tidak ditemukan di header, gunakan wilayah di sekitar posisi acuan
-  if (!batas) {
-    batas = {
-      minLat: Number((posisiRef.lat - 0.02).toFixed(4)),
-      maxLat: Number((posisiRef.lat + 0.02).toFixed(4)),
-      minLng: Number((posisiRef.lng - 0.02).toFixed(4)),
-      maxLng: Number((posisiRef.lng + 0.02).toFixed(4))
-    };
+  // 3. Uji deteksi teks (GeoPDF / GPTS atau metadata teks)
+  if (!crs || minLat === null) {
+    try {
+      const potongan = file.slice(0, Math.min(file.size, 262144));
+      const teksCuplikan = await potongan.text();
+      const hasilTeks = ekstrakBatasDariTeks(teksCuplikan);
+      if (hasilTeks) {
+        minLat = hasilTeks.minLat;
+        maxLat = hasilTeks.maxLat;
+        minLng = hasilTeks.minLng;
+        maxLng = hasilTeks.maxLng;
+        crs = hasilTeks.crs || "WGS 84 (GeoPDF)";
+        crsDeskripsi = "Georeferensi Dokumen PDF Spasial (OGC GeoPDF)";
+        sumberDeteksi = "geopdf";
+      }
+    } catch {
+      // Abaikan jika berkas biner tidak dapat di-parse sebagai teks
+    }
   }
 
-  const jarakKm = hitungJarakReferensiKm(posisiRef, batas);
+  // 4. Fallback nama berkas Tanjung Selor / Bulungan
+  if (minLat === null && /tanjung_selor|bulungan/i.test(file.name)) {
+    minLat = 2.65;
+    maxLat = 3.05;
+    minLng = 117.15;
+    maxLng = 117.65;
+    crs = "EPSG:32650 (WGS 84 / UTM Zone 50N)";
+    crsDeskripsi = "Wilayah Tugas Tanjung Selor, Bulungan (Zona UTM 50 Utara)";
+    sumberDeteksi = "bawaan";
+  }
+
+  // 5. Fallback ke radius posisi acuan jika sama sekali tidak ada georeferensi di berkas
+  if (minLat === null || maxLat === null || minLng === null || maxLng === null) {
+    minLat = Number((posisiRef.lat - 0.02).toFixed(4));
+    maxLat = Number((posisiRef.lat + 0.02).toFixed(4));
+    minLng = Number((posisiRef.lng - 0.02).toFixed(4));
+    maxLng = Number((posisiRef.lng + 0.02).toFixed(4));
+    if (!crs) {
+      crs = "EPSG:4326 (WGS 84)";
+      crsDeskripsi = "Koordinat Acuan Lapangan (WGS 84)";
+    }
+    sumberDeteksi = "bawaan";
+  }
+
+  if (pusatLat === undefined || pusatLng === undefined) {
+    pusatLat = Number(((minLat + maxLat) / 2).toFixed(7));
+    pusatLng = Number(((minLng + maxLng) / 2).toFixed(7));
+  }
+
+  const kotakBatas = { minLat, maxLat, minLng, maxLng };
+  const jarakKm = hitungJarakReferensiKm(posisiRef, kotakBatas);
   const jarakKmTeks = formatAngkaKoma(jarakKm, 1);
+  const rentangLat = Number(Math.abs(maxLat - minLat).toFixed(4));
+  const rentangLng = Number(Math.abs(maxLng - minLng).toFixed(4));
 
   return {
     namaArea: file.name,
@@ -169,9 +290,19 @@ export async function bacaMetadataBerkasPeta(
     jarakKmTeks,
     jenisFile,
     thumbnailType,
-    minLat: batas.minLat,
-    maxLat: batas.maxLat,
-    minLng: batas.minLng,
-    maxLng: batas.maxLng
+    minLat,
+    maxLat,
+    minLng,
+    maxLng,
+    pusatLat,
+    pusatLng,
+    rentangLat,
+    rentangLng,
+    crs,
+    crsDeskripsi,
+    lebarPixel,
+    tinggiPixel,
+    resolusiMeter,
+    sumberDeteksi
   };
 }

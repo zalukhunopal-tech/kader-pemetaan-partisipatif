@@ -194,6 +194,13 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       thumbnailUrl: isTanjungSelor ? "/peta/tanjung_selor_thumb.jpg" : undefined,
       diunduhPada: new Date().toISOString(),
       jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
+      crs: metadataPetaBaru?.crs ?? (isTanjungSelor ? "EPSG:32650 (WGS 84 / UTM Zone 50N)" : "EPSG:4326 (WGS 84)"),
+      crsDeskripsi: metadataPetaBaru?.crsDeskripsi,
+      pusatLat: metadataPetaBaru?.pusatLat,
+      pusatLng: metadataPetaBaru?.pusatLng,
+      lebarPixel: metadataPetaBaru?.lebarPixel,
+      tinggiPixel: metadataPetaBaru?.tinggiPixel,
+      resolusiMeter: metadataPetaBaru?.resolusiMeter,
       unduhanNyata: true,
       statusTeks: "Pada peta"
     };
@@ -432,6 +439,15 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                       <>
                         {" "}
                         <span className="dot-sep">•</span> {formatAngkaIndo(item.jarakKm)} km
+                      </>
+                    )}
+                    {item.crs && (
+                      <>
+                        {" "}
+                        <span className="dot-sep">•</span>{" "}
+                        <span className="avenza-crs-badge" title={item.crsDeskripsi || item.crs}>
+                          {item.crs.replace(/\s*\(.*\)$/, "")}
+                        </span>
                       </>
                     )}
                   </div>
@@ -679,7 +695,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </label>
                 {sedangMemprosesBerkas && (
                   <div className="peta-upload-status loading">
-                    <span>Membaca metadata berkas dan menghitung jarak referensi…</span>
+                    <span>Mendeteksi sistem koordinat (CRS) & menghitung bounding box otomatis…</span>
                   </div>
                 )}
                 {!sedangMemprosesBerkas && metadataPetaBaru && (
@@ -688,6 +704,61 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* CARD DETEKSI OTOMATIS CRS & BOUNDING BOX */}
+              {metadataPetaBaru && (
+                <div className="avenza-spatial-meta-card">
+                  <div className="avenza-spatial-header">
+                    <span className="avenza-spatial-title">
+                      🌐 Sistem Koordinat (CRS) & Bounding Box
+                    </span>
+                    <span className="avenza-spatial-badge">
+                      <Check size={12} /> Terisi Otomatis
+                    </span>
+                  </div>
+                  <div className="avenza-spatial-grid">
+                    <div className="avenza-spatial-item full-width">
+                      <span className="spatial-label">Sistem Koordinat Acuan (CRS):</span>
+                      <strong className="spatial-value crs-name">
+                        {metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}
+                      </strong>
+                      {metadataPetaBaru.crsDeskripsi && (
+                        <span className="spatial-desc">{metadataPetaBaru.crsDeskripsi}</span>
+                      )}
+                    </div>
+                    <div className="avenza-spatial-item">
+                      <span className="spatial-label">Batas Lintang (Lat):</span>
+                      <span className="spatial-value">
+                        {metadataPetaBaru.minLat.toFixed(4)}° s/d {metadataPetaBaru.maxLat.toFixed(4)}°
+                      </span>
+                    </div>
+                    <div className="avenza-spatial-item">
+                      <span className="spatial-label">Batas Bujur (Lng):</span>
+                      <span className="spatial-value">
+                        {metadataPetaBaru.minLng.toFixed(4)}° s/d {metadataPetaBaru.maxLng.toFixed(4)}°
+                      </span>
+                    </div>
+                    {metadataPetaBaru.pusatLat !== undefined && metadataPetaBaru.pusatLng !== undefined && (
+                      <div className="avenza-spatial-item">
+                        <span className="spatial-label">Titik Pusat Referensi:</span>
+                        <span className="spatial-value">
+                          {metadataPetaBaru.pusatLat.toFixed(4)}°, {metadataPetaBaru.pusatLng.toFixed(4)}°
+                        </span>
+                      </div>
+                    )}
+                    <div className="avenza-spatial-item">
+                      <span className="spatial-label">Metode Deteksi Otomatis:</span>
+                      <span className="spatial-value text-emerald font-semibold">
+                        {metadataPetaBaru.sumberDeteksi === "geotiff" && "Header Biner GeoTIFF (Tag 33550 & 33922)"}
+                        {metadataPetaBaru.sumberDeteksi === "mbtiles" && "SQLite MBTiles Metadata (EPSG:3857/4326)"}
+                        {metadataPetaBaru.sumberDeteksi === "geopdf" && "Struktur Vektor GeoPDF /GPTS"}
+                        {metadataPetaBaru.sumberDeteksi === "teks" && "Ekstraksi Metadata String"}
+                        {metadataPetaBaru.sumberDeteksi === "bawaan" && "Koordinat Definitif Wilayah"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* PRATINJAU PETA SEBELUM MASUK (AVENZA STYLE) */}
               <div className="avenza-preview-card">
@@ -712,9 +783,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     {namaPetaBaru.trim() || "Peta_Fungsi_Kawasan_Hutan_Kec_Tanjung_Selor_A3_GeoPDF"}
                   </div>
                   <div className="avenza-preview-sub">
-                    <div>Cakupan: Tanjung Selor (Lat 2.65°–3.05°, Lng 117.15°–117.65°)</div>
+                    <div>
+                      Cakupan: Lat {metadataPetaBaru?.minLat ?? 2.65}°–{metadataPetaBaru?.maxLat ?? 3.05}°, Lng {metadataPetaBaru?.minLng ?? 117.15}°–{metadataPetaBaru?.maxLng ?? 117.65}°
+                    </div>
                     <div className="avenza-preview-status text-emerald">
-                      ● {ukuranMbBaru ? `${ukuranMbBaru} MB` : "12,5 MB"} • Siap terhubung langsung ke posisi GPS
+                      ● {ukuranMbBaru ? `${ukuranMbBaru} MB` : "12,5 MB"} • CRS: {metadataPetaBaru?.crs ? metadataPetaBaru.crs.replace(/\s*\(.*\)$/, "") : "WGS 84"} • Terhubung ke GPS
                     </div>
                   </div>
                 </div>
