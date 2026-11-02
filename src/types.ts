@@ -97,7 +97,8 @@ export interface AreaPetaOffline {
   petaKustomUrl?: string;
   statusTeks?: string;
   diunduhPada: string;
-  jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ";
+  jenisFile?: "XYZ Tiles" | "GeoPDF / GeoTIFF" | "MBTiles / KMZ" | "PMTiles";
+  tipeTile?: "vector" | "raster" | "raster-dem";
   crs?: string;
   crsDeskripsi?: string;
   pusatLat?: number;

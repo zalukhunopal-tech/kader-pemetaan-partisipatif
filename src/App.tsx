@@ -47,6 +47,7 @@ import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
+import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta } from "./lib/penyimpananPetaLuring";
 import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import { perekamLatar, usePerekamLatar } from "./lib/perekamLatar";
@@ -208,6 +209,11 @@ export const App: React.FC = () => {
   useEffect(() => simpanPesan(pesanList), [pesanList]);
   useEffect(() => simpanKaderAktif(kaderAktifList), [kaderAktifList]);
   useEffect(() => simpanStatusGDrive(statusGDrive), [statusGDrive]);
+
+  // Inisialisasi protokol peta luring (PMTiles & MBTiles) dari penyimpanan IndexedDB
+  useEffect(() => {
+    void muatSemuaArsipPetaKeProtokol();
+  }, []);
 
   // Ikuti perubahan koneksi dari browser
   useEffect(() => {
@@ -411,6 +417,7 @@ export const App: React.FC = () => {
     const area = areaOffline.find((a) => a.id === id);
     if (!area) return;
     setAreaOffline((prev) => prev.filter((a) => a.id !== id));
+    void hapusArsipPeta(id);
     if (area.unduhanNyata) {
       void hapusTileArea(area, areaOffline).then((n) => tampilkanToast(`✓ Peta "${area.namaArea}" dihapus (${n} tile dibersihkan).`));
     }

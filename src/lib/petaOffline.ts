@@ -1,5 +1,9 @@
 import { AreaPetaOffline, BasemapType } from "../types";
 import { kunciGoogle, tokenSesiGoogle } from "./googleTiles";
+import { ambilTilePmtilesBlob, registrasiProtokolPmtiles } from "./pmtilesProtocol";
+import { ambilTileMbtilesBlob, registrasiProtokolMbtiles } from "./mbtilesProtocol";
+
+export { registrasiProtokolPmtiles, registrasiProtokolMbtiles };
 
 /**
  * PETA OFFLINE
@@ -349,6 +353,38 @@ function gambarDariUrl(src: string, cadangkanCors: boolean): Promise<HTMLImageEl
  * Memuat satu tile: dari penyimpanan offline bila ada, selain itu dari jaringan.
  */
 export async function muatGambarTile(url: string): Promise<HTMLImageElement> {
+  if (url.startsWith("pmtiles://")) {
+    const match = url.replace("pmtiles://", "").match(/^([^/]+)\/(\d+)\/(\d+)\/(\d+)/);
+    if (match) {
+      const blob = await ambilTilePmtilesBlob(match[1], +match[2], +match[3], +match[4]);
+      if (blob) {
+        const blobUrl = URL.createObjectURL(blob);
+        try {
+          return await gambarDariUrl(blobUrl, false);
+        } finally {
+          URL.revokeObjectURL(blobUrl);
+        }
+      }
+    }
+    throw new Error("Tile PMTiles tidak ditemukan");
+  }
+
+  if (url.startsWith("mbtiles://")) {
+    const match = url.replace("mbtiles://", "").match(/^([^/]+)\/(\d+)\/(\d+)\/(\d+)/);
+    if (match) {
+      const blob = await ambilTileMbtilesBlob(match[1], +match[2], +match[3], +match[4]);
+      if (blob) {
+        const blobUrl = URL.createObjectURL(blob);
+        try {
+          return await gambarDariUrl(blobUrl, false);
+        } finally {
+          URL.revokeObjectURL(blobUrl);
+        }
+      }
+    }
+    throw new Error("Tile MBTiles tidak ditemukan");
+  }
+
   if (penyimpananTileDidukung()) {
     try {
       const hit = await (await bukaCache()).match(url);

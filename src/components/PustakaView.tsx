@@ -21,7 +21,10 @@ import {
   Search,
   X
 } from "lucide-react";
-import { HasilMetadataPeta } from "../lib/metaPeta";
+import { HasilMetadataPeta, bacaMetadataBerkasPeta } from "../lib/metaPeta";
+import { simpanArsipPeta } from "../lib/penyimpananPetaLuring";
+import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
+import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -118,6 +121,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [ukuranMbBaru, setUkuranMbBaru] = useState("");
   const [jarakKmBaru, setJarakKmBaru] = useState("");
   const [metadataPetaBaru, setMetadataPetaBaru] = useState<HasilMetadataPeta | null>(null);
+  const [berkasPetaMentah, setBerkasPetaMentah] = useState<File | null>(null);
   const [petaKustomDataUrlBaru, setPetaKustomDataUrlBaru] = useState<string | undefined>(undefined);
   const [sedangMemprosesBerkas, setSedangMemprosesBerkas] = useState(false);
 
@@ -138,7 +142,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         return false;
       }
       if (filterItem === "geopdf") return a.jenisFile === "GeoPDF / GeoTIFF";
-      if (filterItem === "tiles") return a.jenisFile === "XYZ Tiles";
+      if (filterItem === "tiles") return a.jenisFile === "XYZ Tiles" || a.jenisFile === "MBTiles / KMZ" || a.jenisFile === "PMTiles";
       return true;
     })
     .sort((a, b) => {
@@ -166,36 +170,64 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
     setGalatImpor("");
     setMetadataPetaBaru(null);
+    setBerkasPetaMentah(null);
     setPetaKustomDataUrlBaru(undefined);
     setRasterGeoreferensi(false);
     try {
-      if (!/\.(pdf|geopdf)$/i.test(file.name))
+      const namaKecil = file.name.toLowerCase();
+      if (/\.pmtiles$/i.test(namaKecil)) {
+        const meta = await bacaMetadataBerkasPeta(file);
+        setBerkasPetaMentah(file);
+        setMetadataPetaBaru(meta);
+        setNamaPetaBaru(meta.namaArea.replace(/\.pmtiles$/i, ""));
+        setUkuranMbBaru(meta.ukuranMbTeks);
+        setJarakKmBaru(meta.jarakKmTeks);
+        setRasterGeoreferensi(false);
+      } else if (/\.mbtiles$/i.test(namaKecil)) {
+        const meta = await bacaMetadataBerkasPeta(file);
+        setBerkasPetaMentah(file);
+        setMetadataPetaBaru(meta);
+        setNamaPetaBaru(meta.namaArea.replace(/\.mbtiles$/i, ""));
+        setUkuranMbBaru(meta.ukuranMbTeks);
+        setJarakKmBaru(meta.jarakKmTeks);
+        setRasterGeoreferensi(false);
+      } else if (/\.(pdf|geopdf)$/i.test(namaKecil)) {
+        const { imporGeoPdf } = await import("../lib/geoPdf");
+        const hasil = await imporGeoPdf(file);
+        const ukuranMb = file.size / (1024 * 1024);
+        const meta: HasilMetadataPeta = {
+          ...hasil,
+          namaArea: file.name,
+          ukuranMb,
+          ukuranMbTeks: ukuranMb.toFixed(1).replace(".", ","),
+          jarakKm: 0,
+          jarakKmTeks: "0",
+          jenisFile: "GeoPDF / GeoTIFF",
+          thumbnailType: "geopdf_sheet",
+          sumberDeteksi: "geopdf",
+          crs: "EPSG:4326 (WGS 84)",
+          lebarPixel: hasil.width,
+          tinggiPixel: hasil.height
+        };
+        setMetadataPetaBaru(meta);
+        setNamaPetaBaru(meta.namaArea.replace(/\.(pdf|geopdf)$/i, ""));
+        setUkuranMbBaru(meta.ukuranMbTeks);
+        setJarakKmBaru("0");
+        setPetaKustomDataUrlBaru(hasil.dataUrl);
+        setRasterGeoreferensi(true);
+      } else if (/\.(tif|tiff|geotiff)$/i.test(namaKecil)) {
+        const meta = await bacaMetadataBerkasPeta(file);
+        setBerkasPetaMentah(file);
+        setMetadataPetaBaru(meta);
+        setNamaPetaBaru(meta.namaArea.replace(/\.(tif|tiff|geotiff)$/i, ""));
+        setUkuranMbBaru(meta.ukuranMbTeks);
+        setJarakKmBaru(meta.jarakKmTeks);
+        setRasterGeoreferensi(true);
+      } else {
         throw new Error(
-          "Impor raster saat ini mendukung GeoPDF EPSG:4326. Untuk data vektor gunakan Impor Lapisan (GeoJSON/KML/GPX). Konversi GeoTIFF/MBTiles ke GeoPDF melalui GIS terlebih dahulu."
+          "Format berkas belum didukung. Gunakan .pmtiles, .mbtiles, .geopdf, atau .geotiff."
         );
-      const { imporGeoPdf } = await import("../lib/geoPdf");
-      const hasil = await imporGeoPdf(file);
-      const ukuranMb = file.size / (1024 * 1024);
-      const meta: HasilMetadataPeta = {
-        ...hasil,
-        namaArea: file.name,
-        ukuranMb,
-        ukuranMbTeks: ukuranMb.toFixed(1).replace(".", ","),
-        jarakKm: 0,
-        jarakKmTeks: "0",
-        jenisFile: "GeoPDF / GeoTIFF",
-        thumbnailType: "geopdf_sheet",
-        sumberDeteksi: "geopdf",
-        crs: "EPSG:4326 (WGS 84)",
-        lebarPixel: hasil.width,
-        tinggiPixel: hasil.height
-      };
-      setMetadataPetaBaru(meta);
-      setNamaPetaBaru(meta.namaArea);
-      setUkuranMbBaru(meta.ukuranMbTeks);
-      setJarakKmBaru("0");
-      setPetaKustomDataUrlBaru(hasil.dataUrl);
-      setRasterGeoreferensi(true);
+      }
     } catch (err) {
       setGalatImpor(err instanceof Error ? err.message : "Berkas peta gagal dibaca.");
     } finally {
@@ -204,11 +236,40 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     }
   };
 
-  const handleSimpanPetaBaru = (e: React.FormEvent) => {
+  const handleSimpanPetaBaru = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!namaPetaBaru.trim() || !metadataPetaBaru || !petaKustomDataUrlBaru || sedangMemprosesBerkas || galatImpor) return;
+    if (!namaPetaBaru.trim() || !metadataPetaBaru || (!petaKustomDataUrlBaru && !berkasPetaMentah) || sedangMemprosesBerkas || galatImpor) return;
+
+    const id = buatId("MAP-OFF");
+    let petaKustomUrl: string | undefined = undefined;
+
+    if (berkasPetaMentah) {
+      const namaKecil = berkasPetaMentah.name.toLowerCase();
+      const isPm = /\.pmtiles$/i.test(namaKecil);
+      const isMb = /\.mbtiles$/i.test(namaKecil);
+      const tipeArsip = isPm ? "pmtiles" : isMb ? "mbtiles" : "geotiff";
+
+      try {
+        await simpanArsipPeta(id, berkasPetaMentah, {
+          namaArea: namaPetaBaru.trim(),
+          tipe: tipeArsip,
+          ukuranMb: metadataPetaBaru.ukuranMb
+        });
+
+        if (isPm) {
+          daftarkanSumberPmtiles(id, berkasPetaMentah);
+          petaKustomUrl = `pmtiles://${id}/{z}/{x}/{y}`;
+        } else if (isMb) {
+          await daftarkanSumberMbtiles(id, berkasPetaMentah);
+          petaKustomUrl = `mbtiles://${id}/{z}/{x}/{y}`;
+        }
+      } catch (err) {
+        console.warn("Gagal menyimpan arsip biner ke IndexedDB:", err);
+      }
+    }
+
     const itemBaru: AreaPetaOffline = {
-      id: buatId("MAP-OFF"),
+      id,
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
       minLat: metadataPetaBaru.minLat,
@@ -223,6 +284,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
       thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
       petaKustomDataUrl: petaKustomDataUrlBaru,
+      petaKustomUrl,
       diunduhPada: new Date().toISOString(),
       jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
       crs: metadataPetaBaru.crs,
@@ -240,6 +302,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     setUkuranMbBaru("");
     setJarakKmBaru("");
     setPetaKustomDataUrlBaru(undefined);
+    setBerkasPetaMentah(null);
     setMetadataPetaBaru(null);
     setBukaModalPetaBaru(false);
     // Tampilkan pratinjau peta setelah berhasil di-upload ke aplikasi
@@ -744,7 +807,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <input
                     id="upload-peta-input"
                     type="file"
-                    accept=".pdf,.geopdf"
+                    accept=".pmtiles,.mbtiles,.pdf,.geopdf,.tif,.tiff"
                     style={{ display: "none" }}
                     onChange={handlePilihBerkasPeta}
                   />
@@ -753,7 +816,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   </div>
                   <div className="peta-upload-text-wrap">
                     <strong>Pilih Berkas Peta dari Perangkat</strong>
-                    <span>GeoPDF WGS84 / EPSG:4326, halaman pertama, north-up. Maksimum 80 MB.</span>
+                    <span>PMTiles, MBTiles, GeoPDF, atau GeoTIFF georeferensi. Maksimum 100 MB.</span>
                   </div>
                   <span className="peta-upload-btn-chip">Pilih Berkas</span>
                 </label>
@@ -813,6 +876,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     <div className="avenza-spatial-item">
                       <span className="spatial-label">Metode Deteksi Otomatis:</span>
                       <span className="spatial-value text-emerald font-semibold">
+                        {metadataPetaBaru.sumberDeteksi === "pmtiles" && "PMTiles Header Vektor/Raster"}
                         {metadataPetaBaru.sumberDeteksi === "geotiff" && "Header Biner GeoTIFF (Tag 33550 & 33922)"}
                         {metadataPetaBaru.sumberDeteksi === "mbtiles" && "SQLite MBTiles Metadata (EPSG:3857/4326)"}
                         {metadataPetaBaru.sumberDeteksi === "geopdf" && "Struktur Vektor GeoPDF /GPTS"}
