@@ -182,6 +182,40 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           </div>
         )}
 
+        {/* VISUAL 3-STAGE PIPELINE: HP -> Antrean -> Google Drive */}
+        <div className="sync-pipeline-container" style={{ marginTop: 14 }}>
+          <div className="sync-pipeline-stages">
+            <div className={`pipeline-stage-card ${dataSpasial.length > 0 ? "active" : ""}`}>
+              <div style={{ fontSize: "1.4rem", marginBottom: 2 }}>📱</div>
+              <strong style={{ fontSize: "0.86rem" }}>Penyimpanan HP</strong>
+              <span className="tabular-nums text-muted" style={{ fontSize: "0.76rem" }}>{dataSpasial.length} Objek</span>
+            </div>
+            <div className="pipeline-stage-arrow">➔</div>
+            <div className={`pipeline-stage-card ${jmlLokal > 0 ? "active" : ""}`}>
+              <div style={{ fontSize: "1.4rem", marginBottom: 2 }}>⏳</div>
+              <strong style={{ fontSize: "0.86rem", color: jmlLokal > 0 ? "var(--brand-accent)" : "inherit" }}>
+                Antrean Unggah
+              </strong>
+              <span className="tabular-nums" style={{ fontSize: "0.76rem", fontWeight: 700, color: jmlLokal > 0 ? "var(--brand-accent)" : "var(--text-muted)" }}>
+                {jmlLokal} Menunggu
+              </span>
+            </div>
+            <div className="pipeline-stage-arrow">➔</div>
+            <div className={`pipeline-stage-card ${jmlTersinkron + jmlVerif > 0 ? "active" : ""}`}>
+              <div style={{ fontSize: "1.4rem", marginBottom: 2 }}>☁️</div>
+              <strong style={{ fontSize: "0.86rem" }}>Google Drive</strong>
+              <span className="tabular-nums text-emerald" style={{ fontSize: "0.76rem", fontWeight: 700 }}>
+                {jmlTersinkron + jmlVerif} Terunggah
+              </span>
+            </div>
+          </div>
+          {sedangSinkron && (
+            <div className="sync-progress-bar-wrap">
+              <div className="sync-progress-bar-fill" style={{ width: "75%" }} />
+            </div>
+          )}
+        </div>
+
         <div className="stat-grid-3" style={{ marginTop: 14 }}>
           <div
             className={`stat-box clickable ${filterStatus === "lokal" ? "active-border" : ""}`}

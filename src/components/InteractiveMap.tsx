@@ -1041,49 +1041,83 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         </div>
 
-        {/* PILL KOORDINAT RINGKAS DI KIRI ATAS (KETUK UNTUK GANTI DD/DMS/UTM) */}
-        <div className="map-clean-top-left">
-          <button
-            type="button"
-            className="map-coord-mini-pill"
-            onClick={() => setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))}
-            title="Ketuk untuk ubah format koordinat (DD / DMS / UTM)"
-          >
-            <Crosshair size={13} className="text-emerald" />
-            <span>{formatKoordinatTeks(center.lat, center.lng, formatKoord)}</span>
-            <small style={infoGps.peringatan ? { color: "#fbbf24" } : undefined}>{infoGps.teks}</small>
-          </button>
-          <div style={{ marginTop: 6 }}>
-            <button
-              type="button"
-              className="map-coord-mini-pill"
-              onClick={infoKompas.perluKetuk ? () => void aktifkanKompas() : undefined}
-              style={{ cursor: infoKompas.perluKetuk ? "pointer" : "default" }}
-              title={infoKompas.perluKetuk ? "Ketuk untuk mengizinkan sensor kompas" : "Arah atas layar HP"}
-            >
-              <Compass size={13} className="text-emerald" />
-              <span style={infoKompas.peringatan ? { color: "#fbbf24" } : undefined}>
-                {kompasDerajat !== undefined ? `${kompasDerajat}° ${namaArahKompas(kompasDerajat).split(" ")[0]}` : infoKompas.teks}
-              </span>
-            </button>
-          </div>
+        {/* LIVE GPS TELEMETRY STATUS PILL */}
+        <div
+          className="gps-telemetry-pill map-coord-mini-pill"
+          onClick={() => setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))}
+          title="Ketuk untuk ubah format koordinat (DD / DMS / UTM)"
+        >
+          {modeRekam && modeRekam !== "point" ? (
+            <span className="pulse-recording-dot" title="Sedang Merekam Jalur/Area" />
+          ) : (
+            <span
+              className={`gps-accuracy-dot ${
+                gpsPos ? (gpsPos.akurasi !== undefined && gpsPos.akurasi < 5 ? "excellent" : (gpsPos.akurasi ?? 99) < 15 ? "medium" : "poor") : "poor"
+              }`}
+              title={`Akurasi GPS: ${infoGps.teks}`}
+            />
+          )}
+          <span className="tabular-nums">{formatKoordinatTeks(center.lat, center.lng, formatKoord)}</span>
+          <span style={{ opacity: 0.5 }}>•</span>
+          <span className="tabular-nums" style={infoGps.peringatan ? { color: "#fbbf24" } : undefined}>
+            {infoGps.teks}
+          </span>
+          {kompasDerajat !== undefined && (
+            <>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span className="tabular-nums">{kompasDerajat}° {namaArahKompas(kompasDerajat).split(" ")[0]}</span>
+            </>
+          )}
         </div>
 
-        {/* TOMBOL KONTROL RINGKAS DI KANAN ATAS (TIDAK MENGHALANGI PETA) */}
-        <div className="map-overlay-top-right">
+        {/* TOP-RIGHT GLASSMORPHIC CONTROL POD (Layers, Orientasi Kompas, Basemap, Cari) */}
+        <div className="map-hud-pod top-right map-overlay-top-right">
           <button
             type="button"
-            className={`map-ctrl-btn ${bukaMenuPeta ? "active-ctrl" : ""}`}
+            className={`map-hud-btn map-ctrl-btn ${bukaMenuPeta ? "active active-ctrl" : ""}`}
             onClick={() => setBukaMenuPeta((v) => !v)}
             title="Peta Dasar & Lapisan"
           >
-            <Layers size={17} />
+            <Layers size={20} />
           </button>
 
-          {/* Tombol Terpadu: 1x Klik = Posisi Kita, 2x Klik = Peta Mengikuti Arah Kita */}
           <button
             type="button"
-            className={`map-ctrl-btn ${modeIkutiKompas ? "active-ctrl" : ""}`}
+            className={`map-hud-btn map-ctrl-btn ${bearingAktif !== 0 ? "active" : ""}`}
+            onClick={() => {
+              if (bearingAktif !== 0) {
+                setBearing(0);
+                setModeIkutiKompas(false);
+              } else {
+                void aktifkanKompas();
+              }
+            }}
+            title={bearingAktif !== 0 ? "Ketuk untuk reset peta tegak ke Utara (0°)" : "Aktifkan kompas sensor"}
+          >
+            <Compass
+              size={20}
+              style={{
+                transform: `rotate(${-bearingAktif}deg)`,
+                transition: "transform 0.15s ease-out"
+              }}
+            />
+          </button>
+
+          <button
+            type="button"
+            className={`map-hud-btn map-ctrl-btn ${cariKoordTerbuka ? "active" : ""}`}
+            onClick={() => setCariKoordTerbuka((v) => !v)}
+            title="Cari Koordinat / Nama Objek"
+          >
+            <Search size={18} />
+          </button>
+        </div>
+
+        {/* BOTTOM-RIGHT GLASSMORPHIC CONTROL POD (Recenter GPS, Zoom, Action) */}
+        <div className="map-hud-pod bottom-right">
+          <button
+            type="button"
+            className={`map-hud-btn map-ctrl-btn avenza-gps-fab-btn ${modeIkutiKompas ? "active active-ctrl" : ""}`}
             onClick={() => {
               const now = Date.now();
               const selisih = now - lastGpsClickRef.current;
@@ -1110,55 +1144,46 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 }, 220);
               }
             }}
-            onDoubleClick={() => {
-              if (clickTimeoutRef.current) {
-                window.clearTimeout(clickTimeoutRef.current);
-                clickTimeoutRef.current = null;
-              }
-              void aktifkanKompas();
-              setModeIkutiKompas(true);
-              if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-            }}
             disabled={!gpsPos}
             style={gpsPos ? undefined : { opacity: 0.45 }}
             title={
               modeIkutiKompas
-                ? "Orientasi aktif (mengikuti arah kita). 1x klik untuk reset ke posisi tegak utara."
+                ? "Orientasi aktif (mengikuti arah kita). 1x klik untuk reset posisi tegak utara."
                 : gpsPos
                   ? "1x klik: Pusatkan posisi kita | 2x klik: Peta ikuti arah kita"
                   : "Menunggu posisi GPS"
             }
           >
-            {modeIkutiKompas ? (
-              <Compass
-                size={18}
-                style={{
-                  transform: `rotate(${-bearingAktif}deg)`,
-                  transition: "transform 0.15s ease-out",
-                  color: "#ffffff"
-                }}
-              />
-            ) : (
-              <Navigation size={16} />
-            )}
+            <Navigation size={18} />
           </button>
 
           <button
             type="button"
-            className="map-ctrl-btn"
+            className="map-hud-btn map-ctrl-btn"
             onClick={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
-            title="Perbesar"
+            title="Perbesar Peta"
           >
             +
           </button>
           <button
             type="button"
-            className="map-ctrl-btn"
+            className="map-hud-btn map-ctrl-btn"
             onClick={() => setZoom((z) => Math.max(ZOOM_MIN_PETA, Math.ceil(z - 0.01) - 1))}
-            title="Perkecil"
+            title="Perkecil Peta"
           >
             −
           </button>
+
+          {!modeRekam && (
+            <button
+              type="button"
+              className="map-hud-btn accent map-fab-record-trigger"
+              onClick={() => setBukaAlatRekam((v) => !v)}
+              title="Rekam Data Geospasial Baru (Titik / Jalur / Poligon)"
+            >
+              <Plus size={22} strokeWidth={2.4} />
+            </button>
+          )}
         </div>
 
         {/* POPOVER LAPISAN & ALAT PETA (HANYA TAMPIL SAAT TOMBOL LAYERS DIKETUK) */}

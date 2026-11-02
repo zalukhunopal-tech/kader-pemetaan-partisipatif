@@ -74,6 +74,16 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
       <h1 className="avenza-topbar-title" onClick={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}>
         {JUDUL_TAB[tabAktif]}
       </h1>
+      <button
+        type="button"
+        className={`avenza-conn-chip ${sedangOnline ? "online" : "offline"}`}
+        onClick={() => setModeOfflineManual((m) => !m)}
+        title={jaringanTersedia ? "Ketuk untuk beralih mode offline manual" : "Tidak ada koneksi internet"}
+        style={{ marginLeft: 6 }}
+      >
+        {sedangOnline ? <Wifi size={13} /> : <WifiOff size={13} />}
+        <span>{!jaringanTersedia ? "Offline" : modeOfflineManual ? "Luring (Manual)" : "Online"}</span>
+      </button>
     </div>
 
     <div className="avenza-topbar-actions" onClick={(e) => e.stopPropagation()}>
