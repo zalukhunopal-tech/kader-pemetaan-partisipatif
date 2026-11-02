@@ -42,17 +42,17 @@ describe("Kategori B: Sensor GPS, Perekaman Jalur & Geometri Spasial (Skenario 9
     // Titik awal 1 (Tanjung Selor)
     const t0 = Date.now();
     watchCallback!({
-      coords: { latitude: 2.8574, longitude: 117.3774, altitude: 45, accuracy: 4.2 } as any,
+      coords: { latitude: 2.8574, longitude: 117.3774, altitude: 45, accuracy: 4.2 } as GeolocationCoordinates,
       timestamp: t0
-    } as any);
+    } as GeolocationPosition);
 
     expect(perekamLatar.getState().titik).toHaveLength(1);
 
     // Titik 2: lonjakan multipath 2.5 km dalam 2 detik (speed > 1000 m/s)
     watchCallback!({
-      coords: { latitude: 2.8799, longitude: 117.3774, altitude: 45, accuracy: 180 } as any,
+      coords: { latitude: 2.8799, longitude: 117.3774, altitude: 45, accuracy: 180 } as GeolocationCoordinates,
       timestamp: t0 + 2000
-    } as any);
+    } as GeolocationPosition);
 
     // Sinyal akurasi 180m / lonjakan kecepatan harus diabaikan dari titik rekam
     const snapshot = perekamLatar.getState();
@@ -79,20 +79,20 @@ describe("Kategori B: Sensor GPS, Perekaman Jalur & Geometri Spasial (Skenario 9
 
     // Titik awal
     watchCallback!({
-      coords: { latitude: 2.857400, longitude: 117.377400, altitude: 45, accuracy: 3 } as any,
+      coords: { latitude: 2.857400, longitude: 117.377400, altitude: 45, accuracy: 3 } as GeolocationCoordinates,
       timestamp: t0
-    } as any);
+    } as GeolocationPosition);
 
     // Jitter halus 1-2 meter selama 45 menit (10 pembacaan bolak-balik)
     for (let i = 1; i <= 10; i++) {
       watchCallback!({
-        coords: { latitude: 2.857405, longitude: 117.377405, altitude: 45, accuracy: 3 } as any,
+        coords: { latitude: 2.857405, longitude: 117.377405, altitude: 45, accuracy: 3 } as GeolocationCoordinates,
         timestamp: t0 + i * 60000
-      } as any);
+      } as GeolocationPosition);
       watchCallback!({
-        coords: { latitude: 2.857400, longitude: 117.377400, altitude: 45, accuracy: 3 } as any,
+        coords: { latitude: 2.857400, longitude: 117.377400, altitude: 45, accuracy: 3 } as GeolocationCoordinates,
         timestamp: t0 + i * 60000 + 30000
-      } as any);
+      } as GeolocationPosition);
     }
 
     const titik = perekamLatar.getState().titik;
@@ -120,9 +120,9 @@ describe("Kategori B: Sensor GPS, Perekaman Jalur & Geometri Spasial (Skenario 9
 
     perekamLatar.mulai("line");
     watchCallback!({
-      coords: { latitude: 2.8574, longitude: 117.3774, altitude: 45, accuracy: 4 } as any,
+      coords: { latitude: 2.8574, longitude: 117.3774, altitude: 45, accuracy: 4 } as GeolocationCoordinates,
       timestamp: Date.now()
-    } as any);
+    } as GeolocationPosition);
 
     expect(perekamLatar.getState().titik).toHaveLength(1);
 
@@ -133,7 +133,7 @@ describe("Kategori B: Sensor GPS, Perekaman Jalur & Geometri Spasial (Skenario 9
       PERMISSION_DENIED: 1,
       POSITION_UNAVAILABLE: 2,
       TIMEOUT: 3
-    } as any);
+    } as GeolocationPositionError);
 
     const snapshot = perekamLatar.getState();
     // Titik yang sudah terekam TIDAK hilang
@@ -166,9 +166,9 @@ describe("Kategori B: Sensor GPS, Perekaman Jalur & Geometri Spasial (Skenario 9
           longitude: 117.3774 + i * 0.00005,
           altitude: 45,
           accuracy: 4
-        } as any,
+        } as GeolocationCoordinates,
         timestamp: t0 + i * 50
-      } as any);
+      } as GeolocationPosition);
     }
 
     const titik = perekamLatar.getState().titik;
@@ -195,11 +195,11 @@ describe("Kategori B: Sensor GPS, Perekaman Jalur & Geometri Spasial (Skenario 9
       coords: {
         latitude: 2.8574,
         longitude: 117.3774,
-        altitude: NaN as any, // GPS murah mengembalikan NaN
+        altitude: NaN, // GPS murah mengembalikan NaN
         accuracy: 5
-      } as any,
+      } as GeolocationCoordinates,
       timestamp: Date.now()
-    } as any);
+    } as GeolocationPosition);
 
     const titik = perekamLatar.getState().titik;
     expect(titik).toHaveLength(1);

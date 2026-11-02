@@ -1,3 +1,4 @@
+import { BukuHokPanel } from "./BukuHokPanel";
 import { useMuatGambar } from "../lib/useMuatGambar";
 import { kompresFotoKeDataUrl } from "../lib/foto";
 import { lukisSertifikatKeCanvas } from "../lib/kanvasSertifikat";
@@ -363,6 +364,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
 
   return (
     <div className="page-container reward-page-clean">
+      <BukuHokPanel data={dataSpasial} profil={profil} admin={peran === "admin"} />
       {/* INPUT FILE TERSEMBUNYI UNTUK FOTO KADER DI SERTIFIKAT */}
       <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePilihFotoSertifikat} />
 

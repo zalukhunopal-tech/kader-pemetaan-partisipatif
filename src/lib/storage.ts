@@ -103,7 +103,11 @@ export const KUNCI_DATA = [
   KEY_TUGAS,
   KEY_PESAN,
   KEY_GDRIVE,
-  KEY_KADER_AKTIF
+  KEY_KADER_AKTIF,
+  "titik_tapak_antrean_v3",
+  "titik_tapak_draft_survei_v1",
+  "titik_tapak_tampilan_v1",
+  "titik_tapak_hok_v1"
 ];
 
 /** Harus selesai sebelum aplikasi membaca data (dipanggil di main.tsx) */

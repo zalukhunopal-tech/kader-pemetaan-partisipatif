@@ -20,7 +20,11 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
     roNavRef.current?.disconnect();
     roNavRef.current = null;
     if (!el) return;
-    const atur = () => document.documentElement.style.setProperty("--tinggi-nav", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    const atur = () =>
+      document.documentElement.style.setProperty(
+        "--tinggi-nav",
+        `${window.matchMedia("(min-width: 768px)").matches ? 0 : Math.ceil(el.getBoundingClientRect().height)}px`
+      );
     atur();
     if (typeof ResizeObserver !== "undefined") {
       roNavRef.current = new ResizeObserver(atur);
@@ -29,7 +33,13 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
   }, []);
 
   return (
-    <nav className="avenza-bottom-nav" ref={ukurBilahBawah}>
+    <nav className="avenza-bottom-nav" ref={ukurBilahBawah} aria-label="Navigasi utama">
+      <div className="desktop-nav-brand">
+        <strong>
+          Titik Tapak<span>●</span>
+        </strong>
+        <small>JEJAK BAIK UNTUK BUMI</small>
+      </div>
       {peran === "kader" ? (
         // NAVIGASI KHUSUS AKUN USER (KADER)
         <>

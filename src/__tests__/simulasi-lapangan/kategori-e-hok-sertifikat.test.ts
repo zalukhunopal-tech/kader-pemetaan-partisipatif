@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DataSpasialItem, ProfilKader, SertifikatKader } from "../../types";
+import { describe, expect, it, vi } from "vitest";
+import { DataSpasialItem, ProfilKader } from "../../types";
 import {
   hitungCapaianKader,
   hitungPeringkatGis20Level,

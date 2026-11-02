@@ -63,7 +63,7 @@ export function dapatkanProtokolPmtiles(): pmtiles.Protocol {
 /**
  * Daftarkan protokol pmtiles:// ke MapLibre GL instance secara aman (idempotent).
  */
-export function registrasiProtokolPmtiles(maplibreInstance?: typeof maplibregl): pmtiles.Protocol {
+export function registrasiProtokolPmtiles(maplibreInstance?: Pick<typeof maplibregl, "addProtocol">): pmtiles.Protocol {
   const proto = dapatkanProtokolPmtiles();
   if (maplibreInstance && typeof maplibreInstance.addProtocol === "function") {
     try {
@@ -113,7 +113,7 @@ export function ambilSumberPmtiles(id: string): pmtiles.PMTiles | undefined {
 export function hapusSumberPmtiles(id: string): void {
   daftarArsipPmtiles.delete(id);
   try {
-    const proto = dapatkanProtokolPmtiles() as any;
+    const proto = dapatkanProtokolPmtiles();
     if (proto.tiles && typeof proto.tiles.delete === "function") {
       proto.tiles.delete(id);
     }
@@ -128,7 +128,7 @@ export function hapusSumberPmtiles(id: string): void {
  */
 export async function bacaMetadataPmtiles(fileOrBlob: Blob | File | ArrayBuffer, namaArea = "Peta PMTiles"): Promise<MetadataPmtiles> {
   let headerBytes: ArrayBuffer;
-  let ukuranMb = 0;
+  let ukuranMb: number;
 
   if (fileOrBlob instanceof ArrayBuffer) {
     headerBytes = fileOrBlob.slice(0, Math.min(fileOrBlob.byteLength, 127));
@@ -154,8 +154,8 @@ export async function bacaMetadataPmtiles(fileOrBlob: Blob | File | ArrayBuffer,
 
   const h = pmtiles.bytesToHeader(headerBytes);
 
-  let tileType: MetadataPmtiles["tileType"] = "unknown";
-  let format: MetadataPmtiles["format"] = "unknown";
+  let tileType: MetadataPmtiles["tileType"];
+  let format: MetadataPmtiles["format"];
 
   switch (h.tileType) {
     case pmtiles.TileType.Mvt:

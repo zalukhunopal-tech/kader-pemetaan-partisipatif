@@ -1,121 +1,132 @@
-import React, { useState } from "react";
-import { Camera, X } from "lucide-react";
-import { DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik, ProfilKader } from "../../types";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Camera, Leaf, PawPrint, Droplets, Flag, Flame, Trees, Landmark, House, MapPin } from "lucide-react";
+import {
+  BuktiFotoLapangan,
+  DataSpasialItem,
+  HasilRataRataGps,
+  JenisGeometri,
+  KategoriSurvei,
+  KoordinatTitik,
+  MemoSuara,
+  ProfilKader
+} from "../../types";
 import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
 import { buatId } from "../../lib/id";
 import { capWilayah } from "../../lib/auth";
-import { kompresFoto, perkiraBytesDataUrl } from "../../lib/foto";
+import { kompresFoto, perkiraBytesDataUrl, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } from "../../lib/foto";
+import { bacaDraftSurvei, DraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "../../lib/draftSurvei";
+import { ambilRataRataGps } from "../../lib/posisiPerangkat";
+import { hitungSkorKualitasData } from "../../lib/kualitasData";
+import { BottomSheet } from "./BottomSheet";
+import { PerekamMemoSuara } from "./PerekamMemoSuara";
 
-/**
- * Isian form atribut survei. Dipegang oleh peta supaya isian tetap ada bila form ditutup lalu dibuka
- * lagi (mis. saat merekam jalur) dan kategori bisa diatur sebelum form tampil.
- */
-export function useFormSurvei() {
-  const [kategoriInput, setKategoriInput] = useState<KategoriSurvei>("Flora");
-  const [judulInput, setJudulInput] = useState<string>("");
-  const [namaLokalInput, setNamaLokalInput] = useState<string>("");
-  const [namaIlmiahInput, setNamaIlmiahInput] = useState<string>("");
-  const [jumlahIndividuInput, setJumlahIndividuInput] = useState<string>("1");
-  const [manfaatInput, setManfaatInput] = useState<string>("");
-  const [kondisiInput, setKondisiInput] = useState<string>("");
-  const [deskripsiInput, setDeskripsiInput] = useState<string>("");
-  const [fotoInput, setFotoInput] = useState<string>("");
-  const [galatFoto, setGalatFoto] = useState<string | null>(null);
-  const [memprosesFoto, setMemprosesFoto] = useState<boolean>(false);
+export const KATEGORI_VISUAL: { kategori: KategoriSurvei; judul: string; contoh: string; Ikon: typeof Leaf }[] = [
+  { kategori: "Tanda Batas", judul: "Batas desa / adat", contoh: "Patok, batas alam", Ikon: Flag },
+  { kategori: "Wilayah Adat / Lahan", judul: "Wilayah & lahan", contoh: "Hutan, kebun, ulayat", Ikon: Trees },
+  { kategori: "Flora", judul: "Flora & tumbuhan", contoh: "Pohon, anggrek", Ikon: Leaf },
+  { kategori: "Fauna", judul: "Satwa & jejak", contoh: "Satwa, sarang, tapak", Ikon: PawPrint },
+  { kategori: "Mata Air", judul: "Air & sungai", contoh: "Mata air, aliran", Ikon: Droplets },
+  { kategori: "Ancaman / Temuan", judul: "Ancaman", contoh: "Kebakaran, pembalakan", Ikon: Flame },
+  { kategori: "Sarana Desa", judul: "Sarana desa", contoh: "Jalan, bangunan", Ikon: House },
+  { kategori: "Situs Budaya", judul: "Situs & tempat sakral", contoh: "Sejarah, toponimi", Ikon: Landmark }
+];
 
-  const handlePilihFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = input.files?.[0];
+/** Draf per akun di IndexedDB. Tidak memuat akun, sandi atau token. */
+export function useFormSurvei(idKader: string) {
+  const [isian, setIsian] = useState(() => bacaDraftSurvei(idKader));
+  const [galatFoto, setGalatFoto] = useState<string | null>(null),
+    [memprosesFoto, setMemprosesFoto] = useState(false);
+  useEffect(() => {
+    simpanDraftSurvei(idKader, isian);
+  }, [idKader, isian]);
+  const ubah = <K extends keyof DraftSurvei>(k: K, v: DraftSurvei[K]) => setIsian((s) => ({ ...s, [k]: v }));
+  const simpanGeometri = useCallback((jenis: JenisGeometri | null, titik: KoordinatTitik[]) => {
+    setIsian((s) => {
+      const rekaman = jenis ? { jenis, titik } : undefined;
+      if (JSON.stringify(s.rekaman) === JSON.stringify(rekaman)) return s;
+      return { ...s, rekaman };
+    });
+  }, []);
+  const handlePilihFoto = (e: React.ChangeEvent<HTMLInputElement>, bukti?: BuktiFotoLapangan) => {
+    const input = e.target,
+      file = input.files?.[0];
     if (!file) return;
     setGalatFoto(null);
     setMemprosesFoto(true);
-    // Foto dikecilkan dulu: foto kamera mentah (beberapa MB) akan memenuhi kuota penyimpanan perangkat
-    kompresFoto(file)
-      .then((dataUrl) => setFotoInput(dataUrl))
-      .catch((err: unknown) => {
-        setFotoInput("");
-        setGalatFoto(err instanceof Error ? err.message : "Foto tidak dapat diproses.");
+    kompresFoto(file, SISI_MAKS_FOTO, TARGET_BYTE_FOTO, bukti)
+      .then((foto) => {
+        simpanDraftSurvei(idKader, { ...bacaDraftSurvei(idKader), foto, buktiFoto: bukti });
+        setIsian((s) => ({ ...s, foto, buktiFoto: bukti }));
       })
+      .catch((err: unknown) => setGalatFoto(err instanceof Error ? err.message : "Foto tidak dapat diproses."))
       .finally(() => {
         setMemprosesFoto(false);
         input.value = "";
       });
   };
-
-  /** Menyusun objek data spasial baru dari isian form dan titik yang direkam */
-  const susunItem = (
-    profil: ProfilKader,
-    modeRekam: JenisGeometri,
-    titikDraft: KoordinatTitik[],
-    kompasDerajat: number | undefined
-  ): DataSpasialItem => {
-    const panjangKm = modeRekam === "point" ? 0 : hitungPanjangGarisKm(titikDraft);
-    const luasHa = modeRekam === "polygon" ? hitungLuasPoligonHa(titikDraft) : 0;
-
-    const itemBaru: DataSpasialItem = {
+  const susunItem = (profil: ProfilKader, jenis: JenisGeometri, titik: KoordinatTitik[], kompas?: number): DataSpasialItem => {
+    const waktu = new Date().toISOString();
+    const item: DataSpasialItem = {
       id: buatId("SPS"),
       idKader: profil.idKader,
       namaKader: profil.nama,
       desaWilayah: profil.desaWilayah,
       ...capWilayah(profil.idKader),
-      jenisGeometri: modeRekam,
-      kategori: kategoriInput,
-      judul: judulInput.trim() || `${kategoriInput} - ${namaLokalInput || new Date().toLocaleDateString("id-ID")}`,
-      namaLokal: namaLokalInput.trim() || undefined,
-      namaIlmiah: namaIlmiahInput.trim() || undefined,
-      jumlahIndividu: Number(jumlahIndividuInput) || 1,
-      manfaatMasyarakat: manfaatInput.trim() || undefined,
-      kondisiAncaman: kondisiInput.trim() || undefined,
-      deskripsi: deskripsiInput.trim() || "Direkam langsung di lapangan.",
-      koordinat: titikDraft,
-      panjangKm,
-      luasHa,
-      kompasDerajat,
-      fotoBase64: fotoInput || undefined,
-      namaFileFoto: `${kategoriInput.toUpperCase().replace(/\W+/g, "_")}_${profil.idKader}_${Date.now()}.jpg`,
+      jenisGeometri: jenis,
+      kategori: isian.kategori,
+      judul: isian.judul.trim(),
+      namaLokal: isian.namaLokal.trim() || undefined,
+      namaIlmiah: isian.namaIlmiah.trim() || undefined,
+      jumlahIndividu: Number(isian.jumlahIndividu) || 1,
+      manfaatMasyarakat: isian.manfaat.trim() || undefined,
+      kondisiAncaman: isian.kondisi.trim() || undefined,
+      deskripsi: isian.deskripsi.trim(),
+      koordinat: titik,
+      panjangKm: jenis === "line" ? hitungPanjangGarisKm(titik) : 0,
+      luasHa: jenis === "polygon" ? hitungLuasPoligonHa(titik) : 0,
+      kompasDerajat: kompas,
+      fotoBase64: isian.foto || undefined,
+      buktiFoto: isian.buktiFoto,
+      namaFileFoto: isian.foto ? `${profil.idKader}_${Date.now()}.jpg` : undefined,
+      gpsAveraging: jenis === "point" ? isian.averaging : undefined,
+      memoSuara: isian.memo.length ? isian.memo : undefined,
+      kesepakatanBatas: isian.saksi.trim()
+        ? {
+            saksi: isian.saksi
+              .split(",")
+              .map((n) => n.trim())
+              .filter(Boolean),
+            catatan: isian.deskripsi
+          }
+        : undefined,
       statusSinkron: "lokal",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: waktu,
+      updatedAt: waktu,
       riwayatPembaruan: []
     };
-    return itemBaru;
+    item.kualitasData = hitungSkorKualitasData(item);
+    return item;
   };
-
-  /** Setelah tersimpan: isian dikosongkan, kategori dan jumlah dibiarkan untuk objek berikutnya */
-  const kosongkan = () => {
-    setJudulInput("");
-    setNamaLokalInput("");
-    setNamaIlmiahInput("");
-    setManfaatInput("");
-    setKondisiInput("");
-    setDeskripsiInput("");
-    setFotoInput("");
-    setGalatFoto(null);
-  };
-
   return {
-    kategoriInput,
-    setKategoriInput,
-    judulInput,
-    setJudulInput,
-    namaLokalInput,
-    setNamaLokalInput,
-    namaIlmiahInput,
-    setNamaIlmiahInput,
-    jumlahIndividuInput,
-    setJumlahIndividuInput,
-    manfaatInput,
-    setManfaatInput,
-    kondisiInput,
-    setKondisiInput,
-    deskripsiInput,
-    setDeskripsiInput,
-    fotoInput,
+    isian,
+    ubah,
+    simpanGeometri,
+    rekaman: isian.rekaman,
     galatFoto,
     memprosesFoto,
     handlePilihFoto,
     susunItem,
-    kosongkan
+    setKategoriInput: (v: KategoriSurvei) => ubah("kategori", v),
+    tambahMemo: (m: MemoSuara) => {
+      // Finalisasi audio dapat selesai setelah tab peta ditutup. Persistensi tidak bergantung pada render React.
+      const d = bacaDraftSurvei(idKader);
+      if (!d.memo.some((v) => v.id === m.id)) simpanDraftSurvei(idKader, { ...d, memo: [...d.memo, m] });
+      setIsian((s) => ({ ...s, memo: s.memo.some((v) => v.id === m.id) ? s.memo : [...s.memo, m] }));
+    },
+    kosongkan: () => {
+      setIsian({ ...DRAFT_KOSONG });
+      setGalatFoto(null);
+    }
   };
 }
 
@@ -124,170 +135,257 @@ interface FormSurveiModalProps {
   modeRekam: JenisGeometri | null;
   panjangDraftKm: number;
   luasDraftHa: number;
+  profil: ProfilKader;
+  koordinat: KoordinatTitik[];
+  galatGeometri?: string;
+  onHasilAveraging: (hasil: HasilRataRataGps) => void;
   onSimpan: (e: React.FormEvent) => void;
   onTutup: () => void;
 }
-
-/** Modal form atribut survei lapangan untuk titik, jalur, atau poligon yang baru direkam */
-export const FormSurveiModal: React.FC<FormSurveiModalProps> = ({ form, modeRekam, panjangDraftKm, luasDraftHa, onSimpan, onTutup }) => {
-  const {
-    kategoriInput,
-    setKategoriInput,
-    judulInput,
-    setJudulInput,
-    namaLokalInput,
-    setNamaLokalInput,
-    namaIlmiahInput,
-    setNamaIlmiahInput,
-    jumlahIndividuInput,
-    setJumlahIndividuInput,
-    manfaatInput,
-    setManfaatInput,
-    kondisiInput,
-    setKondisiInput,
-    deskripsiInput,
-    setDeskripsiInput,
-    fotoInput,
-    galatFoto,
-    memprosesFoto,
-    handlePilihFoto
-  } = form;
-
+export function FormSurveiModal({
+  form,
+  modeRekam,
+  panjangDraftKm,
+  luasDraftHa,
+  profil,
+  koordinat,
+  galatGeometri,
+  onHasilAveraging,
+  onSimpan,
+  onTutup
+}: FormSurveiModalProps) {
+  const [detail, setDetail] = useState(Boolean(form.isian.judul)),
+    [stamp, setStamp] = useState(true),
+    [memoSibuk, setMemoSibuk] = useState(false),
+    [gpsSibuk, setGpsSibuk] = useState(false),
+    [sampel, setSampel] = useState(0),
+    [galatGps, setGalatGps] = useState("");
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => () => abort.current?.abort(), []);
+  const { isian, ubah } = form;
+  const rataGps = async () => {
+    abort.current?.abort();
+    const kontrol = new AbortController();
+    abort.current = kontrol;
+    setGpsSibuk(true);
+    setGalatGps("");
+    setSampel(0);
+    try {
+      const h = await ambilRataRataGps({ signal: kontrol.signal, progres: setSampel });
+      if (!kontrol.signal.aborted) {
+        ubah("averaging", h);
+        onHasilAveraging(h);
+      }
+    } catch (e) {
+      if (!kontrol.signal.aborted) setGalatGps(e instanceof Error ? e.message : "GPS tidak tersedia.");
+    } finally {
+      if (!kontrol.signal.aborted) setGpsSibuk(false);
+    }
+  };
+  const field = (k: "judul" | "namaLokal" | "namaIlmiah" | "jumlahIndividu" | "manfaat" | "kondisi", label: string, required = false) => (
+    <label>
+      {label}
+      <input
+        className="form-input"
+        type={k === "jumlahIndividu" ? "number" : "text"}
+        min={k === "jumlahIndividu" ? 1 : undefined}
+        required={required}
+        maxLength={500}
+        placeholder={k === "judul" ? "Masukkan nama objek" : undefined}
+        value={isian[k]}
+        onChange={(e) => ubah(k, e.target.value)}
+      />
+    </label>
+  );
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
-        <div className="modal-header">
-          <h3>
-            {modeRekam === "point"
-              ? "📍 Simpan Titik Lokasi"
-              : modeRekam === "line"
-                ? `〰️ Simpan Jalur (${panjangDraftKm} km)`
-                : `⬢ Simpan Poligon (${luasDraftHa} Ha)`}
-          </h3>
-          <button type="button" className="btn-icon-close" onClick={onTutup}>
-            <X size={18} />
+    <BottomSheet
+      judul={
+        modeRekam === "point"
+          ? "Simpan Titik Lokasi"
+          : modeRekam === "line"
+            ? `Simpan Jalur · ${panjangDraftKm} km`
+            : `Simpan Poligon · ${luasDraftHa} Ha`
+      }
+      onTutup={onTutup}
+      awal={55}
+      className="field-survey-sheet"
+    >
+      <p className="draft-status" role="status">
+        Draf otomatis disimpan pada akun ini.
+      </p>
+      {!detail ? (
+        <>
+          <h4>Apa yang Anda temukan?</h4>
+          <p className="field-help">Pilih kategori, lalu ceritakan temuan Anda.</p>
+          <div className="visual-category-grid">
+            {KATEGORI_VISUAL.map(({ kategori, judul, contoh, Ikon }) => (
+              <button
+                type="button"
+                key={kategori}
+                onClick={() => {
+                  ubah("kategori", kategori);
+                  setDetail(true);
+                }}
+              >
+                <Ikon size={30} />
+                <strong>{judul}</strong>
+                <small>{contoh}</small>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <form
+          className="modal-form field-survey-form"
+          onSubmit={(e) => {
+            if (gpsSibuk || memoSibuk || form.memprosesFoto) {
+              e.preventDefault();
+              return;
+            }
+            onSimpan(e);
+          }}
+        >
+          <button type="button" className="field-category-selected" onClick={() => setDetail(false)}>
+            {isian.kategori}
+            <span>Ganti kategori</span>
           </button>
-        </div>
-
-        <form onSubmit={onSimpan} className="modal-form">
+          {galatGeometri && (
+            <p role="alert" className="field-error">
+              {galatGeometri}
+            </p>
+          )}
+          {field("judul", "Nama Objek *", true)}
+          {modeRekam === "point" && (
+            <section className="gps-averaging-card">
+              <h4>
+                <MapPin size={18} /> Rata-rata titik GPS
+              </h4>
+              <p className="field-help">Tetap diam selama 10 detik. Titik hasil menggantikan lokasi bidikan.</p>
+              <button type="button" className="btn-outline-sm" disabled={gpsSibuk} onClick={() => void rataGps()}>
+                {gpsSibuk ? `Mengukur · ${sampel} sampel` : "Ukur GPS 10 detik"}
+              </button>
+              {gpsSibuk && (
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  onClick={() => {
+                    abort.current?.abort();
+                    setGpsSibuk(false);
+                  }}
+                >
+                  Batalkan pengukuran
+                </button>
+              )}
+              {isian.averaging && (
+                <p role="status">
+                  {isian.averaging.jumlahSampel} sampel · sebaran {isian.averaging.sebaranMeter.toFixed(1)} m · akurasi perangkat ±
+                  {isian.averaging.titik.akurasi?.toFixed(1)} m
+                </p>
+              )}
+              {galatGps && <p role="alert">{galatGps}</p>}
+            </section>
+          )}
           <div className="form-row-2">
-            <div>
-              <label>Kategori Survei</label>
-              <select className="form-input" value={kategoriInput} onChange={(e) => setKategoriInput(e.target.value as KategoriSurvei)}>
-                <option value="Flora">🌿 Flora</option>
-                <option value="Fauna">🐾 Fauna</option>
-                <option value="Mata Air">💧 Mata Air</option>
-                <option value="Tanda Batas">🪧 Tanda Batas</option>
-                <option value="Wilayah Adat / Lahan">⬢ Wilayah Adat / Lahan</option>
-                <option value="Ancaman / Temuan">⚠️ Ancaman / Temuan</option>
-              </select>
-            </div>
-            <div>
-              <label>Nama Objek *</label>
-              <input
-                type="text"
-                required
-                className="form-input"
-                placeholder="Masukkan nama objek"
-                value={judulInput}
-                onChange={(e) => setJudulInput(e.target.value)}
-              />
-            </div>
+            {field("namaLokal", "Nama Lokal")}
+            {field("namaIlmiah", "Nama Ilmiah")}
           </div>
-
-          <div className="form-row-3">
-            <div>
-              <label>Nama Lokal</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Nama lokal"
-                value={namaLokalInput}
-                onChange={(e) => setNamaLokalInput(e.target.value)}
-              />
-            </div>
-            <div>
-              <label>Nama Ilmiah</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Opsional"
-                value={namaIlmiahInput}
-                onChange={(e) => setNamaIlmiahInput(e.target.value)}
-              />
-            </div>
-            <div>
-              <label>Jumlah</label>
-              <input
-                type="number"
-                min="1"
-                className="form-input"
-                value={jumlahIndividuInput}
-                onChange={(e) => setJumlahIndividuInput(e.target.value)}
-              />
-            </div>
-          </div>
-
           <div className="form-row-2">
-            <div>
-              <label>Manfaat</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Manfaat bagi masyarakat"
-                value={manfaatInput}
-                onChange={(e) => setManfaatInput(e.target.value)}
-              />
-            </div>
-            <div>
-              <label>Kondisi</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Kondisi saat ini"
-                value={kondisiInput}
-                onChange={(e) => setKondisiInput(e.target.value)}
-              />
-            </div>
+            {field("jumlahIndividu", "Jumlah")}
+            {field("manfaat", "Manfaat bagi masyarakat")}
           </div>
-
-          <div>
-            <label>Catatan Lapangan</label>
+          {field("kondisi", "Kondisi saat ini")}
+          <label>
+            Catatan Lapangan
             <textarea
-              rows={2}
+              rows={3}
               className="form-input"
-              placeholder="Catatan tambahan..."
-              value={deskripsiInput}
-              onChange={(e) => setDeskripsiInput(e.target.value)}
+              maxLength={10000}
+              placeholder="Cerita tempat, kondisi, atau kesepakatan..."
+              value={isian.deskripsi}
+              onChange={(e) => ubah("deskripsi", e.target.value)}
             />
-          </div>
-
+          </label>
+          {(isian.kategori === "Tanda Batas" || isian.kategori === "Wilayah Adat / Lahan") && (
+            <label>
+              Saksi Lapangan / Tokoh Desa
+              <input
+                className="form-input"
+                value={isian.saksi}
+                maxLength={1000}
+                placeholder="Pisahkan beberapa nama dengan koma"
+                onChange={(e) => ubah("saksi", e.target.value)}
+              />
+            </label>
+          )}
           <div className="form-photo-box">
             <label className="btn-upload-photo">
-              <Camera size={16} /> Lampirkan Foto
-              <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handlePilihFoto} />
+              <Camera size={18} /> Lampirkan Foto
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={form.memprosesFoto}
+                onChange={(e) =>
+                  form.handlePilihFoto(
+                    e,
+                    koordinat[0]
+                      ? {
+                          posisi: koordinat[0],
+                          idKader: profil.idKader,
+                          desa: profil.desaWilayah,
+                          diambilPada: new Date().toISOString(),
+                          stampVisual: stamp
+                        }
+                      : undefined
+                  )
+                }
+              />
             </label>
-            {memprosesFoto && <span className="photo-ready-badge">Memproses foto…</span>}
-            {!memprosesFoto && fotoInput && (
-              <span className="photo-ready-badge">✓ Foto siap ({Math.round(perkiraBytesDataUrl(fotoInput) / 1024)} KB)</span>
+            <label className="field-checkbox">
+              <input type="checkbox" checked={stamp} onChange={(e) => setStamp(e.target.checked)} /> Tambahkan stamp lokasi survei pada foto
+              berikutnya
+            </label>
+            <small>Stamp visual memakai lokasi survei, bukan EXIF asli kamera.</small>
+            {form.memprosesFoto && <span role="status">Memproses foto…</span>}
+            {isian.foto && (
+              <>
+                <img className="survey-photo-preview" src={isian.foto} alt="Bukti foto survei" />
+                <span>Foto siap · {Math.round(perkiraBytesDataUrl(isian.foto) / 1024)} KB</span>
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  onClick={() => {
+                    ubah("foto", "");
+                    ubah("buktiFoto", undefined);
+                  }}
+                >
+                  Hapus foto
+                </button>
+              </>
             )}
-            {galatFoto && (
-              <span role="alert" style={{ color: "#b91c1c", fontSize: 12 }}>
-                {galatFoto}
-              </span>
-            )}
+            {form.galatFoto && <p role="alert">{form.galatFoto}</p>}
           </div>
-
-          <div className="modal-footer">
+          <PerekamMemoSuara
+            memo={isian.memo}
+            onTambah={form.tambahMemo}
+            onHapus={(id) =>
+              ubah(
+                "memo",
+                isian.memo.filter((m) => m.id !== id)
+              )
+            }
+            onSibuk={setMemoSibuk}
+          />
+          <footer className="modal-footer">
             <button type="button" className="btn-outline-sm" onClick={onTutup}>
-              Batal
+              Tutup, simpan draf
             </button>
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="btn-primary" disabled={gpsSibuk || memoSibuk || form.memprosesFoto || Boolean(galatGeometri)}>
               Simpan Lokasi
             </button>
-          </div>
+          </footer>
         </form>
-      </div>
-    </div>
+      )}
+    </BottomSheet>
   );
-};
+}

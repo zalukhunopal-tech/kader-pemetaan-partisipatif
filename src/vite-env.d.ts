@@ -17,4 +17,5 @@ interface ImportMetaEnv {
   readonly VITE_KODE_ADMIN?: string;
   readonly VITE_GDRIVE_URL?: string;
   readonly VITE_GDRIVE_TOKEN?: string;
+  readonly VITE_GDRIVE_SYNC_V3?: string;
 }

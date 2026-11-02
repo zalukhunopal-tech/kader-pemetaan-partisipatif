@@ -6,9 +6,11 @@ import {
   hitungJarakMeter,
   hitungLuasPoligonHa,
   hitungPanjangGarisKm,
-  namaArahKompas
+  namaArahKompas,
+  snapKeVertex,
+  validasiGeometri
 } from "../lib/geoUtils";
-import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
+import { durasiRekamMs, formatDurasi, perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta, ZOOM_MAKS_PETA, ZOOM_MIN_PETA } from "../lib/posisiPeta";
 import { PecahanDunia, jepitZoom, langkahZoomRoda, pecahanDiLayar, pusatUntukJangkar, zoomCubit } from "../lib/zoomPeta";
 import {
@@ -209,12 +211,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // Rotasi peta aktif: mengikuti sensor kompas HP jika mode kompas aktif, atau rotasi manual (Avenza Maps mode)
   const bearingAktif = modeIkutiKompas && kompasDerajat !== undefined ? kompasDerajat : bearing;
+  const form = useFormSurvei(profil.idKader);
+  const simpanGeometri = form.simpanGeometri;
+  const [snapAktif, setSnapAktif] = useState(true);
+  const [pesanSalin, setPesanSalin] = useState("");
   const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() =>
-    rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : null
+    rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : (form.rekaman?.jenis ?? null)
   );
-  const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() => (rekamLatar.status !== "idle" ? rekamLatar.titik : []));
+  const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() =>
+    rekamLatar.status !== "idle" ? rekamLatar.titik : (form.rekaman?.titik ?? [])
+  );
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
   const [detikTick, setDetikTick] = useState<number>(0);
+  useEffect(() => {
+    simpanGeometri(modeRekam, titikDraft);
+  }, [modeRekam, titikDraft, simpanGeometri]);
 
   // Simpan posisi peta (ditunda sedikit) dan pastikan tersimpan saat aplikasi ditutup/disembunyikan
   const posisiRef = useRef({ ...center, zoom, basemap, bearing: bearingAktif });
@@ -269,7 +280,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }, [rekamLatar.status]);
 
   // Isian form atribut survei
-  const form = useFormSurvei();
 
   // Inspeksi Objek Existing
   const [objekTerpilih, setObjekTerpilih] = useState<DataSpasialItem | null>(null);
@@ -322,7 +332,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       bingkai = requestAnimationFrame(() => {
         const atas = el.getBoundingClientRect().top + window.scrollY;
         const nav = document.querySelector<HTMLElement>(".avenza-bottom-nav");
-        const tinggiNav = nav ? nav.getBoundingClientRect().height : 0;
+        const tinggiNav = window.matchMedia("(min-width: 768px)").matches ? 0 : nav ? nav.getBoundingClientRect().height : 0;
         const tinggi = Math.max(280, Math.floor(window.innerHeight - atas - tinggiNav - 10));
         setTinggiPeta((lama) => (lama !== null && Math.abs(lama - tinggi) < 2 ? lama : tinggi));
       });
@@ -736,7 +746,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const tambahTitikBidikan = () => {
-    const pt = titikDariBidikan(center, posisiNyata);
+    const brut = titikDariBidikan(center, posisiNyata);
+    const pt =
+      snapAktif && modeRekam === "polygon"
+        ? snapKeVertex(
+            brut,
+            dataSpasial.flatMap((d) => d.koordinat),
+            5
+          )
+        : brut;
     if (modeRekam === "point") {
       setTitikDraft([pt]);
       setBukaModalForm(true);
@@ -746,6 +764,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const mulaiModeRekam = (jenis: JenisGeometri) => {
+    setBukaMenuPeta(false);
     setObjekTerpilih(null);
     setModeRekam(jenis);
     setBukaAlatRekam(false);
@@ -764,7 +783,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   const handleSimpanForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modeRekam || titikDraft.length === 0) return;
+    if (!modeRekam || titikDraft.length === 0 || validasiGeometri(modeRekam, titikDraft).length > 0) return;
     onSimpanDataBaru(form.susunItem(profil, modeRekam, titikDraft, kompasDerajat));
     perekamLatar.selesai();
     setBukaModalForm(false);
@@ -1041,41 +1060,59 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         </div>
 
-        {/* LIVE GPS TELEMETRY STATUS PILL */}
+        <div className="bidikan-peta" aria-hidden="true"><Crosshair size={24} /></div>
         <div
-          className="gps-telemetry-pill map-coord-mini-pill"
-          onClick={() => setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))}
-          title="Ketuk untuk ubah format koordinat (DD / DMS / UTM)"
+          className="field-telemetry"
+          data-gps={
+            posisiNyata?.akurasi !== undefined
+              ? posisiNyata.akurasi < 10
+                ? "baik"
+                : posisiNyata.akurasi <= 25
+                  ? "sedang"
+                  : "lemah"
+              : "kosong"
+          }
         >
-          {modeRekam && modeRekam !== "point" ? (
-            <span className="pulse-recording-dot" title="Sedang Merekam Jalur/Area" />
-          ) : (
-            <span
-              className={`gps-accuracy-dot ${
-                gpsPos ? (gpsPos.akurasi !== undefined && gpsPos.akurasi < 5 ? "excellent" : (gpsPos.akurasi ?? 99) < 15 ? "medium" : "poor") : "poor"
-              }`}
-              title={`Akurasi GPS: ${infoGps.teks}`}
-            />
-          )}
-          <span className="tabular-nums">{formatKoordinatTeks(center.lat, center.lng, formatKoord)}</span>
-          <span style={{ opacity: 0.5 }}>•</span>
-          <span className="tabular-nums" style={infoGps.peringatan ? { color: "#fbbf24" } : undefined}>
-            {infoGps.teks}
-          </span>
-          {kompasDerajat !== undefined && (
-            <>
-              <span style={{ opacity: 0.5 }}>•</span>
-              <span className="tabular-nums">{kompasDerajat}° {namaArahKompas(kompasDerajat).split(" ")[0]}</span>
-            </>
-          )}
+          <span className="field-gps-indicator" aria-hidden="true" />
+          <button
+            type="button"
+            className="field-telemetry-coordinate"
+            disabled={!posisiNyata}
+            aria-label="Salin koordinat GPS"
+            onClick={() => {
+              if (!navigator.clipboard) {
+                setPesanSalin("Papan klip tidak tersedia. Koordinat dapat dibaca pada panel GPS.");
+                return;
+              }
+              if (posisiNyata)
+                void navigator.clipboard
+                  .writeText(`${posisiNyata.lat.toFixed(7)}, ${posisiNyata.lng.toFixed(7)}`)
+                  .then(() => setPesanSalin("Koordinat GPS disalin"))
+                  .catch(() => setPesanSalin("Tidak dapat menyalin. Izinkan akses papan klip."));
+            }}
+          >
+            <strong>{posisiNyata ? formatKoordinatTeks(posisiNyata.lat, posisiNyata.lng, formatKoord) : infoGps.teks}</strong>
+            <small>{posisiNyata ? `GPS ±${posisiNyata.akurasi?.toFixed(1) ?? "?"} m` : "GPS belum tersedia"}</small>
+          </button>
+          <button
+            type="button"
+            className="telemetry-format"
+            aria-label="Ubah format koordinat"
+            onClick={() => setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))}
+          >
+            {formatKoord}
+          </button>
+          {rekamLatar.status !== "idle" && <span className="telemetry-timer">● {formatDurasi(durasiRekamMs(rekamLatar))}</span>}
         </div>
-
+        <span className="field-map-message" role="status">
+          {pesanSalin}
+        </span>
         {/* TOP-RIGHT GLASSMORPHIC CONTROL POD (Layers, Orientasi Kompas, Basemap, Cari) */}
         <div className="map-hud-pod top-right map-overlay-top-right">
           <button
             type="button"
             className={`map-hud-btn map-ctrl-btn ${bukaMenuPeta ? "active active-ctrl" : ""}`}
-            onClick={() => setBukaMenuPeta((v) => !v)}
+            onClick={() => { setObjekTerpilih(null); setBukaMenuPeta((v) => !v); }}
             title="Peta Dasar & Lapisan"
           >
             <Layers size={20} />
@@ -1083,6 +1120,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
           <button
             type="button"
+            aria-label={infoKompas.teks}
             className={`map-hud-btn map-ctrl-btn ${bearingAktif !== 0 ? "active" : ""}`}
             onClick={() => {
               if (bearingAktif !== 0) {
@@ -1090,6 +1128,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 setModeIkutiKompas(false);
               } else {
                 void aktifkanKompas();
+                setModeIkutiKompas(true);
               }
             }}
             title={bearingAktif !== 0 ? "Ketuk untuk reset peta tegak ke Utara (0°)" : "Aktifkan kompas sensor"}
@@ -1117,7 +1156,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <div className="map-hud-pod bottom-right">
           <button
             type="button"
-            className={`map-hud-btn map-ctrl-btn avenza-gps-fab-btn ${modeIkutiKompas ? "active active-ctrl" : ""}`}
+            className={`map-hud-btn map-ctrl-btn ${modeIkutiKompas ? "active active-ctrl" : ""}`}
             onClick={() => {
               const now = Date.now();
               const selisih = now - lastGpsClickRef.current;
@@ -1174,16 +1213,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             −
           </button>
 
-          {!modeRekam && (
-            <button
-              type="button"
-              className="map-hud-btn accent map-fab-record-trigger"
-              onClick={() => setBukaAlatRekam((v) => !v)}
-              title="Rekam Data Geospasial Baru (Titik / Jalur / Poligon)"
-            >
-              <Plus size={22} strokeWidth={2.4} />
-            </button>
-          )}
         </div>
 
         {/* POPOVER LAPISAN & ALAT PETA (HANYA TAMPIL SAAT TOMBOL LAYERS DIKETUK) */}
@@ -1251,6 +1280,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               panjangDraftKm={panjangDraftKm}
               luasDraftHa={luasDraftHa}
               detikTick={detikTick}
+              snapAktif={snapAktif}
+              onToggleSnap={() => setSnapAktif((v) => !v)}
               onTambahTitik={tambahTitikBidikan}
               onSimpan={() => setBukaModalForm(true)}
               onBatal={() => {
@@ -1262,7 +1293,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           )}
           {/* TOMBOL REKAM RINGKAS YANG BISA DISEMBUNYIKAN AGAR TIDAK MENGHALANGI PETA */}
           {!modeRekam && (
-            <div className="map-clean-bottom-bar">
+            <div className="map-clean-bottom-bar field-action-pod">
+              <button type="button" className="field-add-point" onClick={() => mulaiModeRekam("point")}>
+                <MapPin size={20} />
+                <span>Tambah titik</span>
+              </button>
+              <button type="button" className="field-start-track" onClick={() => mulaiModeRekam("line")}>
+                <Route size={20} />
+                <span>Rekam jalur</span>
+              </button>
               {!bukaAlatRekam ? (
                 <button type="button" className="map-fab-record-trigger" onClick={() => setBukaAlatRekam(true)}>
                   <Plus size={18} strokeWidth={2.5} />
@@ -1363,20 +1402,41 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
+      {modeRekam === "point" && !bukaModalForm && (
+        <div className="field-resume-draft">
+          <button type="button" className="btn-primary" onClick={() => setBukaModalForm(true)}>
+            Lanjutkan draf titik
+          </button>
+          <button
+            type="button"
+            className="btn-outline-sm"
+            onClick={() => {
+              setModeRekam(null);
+              setTitikDraft([]);
+              form.kosongkan();
+            }}
+          >
+            Buang draf
+          </button>
+        </div>
+      )}
       {/* MODAL FORM PENYIMPANAN ATRIBUT SURVEI LAPANGAN */}
       {bukaModalForm && (
         <FormSurveiModal
           form={form}
           modeRekam={modeRekam}
+          profil={profil}
+          koordinat={titikDraft}
+          galatGeometri={modeRekam ? validasiGeometri(modeRekam, titikDraft).join(" ") : undefined}
+          onHasilAveraging={(hasil) => {
+            setTitikDraft([hasil.titik]);
+            setCenter(hasil.titik);
+          }}
           panjangDraftKm={panjangDraftKm}
           luasDraftHa={luasDraftHa}
           onSimpan={handleSimpanForm}
           onTutup={() => {
             setBukaModalForm(false);
-            if (modeRekam === "point") {
-              setModeRekam(null);
-              setTitikDraft([]);
-            }
           }}
         />
       )}

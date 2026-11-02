@@ -2,7 +2,8 @@ export type PeranPengguna = "kader" | "admin";
 
 export type JenisGeometri = "point" | "line" | "polygon";
 
-export type KategoriSurvei = "Flora" | "Fauna" | "Mata Air" | "Tanda Batas" | "Ancaman / Temuan" | "Wilayah Adat / Lahan";
+export type KategoriSurvei =
+  "Flora" | "Fauna" | "Mata Air" | "Tanda Batas" | "Ancaman / Temuan" | "Wilayah Adat / Lahan" | "Sarana Desa" | "Situs Budaya";
 
 export type StatusSinkron =
   | "lokal" // Tersimpan di HP (Belum Sinkron)
@@ -19,6 +20,110 @@ export interface KoordinatTitik {
   timestamp?: string;
   simulasi?: boolean; // true = titik acak dari mode simulasi, bukan GPS perangkat
 }
+
+export interface HasilRataRataGps {
+  titik: KoordinatTitik;
+  jumlahSampel: number;
+  durasiDetik: number;
+  /** Sebaran pengamatan, bukan jaminan akurasi survei/geodetik. */
+  sebaranMeter: number;
+  metode: "inverse_variance";
+}
+
+export interface MemoSuara {
+  id: string;
+  mimeType: "audio/webm;codecs=opus" | "audio/ogg;codecs=opus" | "audio/mp4";
+  dataUrl: string;
+  durasiDetik: number;
+  ukuranByte: number;
+  direkamPada: string;
+  sha256: string;
+}
+
+export interface BuktiFotoLapangan {
+  posisi: KoordinatTitik;
+  diambilPada: string;
+  idKader: string;
+  desa: string;
+  /** Stamp visual tidak sama dengan metadata EXIF atau bukti bebas manipulasi. */
+  stampVisual: boolean;
+}
+
+export interface KesepakatanBatas {
+  saksi: string[];
+  catatan: string;
+  disepakatiPada?: string;
+  beritaAcaraUrl?: string;
+}
+
+export interface SkorKualitasData {
+  versi: 1;
+  skor: number;
+  grade: "A" | "B" | "C" | "D";
+  rincian: { gps: number; fotoGeotag: number; atribut: number; geometri: number };
+  masalah: string[];
+  geometriValid: boolean;
+}
+
+export interface KonfigurasiHok {
+  idProgram: string;
+  versi: string;
+  zonaWaktu: string;
+  jamPerHok: number;
+  bobotJam: number;
+  hokPerKmMedanBerat: number;
+  bonusTitikGradeA: number;
+  batasHokPerHari: number;
+}
+
+/** Interval waktu eksplisit mencegah durasi patroli ganda dihitung dua kali. */
+export interface SesiPatroliHok {
+  id: string;
+  idKader: string;
+  mulai: string;
+  selesai: string;
+  kmMedanBerat: number;
+  terverifikasi: boolean;
+  simulasi?: boolean;
+}
+
+export interface RincianHokHarian {
+  tanggal: string;
+  idKader: string;
+  idProgram: string;
+  versiRumus: string;
+  menitEfektif: number;
+  kmMedanBerat: number;
+  titikGradeA: number;
+  hokJam: number;
+  hokJarak: number;
+  hokBonus: number;
+  hokSebelumBatas: number;
+  totalHok: number;
+  sumberId: string[];
+}
+
+export interface StatusAntreanSinkron {
+  idData: string;
+  fingerprint: string;
+  uploadId?: string;
+  fase: "metadata" | "media" | "selesai" | "konflik" | "gagal";
+  chunkDiterima: number[];
+  jumlahChunk: number;
+  percobaan: number;
+  cobaLagiPada?: string;
+  galat?: string;
+}
+
+export interface KonflikSinkron {
+  idData: string;
+  revisiServer: string;
+  lokal: DataSpasialItem;
+  server: DataSpasialItem;
+  terdeteksiPada: string;
+}
+
+export type PilihanResolusiKonflik = "lokal" | "admin" | "gabungkan";
 
 export interface PembaruanObjek {
   id: string;
@@ -66,6 +171,14 @@ export interface DataSpasialItem {
   kompasDerajat?: number;
   fotoBase64?: string;
   namaFileFoto?: string;
+  gpsAveraging?: HasilRataRataGps;
+  memoSuara?: MemoSuara[];
+  buktiFoto?: BuktiFotoLapangan;
+  kesepakatanBatas?: KesepakatanBatas;
+  kualitasData?: SkorKualitasData;
+  /** Token CAS server; tidak dibandingkan menggunakan jam perangkat. */
+  revisiServer?: string;
+  konflikSinkron?: KonflikSinkron;
   driveFileUrl?: string;
   statusSinkron: StatusSinkron;
   diimpor?: boolean; // true = berasal dari berkas luar, bukan rekaman lapangan kader

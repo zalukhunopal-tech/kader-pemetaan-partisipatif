@@ -24,14 +24,14 @@ describe("pmtilesProtocol", () => {
 
   it("dapat memanggil registrasiProtokolPmtiles pada instance maplibregl mock", () => {
     let namaProtokol = "";
-    let handlerDidaftarkan: any = null;
+    let handlerDidaftarkan: unknown = null;
 
     const mockMapLibre = {
-      addProtocol: (protocol: string, handler: any) => {
+      addProtocol: (protocol: string, handler: Parameters<typeof import("maplibre-gl").addProtocol>[1]) => {
         namaProtokol = protocol;
         handlerDidaftarkan = handler;
       }
-    } as any;
+    } satisfies Pick<typeof import("maplibre-gl"), "addProtocol">;
 
     registrasiProtokolPmtiles(mockMapLibre);
     expect(namaProtokol).toBe("pmtiles");

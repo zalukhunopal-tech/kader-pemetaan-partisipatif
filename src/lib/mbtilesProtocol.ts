@@ -57,8 +57,8 @@ export function dapatkanSqlJs(): Promise<SqlJsStatic> {
 /**
  * Daftarkan custom protocol mbtiles:// ke MapLibre GL
  */
-export function registrasiProtokolMbtiles(maplibreInstance?: typeof maplibregl): void {
-  const handler = async (params: any, abortController: any) => {
+export function registrasiProtokolMbtiles(maplibreInstance?: Pick<typeof maplibregl, "addProtocol">): void {
+  const handler = async (params: Parameters<Parameters<typeof maplibregl.addProtocol>[1]>[0]) => {
         // Pola URL: mbtiles://{id}/{z}/{x}/{y} atau mbtiles://{id}/tile.json
         const rawUrl = params.url.replace(/^mbtiles:\/\//, "");
 
@@ -200,7 +200,7 @@ export async function bacaMetadataMbtilesSql(
   namaFallback = "Peta MBTiles"
 ): Promise<MetadataMbtilesSql> {
   let bytes: Uint8Array;
-  let ukuranMb = 0;
+  let ukuranMb: number;
 
   if (data instanceof Uint8Array) {
     bytes = data;

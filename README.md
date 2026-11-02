@@ -131,3 +131,12 @@ Data aplikasi disimpan di **IndexedDB** (bukan localStorage yang hanya ±5 MB) d
 - Mode medan 3D memerlukan WebGL dan koneksi internet untuk tile elevasi/peta; unduhan DEM offline belum tersedia. Bila jaringan/WebGL gagal, gunakan tombol kembali ke 2D. GPS memerlukan izin lokasi dan konteks aman (HTTPS atau localhost). Browser/OS dapat menghentikan GPS ketika aplikasi disuspensi; rekaman web tidak menjamin pelacakan saat layar terkunci.
 
 Implementasi ini menggunakan pustaka dan format terbuka; tidak menyertakan kode atau aset internal Avenza Maps maupun AlpineQuest. Validasi pengembangan mencakup impor GeoPDF lewat worker PDF.js dan rendering medan WebGL dengan respons tile tiruan; pengujian sensor lapangan dan penyedia DEM langsung tetap perlu dilakukan pada perangkat tujuan.
+
+## Fondasi upgrade UI/UX — Tahap 1 dan 2
+
+Mesin GPS averaging, validasi geometri/editor vertex, DQA, buku HOK dan sinkronisasi
+bertahap tersedia sebagai modul TypeScript. Lihat [blueprint, API, batasan dan aktivasi
+protokol 3](docs/upgrade-engine-tahap-1-2.md). Protokol lama tetap menjadi bawaan sampai
+Apps Script diperbarui dan `VITE_GDRIVE_SYNC_V3=true` dipasang. Antarmuka lapangan dan
+dialog resolusi konflik kini tersedia; lihat [panduan Tahap 3](docs/upgrade-tampilan-tahap-3.md). Data dengan
+memo suara, saksi, bukti foto atau averaging otomatis memerlukan penerima protokol 3.

@@ -1,3 +1,5 @@
+import { BuktiFotoLapangan } from "../types";
+import { formatKoordinatTeks } from "./geoUtils";
 /**
  * Kompresi foto lapangan sebelum disimpan. Foto kamera ponsel bisa 3-10 MB; disimpan apa adanya
  * sebagai data URL ia memenuhi kuota penyimpanan dan membengkakkan sinkronisasi.
@@ -55,7 +57,12 @@ async function bukaGambar(file: File): Promise<SumberGambar> {
 }
 
 /** Mengecilkan foto menjadi JPEG berukuran wajar. Melempar Error berpesan Indonesia bila gagal. */
-export async function kompresFoto(file: File, sisiMaks = SISI_MAKS_FOTO, targetByte = TARGET_BYTE_FOTO): Promise<string> {
+export async function kompresFoto(
+  file: File,
+  sisiMaks = SISI_MAKS_FOTO,
+  targetByte = TARGET_BYTE_FOTO,
+  bukti?: BuktiFotoLapangan
+): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Berkas bukan gambar.");
   if (file.size === 0) throw new Error("Berkas foto kosong (0 byte).");
   if (file.size > BATAS_BERKAS_FOTO_BYTE) throw new Error("Foto terlalu besar (maksimal 25 MB).");
@@ -73,6 +80,22 @@ export async function kompresFoto(file: File, sisiMaks = SISI_MAKS_FOTO, targetB
       ctx.fillStyle = "#ffffff"; // latar untuk PNG transparan
       ctx.fillRect(0, 0, lebar, tinggi);
       ctx.drawImage(sumber.gambar, 0, 0, lebar, tinggi);
+      if (bukti?.stampVisual) {
+        const font = Math.max(12, Math.round(lebar / 65));
+        const baris = [
+          formatKoordinatTeks(bukti.posisi.lat, bukti.posisi.lng, "DD"),
+          formatKoordinatTeks(bukti.posisi.lat, bukti.posisi.lng, "UTM"),
+          `Elevasi ${bukti.posisi.elevasi ?? "?"} m | Akurasi ±${bukti.posisi.akurasi ?? "?"} m`,
+          new Date(bukti.diambilPada).toLocaleString("id-ID"),
+          `${bukti.desa} | ${bukti.idKader}`
+        ];
+        const tinggiStamp = font * 1.5 * baris.length + 16;
+        ctx.fillStyle = "rgba(0,0,0,.82)";
+        ctx.fillRect(0, Math.max(0, tinggi - tinggiStamp), lebar, tinggiStamp);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `${font}px sans-serif`;
+        baris.forEach((teks, i) => ctx.fillText(teks, 8, tinggi - tinggiStamp + font * 1.5 * (i + 1), lebar - 16));
+      }
       for (const kualitas of KUALITAS_BERTAHAP) {
         hasil = kanvas.toDataURL("image/jpeg", kualitas);
         if (perkiraBytesDataUrl(hasil) <= targetByte) return hasil;

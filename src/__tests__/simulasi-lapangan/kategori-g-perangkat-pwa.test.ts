@@ -6,7 +6,6 @@ import { perekamLatar } from "../../lib/perekamLatar";
 import {
   siapkanPenyimpanan,
   tulisTeks,
-  bacaTeks,
   simpanSekarang,
   setelUlangPenyimpananUntukUji
 } from "../../lib/penyimpanan";
@@ -49,9 +48,9 @@ describe("Kategori G: Perangkat Lapangan, Baterai & Siklus Hidup PWA (Skenario 5
 
     perekamLatar.mulai("line");
     watchCallback!({
-      coords: { latitude: 2.8574, longitude: 117.3774, altitude: 45, accuracy: 4 } as any,
+      coords: { latitude: 2.8574, longitude: 117.3774, altitude: 45, accuracy: 4 } as GeolocationCoordinates,
       timestamp: Date.now()
-    } as any);
+    } as GeolocationPosition);
 
     expect(perekamLatar.getState().status).toBe("merekam");
     expect(perekamLatar.getState().titik).toHaveLength(1);
@@ -136,7 +135,6 @@ describe("Kategori G: Perangkat Lapangan, Baterai & Siklus Hidup PWA (Skenario 5
 
   // Skenario 54: Screen Orientation & Resize Storm
   it("Skenario 54: Orientation Resize Storm — rotasi layar 10 kali mempertahankan konsistensi dimensi", () => {
-    let tinggiNav = 64; // Default nav height
     const viewports = [
       { w: 360, h: 800 },  // Portrait HP
       { w: 800, h: 360 },  // Landscape HP
@@ -146,7 +144,7 @@ describe("Kategori G: Perangkat Lapangan, Baterai & Siklus Hidup PWA (Skenario 5
 
     for (let i = 0; i < 10; i++) {
       const vp = viewports[i % viewports.length];
-      tinggiNav = vp.w >= 768 ? 0 : 64; // Tablet nav rail di kiri, HP di bawah
+      const tinggiNav = vp.w >= 768 ? 0 : 64; // Tablet nav rail di kiri, HP di bawah
       expect(tinggiNav).toBeGreaterThanOrEqual(0);
     }
   });

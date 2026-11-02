@@ -64,7 +64,9 @@ export const WARNA_KATEGORI: Record<KategoriSurvei, string> = {
   "Mata Air": "#38bdf8",
   "Tanda Batas": "#a855f7",
   "Ancaman / Temuan": "#ef4444",
-  "Wilayah Adat / Lahan": "#fbbf24"
+  "Wilayah Adat / Lahan": "#fbbf24",
+  "Sarana Desa": "#2563eb",
+  "Situs Budaya": "#b45309"
 };
 
 export interface LapisanPeta {

@@ -1,3 +1,5 @@
+import { BukuHokPanel } from "./BukuHokPanel";
+import { hitungSkorKualitasData } from "../lib/kualitasData";
 import React, { useState } from "react";
 import {
   DataSpasialItem,
@@ -56,7 +58,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onHapusTugas,
   onFokusKePeta
 }) => {
-  const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun">("kader_aktif");
+  const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "hok">(
+    "kader_aktif"
+  );
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
 
@@ -182,7 +186,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               { id: "kelola_data", label: `Data (${dataSpasial.length})`, Ikon: Edit3 },
               { id: "tugas_survei", label: `Tugas (${tugasList.length})`, Ikon: PlusCircle },
               { id: "sertifikat", label: "Sertifikat", Ikon: Award },
-              { id: "akun", label: "Akun", Ikon: UserCog }
+              { id: "akun", label: "Akun", Ikon: UserCog },
+              { id: "hok", label: "Buku HOK", Ikon: Award }
             ] as const
           ).map(({ id, label, Ikon }) => (
             <button
@@ -199,6 +204,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </nav>
       </div>
 
+      {subTabAdmin === "hok" && <BukuHokPanel data={dataSpasial} profil={profilKader} admin />}
       {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} dataSpasial={dataSpasial} sertifikatList={sertifikatList} />}
 
       {/* 2. TAB A: MONITOR KADER AKTIF */}
@@ -269,6 +275,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <th>Kader</th>
                     <th>Objek</th>
                     <th>Status</th>
+                    <th>Kualitas</th>
                     <th>Tindakan</th>
                   </tr>
                 </thead>
@@ -290,12 +297,50 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         </span>
                       </td>
                       <td>
+                        <details className="dqa-details">
+                          <summary className="dqa-badge">
+                            {hitungSkorKualitasData(d).grade} · {hitungSkorKualitasData(d).skor}/100
+                          </summary>
+                          <ul>
+                            {hitungSkorKualitasData(d).masalah.map((m) => (
+                              <li key={m}>{m}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      </td>
+                      <td>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            className="btn-outline-sm"
+                            disabled={!d.koordinat[0]}
+                            onClick={() => {
+                              const p = d.koordinat[0];
+                              if (p) onFokusKePeta(p.lat, p.lng, d.judul);
+                            }}
+                          >
+                            <MapPin size={14} /> Tinjau peta
+                          </button>
                           <button type="button" className="btn-outline-sm" onClick={() => setItemDiedit(d)}>
                             <Edit3 size={13} /> Edit
                           </button>
-                          <button type="button" className="btn-primary-sm" onClick={() => onVerifikasiData(d.id, "terverifikasi")}>
+                          <button
+                            type="button"
+                            className="btn-primary-sm"
+                            disabled={!hitungSkorKualitasData(d).geometriValid}
+                            onClick={() => onVerifikasiData(d.id, "terverifikasi")}
+                          >
                             <Check size={13} /> Sah
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-outline-sm"
+                            onClick={() => {
+                              const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
+                              if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
+                            }}
+                          >
+                            Minta revisi
                           </button>
                           <button type="button" className="btn-danger-sm" onClick={() => onHapusDataSpasial(d.id)}>
                             <Trash2 size={13} />

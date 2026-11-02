@@ -1,3 +1,6 @@
+import { ModeLapangan } from "./components/app/ModeLapangan";
+import { useDesktop } from "./lib/tampilanLapangan";
+import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState } from "react";
 import {
   AreaPetaOffline,
@@ -41,7 +44,7 @@ import { AkunSesi, aksesAdminSah, capWilayah, muatSesiPengguna, simpanSesiPenggu
 import { catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
 import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi, useVersiKunciAplikasi } from "./lib/kunciAplikasi";
 import { metodeKunciCepat } from "./lib/kunciCepat";
-import { gdriveTerpasang, sinkronkanDataKeGDrive } from "./lib/gdriveSync";
+import { gdriveTerpasang, sinkronkanDataKeGDrive, terapkanHasilSinkron } from "./lib/gdriveSync";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
@@ -71,6 +74,7 @@ import { BannerModeAdmin, BannerPenyimpanan, BannerPerekaman } from "./component
 import { NavigasiBawah } from "./components/app/NavigasiBawah";
 
 export const App: React.FC = () => {
+  const desktop = useDesktop();
   // Sesi Pengguna Login
   const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() => muatSesiPengguna());
 
@@ -522,12 +526,16 @@ export const App: React.FC = () => {
     if (!otomatis) setPesanSinkron(null);
     try {
       const res = await sinkronkanDataKeGDrive(dataSpasial);
+      if (res.konfirmasi || res.konflik) {
+        setDataSpasial((prev) => terapkanHasilSinkron(prev, res));
+      }
       // Hanya data yang dikonfirmasi tersimpan oleh Apps Script yang berubah status
       if (res.idTersinkron.length > 0) {
         const diterima = new Set(res.idTersinkron);
-        setDataSpasial((prev) =>
-          prev.map((d) => (diterima.has(d.id) && d.statusSinkron === "lokal" ? { ...d, statusSinkron: "tersinkron" } : d))
-        );
+        if (!res.konfirmasi)
+          setDataSpasial((prev) =>
+            prev.map((d) => (diterima.has(d.id) && d.statusSinkron === "lokal" ? { ...d, statusSinkron: "tersinkron" } : d))
+          );
         setStatusGDrive({ terakhirSinkron: new Date().toLocaleString("id-ID") });
       }
       // Sinkron otomatis diam bila belum diatur; hasil lain selalu ditampilkan
@@ -694,6 +702,7 @@ export const App: React.FC = () => {
         onKeluar={handleLogout}
       />
 
+      <ModeLapangan />
       {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
       {aksesAdmin && (
         <BannerModeAdmin
@@ -724,7 +733,7 @@ export const App: React.FC = () => {
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
-        className={`app-main ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
+        className={`app-main ${desktop && (tabAktif === "admin" || tabAktif === "data_sync") ? "gis-split-workspace" : ""} ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
         onTouchStart={handleGeserMulai}
         onTouchEnd={handleGeserSelesai}
         onTouchCancel={() => (awalGeserRef.current = null)}
@@ -777,42 +786,61 @@ export const App: React.FC = () => {
               />
             )}
 
-            {tabAktif === "peta" && (
-              <InteractiveMap
-                dataSpasial={dataSpasial}
-                profil={profil}
-                areaOffline={areaOffline}
-                petaKustomAktif={petaKustomAktif}
-                onTutupPetaKustom={() => {
-                  setPetaKustomAktif(null);
-                }}
-                onPilihPetaKustom={(a) => {
-                  setPetaKustomAktif(a);
-                  setFokusKoordinat({
-                    lat: (a.minLat + a.maxLat) / 2,
-                    lng: (a.minLng + a.maxLng) / 2,
-                    label: a.namaArea
-                  });
-                }}
-                fokusKoordinat={fokusKoordinat}
-                onFokusDipakai={() => setFokusKoordinat(null)}
-                onSimpanDataBaru={handleSimpanDataBaru}
-                onTambahPembaruanObjek={handleTambahPembaruanObjek}
-                onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-                onImporBerkas={handleImporBerkas}
-              />
+            {(tabAktif === "peta" || (desktop && (tabAktif === "data_sync" || (tabAktif === "admin" && aksesAdmin)))) && (
+              <div className="workspace-map">
+                <InteractiveMap
+                  key={profil.idKader}
+                  dataSpasial={dataSpasial}
+                  profil={profil}
+                  areaOffline={areaOffline}
+                  petaKustomAktif={petaKustomAktif}
+                  onTutupPetaKustom={() => {
+                    setPetaKustomAktif(null);
+                  }}
+                  onPilihPetaKustom={(a) => {
+                    setPetaKustomAktif(a);
+                    setFokusKoordinat({
+                      lat: (a.minLat + a.maxLat) / 2,
+                      lng: (a.minLng + a.maxLng) / 2,
+                      label: a.namaArea
+                    });
+                  }}
+                  fokusKoordinat={fokusKoordinat}
+                  onFokusDipakai={() => setFokusKoordinat(null)}
+                  onSimpanDataBaru={handleSimpanDataBaru}
+                  onTambahPembaruanObjek={handleTambahPembaruanObjek}
+                  onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
+                  onImporBerkas={handleImporBerkas}
+                />
+              </div>
             )}
 
             {tabAktif === "data_sync" && (
               <DatabaseSyncView
                 dataSpasial={dataSpasial}
+                areaOffline={areaOffline}
+                onResolusiKonflik={(id, pilihan, gabungan) => {
+                  try {
+                    const d = dataSpasial.find((v) => v.id === id);
+                    if (!d?.konflikSinkron) return;
+                    if (!aksesAdminSah(muatSesiPengguna()) && d.idKader !== muatSesiPengguna()?.idKader) {
+                      tampilkanToast("Hanya pemilik data atau admin yang dapat menyelesaikan konflik.");
+                      return;
+                    }
+                    const hasil = selesaikanKonflik(d.konflikSinkron, pilihan, gabungan);
+                    setDataSpasial((prev) => prev.map((v) => (v.id === id ? hasil : v)));
+                    tampilkanToast("Pilihan konflik disimpan.");
+                  } catch (e) {
+                    tampilkanToast(e instanceof Error ? e.message : "Konflik belum dapat diselesaikan.");
+                  }
+                }}
                 terakhirSinkron={statusGDrive.terakhirSinkron}
                 sedangSinkron={sedangSinkron}
                 pesanSinkron={pesanSinkron}
                 pesanSinkronGagal={pesanSinkronGagal}
                 sedangOnline={sedangOnline}
                 onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
-                onFokusKePeta={handleFokusKePeta}
+                onFokusKePeta={(lat, lng, label) => (desktop ? setFokusKoordinat({ lat, lng, label }) : handleFokusKePeta(lat, lng, label))}
               />
             )}
 
@@ -883,7 +911,7 @@ export const App: React.FC = () => {
                 })}
                 onHapusTugas={wajibAdmin(handleHapusTugas)}
                 onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}
-                onFokusKePeta={handleFokusKePeta}
+                onFokusKePeta={(lat, lng, label) => (desktop ? setFokusKoordinat({ lat, lng, label }) : handleFokusKePeta(lat, lng, label))}
               />
             )}
           </>

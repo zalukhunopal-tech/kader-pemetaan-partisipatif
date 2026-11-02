@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { createHash } from "node:crypto";
+import { sinkronkanBertahapKeGDrive, selesaikanKonflik } from "./gdriveBertahap";
+import { DataSpasialItem } from "../types";
 
 /**
  * Menjalankan apps-script/Code.gs terhadap tiruan layanan Google (Drive, Spreadsheet, Lock,
@@ -39,7 +42,7 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
     setTrashed = (v: boolean) => {
       this.trashed = v;
     };
-    getBlob = () => ({ getDataAsString: () => this.isi });
+    getBlob = () => ({ getDataAsString: () => this.isi, getBytes: () => Buffer.from(this.isi) });
     setContent = (s: string) => {
       this.isi = s;
       return this;
@@ -159,7 +162,12 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
         if (!/^[A-Za-z0-9+/=]+$/.test(s)) throw new Error("Could not decode string.");
         return Buffer.from(s, "base64");
       },
-      newBlob: (bytes: Buffer, tipe: string, nama: string) => ({ nama, tipe, bytes })
+      DigestAlgorithm: { SHA_256: "sha256" },
+      computeDigest: (_algorithm: string, bytes: Buffer) => [...createHash("sha256").update(Buffer.from(bytes)).digest()],
+      newBlob: (input: Buffer | number[] | string, tipe: string, nama: string) => {
+        const bytes = typeof input === "string" ? Buffer.from(input) : Buffer.from(input);
+        return { nama, tipe, bytes, getBytes: () => bytes, getDataAsString: () => bytes.toString("utf8") };
+      }
     },
     Logger: { log: (s: string) => log.logger.push(s) },
     MimeType: { PLAIN_TEXT: "text/plain" },
@@ -428,5 +436,135 @@ describe("Code.gs: penyimpanan idempoten dan pengamanan (hardening)", () => {
     const tanpaFitur = { ...payload([rec("x")]), geojsonBundle: "" };
     expect(L2.kirim(tanpaFitur).diterima).toEqual(["x"]);
     expect(L2.isiGeojson(desaJambi(L2), "budi_sebaran_anggrek_november_2026.geojson")?.features[0].id).toBe("x");
+  });
+});
+
+const dataV3 = (id: string, extra: Partial<DataSpasialItem> = {}): DataSpasialItem => ({
+  ...rec(id),
+  jenisGeometri: "point",
+  kategori: "Flora",
+  koordinat: [{ lat: -2.1, lng: 102.1, akurasi: 4 }],
+  statusSinkron: "lokal",
+  riwayatPembaruan: [],
+  deskripsi: "Survei lapangan",
+  ...extra
+});
+function transportV3(L: ReturnType<typeof buatLingkungan>, catat: string[] = []) {
+  return (async (_url: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    catat.push(body.action);
+    return new Response(JSON.stringify(L.kirim(body)), { status: 200 });
+  }) as typeof fetch;
+}
+const koneksiV3 = { url: "https://script.google.com/macros/s/test/exec", token: "rahasia" };
+
+describe("protokol 3: integrasi browser dan Apps Script", () => {
+  it("mengirim semua metadata sebelum media, membatasi 50 KB dan menyimpan ulang secara idempoten", async () => {
+    const L = buatLingkungan(),
+      actions: string[] = [],
+      ukuran: number[] = [];
+    const base = transportV3(L, actions),
+      transport = (async (u: Parameters<typeof fetch>[0], i?: RequestInit) => {
+        ukuran.push(Buffer.byteLength(String(i?.body)));
+        return base(u, i);
+      }) as typeof fetch;
+    const d = dataV3("v3-a", { fotoBase64: "data:image/jpeg;base64," + Buffer.alloc(60000, 65).toString("base64") });
+    const opts = { koneksi: koneksiV3, transport, tunggu: async () => {}, sekarang: () => Date.now() + 1000000 };
+    const h = await sinkronkanBertahapKeGDrive([d, dataV3("v3-b")], opts);
+    expect(h.sukses).toBe(true);
+    expect(h.idTersinkron).toEqual(["v3-a", "v3-b"]);
+    expect(actions.slice(0, 3)).toEqual(["sync_capabilities", "sync_metadata_v3", "sync_metadata_v3"]);
+    expect(Math.max(...ukuran)).toBeLessThanOrEqual(50000);
+    const ulang = await sinkronkanBertahapKeGDrive([d], opts);
+    expect(ulang.sukses).toBe(true);
+    expect(L.tabData().baris).toHaveLength(3);
+    expect(
+      desaJambi(L)
+        ?.berkasAktif()
+        .filter((b) => b.nama.endsWith(".jpg"))
+    ).toHaveLength(1);
+  });
+  it("melanjutkan chunk dari server setelah jaringan terputus tanpa kirim ulang chunk yang sudah diterima", async () => {
+    const L = buatLingkungan(),
+      d = dataV3("v3-resume", { fotoBase64: "data:image/jpeg;base64," + Buffer.alloc(60000, 66).toString("base64") });
+    const base = transportV3(L);
+    let putus = true;
+    const transport = (async (u: Parameters<typeof fetch>[0], i?: RequestInit) => {
+      const b = JSON.parse(String(i?.body));
+      if (putus && b.action === "sync_chunk_v3" && b.indeks === 1) throw new TypeError("offline");
+      return base(u, i);
+    }) as typeof fetch;
+    const opts = { koneksi: koneksiV3, transport, tunggu: async () => {}, sekarang: () => Date.now() + 1000000 };
+    expect((await sinkronkanBertahapKeGDrive([d], opts)).sukses).toBe(false);
+    putus = false;
+    const terkirim: number[] = [];
+    const pulih = (async (u: Parameters<typeof fetch>[0], i?: RequestInit) => {
+      const b = JSON.parse(String(i?.body));
+      if (b.action === "sync_chunk_v3") terkirim.push(b.indeks);
+      return base(u, i);
+    }) as typeof fetch;
+    const h = await sinkronkanBertahapKeGDrive([d], { ...opts, transport: pulih, sekarang: () => Date.now() + 2000000 });
+    expect(h.sukses).toBe(true);
+    expect(terkirim).not.toContain(0);
+    expect(terkirim).toContain(1);
+  });
+  it("revisi admin memunculkan konflik; resolusi lokal eksplisit mempertahankan catatan admin", async () => {
+    const L = buatLingkungan(),
+      d = dataV3("v3-konflik"),
+      opts = { koneksi: koneksiV3, transport: transportV3(L), tunggu: async () => {}, sekarang: () => Date.now() + 3000000 };
+    const pertama = await sinkronkanBertahapKeGDrive([d], opts);
+    expect(pertama.sukses).toBe(true);
+    const [kepala, baris] = L.tabData().baris;
+    baris[kepala.indexOf("Status_Verifikasi")] = "Ditolak";
+    baris[kepala.indexOf("Catatan_Admin")] = "Periksa batas utara";
+    const lokal = { ...d, revisiServer: pertama.konfirmasi![0].revisiServer, deskripsi: "Edit offline" };
+    const h = await sinkronkanBertahapKeGDrive([lokal], opts);
+    expect(h.idTersinkron).toEqual([]);
+    expect(h.konflik).toHaveLength(1);
+    const k = h.konflik![0];
+    expect(k.server.catatanAdmin).toBe("Periksa batas utara");
+    expect(selesaikanKonflik(k, "admin").statusSinkron).toBe("ditolak");
+    expect(() => selesaikanKonflik(k, "gabungkan")).toThrow(/eksplisit/);
+    const resolusi = selesaikanKonflik(k, "lokal");
+    expect(resolusi.catatanAdmin).toBe("Periksa batas utara");
+    expect((await sinkronkanBertahapKeGDrive([resolusi], opts)).sukses).toBe(true);
+    expect(baris[kepala.indexOf("Status_Verifikasi")]).toBe("Ditolak");
+  });
+  it("checksum chunk rusak ditolak dan tidak membuat data seolah tersinkron", async () => {
+    const L = buatLingkungan(),
+      base = transportV3(L);
+    const transport = (async (u: Parameters<typeof fetch>[0], i?: RequestInit) => {
+      const b = JSON.parse(String(i?.body));
+      if (b.action === "sync_chunk_v3") b.checksum = "0".repeat(64);
+      return base(u, { ...i, body: JSON.stringify(b) });
+    }) as typeof fetch;
+    const h = await sinkronkanBertahapKeGDrive([dataV3("v3-rusak")], {
+      koneksi: koneksiV3,
+      transport,
+      tunggu: async () => {},
+      sekarang: () => Date.now() + 4000000
+    });
+    expect(h.sukses).toBe(false);
+    expect(h.idTersinkron).toEqual([]);
+    expect(L.tabData().baris).toHaveLength(1);
+  });
+  it("server versi lama ditolak sebelum mengirim data", async () => {
+    let panggilan = 0;
+    const h = await sinkronkanBertahapKeGDrive([dataV3("v3-old")], {
+      koneksi: koneksiV3,
+      transport: (async () => {
+        panggilan++;
+        return new Response(JSON.stringify({ diterima: [], jumlah: 0 }));
+      }) as typeof fetch
+    });
+    expect(panggilan).toBe(1);
+    expect(h.pesan).toMatch(/Perbarui deployment/);
+    expect(h.idTersinkron).toEqual([]);
+  });
+  it("WKT legacy >40000 dirujuk ke GeoJSON tanpa kehilangan koordinat", () => {
+    const L = buatLingkungan();
+    L.kirim(payload([rec("overflow", { wkt: "LINESTRING(" + "102.1 -2.1,".repeat(5000) + "102.1 -2.1)" })]));
+    const [kolom, row] = L.tabData().baris;
+    expect(row[kolom.indexOf("Koordinat_WKT")]).toMatch(/^GEOMETRI_DI_GEOJSON: https:/);
   });
 });

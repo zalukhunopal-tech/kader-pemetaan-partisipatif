@@ -104,6 +104,7 @@ describe("perekam latar: merekam dari GPS perangkat", () => {
     expect(perekamLatar.getState().posisiTerakhir?.lat).toBe(-1.60001);
     expect(perekamLatar.getState().galat).toBeNull();
 
+    vi.advanceTimersByTime(1000); // Fix berikutnya punya waktu berbeda untuk gate kecepatan.
     gps.sukses!(posisi(-1.6001, 103.6, 4, null)); // ±11 m: sah, tanpa elevasi
     expect(perekamLatar.getState().titik).toHaveLength(2);
     expect(perekamLatar.getState().titik[1].elevasi).toBeUndefined();
@@ -352,4 +353,21 @@ it("urungkan titik memperbarui rekaman tersimpan dan aman saat kosong", async ()
   perekamLatar.hapusTitikTerakhir();
   perekamLatar.hapusTitikTerakhir();
   expect(perekamLatar.getState().posisiTerakhir).toBeNull();
+});
+
+it("undo/redo vertex tersimpan dan titik baru membuang cabang redo", async () => {
+  pasangGpsTiruan();
+  const { perekamLatar } = await muat();
+  perekamLatar.mulai("polygon", [{ lat: 0, lng: 100 }]);
+  perekamLatar.jeda();
+  perekamLatar.tambahTitik({ lat: 0.001, lng: 100 });
+  perekamLatar.hapusTitikTerakhir();
+  expect(perekamLatar.getState().titik).toHaveLength(1);
+  perekamLatar.ulangiVertex();
+  expect(perekamLatar.getState().titik).toHaveLength(2);
+  perekamLatar.hapusTitikTerakhir();
+  perekamLatar.tambahTitik({ lat: 0.002, lng: 100 });
+  perekamLatar.ulangiVertex();
+  expect(perekamLatar.getState().titik).toHaveLength(2);
+  expect(perekamLatar.getState().titik[1].lat).toBe(0.002);
 });

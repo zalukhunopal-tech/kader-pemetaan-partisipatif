@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { KoordinatTitik } from "../types";
-import { hitungJarakMeter } from "./geoUtils";
+import { hitungJarakMeter, hitungRataRataGps, koordinatValid } from "./geoUtils";
 
 /**
  * POSISI & ARAH PERANGKAT
@@ -277,4 +277,80 @@ export function usePosisiPerangkat(): StatePosisiPerangkat {
     () => state,
     () => state
   );
+}
+
+/** Pengambilan fix selama 5–15 detik, bisa dibatalkan saat form ditutup. */
+export async function ambilRataRataGps(
+  opsi: {
+    durasiDetik?: number;
+    minimalSampel?: number;
+    signal?: AbortSignal;
+    progres?: (jumlah: number) => void;
+  } = {}
+): Promise<import("../types").HasilRataRataGps> {
+  const durasi = opsi.durasiDetik ?? 10,
+    minimum = opsi.minimalSampel ?? 3;
+  if (!Number.isFinite(durasi) || durasi < 5 || durasi > 15 || !Number.isInteger(minimum) || minimum < 1)
+    throw new Error("Pengaturan GPS averaging tidak valid.");
+  if (typeof navigator === "undefined" || !navigator.geolocation) throw new Error("GPS perangkat tidak tersedia.");
+  return new Promise((resolve, reject) => {
+    if (opsi.signal?.aborted) {
+      reject(new DOMException("Dibatalkan", "AbortError"));
+      return;
+    }
+    let watch: number | undefined,
+      selesai = false;
+    const sampel: KoordinatTitik[] = [],
+      waktu = new Set<number>();
+    const bersih = () => {
+      selesai = true;
+      clearTimeout(timer);
+      if (watch !== undefined) navigator.geolocation.clearWatch(watch);
+      opsi.signal?.removeEventListener("abort", batal);
+    };
+    const batal = () => {
+      bersih();
+      reject(new DOMException("Dibatalkan", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      bersih();
+      if (sampel.length < minimum) {
+        reject(new Error(`GPS belum cukup: ${sampel.length}/${minimum} sampel. Coba di tempat lebih terbuka.`));
+        return;
+      }
+      try {
+        resolve(hitungRataRataGps(sampel));
+      } catch (e) {
+        reject(e);
+      }
+    }, durasi * 1000);
+    opsi.signal?.addEventListener("abort", batal, { once: true });
+    try {
+      watch = navigator.geolocation.watchPosition(
+        (p) => {
+          if (selesai || waktu.has(p.timestamp)) return;
+          const t: KoordinatTitik = {
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+            akurasi: p.coords.accuracy,
+            elevasi: p.coords.altitude ?? undefined,
+            timestamp: new Date(p.timestamp).toISOString()
+          };
+          if (!koordinatValid(t) || p.coords.accuracy > 50) return;
+          waktu.add(p.timestamp);
+          sampel.push(t);
+          opsi.progres?.(sampel.length);
+        },
+        (e) => {
+          bersih();
+          reject(new Error(e.code === 1 ? "Izin GPS ditolak." : "Sampel GPS tidak tersedia."));
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: durasi * 1000 }
+      );
+      if (selesai) navigator.geolocation.clearWatch(watch);
+    } catch (e) {
+      bersih();
+      reject(e);
+    }
+  });
 }

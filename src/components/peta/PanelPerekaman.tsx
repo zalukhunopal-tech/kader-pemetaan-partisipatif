@@ -1,6 +1,7 @@
 import React from "react";
-import { Check, Pause, Play, Plus, Radio, Undo2, X } from "lucide-react";
+import { Check, Pause, Play, Plus, Radio, Undo2, Redo2, X } from "lucide-react";
 import { JenisGeometri } from "../../types";
+import { hitungLuasPoligonMeter2 } from "../../lib/geoUtils";
 import { StatePerekamLatar, durasiRekamMs, formatDurasi, perekamLatar } from "../../lib/perekamLatar";
 
 interface PanelPerekamanProps {
@@ -12,6 +13,8 @@ interface PanelPerekamanProps {
   /** Berubah setiap detik selama merekam, supaya durasi ikut diperbarui */
   detikTick: number;
   onTambahTitik: () => void;
+  snapAktif?: boolean;
+  onToggleSnap?: () => void;
   onSimpan: () => void;
   onBatal: () => void;
 }
@@ -25,6 +28,8 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
   luasDraftHa,
   detikTick,
   onTambahTitik,
+  snapAktif,
+  onToggleSnap,
   onSimpan,
   onBatal
 }) => (
@@ -42,7 +47,7 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
         <strong>
           {modeRekam === "line"
             ? `Jalur (${jumlahTitik} titik • ${panjangDraftKm} km)`
-            : `Poligon (${jumlahTitik} sudut • ${luasDraftHa} Ha)`}
+            : `Poligon (${jumlahTitik} sudut • ${luasDraftHa} Ha / ${hitungLuasPoligonMeter2(rekamLatar.titik).toFixed(1)} m²)`}
         </strong>
       </div>
     </div>
@@ -61,6 +66,14 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
       >
         <Undo2 size={14} /> Urungkan
       </button>
+      <button type="button" className="btn-tool" disabled={!rekamLatar.redoVertex?.length} onClick={() => perekamLatar.ulangiVertex()}>
+        <Redo2 size={14} /> Ulangi
+      </button>
+      {modeRekam === "polygon" && (
+        <button type="button" className="btn-tool" aria-pressed={snapAktif} onClick={onToggleSnap}>
+          Snap 5 m {snapAktif ? "ON" : "OFF"}
+        </button>
+      )}
       <button
         type="button"
         className={`btn-tool ${rekamLatar.status === "merekam" ? "active-walk" : ""}`}
