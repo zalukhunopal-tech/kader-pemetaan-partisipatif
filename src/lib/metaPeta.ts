@@ -2,6 +2,8 @@ import { AreaPetaOffline } from "../types";
 import { hitungJarakMeter } from "./geoUtils";
 import { parseGeoTiffBuffer, HasilDeteksiGeoTiff } from "./geoTiffParser";
 import { parseMBTilesBuffer, HasilDeteksiMBTiles } from "./mbtilesParser";
+import { bacaMetadataPmtiles } from "./pmtilesProtocol";
+import { bacaMetadataMbtilesSql } from "./mbtilesProtocol";
 import { bacaPosisiPeta, POSISI_AWAL_PETA } from "./posisiPeta";
 
 export interface HasilMetadataPeta {
@@ -25,7 +27,7 @@ export interface HasilMetadataPeta {
   lebarPixel?: number;
   tinggiPixel?: number;
   resolusiMeter?: number;
-  sumberDeteksi: "geotiff" | "mbtiles" | "geopdf" | "teks" | "bawaan";
+  sumberDeteksi: "pmtiles" | "mbtiles" | "geotiff" | "geopdf" | "teks" | "bawaan";
 }
 
 /** Format angka MB atau km dengan tanda koma (gaya bahasa Indonesia) */
@@ -34,7 +36,10 @@ export function formatAngkaKoma(nilai: number, digit = 1): string {
 }
 
 /** Deteksi format file peta berdasarkan ekstensi berkas */
-export function deteksiJenisPeta(namaBerkas: string): "GeoPDF / GeoTIFF" | "MBTiles / KMZ" {
+export function deteksiJenisPeta(namaBerkas: string): "GeoPDF / GeoTIFF" | "MBTiles / KMZ" | "PMTiles" {
+  if (/\.pmtiles$/i.test(namaBerkas)) {
+    return "PMTiles";
+  }
   if (/\.mbtiles$/i.test(namaBerkas) || /\.kmz$/i.test(namaBerkas)) {
     return "MBTiles / KMZ";
   }
@@ -43,7 +48,7 @@ export function deteksiJenisPeta(namaBerkas: string): "GeoPDF / GeoTIFF" | "MBTi
 
 /** Tentukan tipe thumbnail visual kartu peta */
 export function deteksiThumbnailPeta(namaBerkas: string): "vector" | "dem_atas" | "radar" | "geopdf_sheet" {
-  if (/\.mbtiles$/i.test(namaBerkas)) return "vector";
+  if (/\.(pmtiles|mbtiles)$/i.test(namaBerkas)) return "vector";
   if (/\.(tif|tiff|geotiff)$/i.test(namaBerkas)) return "dem_atas";
   if (/\.geopdf$/i.test(namaBerkas) || /geopdf/i.test(namaBerkas) || /kawasan_hutan/i.test(namaBerkas)) return "geopdf_sheet";
   return "radar";
@@ -179,6 +184,48 @@ export async function bacaMetadataBerkasPeta(
   const namaKecil = file.name.toLowerCase();
   const maxBacaBiner = Math.min(file.size, 1024 * 1024); // Maks 1 MB untuk deteksi metadata spasial
 
+  // 0. Uji parsing biner PMTiles jika ekstensi pmtiles atau berkas biner PMTiles
+  if (/\.pmtiles$/i.test(namaKecil)) {
+    try {
+      const metaPm = await bacaMetadataPmtiles(file);
+      return {
+        namaArea: metaPm.namaArea,
+        ukuranMb: metaPm.ukuranMb,
+        ukuranMbTeks: formatAngkaKoma(metaPm.ukuranMb, 1),
+        jarakKm: hitungJarakReferensiKm(posisiRef, {
+          minLat: metaPm.minLat,
+          maxLat: metaPm.maxLat,
+          minLng: metaPm.minLng,
+          maxLng: metaPm.maxLng
+        }),
+        jarakKmTeks: formatAngkaKoma(
+          hitungJarakReferensiKm(posisiRef, {
+            minLat: metaPm.minLat,
+            maxLat: metaPm.maxLat,
+            minLng: metaPm.minLng,
+            maxLng: metaPm.maxLng
+          }),
+          1
+        ),
+        jenisFile: "PMTiles",
+        thumbnailType: metaPm.tileType === "vector" ? "vector" : "radar",
+        minLat: metaPm.minLat,
+        maxLat: metaPm.maxLat,
+        minLng: metaPm.minLng,
+        maxLng: metaPm.maxLng,
+        pusatLat: metaPm.pusatLat,
+        pusatLng: metaPm.pusatLng,
+        rentangLat: Number((metaPm.maxLat - metaPm.minLat).toFixed(4)),
+        rentangLng: Number((metaPm.maxLng - metaPm.minLng).toFixed(4)),
+        crs: metaPm.crs,
+        crsDeskripsi: metaPm.crsDeskripsi,
+        sumberDeteksi: "pmtiles"
+      };
+    } catch {
+      // lanjut ke parser lain jika gagal
+    }
+  }
+
   // 1. Uji parsing biner GeoTIFF jika ekstensi tif/geotiff atau nama berkas relevan
   const isTiffCandidate = /\.(tif|tiff|geotiff)$/i.test(namaKecil);
   if (isTiffCandidate || file.size > 16) {
@@ -208,22 +255,36 @@ export async function bacaMetadataBerkasPeta(
   // 2. Uji parsing biner MBTiles jika ekstensi mbtiles atau basis data SQLite
   if (!crs && (/\.mbtiles$/i.test(namaKecil) || file.size > 100)) {
     try {
-      const potongan = file.slice(0, maxBacaBiner);
-      const buffer = await potongan.arrayBuffer();
-      const deteksiMb: HasilDeteksiMBTiles | null = parseMBTilesBuffer(buffer);
-      if (deteksiMb) {
-        minLat = deteksiMb.minLat;
-        maxLat = deteksiMb.maxLat;
-        minLng = deteksiMb.minLng;
-        maxLng = deteksiMb.maxLng;
-        pusatLat = deteksiMb.pusatLat;
-        pusatLng = deteksiMb.pusatLng;
-        crs = deteksiMb.crs;
-        crsDeskripsi = deteksiMb.crsDeskripsi;
-        sumberDeteksi = "mbtiles";
-      }
+      // Coba parsing mendalam via SQL.js terlebih dahulu
+      const metaMb = await bacaMetadataMbtilesSql(file);
+      minLat = metaMb.minLat;
+      maxLat = metaMb.maxLat;
+      minLng = metaMb.minLng;
+      maxLng = metaMb.maxLng;
+      pusatLat = metaMb.pusatLat;
+      pusatLng = metaMb.pusatLng;
+      crs = metaMb.crs;
+      crsDeskripsi = metaMb.crsDeskripsi;
+      sumberDeteksi = "mbtiles";
     } catch {
-      // Lanjut jika bukan format MBTiles SQLite
+      try {
+        const potongan = file.slice(0, maxBacaBiner);
+        const buffer = await potongan.arrayBuffer();
+        const deteksiMb: HasilDeteksiMBTiles | null = parseMBTilesBuffer(buffer);
+        if (deteksiMb) {
+          minLat = deteksiMb.minLat;
+          maxLat = deteksiMb.maxLat;
+          minLng = deteksiMb.minLng;
+          maxLng = deteksiMb.maxLng;
+          pusatLat = deteksiMb.pusatLat;
+          pusatLng = deteksiMb.pusatLng;
+          crs = deteksiMb.crs;
+          crsDeskripsi = deteksiMb.crsDeskripsi;
+          sumberDeteksi = "mbtiles";
+        }
+      } catch {
+        // Lanjut jika bukan format MBTiles SQLite
+      }
     }
   }
 
