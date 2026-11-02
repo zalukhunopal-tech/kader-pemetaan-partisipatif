@@ -539,6 +539,45 @@ export const RewardView: React.FC<RewardViewProps> = ({
         </div>
       </div>
 
+      {/* HERO METRIC CARDS (Total HOK / Insentif, Jarak Tempuh, Titik Sah) */}
+      <div className="reward-hero-grid">
+        <div className="reward-hero-card">
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Insentif HOK
+          </span>
+          <strong className="reward-hero-val text-emerald">
+            Rp {(capaianTerverifikasi.totalPoinTitik * 25000 + Math.round(capaianTerverifikasi.totalTrackingKm * 15000)).toLocaleString("id-ID")}
+          </strong>
+          <small className="text-muted" style={{ fontSize: "0.7rem", marginTop: 3 }}>
+            Jerih payah lapangan
+          </small>
+        </div>
+
+        <div className="reward-hero-card">
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Jelajah Jalur
+          </span>
+          <strong className="reward-hero-val text-sky">
+            {totalKm.toFixed(1)} <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>km</span>
+          </strong>
+          <small className="text-muted" style={{ fontSize: "0.7rem", marginTop: 3 }}>
+            Total lintasan rekam
+          </small>
+        </div>
+
+        <div className="reward-hero-card">
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Survei Sah
+          </span>
+          <strong className="reward-hero-val" style={{ color: "var(--brand-accent)" }}>
+            {capaianTerverifikasi.totalPoinTitik} <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>titik</span>
+          </strong>
+          <small className="text-muted" style={{ fontSize: "0.7rem", marginTop: 3 }}>
+            Terverifikasi admin
+          </small>
+        </div>
+      </div>
+
       {/* 2. GRAFIK CINCIN VISUAL: CAPAIAN SPASIAL (TITIK, JALUR, POLIGON) */}
       <div className="visual-rings-grid">
         <CincinProgresSvg

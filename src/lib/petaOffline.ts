@@ -94,6 +94,7 @@ function sumberSatelit(): SumberTile {
     lisensi: "Citra satelit resolusi tinggi global (Esri World Imagery).",
     zoomMaks: 19,
     bolehUnduh: false,
+    alasanTidakBoleh: "Tile publik Esri World Imagery untuk dilihat online; gunakan penyedia berlisensi untuk offline.",
     rataKbPerTile: 24
   };
 }
@@ -120,6 +121,7 @@ function sumberEsri(): SumberTile {
     lisensi: "Citra satelit resolusi tinggi Esri World Imagery (Maxar/Earthstar).",
     zoomMaks: 19,
     bolehUnduh: false,
+    alasanTidakBoleh: "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
     rataKbPerTile: 24
   };
 }
@@ -145,6 +147,8 @@ function sumberGoogle(): SumberTile {
     lisensi: "Citra satelit resolusi tinggi Google Hybrid.",
     zoomMaks: 20,
     bolehUnduh: false,
+    alasanTidakBoleh: "Ketentuan Google melarang menyimpan tile untuk pemakaian offline.",
+    catatanPakai: "Ketentuan Google melarang menjiplak atau mendigitasi objek dari citra Google.",
     rataKbPerTile: 28
   };
 }
