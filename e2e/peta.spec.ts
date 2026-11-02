@@ -82,7 +82,7 @@ test("HP dengan huruf besar: peta, atribusi, dan Rekam Lokasi tidak tertutup bil
     expect(z3.lng).toBeLessThan(awal.lng - 1e-5); // dua jari bergeser bersama menggeser peta
     expect(Math.abs(z3.zoom - z2.zoom)).toBeLessThan(0.02);
     expect(await p.locator(".avenza-topbar-title").innerText()).toBe("Temukan"); // tidak pindah tab
-    expect(await p.locator(".inspector-card").count()).toBe(0); // bukan ketukan memilih objek
+    expect(await p.locator(".field-inspector-sheet").count()).toBe(0); // bukan ketukan memilih objek
     await p.locator('.map-ctrl-btn[title="Perbesar"]').click();
     await p.waitForTimeout(500);
     expect(Number.isInteger((await posisiPeta(p))!.zoom)).toBe(true);
@@ -122,13 +122,14 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   await masukSebagaiAdmin(p);
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
   await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
-  expect(await sampai(async () => /-1\.61/.test(await p.locator(".map-coord-mini-pill").first().innerText()), 8000)).toBe(true);
+  expect(await sampai(async () => /-1\.61/.test(await p.locator(".field-telemetry-coordinate").first().innerText()), 8000)).toBe(true);
   await p.locator(".map-fab-record-trigger").click();
   await p.locator(".compact-rec-pill", { hasText: "Titik" }).click();
-  await p.getByRole("button", { name: "Batal" }).click();
-  await expect(p.locator(".map-fab-record-trigger")).toBeVisible();
-  await p.locator(".map-fab-record-trigger").click();
-  await p.locator(".compact-rec-pill", { hasText: "Titik" }).click();
+  await p.getByRole("button", { name: "Flora & tumbuhan" }).click();
+  await p.getByRole("button", { name: "Tutup, simpan draf" }).click();
+  await expect(p.getByRole("button", { name: "Lanjutkan draf titik" })).toBeVisible();
+  await p.getByRole("button", { name: "Lanjutkan draf titik" }).click();
+  await p.getByRole("button", { name: "Flora & tumbuhan" }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Pohon Meranti uji");
   await p.locator(".modal-form button[type=submit]").click();
   expect(await sampai(async () => /Pohon Meranti uji/.test(await teksToast(p)))).toBe(true);
@@ -153,7 +154,7 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   // ketuk titik di tengah peta: kartu detail objek terbuka
   const kan = await kotak(p, "canvas.map-canvas");
   await p.mouse.click(kan.left + kan.width / 2, kan.top + kan.height / 2);
-  expect(await sampai(async () => /Pohon Meranti uji/.test(await p.locator(".inspector-card").innerText()))).toBe(true);
+  expect(await sampai(async () => /Pohon Meranti uji/.test(await p.locator(".field-inspector-sheet").innerText()))).toBe(true);
 
   // perbarui kondisi: objek yang baru dibuat belum boleh diperbarui (jeda 24 jam), isian tetap ada
   await p.getByPlaceholder("Kondisi terbaru...").fill("Daun menguning");

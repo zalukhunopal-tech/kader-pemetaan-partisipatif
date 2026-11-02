@@ -68,7 +68,8 @@ var KOLOM = [
   "Status_Verifikasi",
   "Waktu_Rekam",
   "Waktu_Sinkron",
-  "ID_Berkas"
+  "ID_Berkas",
+  "Catatan_Admin"
 ];
 var K = {};
 for (var k = 0; k < KOLOM.length; k++) K[KOLOM[k]] = k;
@@ -141,8 +142,10 @@ function doPost(e) {
       });
     }
     if (!samaWaktuTetap_(body.token, tokenTersimpan)) {
-      return balas_({ sukses: false, pesan: "Token tidak cocok. Samakan VITE_GDRIVE_TOKEN aplikasi dengan token dari pasangTitikTapak." });
+      return balas_({ sukses: false, protokol: 3, pesan: "Token tidak cocok. Samakan VITE_GDRIVE_TOKEN aplikasi dengan token dari pasangTitikTapak." });
     }
+
+    if (/^sync_(capabilities|metadata_v3|chunk_v3|finalize_v3)$/.test(String(body.action))) return balas_(sinkronV3_(body));
 
     var induk = folderInduk_();
     var sheet = tabData_(spreadsheetInduk_(induk));
@@ -176,7 +179,7 @@ function doPost(e) {
 
     return balas_({ sukses: gagal.length === 0, diterima: diterima, gagal: gagal, jumlah: diterima.length });
   } catch (err) {
-    return balas_({ sukses: false, pesan: String(err) });
+    return balas_({ sukses: false, protokol: 3, pesan: String(err) });
   } finally {
     try {
       lock.releaseLock();
@@ -197,20 +200,21 @@ function simpanRekaman_(r, fitur, konteks) {
   // Cegah penimpaan data lintas kader (Anti-IDOR)
   if (lama) {
     var idKaderLama = String(lama[K.ID_Kader] || "");
-    if (idKaderLama && r.idKader && idKaderLama !== String(r.idKader)) {
+    if (idKaderLama && idKaderLama !== String(r.idKader || "")) {
       throw new Error("ID data milik kader lain tidak boleh ditimpa.");
     }
   }
 
   // Foto lebih dulu: foto rusak atau terlalu besar menggagalkan data ini sebelum ada yang ditulis ke berkas GeoJSON
   var fotoUrl = lama ? String(lama[K.Tautan_Foto_Drive] || "") : "";
-  if (!fotoUrl && r.fotoBase64 && String(r.fotoBase64).indexOf("base64,") !== -1) {
+  if ((!fotoUrl || konteks.protokolV3) && r.fotoBase64 && String(r.fotoBase64).indexOf("base64,") !== -1) {
     var bytes = Utilities.base64Decode(String(r.fotoBase64).split("base64,")[1]);
     if (bytes.length > BATAS_FOTO_BYTE) {
       throw new Error("Ukuran foto melebihi batas 2 MB.");
     }
-    var namaFoto = nama + "_foto_" + nomorFotoBerikut_(folderDesa, nama) + ".jpg";
-    fotoUrl = folderDesa.createFile(Utilities.newBlob(bytes, "image/jpeg", namaFoto)).getUrl();
+    var namaFoto = konteks.protokolV3 ? nama + "_foto_" + hashTeksV3_(id + sha256V3_(bytes)) + ".jpg" : nama + "_foto_" + nomorFotoBerikut_(folderDesa, nama) + ".jpg";
+    var fotoAda = konteks.protokolV3 ? berkasAktif_(folderDesa.getFilesByName(namaFoto)) : null;
+    fotoUrl = (fotoAda || folderDesa.createFile(Utilities.newBlob(bytes, "image/jpeg", namaFoto))).getUrl();
   }
 
   var berkas = simpanFitur_(folderDesa, nama + ".geojson", id, fitur || fiturCadangan_(r));
@@ -232,18 +236,20 @@ function simpanRekaman_(r, fitur, konteks) {
     sanitasiSel_(r.judul),
     sanitasiSel_(r.namaLokal),
     sanitasiSel_(r.namaIlmiah),
-    r.jumlahIndividu,
+    r.jumlahIndividu === undefined ? "" : r.jumlahIndividu,
     r.panjangKm,
     r.luasHa,
-    sanitasiSel_(r.wkt),
+    sanitasiSel_(String(r.wkt || "").length > 40000 ? "GEOMETRI_DI_GEOJSON: " + berkas.getUrl() : r.wkt),
     sanitasiSel_(nama),
     berkas.getUrl(),
     fotoUrl,
     sanitasiSel_(status),
     sanitasiSel_(r.createdAt),
     konteks.waktu,
-    berkas.getId()
+    berkas.getId(),
+    lama ? String(lama[K.Catatan_Admin] || "") : ""
   ];
+  if (konteks.sebelumTulis) konteks.sebelumTulis(nilai);
   if (baris) {
     konteks.sheet.getRange(baris, 1, 1, nilai.length).setValues([nilai]);
   } else {
@@ -411,6 +417,8 @@ function tabData_(ss) {
     tab = ss.insertSheet(NAMA_TAB);
     tab.appendRow(KOLOM);
   }
+  // Migrasi menambah kolom di kanan tanpa menggeser data lama.
+  tab.getRange(1, 1, 1, KOLOM.length).setValues([KOLOM]);
   return tab;
 }
 
@@ -437,4 +445,164 @@ function dapatkanAtauBuatFolder_(induk, nama) {
 
 function balas_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Protokol 3: metadata durable dahulu; chunk idempoten dan checksum; CAS sebelum publikasi. */
+function sha256V3_(bytes) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
+  return digest.map(function(b) { return ("0" + ((b + 256) % 256).toString(16)).slice(-2); }).join("");
+}
+function hashTeksV3_(s) { return sha256V3_(Utilities.newBlob(String(s)).getBytes()); }
+function konteksV3_() {
+  var induk = folderInduk_(), sheet = tabData_(spreadsheetInduk_(induk)), barisAda = {};
+  if (sheet.getLastRow() > 1) {
+    var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) barisAda[String(ids[i][0])] = i + 2;
+  }
+  return { induk: induk, sheet: sheet, barisAda: barisAda, folder: {}, waktu: new Date().toISOString() };
+}
+function barisV3_(ctx, id) { return ctx.barisAda[id] ? ctx.sheet.getRange(ctx.barisAda[id], 1, 1, KOLOM.length).getValues()[0] : null; }
+function revisiV3_(baris) { return baris ? hashTeksV3_(JSON.stringify(baris)) : ""; }
+function snapshotV3_(baris) {
+  var koleksi = JSON.parse(DriveApp.getFileById(String(baris[K.ID_Berkas])).getBlob().getDataAsString());
+  var f = koleksi.features.filter(function(x) { return String(x.id) === String(baris[K.ID_Data]); })[0];
+  if (!f) throw new Error("Snapshot server tidak ditemukan; data tidak ditimpa.");
+  var p = f.properties || {}, d = p.snapshotSurvei;
+  if (!d) {
+    var coords = f.geometry ? f.geometry.coordinates : [], jenis = String(baris[K.Jenis_Geometri]);
+    if (jenis === "point") coords = [coords];
+    if (jenis === "polygon") coords = coords[0] || [];
+    d = { id: String(baris[K.ID_Data]), idKader: String(baris[K.ID_Kader]), namaKader: String(baris[K.Nama_Kader]),
+      desaWilayah: String(baris[K.Kelurahan_Desa]), jenisGeometri: jenis, kategori: String(baris[K.Kategori]),
+      judul: String(baris[K.Judul]), namaLokal: String(baris[K.Nama_Lokal]), namaIlmiah: String(baris[K.Nama_Ilmiah]),
+      deskripsi: p.deskripsi || "", koordinat: coords.map(function(c) { return { lat: c[1], lng: c[0], elevasi: c[2] }; }),
+      panjangKm: Number(baris[K.Panjang_Km]) || 0, luasHa: Number(baris[K.Luas_Ha]) || 0,
+      createdAt: String(baris[K.Waktu_Rekam]), updatedAt: String(baris[K.Waktu_Sinkron]), riwayatPembaruan: [] };
+  }
+  d.judul = String(baris[K.Judul]); d.namaLokal = String(baris[K.Nama_Lokal]); d.namaIlmiah = String(baris[K.Nama_Ilmiah]);
+  d.catatanAdmin = String(baris[K.Catatan_Admin] || "");
+  var status = String(baris[K.Status_Verifikasi]).toLowerCase();
+  d.statusSinkron = /tolak|revisi/.test(status) ? "ditolak" : /setuju|terverifikasi/.test(status) ? "terverifikasi" : "tersinkron";
+  d.revisiServer = revisiV3_(baris); delete d.konflikSinkron;
+  return d;
+}
+function cekKonflikV3_(ctx, meta, base) {
+  var baris = barisV3_(ctx, String(meta.id));
+  if (baris && String(baris[K.ID_Kader]) !== String(meta.idKader)) throw new Error("ID data milik kader lain tidak boleh ditimpa.");
+  var revisi = revisiV3_(baris);
+  if (revisi !== base) {
+    if (!baris) throw new Error("Objek server sudah dihapus; tinjau sebelum membuat ulang.");
+    return { sukses: false, protokol: 3, konflik: { revisiServer: revisi, server: snapshotV3_(baris) } };
+  }
+  return null;
+}
+function tulisJsonV3_(folder, nama, obj) {
+  var b = berkasAktif_(folder.getFilesByName(nama)), isi = JSON.stringify(obj);
+  if (b) { b.setContent(isi); return b; }
+  return folder.createFile(nama, isi, MimeType.PLAIN_TEXT);
+}
+function sinkronV3_(body) {
+  if (body.action === "sync_capabilities") return { sukses: true, protokol: 3, ukuranChunk: 24000 };
+  if (Utilities.newBlob(JSON.stringify(body)).getBytes().length > 50000) throw new Error("Paket melebihi 50 KB.");
+  var ctx = konteksV3_();
+  var staging = dapatkanAtauBuatFolder_(ctx.induk, "_Unggahan_Bertahap");
+  var manifest, berkas, folder, konflik;
+  if (body.action === "sync_metadata_v3") {
+    var m = body.metadata;
+    if (!m || !m.id || !m.idKader || !/^[a-f0-9]{64}$/.test(body.checksum) || !/^[a-f0-9]{64}$/.test(body.fingerprint)) throw new Error("Metadata tidak sah.");
+    if (!Number.isInteger(body.ukuranByte) || body.ukuranByte < 1 || body.ukuranByte > 8000000 || body.jumlahChunk !== Math.ceil(body.ukuranByte / 24000)) throw new Error("Ukuran unggahan tidak sah.");
+    var uploadId = hashTeksV3_(JSON.stringify([m.id, m.idKader, body.checksum, body.baseRevision || ""]));
+    folder = dapatkanAtauBuatFolder_(staging, uploadId);
+    berkas = berkasAktif_(folder.getFilesByName("metadata.json"));
+    if (berkas) manifest = JSON.parse(berkas.getBlob().getDataAsString());
+    // Kirim ulang setelah konfirmasi akhir hilang aman dan tidak mengulang tulis data.
+    if (manifest && manifest.intendedRevision && revisiV3_(barisV3_(ctx, String(m.id))) === manifest.intendedRevision) {
+      manifest.finalRevision = manifest.intendedRevision; tulisJsonV3_(folder, "metadata.json", manifest);
+    }
+    var base = manifest && manifest.finalRevision ? manifest.finalRevision : String(body.baseRevision || "");
+    konflik = cekKonflikV3_(ctx, m, base); if (konflik) return konflik;
+    if (!manifest) {
+      manifest = { metadata: m, baseRevision: base, fingerprint: body.fingerprint, checksum: body.checksum,
+        jumlahChunk: body.jumlahChunk, ukuranByte: body.ukuranByte, chunkDiterima: [], dibuatPada: ctx.waktu };
+      tulisJsonV3_(folder, "metadata.json", manifest);
+    }
+    return { sukses: true, protokol: 3, uploadId: uploadId, chunkDiterima: manifest.chunkDiterima };
+  }
+  if (!/^[a-f0-9]{64}$/.test(String(body.uploadId))) throw new Error("ID unggahan tidak sah.");
+  folder = berkasAktif_(staging.getFoldersByName(body.uploadId));
+  if (!folder) throw new Error("Sesi unggahan tidak ditemukan; kirim metadata lagi.");
+  berkas = berkasAktif_(folder.getFilesByName("metadata.json"));
+  if (!berkas) throw new Error("Metadata unggahan tidak ditemukan.");
+  manifest = JSON.parse(berkas.getBlob().getDataAsString());
+  if (body.action === "sync_chunk_v3") {
+    if (!Number.isInteger(body.indeks) || body.indeks < 0 || body.indeks >= manifest.jumlahChunk || !/^[a-f0-9]{64}$/.test(String(body.checksum))) throw new Error("Indeks chunk tidak sah.");
+    var bytes = Utilities.base64Decode(String(body.data));
+    var ukuranHarus = Math.min(24000, manifest.ukuranByte - body.indeks * 24000);
+    if (bytes.length !== ukuranHarus || sha256V3_(bytes) !== body.checksum) throw new Error("Checksum atau ukuran chunk tidak cocok.");
+    tulisJsonV3_(folder, "chunk_" + body.indeks + ".json", { data: body.data, checksum: body.checksum });
+    if (manifest.chunkDiterima.indexOf(body.indeks) < 0) manifest.chunkDiterima.push(body.indeks);
+    tulisJsonV3_(folder, "metadata.json", manifest);
+    return { sukses: true, protokol: 3, chunkDiterima: manifest.chunkDiterima };
+  }
+  if (body.action !== "sync_finalize_v3") throw new Error("Aksi sinkronisasi tidak dikenal.");
+  if (manifest.intendedRevision && revisiV3_(barisV3_(ctx, String(manifest.metadata.id))) === manifest.intendedRevision) {
+    manifest.finalRevision = manifest.intendedRevision; tulisJsonV3_(folder, "metadata.json", manifest);
+  }
+  konflik = cekKonflikV3_(ctx, manifest.metadata, manifest.finalRevision || manifest.baseRevision); if (konflik) return konflik;
+  if (manifest.finalRevision) return { sukses: true, protokol: 3, revisiServer: manifest.finalRevision };
+  var lengkap = [];
+  for (var i = 0; i < manifest.jumlahChunk; i++) {
+    var chunk = berkasAktif_(folder.getFilesByName("chunk_" + i + ".json"));
+    if (!chunk) throw new Error("Chunk " + i + " belum lengkap.");
+    var part = JSON.parse(chunk.getBlob().getDataAsString()), decoded = Utilities.base64Decode(part.data);
+    if (sha256V3_(decoded) !== part.checksum) throw new Error("Chunk rusak di penyimpanan.");
+    for (var j = 0; j < decoded.length; j++) lengkap.push(decoded[j]);
+  }
+  if (lengkap.length !== manifest.ukuranByte || sha256V3_(lengkap) !== manifest.checksum) throw new Error("Checksum akhir tidak cocok.");
+  var data = JSON.parse(Utilities.newBlob(lengkap).getDataAsString("UTF-8")), r = data.record;
+  if (!r || String(r.id) !== String(manifest.metadata.id) || String(r.idKader) !== String(manifest.metadata.idKader) || !data.feature || String(data.feature.id) !== String(r.id)) throw new Error("Identitas payload tidak cocok.");
+  data.feature.properties = data.feature.properties || {};
+  // Snapshot mempertahankan atribut partisipatif untuk unduhan/resolusi konflik.
+  data.feature.properties.snapshotSurvei = r;
+  validasiPayloadV3_(r, data.feature);
+  // Audio dibatasi dan formatnya diperiksa; nama deterministik mencegah duplikasi saat retry.
+  var memo = r.memoSuara || [], desa = folderWilayah_(ctx, wilayahRekaman_(r));
+  for (var n = 0; n < memo.length; n++) {
+    var suara = memo[n];
+    if (["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].indexOf(suara.mimeType) < 0 || !(suara.durasiDetik > 0 && suara.durasiDetik <= 30)) throw new Error("Memo suara tidak sah.");
+    var audio = Utilities.base64Decode(String(suara.dataUrl).split("base64,")[1] || "");
+    if (audio.length > 300000 || audio.length !== suara.ukuranByte || sha256V3_(audio) !== suara.sha256) throw new Error("Checksum/ukuran audio tidak cocok.");
+    var nama = namaBerkasRekaman_(r) + "_suara_" + hashTeksV3_(String(r.id) + suara.id + suara.sha256) + (suara.mimeType === "audio/mp4" ? ".m4a" : suara.mimeType.indexOf("ogg") >= 0 ? ".ogg" : ".webm");
+    if (!berkasAktif_(desa.getFilesByName(nama))) desa.createFile(Utilities.newBlob(audio, suara.mimeType, nama));
+  }
+  ctx.protokolV3 = true;
+  ctx.sebelumTulis = function(nilai) { manifest.intendedRevision = hashTeksV3_(JSON.stringify(nilai)); tulisJsonV3_(folder, "metadata.json", manifest); };
+  simpanRekaman_(r, data.feature, ctx);
+  manifest.finalRevision = revisiV3_(barisV3_(ctx, String(r.id)));
+  tulisJsonV3_(folder, "metadata.json", manifest);
+  return { sukses: true, protokol: 3, revisiServer: manifest.finalRevision };
+}
+
+function validasiPayloadV3_(r, fitur) {
+  var k = r.koordinat;
+  if (["point", "line", "polygon"].indexOf(r.jenisGeometri) < 0 || !Array.isArray(k) || k.length < (r.jenisGeometri === "point" ? 1 : r.jenisGeometri === "line" ? 2 : 3)) throw new Error("Geometri tidak sah.");
+  if (r.jenisGeometri === "point" && k.length !== 1) throw new Error("Titik harus satu koordinat.");
+  for (var i = 0; i < k.length; i++) if (!Number.isFinite(k[i].lat) || !Number.isFinite(k[i].lng) || Math.abs(k[i].lat) > 90 || Math.abs(k[i].lng) > 180) throw new Error("Rentang koordinat tidak sah.");
+  var posisi = k.map(function(p) { return p.elevasi === undefined ? [p.lng, p.lat] : [p.lng, p.lat, p.elevasi]; });
+  var tipe = r.jenisGeometri === "point" ? "Point" : r.jenisGeometri === "line" ? "LineString" : "Polygon";
+  if (r.jenisGeometri === "polygon") posisi.push(posisi[0].slice());
+  var harus = r.jenisGeometri === "point" ? posisi[0] : r.jenisGeometri === "polygon" ? [posisi] : posisi;
+  if (!fitur.geometry || fitur.geometry.type !== tipe || JSON.stringify(fitur.geometry.coordinates) !== JSON.stringify(harus)) throw new Error("Geometri GeoJSON tidak cocok dengan rekaman.");
+  if (r.fotoBase64) {
+    if (!/^data:image\/jpeg;base64,/.test(r.fotoBase64)) throw new Error("Foto harus JPEG.");
+    if (Utilities.base64Decode(r.fotoBase64.split("base64,")[1]).length > BATAS_FOTO_BYTE) throw new Error("Ukuran foto melebihi batas 2 MB.");
+  }
+  var audio = r.memoSuara || [];
+  if (!Array.isArray(audio) || audio.length > 10) throw new Error("Maksimal 10 memo suara per objek.");
+  for (var n = 0; n < audio.length; n++) {
+    var a = audio[n];
+    if (["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].indexOf(a.mimeType) < 0 || !(a.durasiDetik > 0 && a.durasiDetik <= 30)) throw new Error("Memo suara tidak sah.");
+    var b = Utilities.base64Decode(String(a.dataUrl).split("base64,")[1] || "");
+    if (b.length > 300000 || b.length !== a.ukuranByte || sha256V3_(b) !== a.sha256) throw new Error("Checksum/ukuran audio tidak cocok.");
+  }
 }

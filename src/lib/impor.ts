@@ -11,7 +11,16 @@ import { buatId } from "./id";
 export const BATAS_FITUR_IMPOR = 5000;
 export const BATAS_BYTE_IMPOR = 10_000_000;
 
-export const KATEGORI_VALID: KategoriSurvei[] = ["Flora", "Fauna", "Mata Air", "Tanda Batas", "Ancaman / Temuan", "Wilayah Adat / Lahan"];
+export const KATEGORI_VALID: KategoriSurvei[] = [
+  "Flora",
+  "Fauna",
+  "Mata Air",
+  "Tanda Batas",
+  "Ancaman / Temuan",
+  "Wilayah Adat / Lahan",
+  "Sarana Desa",
+  "Situs Budaya"
+];
 
 export interface FiturImpor {
   jenisGeometri: JenisGeometri;

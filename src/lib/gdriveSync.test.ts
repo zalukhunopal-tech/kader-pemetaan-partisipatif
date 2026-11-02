@@ -215,3 +215,14 @@ describe("sinkronkanDataKeGDrive", () => {
     expect(h.jumlahGagal).toBe(15);
   });
 });
+
+it("memo suara dan saksi tidak pernah dibuang diam-diam oleh penerima legacy", async () => {
+  const f = vi.fn(async () => balas({ diterima: [], jumlah: 0 }));
+  vi.stubGlobal("fetch", f);
+  const d = { ...item("memo"), kesepakatanBatas: { saksi: ["Tokoh Desa"], catatan: "Batas disepakati" } };
+  const h = await sinkronkanDataKeGDrive([d], konfig());
+  expect(h.idTersinkron).toEqual([]);
+  expect(h.pesan).toMatch(/Perbarui deployment/);
+  expect(JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).action).toBe("sync_capabilities");
+  expect(f).toHaveBeenCalledOnce();
+});

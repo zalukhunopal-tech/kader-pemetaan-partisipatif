@@ -510,3 +510,7 @@ export function hitungCapaianKader(
     alasanSertifikat: alasanList.join(", ") || "Dalam Progres"
   };
 }
+
+// Buku HOK dipisahkan dari paket capaian sertifikat yang sudah digunakan aplikasi.
+export { hitungBukuHok, eksporHokCSV, eksporHokPDF, KONFIGURASI_HOK_CONTOH } from "./hok";
+export { hitungSkorKualitasData } from "./kualitasData";

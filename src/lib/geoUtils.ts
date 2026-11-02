@@ -381,7 +381,19 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
         diimpor: adalahDataImpor(item),
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        jumlahPembaruan: item.riwayatPembaruan.length
+        jumlahPembaruan: item.riwayatPembaruan.length,
+        kesepakatanBatas: item.kesepakatanBatas,
+        gpsAveraging: item.gpsAveraging,
+        buktiFoto: item.buktiFoto,
+        kualitasData: item.kualitasData,
+        memoSuara: item.memoSuara?.map(({ id, mimeType, durasiDetik, ukuranByte, direkamPada, sha256 }) => ({
+          id,
+          mimeType,
+          durasiDetik,
+          ukuranByte,
+          direkamPada,
+          sha256
+        }))
       }
     };
   });
@@ -549,4 +561,222 @@ export function eksporKeCSV(daftar: DataSpasialItem[]): string {
       .join(",")
   );
   return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
+}
+
+/** WGS84 bornes; elevasi/akurasi juga harus bernilai hingga bila disediakan. */
+export function koordinatValid(p: KoordinatTitik): boolean {
+  return (
+    Number.isFinite(p.lat) &&
+    Math.abs(p.lat) <= 90 &&
+    Number.isFinite(p.lng) &&
+    Math.abs(p.lng) <= 180 &&
+    (p.elevasi === undefined || Number.isFinite(p.elevasi)) &&
+    (p.akurasi === undefined || (Number.isFinite(p.akurasi) && p.akurasi > 0))
+  );
+}
+
+/** Rata-rata berbobot pada bola; aman melintasi bujur ±180°. Tidak mengklaim RTK/geodetik. */
+export function hitungRataRataGps(sampel: KoordinatTitik[]): import("../types").HasilRataRataGps {
+  const sah = sampel.filter((p) => koordinatValid(p) && !p.simulasi && p.akurasi !== undefined);
+  if (!sah.length) throw new Error("Belum ada sampel GPS valid dengan akurasi diketahui.");
+  const acuan = sah.reduce((n, p) => Math.min(n, p.akurasi!), Infinity);
+  let x = 0,
+    y = 0,
+    z = 0,
+    bobot = 0,
+    elevasi = 0,
+    bobotElevasi = 0;
+  for (const p of sah) {
+    const w = (acuan / p.akurasi!) ** 2;
+    const lat = toRad(p.lat),
+      lng = toRad(p.lng);
+    x += w * Math.cos(lat) * Math.cos(lng);
+    y += w * Math.cos(lat) * Math.sin(lng);
+    z += w * Math.sin(lat);
+    bobot += w;
+    if (p.elevasi !== undefined) {
+      elevasi += w * p.elevasi;
+      bobotElevasi += w;
+    }
+  }
+  if (Math.hypot(x, y, z) / bobot < 1e-6) throw new Error("Sampel GPS terlalu berjauhan.");
+  const titik: KoordinatTitik = {
+    lat: toDeg(Math.atan2(z, Math.hypot(x, y))),
+    lng: toDeg(Math.atan2(y, x)),
+    // Korelasi antar fix berarti 1/sqrt(sum(w)) terlalu optimistis: pakai RMS pengamatan.
+    akurasi: Math.sqrt(sah.reduce((n, p) => n + (acuan / p.akurasi!) ** 2 * p.akurasi! ** 2, 0) / bobot)
+  };
+  if (bobotElevasi) titik.elevasi = elevasi / bobotElevasi;
+  const waktu = sah
+    .map((p) => Date.parse(p.timestamp ?? ""))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (waktu.length) titik.timestamp = new Date(waktu[waktu.length - 1]).toISOString();
+  const sebaranMeter = Math.sqrt(sah.reduce((n, p) => n + hitungJarakMeter(titik, p) ** 2 * (acuan / p.akurasi!) ** 2, 0) / bobot);
+  titik.akurasi = Math.max(titik.akurasi!, sebaranMeter);
+  return {
+    titik,
+    jumlahSampel: sah.length,
+    durasiDetik: waktu.length > 1 ? (waktu.at(-1)! - waktu[0]) / 1000 : 0,
+    sebaranMeter,
+    metode: "inverse_variance"
+  };
+}
+
+function bearingRad(a: KoordinatTitik, b: KoordinatTitik): number {
+  const dl = toRad(b.lng - a.lng),
+    la = toRad(a.lat),
+    lb = toRad(b.lat);
+  return Math.atan2(Math.sin(dl) * Math.cos(lb), Math.cos(la) * Math.sin(lb) - Math.sin(la) * Math.cos(lb) * Math.cos(dl));
+}
+
+/** Jarak ke segmen geodesik, dalam meter; titik di luar segmen memakai ujung terdekat. */
+function jarakKeSegmen(p: KoordinatTitik, a: KoordinatTitik, b: KoordinatTitik): number {
+  const panjang = hitungJarakMeter(a, b) / EARTH_RADIUS_M;
+  if (panjang < 1e-12) return hitungJarakMeter(p, a);
+  const d = hitungJarakMeter(a, p) / EARTH_RADIUS_M,
+    arah = bearingRad(a, p) - bearingRad(a, b);
+  const sepanjang = Math.atan2(Math.sin(d) * Math.cos(arah), Math.cos(d));
+  if (sepanjang < 0 || sepanjang > panjang) return Math.min(hitungJarakMeter(p, a), hitungJarakMeter(p, b));
+  return Math.abs(Math.asin(Math.max(-1, Math.min(1, Math.sin(d) * Math.sin(arah))))) * EARTH_RADIUS_M;
+}
+
+/** Iteratif: tidak meluapkan call stack pada track panjang. Titik asli dan metadata dipertahankan. */
+export function sederhanakanJalurDouglasPeucker(titik: KoordinatTitik[], toleransiMeter = 2): KoordinatTitik[] {
+  if (!Number.isFinite(toleransiMeter) || toleransiMeter < 0) throw new Error("Toleransi jalur tidak valid.");
+  if (titik.some((p) => !koordinatValid(p))) throw new Error("Koordinat jalur tidak valid.");
+  if (titik.length <= 2 || toleransiMeter === 0) return [...titik];
+  const ambil = new Set([0, titik.length - 1]),
+    tugas: [number, number][] = [[0, titik.length - 1]];
+  while (tugas.length) {
+    const [awal, akhir] = tugas.pop()!;
+    let maks = toleransiMeter,
+      indeks = -1;
+    for (let i = awal + 1; i < akhir; i++) {
+      const d = jarakKeSegmen(titik[i], titik[awal], titik[akhir]);
+      if (d > maks) {
+        maks = d;
+        indeks = i;
+      }
+    }
+    if (indeks >= 0) {
+      ambil.add(indeks);
+      tugas.push([awal, indeks], [indeks, akhir]);
+    }
+  }
+  return [...ambil].sort((a, b) => a - b).map((i) => titik[i]);
+}
+
+const samaTitik = (a: KoordinatTitik, b: KoordinatTitik) => a.lat === b.lat && a.lng === b.lng;
+export function cincinTerbuka(titik: KoordinatTitik[]): KoordinatTitik[] {
+  return titik.length > 1 && samaTitik(titik[0], titik.at(-1)!) ? titik.slice(0, -1) : [...titik];
+}
+
+/** Validasi untuk batas lapangan north-up dengan busur bujur pendek, termasuk sentuhan/ruas tumpang tindih. */
+export function validasiGeometri(jenis: DataSpasialItem["jenisGeometri"], titik: KoordinatTitik[]): string[] {
+  if (titik.some((p) => !koordinatValid(p))) return ["Koordinat tidak valid."];
+  const k = jenis === "polygon" ? cincinTerbuka(titik) : titik;
+  if (jenis === "point") return k.length === 1 ? [] : ["Titik harus mempunyai satu koordinat."];
+  if (k.length < (jenis === "line" ? 2 : 3)) return ["Jumlah sudut geometri belum cukup."];
+  if (k.some((p, i) => i > 0 && samaTitik(p, k[i - 1]))) return ["Terdapat vertex berulang."];
+  if (jenis === "line") return k.some((p, i) => i > 0 && hitungJarakMeter(k[i - 1], p) > 0.001) ? [] : ["Jalur tidak memiliki panjang."];
+  const p = k.map((v) => ({ ...v }));
+  for (let i = 1; i < p.length; i++) p[i].lng = p[i - 1].lng + ((p[i].lng - p[i - 1].lng + 540) % 360) - 180;
+  const orient = (a: KoordinatTitik, b: KoordinatTitik, c: KoordinatTitik) =>
+    (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
+  const di = (a: KoordinatTitik, b: KoordinatTitik, c: KoordinatTitik) =>
+    Math.abs(orient(a, b, c)) < 1e-12 &&
+    c.lng >= Math.min(a.lng, b.lng) - 1e-12 &&
+    c.lng <= Math.max(a.lng, b.lng) + 1e-12 &&
+    c.lat >= Math.min(a.lat, b.lat) - 1e-12 &&
+    c.lat <= Math.max(a.lat, b.lat) + 1e-12;
+  for (let i = 0; i < p.length; i++) {
+    const a = p[(i + p.length - 1) % p.length],
+      b = p[i],
+      c = p[(i + 1) % p.length];
+    if (di(a, b, c) || di(b, c, a)) return ["Ruas poligon berbalik dan tumpang tindih."];
+  }
+  for (let i = 0; i < p.length; i++)
+    for (let j = i + 1; j < p.length; j++) {
+      const a = p[i],
+        b = p[(i + 1) % p.length],
+        c = p[j],
+        d = p[(j + 1) % p.length];
+      if (j === i + 1 || (i === 0 && j === p.length - 1)) continue;
+      if (
+        (orient(a, b, c) * orient(a, b, d) < 0 && orient(c, d, a) * orient(c, d, b) < 0) ||
+        di(a, b, c) ||
+        di(a, b, d) ||
+        di(c, d, a) ||
+        di(c, d, b)
+      )
+        return ["Poligon berpotongan atau menyentuh dirinya sendiri."];
+    }
+  return hitungLuasPoligonMeter2(k) > 0.001 ? [] : ["Poligon tidak memiliki luas."];
+}
+
+export function hitungLuasPoligonMeter2(titik: KoordinatTitik[]): number {
+  if (titik.length < 3) return 0;
+  let sum = 0;
+  for (let i = 0; i < titik.length; i++) {
+    const a = titik[i],
+      b = titik[(i + 1) % titik.length];
+    sum += toRad(((b.lng - a.lng + 540) % 360) - 180) * (2 + Math.sin(toRad(a.lat)) + Math.sin(toRad(b.lat)));
+  }
+  const bola = 4 * Math.PI * EARTH_RADIUS_M ** 2,
+    luas = ((Math.abs(sum) * EARTH_RADIUS_M ** 2) / 2) % bola;
+  return Math.min(luas, bola - luas);
+}
+
+export function snapKeVertex(titik: KoordinatTitik, kandidat: KoordinatTitik[], toleransiMeter = 5): KoordinatTitik {
+  if (!koordinatValid(titik) || !Number.isFinite(toleransiMeter) || toleransiMeter < 0) throw new Error("Parameter snapping tidak valid.");
+  let hasil = titik,
+    jarak = toleransiMeter;
+  for (const p of kandidat)
+    if (koordinatValid(p)) {
+      const d = hitungJarakMeter(titik, p);
+      if (d <= jarak) {
+        hasil = { ...titik, lat: p.lat, lng: p.lng };
+        jarak = d;
+      }
+    }
+  return hasil;
+}
+
+/** Riwayat immutable; suntingan setelah Undo membuang cabang Redo. */
+export function buatEditorVertex(awal: KoordinatTitik[] = []) {
+  let kini = awal.map((p) => ({ ...p }));
+  const mundur: KoordinatTitik[][] = [],
+    maju: KoordinatTitik[][] = [];
+  return {
+    titik: () => kini.map((p) => ({ ...p })),
+    ubah(baru: KoordinatTitik[]) {
+      mundur.push(kini);
+      kini = baru.map((p) => ({ ...p }));
+      maju.length = 0;
+    },
+    undo() {
+      if (mundur.length) {
+        maju.push(kini);
+        kini = mundur.pop()!;
+      }
+    },
+    redo() {
+      if (maju.length) {
+        mundur.push(kini);
+        kini = maju.pop()!;
+      }
+    }
+  };
+}
+
+/** Tidak memotong WKT menjadi sintaks rusak. Geometri lengkap selalu di GeoJSON. */
+export function wktUntukSpreadsheet(item: DataSpasialItem, tautanGeojson = ""): { wkt: string; geometriEksternal: boolean } {
+  const penuh = keWKT(item);
+  if (penuh.length <= 40_000) return { wkt: penuh, geometriEksternal: false };
+  const ringkas = item.jenisGeometri === "line" ? keWKT({ ...item, koordinat: sederhanakanJalurDouglasPeucker(item.koordinat, 2) }) : "";
+  return {
+    wkt: ringkas && ringkas.length <= 40_000 ? ringkas : `GEOMETRI_DI_GEOJSON${tautanGeojson ? ": " + tautanGeojson : ""}`,
+    geometriEksternal: true
+  };
 }

@@ -1,5 +1,6 @@
 import React from "react";
-import { Download, Eye, FileUp, Layers, X } from "lucide-react";
+import { BottomSheet } from "./BottomSheet";
+import { Download, Eye, FileUp } from "lucide-react";
 import { BasemapType } from "../../types";
 import { URUTAN_BASEMAP, basemapTersedia } from "../../lib/petaOffline";
 
@@ -62,17 +63,7 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
   };
 
   return (
-    <div className="map-layers-popover">
-      <div className="map-popover-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
-          <Layers size={16} className="text-emerald" />
-          <span>Pilihan Peta Dasar</span>
-        </div>
-        <button type="button" className="btn-icon-close" onClick={onTutup} aria-label="Tutup Panel">
-          <X size={16} />
-        </button>
-      </div>
-
+    <BottomSheet judul="Pilihan Peta Dasar" onTutup={onTutup} className="field-layers-sheet">
       <div className="map-basemap-grid" style={{ gridTemplateColumns: "1fr", gap: 8, margin: "10px 0" }}>
         {URUTAN_BASEMAP.filter(basemapTersedia).map((id) => {
           const aktif = basemap === id;
@@ -148,6 +139,6 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
           </button>
         )}
       </div>
-    </div>
+    </BottomSheet>
   );
 };

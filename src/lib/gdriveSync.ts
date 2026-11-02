@@ -2,6 +2,7 @@ import { DataSpasialItem, WilayahAdministrasi } from "../types";
 import { eksporKeGeoJSON, keWKT } from "./geoUtils";
 import { wilayahAkun } from "./auth";
 import { namaBerkasData, wilayahUntukData } from "./wilayah";
+import { sinkronkanBertahapKeGDrive } from "./gdriveBertahap";
 
 /**
  * Unggahan data spasial ke Google Drive pemilik aplikasi lewat Web App Apps Script (apps-script/Code.gs).
@@ -14,7 +15,8 @@ export interface KoneksiGDrive {
   token: string;
 }
 
-const GDRIVE_URL_DEFAULT = "https://script.google.com/macros/s/AKfycbzAQXKvXddb8IG9lf3kyf4brebn68u2LIC9Sw_gZnw1poGcXAIoKmDy1raIeV6_1X8D/exec";
+const GDRIVE_URL_DEFAULT =
+  "https://script.google.com/macros/s/AKfycbzAQXKvXddb8IG9lf3kyf4brebn68u2LIC9Sw_gZnw1poGcXAIoKmDy1raIeV6_1X8D/exec";
 const GDRIVE_TOKEN_DEFAULT = "893533c720cc47f3a094db1b183539da";
 
 export const KONEKSI_GDRIVE: KoneksiGDrive = {
@@ -31,7 +33,11 @@ export interface HasilSinkron {
   jumlahGagal: number;
   /** true bila Google Drive belum dipasang di build ini (tidak ada yang dikirim) */
   belumDiatur?: boolean;
+  konflik?: import("../types").KonflikSinkron[];
+  konfirmasi?: { id: string; revisiServer: string; fingerprint: string }[];
 }
+
+export { sinkronkanBertahapKeGDrive, terapkanHasilSinkron, selesaikanKonflik } from "./gdriveBertahap";
 
 const UKURAN_BATCH = 10;
 const BATAS_BYTE_BATCH = 4_000_000;
@@ -56,6 +62,8 @@ export function tujuanDrive(d: DataSpasialItem, cariWilayah: CariWilayahAkun = w
 export interface OpsiSinkron {
   koneksi?: KoneksiGDrive;
   cariWilayah?: CariWilayahAkun;
+  /** Aktifkan setelah deployment Apps Script protokol 3 tersedia. */
+  protokol?: "v2" | "v3";
 }
 
 interface BalasanDiterima {
@@ -192,6 +200,12 @@ async function kirimBatch(koneksi: KoneksiGDrive, batch: DataSpasialItem[], cari
  * yang terpasang di build ini tidak ada yang dikirim dan tidak ada yang dilaporkan berhasil.
  */
 export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], opsi: OpsiSinkron = {}): Promise<HasilSinkron> {
+  const butuhProtokolBaru = itemList.some(
+    (d) => d.statusSinkron === "lokal" && Boolean(d.memoSuara?.length || d.kesepakatanBatas || d.buktiFoto || d.gpsAveraging)
+  );
+  if (butuhProtokolBaru || opsi.protokol === "v3" || (!opsi.protokol && import.meta.env.VITE_GDRIVE_SYNC_V3 === "true")) {
+    return sinkronkanBertahapKeGDrive(itemList, opsi);
+  }
   const koneksi = opsi.koneksi ?? KONEKSI_GDRIVE;
   const cariWilayah = opsi.cariWilayah ?? wilayahAkun;
   const belumSinkron = itemList.filter((d) => d.statusSinkron === "lokal");

@@ -1,4 +1,6 @@
 import React from "react";
+import { BottomSheet } from "./BottomSheet";
+import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { Navigation, RefreshCw, X } from "lucide-react";
 import { DataSpasialItem } from "../../types";
 import { JEDA_PEMBARUAN_JAM } from "../../lib/rewardEngine";
@@ -22,12 +24,14 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   onGoTo,
   onTutup
 }) => (
-  <div className="inspector-card">
+  <BottomSheet judul={objek.judul} onTutup={onTutup} awal={25} className="field-inspector-sheet">
     <div className="inspector-header">
       <div>
         <span className="badge-kategori">{objek.kategori}</span>
         <span className={`badge-sync status-${objek.statusSinkron}`}>{objek.statusSinkron.toUpperCase()}</span>
-        <h4>{objek.judul}</h4>
+        <p className="dqa-badge">
+          Kualitas {hitungSkorKualitasData(objek).grade} · {hitungSkorKualitasData(objek).skor}/100
+        </p>
       </div>
       <button type="button" className="btn-icon-close" onClick={onTutup}>
         <X size={18} />
@@ -84,5 +88,5 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         </button>
       </div>
     </div>
-  </div>
+  </BottomSheet>
 );

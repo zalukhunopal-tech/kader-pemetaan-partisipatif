@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { KoordinatTitik } from "../types";
 import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm } from "./geoUtils";
+import { titikJalurDapatDiterima } from "./filterJalur";
 
 /**
  * PEREKAM LATAR BELAKANG (Background Recorder)
@@ -20,6 +21,7 @@ export interface StatePerekamLatar {
   status: StatusPerekam;
   jenis: JenisRekamLatar | null;
   titik: KoordinatTitik[];
+  redoVertex?: KoordinatTitik[];
   mulaiPada: string | null;
   /** Total milidetik saat merekam (tidak termasuk saat dijeda) */
   durasiTersimpanMs: number;
@@ -66,7 +68,7 @@ let autoTimerId: number | null = null;
 let wakeLock: { release: () => Promise<void> } | null = null;
 
 function setState(patch: Partial<StatePerekamLatar>) {
-  state = { ...state, ...patch };
+  state = { ...state, ...patch, ...(patch.titik && patch.redoVertex === undefined ? { redoVertex: [] } : {}) };
   try {
     if (state.status === "idle") localStorage.removeItem(KUNCI);
     else localStorage.setItem(KUNCI, JSON.stringify(state));
@@ -116,26 +118,16 @@ function tanganiPosisi(pos: GeolocationPosition) {
   }
 
   const akhir = state.titik[state.titik.length - 1];
-  if (akhir) {
-    const jarak = hitungJarakMeter(akhir, pt);
-    if (jarak < JARAK_MIN_METER) {
-      setState({ posisiTerakhir: pt, galat: null });
-      return;
-    }
-    // Filter lonjakan multipath di bawah tutupan tajuk hutan (lonjakan jarak > 100m dengan kecepatan > 35 m/s atau > 126 km/jam)
-    const tAkhir = akhir.timestamp ? Date.parse(akhir.timestamp) : 0;
-    const tSekarang = pos.timestamp || Date.now();
-    const selisihDetik = tAkhir > 0 ? Math.max(0.1, (tSekarang - tAkhir) / 1000) : 0;
-    if (jarak > 100 && selisihDetik > 0 && selisihDetik < 300) {
-      const kecepatanMS = jarak / selisihDetik;
-      if (kecepatanMS > 35) {
-        setState({ posisiTerakhir: pt, galat: `Lonjakan GPS tidak wajar terdeteksi (${Math.round(kecepatanMS * 3.6)} km/jam)` });
-        return;
-      }
-    }
+  if (!titikJalurDapatDiterima(akhir, pt)) {
+    setState({ posisiTerakhir: pt, galat: "Lonjakan GPS diabaikan; menunggu posisi stabil." });
+    return;
+  }
+  if (akhir && hitungJarakMeter(akhir, pt) < JARAK_MIN_METER) {
+    setState({ posisiTerakhir: pt, galat: null });
+    return;
   }
 
-  setState({ titik: [...state.titik, pt], posisiTerakhir: pt, galat: null });
+  setState({ titik: [...state.titik, pt], redoVertex: [], posisiTerakhir: pt, galat: null });
 }
 
 function tanganiGalat(err: GeolocationPositionError) {
@@ -287,7 +279,17 @@ export const perekamLatar = {
   hapusTitikTerakhir() {
     if (state.status === "idle" || !state.titik.length) return;
     const titik = state.titik.slice(0, -1);
-    setState({ titik, posisiTerakhir: titik[titik.length - 1] ?? null });
+    setState({
+      titik,
+      redoVertex: [...(state.redoVertex ?? []), state.titik[state.titik.length - 1]],
+      posisiTerakhir: titik[titik.length - 1] ?? null
+    });
+  },
+
+  ulangiVertex() {
+    if (state.status === "idle" || !state.redoVertex?.length) return;
+    const pt = state.redoVertex[state.redoVertex.length - 1];
+    setState({ titik: [...state.titik, pt], redoVertex: state.redoVertex.slice(0, -1), posisiTerakhir: pt });
   },
 
   /** Hentikan & kembalikan seluruh titik yang terekam */

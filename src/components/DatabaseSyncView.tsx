@@ -1,14 +1,30 @@
+import { PusatSinkronisasi } from "./PusatSinkronisasi";
 import React, { useState } from "react";
-import { DataSpasialItem } from "../types";
+import { AreaPetaOffline, DataSpasialItem, PilihanResolusiKonflik } from "../types";
 import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
 import { gdriveTerpasang, tujuanDrive } from "../lib/gdriveSync";
 import { muatSemuaAkun } from "../lib/auth";
 import { teksWilayah, wilayahLengkap } from "../lib/wilayah";
-import { CloudUpload, CheckCircle2, Clock, Download, Folder, Image as ImageIcon, X, MapPin, Copy, Check, FileCode, ExternalLink } from "lucide-react";
+import {
+  CloudUpload,
+  CheckCircle2,
+  Clock,
+  Download,
+  Folder,
+  Image as ImageIcon,
+  X,
+  MapPin,
+  Copy,
+  Check,
+  FileCode,
+  ExternalLink
+} from "lucide-react";
 import { KODE_APPS_SCRIPT, MANIFES_APPS_SCRIPT } from "../lib/skripAppsScript";
 
 interface DatabaseSyncViewProps {
   dataSpasial: DataSpasialItem[];
+  areaOffline: AreaPetaOffline[];
+  onResolusiKonflik: (id: string, pilihan: PilihanResolusiKonflik, gabungan?: Partial<DataSpasialItem>) => void;
   terakhirSinkron?: string;
   sedangSinkron: boolean;
   pesanSinkron: string | null;
@@ -32,6 +48,8 @@ function unduhBerkasTeks(namaFile: string, isi: string, mimeType: string) {
 
 export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   dataSpasial,
+  areaOffline,
+  onResolusiKonflik,
   terakhirSinkron,
   sedangSinkron,
   pesanSinkron,
@@ -68,6 +86,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
 
   return (
     <div className="page-container" style={{ gap: "14px" }}>
+      <PusatSinkronisasi data={dataSpasial} peta={areaOffline} sedangSinkron={sedangSinkron} onResolusi={onResolusiKonflik} />
       {/* 1. RINGKASAN STATUS SINKRONISASI GOOGLE DRIVE */}
       <div className="section-card">
         <div className="section-header-flex">
@@ -107,9 +126,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               gap: "8px"
             }}
           >
-            <div>
-              Unggahan ke Google Drive belum aktif di aplikasi ini. Data tetap aman di HP; hubungi admin.
-            </div>
+            <div>Unggahan ke Google Drive belum aktif di aplikasi ini. Data tetap aman di HP; hubungi admin.</div>
             <button
               type="button"
               className="btn-outline-sm"
@@ -655,15 +672,39 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
 
             {/* Body */}
             <div style={{ padding: "18px 20px", overflowY: "auto", fontSize: "0.88rem", color: "#334155" }}>
-              <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px" }}>
+              <div
+                style={{
+                  background: "#ecfdf5",
+                  border: "1px solid #a7f3d0",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  marginBottom: "14px"
+                }}
+              >
                 <strong style={{ color: "#065f46", display: "block", marginBottom: "4px" }}>💡 Panduan Singkat Pemasangan:</strong>
                 <ol style={{ margin: 0, paddingLeft: "18px", lineHeight: "1.6", color: "#047857", fontSize: "0.84rem" }}>
                   <li>
-                    Buka <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline", fontWeight: 600, color: "#047857" }}>script.google.com</a> dengan akun Google Anda, buat <b>Proyek baru</b>.
+                    Buka{" "}
+                    <a
+                      href="https://script.google.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: "underline", fontWeight: 600, color: "#047857" }}
+                    >
+                      script.google.com
+                    </a>{" "}
+                    dengan akun Google Anda, buat <b>Proyek baru</b>.
                   </li>
-                  <li>Klik tombol hijau <b>Salin Seluruh Kode</b> di bawah, lalu tempel ke file <code>Code.gs</code> di Apps Script.</li>
-                  <li>Pilih fungsi <b>pasangTitikTapak</b> (atau <code>pasangGeoKader</code>) lalu klik <b>Jalankan</b> (izinkan akses Drive).</li>
-                  <li>Klik <b>Terapkan &gt; Deployment baru &gt; Aplikasi web</b> (Akses: <i>Siapa saja</i>). Salin URL <code>/exec</code> dan token dari log.</li>
+                  <li>
+                    Klik tombol hijau <b>Salin Seluruh Kode</b> di bawah, lalu tempel ke file <code>Code.gs</code> di Apps Script.
+                  </li>
+                  <li>
+                    Pilih fungsi <b>pasangTitikTapak</b> (atau <code>pasangGeoKader</code>) lalu klik <b>Jalankan</b> (izinkan akses Drive).
+                  </li>
+                  <li>
+                    Klik <b>Terapkan &gt; Deployment baru &gt; Aplikasi web</b> (Akses: <i>Siapa saja</i>). Salin URL <code>/exec</code> dan
+                    token dari log.
+                  </li>
                 </ol>
               </div>
 

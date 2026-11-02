@@ -127,12 +127,12 @@ describe("Kategori C: Peta Offline, MBTiles, GeoPDF & GeoTIFF (Skenario 19–27)
   // Skenario 26: Offline Tile Quota Exhaustion (QuotaExceededError)
   it("Skenario 26: QuotaExceededError Catch — penanganan kuota penyimpanan penuh saat unduh peta", () => {
     const errorKuota = new DOMException("The quota has been exceeded.", "QuotaExceededError");
-    let tertangkap = false;
+    let tertangkap: boolean;
     let kuotaPenuh = false;
 
     try {
       throw errorKuota;
-    } catch (err: any) {
+    } catch (err: unknown) {
       tertangkap = true;
       if (err instanceof DOMException && err.name === "QuotaExceededError") {
         kuotaPenuh = true;

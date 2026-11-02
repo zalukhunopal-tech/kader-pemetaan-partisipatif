@@ -3,10 +3,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataSpasialItem, WilayahAdministrasi } from "../../types";
 import {
-  gdriveTerpasang,
   sinkronkanDataKeGDrive,
-  tafsirkanBalasan,
-  KONEKSI_GDRIVE,
   OpsiSinkron
 } from "../../lib/gdriveSync";
 import {
@@ -16,7 +13,6 @@ import {
   simpanSekarang,
   setelUlangPenyimpananUntukUji
 } from "../../lib/penyimpanan";
-import { hitungPanjangGarisKm } from "../../lib/geoUtils";
 
 const DUMMY_URL = "https://script.google.com/macros/s/AKfycbx_simulasi_lapangan/exec";
 const DUMMY_TOKEN = "token_simulasi_kader_123";
@@ -141,7 +137,7 @@ describe("Kategori A: Ekstremitas Jaringan & Fluktuasi Sinyal Hutan/Desa (Skenar
     vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
       batchIndex++;
       const body = JSON.parse(init.body as string);
-      const ids: string[] = body.records.map((r: any) => r.id);
+      const ids: string[] = body.records.map((r: { id: string }) => r.id);
 
       if (batchIndex === 1) {
         // Batch 1 (10 item) sukses
@@ -188,9 +184,7 @@ describe("Kategori A: Ekstremitas Jaringan & Fluktuasi Sinyal Hutan/Desa (Skenar
 
   // Skenario 6: Concurrent Sync Trigger (Double-Tap Race Condition)
   it("Skenario 6: Concurrent Sync Trigger — pemanggilan paralel dicegah agar tidak mengirim data ganda", async () => {
-    let callCount = 0;
     vi.stubGlobal("fetch", vi.fn(async () => {
-      callCount++;
       // Simulasi delay jaringan 50ms
       await new Promise((r) => setTimeout(r, 50));
       return new Response(JSON.stringify({ diterima: ["SPS-RACE-01"], gagal: [] }), { status: 200 });

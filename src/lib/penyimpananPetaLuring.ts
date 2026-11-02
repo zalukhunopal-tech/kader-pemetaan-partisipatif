@@ -11,7 +11,7 @@ export interface RekamanArsipPeta {
   tipe: "pmtiles" | "mbtiles" | "geopdf" | "geotiff";
   berkas: Blob;
   ukuranMb: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   diunduhPada: string;
 }
 
@@ -71,7 +71,7 @@ export async function simpanArsipPeta(
     namaArea: string;
     tipe: "pmtiles" | "mbtiles" | "geopdf" | "geotiff";
     ukuranMb?: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ): Promise<void> {
   const db = await bukaDbArsip();
