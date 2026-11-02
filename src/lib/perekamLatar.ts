@@ -95,12 +95,14 @@ function lepasWakeLock() {
 }
 
 function tanganiPosisi(pos: GeolocationPosition) {
+  const elevasiValid = pos.coords.altitude != null && Number.isFinite(pos.coords.altitude);
+  const akurasiValid = pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy);
   const pt: KoordinatTitik = {
-    lat: Number(pos.coords.latitude.toFixed(7)),
-    lng: Number(pos.coords.longitude.toFixed(7)),
-    elevasi: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : undefined,
-    akurasi: Number(pos.coords.accuracy.toFixed(1)),
-    timestamp: new Date(pos.timestamp).toISOString()
+    lat: Number.isFinite(pos.coords.latitude) ? Number(pos.coords.latitude.toFixed(7)) : 0,
+    lng: Number.isFinite(pos.coords.longitude) ? Number(pos.coords.longitude.toFixed(7)) : 0,
+    elevasi: elevasiValid ? Math.round(pos.coords.altitude!) : undefined,
+    akurasi: akurasiValid ? Number(pos.coords.accuracy.toFixed(1)) : undefined,
+    timestamp: new Date(pos.timestamp || Date.now()).toISOString()
   };
 
   if (state.status !== "merekam") {
@@ -114,9 +116,23 @@ function tanganiPosisi(pos: GeolocationPosition) {
   }
 
   const akhir = state.titik[state.titik.length - 1];
-  if (akhir && hitungJarakMeter(akhir, pt) < JARAK_MIN_METER) {
-    setState({ posisiTerakhir: pt, galat: null });
-    return;
+  if (akhir) {
+    const jarak = hitungJarakMeter(akhir, pt);
+    if (jarak < JARAK_MIN_METER) {
+      setState({ posisiTerakhir: pt, galat: null });
+      return;
+    }
+    // Filter lonjakan multipath di bawah tutupan tajuk hutan (lonjakan jarak > 100m dengan kecepatan > 35 m/s atau > 126 km/jam)
+    const tAkhir = akhir.timestamp ? Date.parse(akhir.timestamp) : 0;
+    const tSekarang = pos.timestamp || Date.now();
+    const selisihDetik = tAkhir > 0 ? Math.max(0.1, (tSekarang - tAkhir) / 1000) : 0;
+    if (jarak > 100 && selisihDetik > 0 && selisihDetik < 300) {
+      const kecepatanMS = jarak / selisihDetik;
+      if (kecepatanMS > 35) {
+        setState({ posisiTerakhir: pt, galat: `Lonjakan GPS tidak wajar terdeteksi (${Math.round(kecepatanMS * 3.6)} km/jam)` });
+        return;
+      }
+    }
   }
 
   setState({ titik: [...state.titik, pt], posisiTerakhir: pt, galat: null });

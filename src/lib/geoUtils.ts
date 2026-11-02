@@ -60,7 +60,49 @@ export function hitungLuasPoligonHa(titik: KoordinatTitik[]): number {
 /**
  * Menghitung sudut kompas (bearing) dari titik A ke titik B (0 - 360 derajat)
  */
+function segmenBerpotongan(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  p4: { x: number; y: number }
+): boolean {
+  const ccw = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) =>
+    (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
+  return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+}
+
+/**
+ * Validasi integritas geometri poligon:
+ * - Minimal 3 titik sudut unik
+ * - Bebas dari sisi saling memotong (self-intersecting / angka 8)
+ */
+export function validasiPoligon(titik: KoordinatTitik[]): { valid: boolean; pesan?: string } {
+  if (!Array.isArray(titik) || titik.length < 3) {
+    return { valid: false, pesan: "Poligon minimal membutuhkan 3 titik sudut." };
+  }
+  const unik = new Set(titik.map((p) => `${p.lat.toFixed(7)},${p.lng.toFixed(7)}`));
+  if (unik.size < 3) {
+    return { valid: false, pesan: "Poligon harus memiliki minimal 3 titik sudut unik yang berbeda." };
+  }
+  const n = titik.length;
+  const pts = titik.map((p) => ({ x: p.lng, y: p.lat }));
+  for (let i = 0; i < n; i++) {
+    const a1 = pts[i];
+    const a2 = pts[(i + 1) % n];
+    for (let j = i + 2; j < n; j++) {
+      if ((i === 0 && j === n - 1) || Math.abs(i - j) <= 1) continue;
+      const b1 = pts[j];
+      const b2 = pts[(j + 1) % n];
+      if (segmenBerpotongan(a1, a2, b1, b2)) {
+        return { valid: false, pesan: "Batas poligon saling memotong (self-intersecting)." };
+      }
+    }
+  }
+  return { valid: true };
+}
+
 export function hitungBearingDerajat(a: KoordinatTitik, b: KoordinatTitik): number {
+  if (a.lat === b.lat && a.lng === b.lng) return 0;
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
   const dLng = toRad(b.lng - a.lng);
@@ -435,6 +477,18 @@ ${trks}
 }
 
 /** Menetralkan awalan formula berbahaya (=, +, -, @, tab, CR) agar tidak dieksekusi di Excel/Calc/Sheets */
+/**
+ * Membersihkan input teks survei dari tag skrip berbahaya atau injeksi HTML
+ * sambil tetap mempertahankan karakter emoji (🌲⚠️) dan tanda baca wajar
+ */
+export function sanitasiTeksInput(teks: string | undefined | null): string {
+  if (!teks) return "";
+  return teks
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/[<>]/g, "")
+    .trim();
+}
+
 export function sanitasiFormulaCsv(str: string): string {
   if (/^[=+\-@]/.test(str) && !/^-[0-9]+(\.[0-9]+)?$/.test(str)) {
     return `'${str}`;

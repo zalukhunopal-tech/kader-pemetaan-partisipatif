@@ -56,7 +56,7 @@ export function ringkasanKader(
       capaian: hitungCapaianKader(dataSpasial, { idKader, nama: info.namaKader, modeKombinasiTarget } as ProfilKader, true),
       sudahTerbit: sertifikatList.some((s) => s.idKader === idKader)
     }))
-    .sort((a, b) => Number(b.capaian.berhakSertifikat) - Number(a.capaian.berhakSertifikat) || a.namaKader.localeCompare(b.namaKader));
+    .sort((a, b) => Number(b.capaian.berhakSertifikat) - Number(a.capaian.berhakSertifikat) || a.namaKader.localeCompare(b.namaKader) || a.idKader.localeCompare(b.idKader));
 }
 
 export interface HasilPenerbitan {

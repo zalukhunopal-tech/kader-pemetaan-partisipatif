@@ -31,11 +31,34 @@ function bukaDbArsip(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_ARSIP, { keyPath: "id" });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error || new Error("Gagal membuka IndexedDB arsip peta."));
   });
 
   return dbPromise;
+}
+
+/**
+ * Menutup koneksi database arsip peta dan mereset cache koneksi
+ */
+export async function tutupDbArsip(): Promise<void> {
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      db.close();
+    } catch {
+      // Abaikan jika sudah tertutup
+    } finally {
+      dbPromise = null;
+    }
+  }
 }
 
 /**

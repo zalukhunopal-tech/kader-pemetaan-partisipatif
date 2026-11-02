@@ -57,6 +57,7 @@ async function bukaGambar(file: File): Promise<SumberGambar> {
 /** Mengecilkan foto menjadi JPEG berukuran wajar. Melempar Error berpesan Indonesia bila gagal. */
 export async function kompresFoto(file: File, sisiMaks = SISI_MAKS_FOTO, targetByte = TARGET_BYTE_FOTO): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Berkas bukan gambar.");
+  if (file.size === 0) throw new Error("Berkas foto kosong (0 byte).");
   if (file.size > BATAS_BERKAS_FOTO_BYTE) throw new Error("Foto terlalu besar (maksimal 25 MB).");
   const sumber = await bukaGambar(file);
   try {
