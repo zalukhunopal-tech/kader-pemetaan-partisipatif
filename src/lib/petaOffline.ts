@@ -49,9 +49,18 @@ export interface SumberTile {
 
 const env = import.meta.env;
 
-const EOX_S2_CADANGAN = [
-  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2016_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg",
-  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2016_3857/default/g/{z}/{y}/{x}.jpg"
+const ESRI_WORLD_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const ESRI_CADANGAN = [
+  "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+];
+
+const GOOGLE_HYBRID_TILES = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
+const GOOGLE_CADANGAN = [
+  "https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+  "https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+  "https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+  "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
 ];
 
 function sumberSatelit(): SumberTile {
@@ -59,10 +68,10 @@ function sumberSatelit(): SumberTile {
   const izinUnduh = !!kustom && env.VITE_TILE_UNDUH_SATELIT === "true";
   if (kustom) {
     return {
-      nama: "Satelit",
+      nama: "Satelit Kustom",
       tersedia: true,
       template: kustom,
-      atribusi: env.VITE_TILE_ATRIBUSI_SATELIT || "Sumber citra: penyedia tile milik organisasi",
+      atribusi: env.VITE_TILE_ATRIBUSI_SATELIT || "Penyedia tile citra satelit",
       tautanLisensi: "",
       lisensi: "Ditentukan oleh penyedia tile yang Anda pasang.",
       zoomMaks: Number(env.VITE_TILE_ZOOM_MAKS_SATELIT) || 19,
@@ -72,17 +81,16 @@ function sumberSatelit(): SumberTile {
     };
   }
   return {
-    nama: "Sentinel-2 (EOX, 2016)",
+    nama: "Citra Satelit Resolusi Tinggi",
     tersedia: true,
-    template: EOX_S2_CADANGAN[0],
-    templateCadangan: EOX_S2_CADANGAN.slice(1),
-    atribusi: "Sentinel-2 cloudless 2016 © EOX IT Services GmbH (CC BY 4.0)",
-    tautanLisensi: "https://s2maps.eu/",
-    lisensi: "Sentinel-2 cloudless 2016, CC BY 4.0. Tile publik untuk dilihat online.",
-    zoomMaks: 13,
+    template: ESRI_WORLD_IMAGERY,
+    templateCadangan: [GOOGLE_HYBRID_TILES, ...ESRI_CADANGAN],
+    atribusi: "Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USDA FSA, USGS",
+    tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
+    lisensi: "Citra satelit resolusi tinggi global (Esri World Imagery).",
+    zoomMaks: 19,
     bolehUnduh: false,
-    alasanTidakBoleh: "Tile publik EOX untuk dilihat online; gunakan penyedia berlisensi untuk offline.",
-    rataKbPerTile: 25
+    rataKbPerTile: 24
   };
 }
 
@@ -93,44 +101,47 @@ const kunciEsri = (env.VITE_ESRI_API_KEY ?? "").trim();
  * Legal lewat akun ArcGIS Location Platform: kuota gratis 2 juta tile basemap per bulan, wajib atribusi.
  */
 function sumberEsri(): SumberTile {
-  const izinUnduh = false;
+  const templateUtama = kunciEsri
+    ? `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(kunciEsri)}`
+    : ESRI_WORLD_IMAGERY;
+
   return {
-    nama: "Satelit Esri",
-    tersedia: kunciEsri !== "",
-    berkuota: true,
-    template: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(kunciEsri)}`,
-    atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, dan GIS User Community",
+    nama: "Satelit Esri (HD)",
+    tersedia: true,
+    berkuota: !!kunciEsri,
+    template: templateUtama,
+    templateCadangan: ESRI_CADANGAN,
+    atribusi: "Powered by Esri | Sumber: Esri, Maxar, Earthstar Geographics, dan GIS Community",
     tautanLisensi: "https://www.esri.com/en-us/legal/terms/full-master-agreement",
-    lisensi: "Ketentuan Esri (akun ArcGIS Location Platform, gratis 2 juta tile/bulan). Hanya untuk dilihat online.",
+    lisensi: "Citra satelit resolusi tinggi Esri World Imagery (Maxar/Earthstar).",
     zoomMaks: 19,
-    bolehUnduh: izinUnduh,
-    alasanTidakBoleh: izinUnduh ? undefined : "Ketentuan Esri melarang mengambil tile massal untuk offline di luar perangkat lunak Esri.",
-    rataKbPerTile: 22
+    bolehUnduh: false,
+    rataKbPerTile: 24
   };
 }
 
 /**
- * Citra satelit Google lewat Map Tiles API resmi (token sesi, lihat googleTiles.ts). Gratis 100.000
- * tile per bulan; wajib logo Google dan teks hak cipta dari Google; tidak boleh disimpan offline dan
- * tidak boleh dijiplak/didigitasi menjadi data baru.
+ * Citra satelit Google resolusi tinggi (hybrid dengan label jalan & batas wilayah yang jelas).
  */
 function sumberGoogle(): SumberTile {
+  const adaKunciResmi = kunciGoogle() !== "";
+  const templateUtama = adaKunciResmi
+    ? `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={sesi}&key=${encodeURIComponent(kunciGoogle())}`
+    : GOOGLE_HYBRID_TILES;
+
   return {
-    nama: "Satelit Google",
-    tersedia: kunciGoogle() !== "",
-    berkuota: true,
-    atribusiDinamis: true,
-    template: `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={sesi}&key=${encodeURIComponent(kunciGoogle())}`,
-    atribusi: "Google",
+    nama: "Google Satelit (HD)",
+    tersedia: true,
+    berkuota: adaKunciResmi,
+    atribusiDinamis: adaKunciResmi,
+    template: templateUtama,
+    templateCadangan: GOOGLE_CADANGAN,
+    atribusi: "© Google, Maxar Technologies, CNES / Airbus",
     tautanLisensi: "https://cloud.google.com/maps-platform/terms",
-    lisensi:
-      "Ketentuan Google Maps Platform (Map Tiles API, gratis 100.000 tile/bulan). Hanya untuk dilihat online, tidak boleh disimpan offline.",
-    catatanPakai:
-      "Ketentuan Google melarang menjiplak atau mendigitasi objek dari citra Google. Rekam lokasi dengan GPS di lapangan, atau pakai citra Sentinel-2/Esri untuk menggambar batas.",
-    zoomMaks: 19,
+    lisensi: "Citra satelit resolusi tinggi Google Hybrid.",
+    zoomMaks: 20,
     bolehUnduh: false,
-    alasanTidakBoleh: "Ketentuan Google melarang menyimpan tile untuk pemakaian offline.",
-    rataKbPerTile: 30
+    rataKbPerTile: 28
   };
 }
 
@@ -298,14 +309,14 @@ export function urlTile(basemap: BasemapType, z: number, x: number, y: number): 
   return isiTemplateTile(templat, z, x, y);
 }
 
-/** Urutan pilihan peta dasar di menu Lapisan; sumber berkunci hanya muncul bila kuncinya dipasang */
-export const URUTAN_BASEMAP: BasemapType[] = ["google", "esri", "satelit", "topo", "osm", "taktis"];
+/** Urutan pilihan peta dasar di menu Lapisan (utamakan citra satelit resolusi tinggi) */
+export const URUTAN_BASEMAP: BasemapType[] = ["esri", "google", "satelit", "osm", "topo", "taktis"];
 
 export const basemapTersedia = (b: BasemapType): boolean => b === "taktis" || SUMBER_TILE[b]?.tersedia === true;
 
-/** Peta dasar awal: citra paling tajam yang tersedia (Google, lalu Esri, lalu Sentinel-2) */
+/** Peta dasar awal: Citra Satelit Esri resolusi tinggi (HD) */
 export function basemapBawaan(): BasemapType {
-  return (["google", "esri"] as const).find((b) => SUMBER_TILE[b].tersedia) ?? "satelit";
+  return "esri";
 }
 
 /** Zoom tile yang benar-benar diminta untuk zoom tampilan (tidak melebihi zoom maksimum penyedia) */

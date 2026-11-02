@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AreaPetaOffline, BasemapType, DataSpasialItem, FormatKoordinat, JenisGeometri, KoordinatTitik, ProfilKader } from "../types";
 import {
   formatKoordinatTeks,
@@ -38,9 +38,7 @@ import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googleTiles";
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
-import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, Watch, X } from "lucide-react";
-
-const Medan3D = lazy(() => import("./peta/Medan3D"));
+import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, X } from "lucide-react";
 
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
@@ -56,7 +54,6 @@ interface InteractiveMapProps {
   onTambahPembaruanObjek: (idData: string, kondisiTerbaru: string, catatan: string, fotoBase64?: string) => boolean;
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
   onImporBerkas: (namaBerkas: string, isi: string) => boolean;
-  onBukaSmartwatch?: () => void;
 }
 
 /** Format nama peta agar tidak melebar atau meluap keluar layar (Avenza style) */
@@ -66,8 +63,8 @@ export function formatJudulAvenza(nama: string, maxLen = 22): string {
 }
 
 /**
- * Menghitung proyeksi terbalik dari koordinat piksel layar ke kanvas lokal
- * saat peta dalam transformasi 3D (perspective, rotateX, rotateZ).
+ * Menghitung proyeksi dari koordinat piksel layar ke kanvas lokal
+ * saat peta dalam rotasi kompas 2D (rotateZ).
  */
 function layarKeKanvas(
   screenX: number,
@@ -76,23 +73,13 @@ function layarKeKanvas(
   containerH: number,
   canvasW: number,
   canvasH: number,
-  pitch: number,
   bearing: number
-): { x: number; y: number } | null {
+): { x: number; y: number } {
   const x0 = screenX - containerW / 2;
   const y0 = screenY - containerH / 2;
-  const d = 1000; // perspective distance (px)
-  const pRad = (pitch * Math.PI) / 180;
-  const denom = d + y0 * Math.tan(pRad);
-  if (denom <= 10) return null; // di luar horizon pandang
-  const t = d / denom;
-  const X = t * x0;
-  const Y = t * y0;
-  const yPrime = Y / Math.max(0.1, Math.cos(pRad));
-  const xPrime = X;
   const bRad = (bearing * Math.PI) / 180;
-  const u = xPrime * Math.cos(bRad) - yPrime * Math.sin(bRad);
-  const v = xPrime * Math.sin(bRad) + yPrime * Math.cos(bRad);
+  const u = x0 * Math.cos(bRad) - y0 * Math.sin(bRad);
+  const v = x0 * Math.sin(bRad) + y0 * Math.cos(bRad);
   return {
     x: canvasW / 2 + u,
     y: canvasH / 2 + v
@@ -129,8 +116,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanDataBaru,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
-  onImporBerkas,
-  onBukaSmartwatch
+  onImporBerkas
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
@@ -156,11 +142,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     posisiTersimpan ? { lat: posisiTersimpan.lat, lng: posisiTersimpan.lng } : POSISI_AWAL_PETA
   );
   const [zoom, setZoom] = useState<number>(() => posisiTersimpan?.zoom ?? 15);
-  // Perspektif 3D (kemiringan 0-60°) dan rotasi arah peta (0-359°)
-  const [pitch, setPitch] = useState<number>(() => posisiTersimpan?.pitch ?? 0);
+  // Rotasi arah peta (0-359°)
   const [bearing, setBearing] = useState<number>(() => posisiTersimpan?.bearing ?? 0);
-  // Mode Kompas Otomatis (Avenza Maps Style): peta berputar dinamis mengikuti sensor arah hadap HP
+  // Mode Orientasi Otomatis (peta berputar mengikuti sensor arah hadap/kompas perangkat)
   const [modeIkutiKompas, setModeIkutiKompas] = useState<boolean>(false);
+
+  // Pelacak klik tombol navigasi gabungan: 1x klik = pusatkan posisi, 2x klik = ikuti arah kompas
+  const lastGpsClickRef = useRef<number>(0);
+  const clickTimeoutRef = useRef<number | null>(null);
 
   // Ukuran sisi persegi canvas 3D (selalu melingkupi seluruh viewport HP pada sudut rotasi 0-360° dan tilt 0-60°)
   const [ukuranCanvas, setUkuranCanvas] = useState<number>(() => {
@@ -228,22 +217,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [detikTick, setDetikTick] = useState<number>(0);
 
   // Simpan posisi peta (ditunda sedikit) dan pastikan tersimpan saat aplikasi ditutup/disembunyikan
-  const posisiRef = useRef({ ...center, zoom, basemap, pitch, bearing: bearingAktif });
-  const pitchRef = useRef(pitch);
+  const posisiRef = useRef({ ...center, zoom, basemap, bearing: bearingAktif });
   const bearingRef = useRef(bearing);
   const zoomRef = useRef(zoom);
   const centerRef = useRef(center);
   useLayoutEffect(() => {
-    pitchRef.current = pitch;
     bearingRef.current = bearingAktif;
     zoomRef.current = zoom;
     centerRef.current = center;
-    posisiRef.current = { ...center, zoom, basemap, pitch, bearing: bearingAktif };
-  }, [center, zoom, basemap, pitch, bearingAktif]);
+    posisiRef.current = { ...center, zoom, basemap, bearing: bearingAktif };
+  }, [center, zoom, basemap, bearingAktif]);
   useEffect(() => {
     const t = window.setTimeout(() => simpanPosisiPeta(posisiRef.current), 300);
     return () => window.clearTimeout(t);
-  }, [center, zoom, basemap, pitch, bearingAktif]);
+  }, [center, zoom, basemap, bearingAktif]);
   useEffect(() => {
     const simpan = () => simpanPosisiPeta(posisiRef.current);
     const saatTersembunyi = () => {
@@ -562,7 +549,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       jarakAwal: Math.max(10, jarak),
       sudutAwal: sudut,
       midAwal: { x: midX, y: midY },
-      pitchAwal: pitchRef.current,
+      pitchAwal: 0,
       bearingAwal: bearingRef.current,
       zoomAwal: zoomRef.current,
       jangkar: pecahanDiLayar(centerRef.current, zoomRef.current, titikLayar, rect.width, rect.height),
@@ -600,7 +587,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       jariRef.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
     }
 
-    // Interaksi 2 jari dengan Gesture Intent Lock (Google Earth & Avenza Maps standard)
+    // Interaksi 2 jari (Zoom Cubit & Putar Rotasi Peta)
     if (duaJariRef.current && jariRef.current.size >= 2) {
       const jaris = Array.from(jariRef.current.entries());
       const p1Entry = jaris.find(([id]) => id === duaJariRef.current?.startP1.id) || jaris[0];
@@ -612,15 +599,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const jarakKini = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
       const sudutKini = Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * (180 / Math.PI);
 
-      const { startP1, startP2, jarakAwal, sudutAwal, pitchAwal, bearingAwal, zoomAwal, jangkar } = duaJariRef.current;
-
-      const dy1 = p1.clientY - startP1.y;
-      const dy2 = p2.clientY - startP2.y;
-      const dx1 = p1.clientX - startP1.x;
-      const dx2 = p2.clientX - startP2.x;
-      const avgDy = (dy1 + dy2) / 2;
-      const diffDy = Math.abs(dy1 - dy2);
-      const diffDx = Math.abs(dx1 - dx2);
+      const { jarakAwal, sudutAwal, bearingAwal, zoomAwal, jangkar } = duaJariRef.current;
 
       let deltaSudut = sudutKini - sudutAwal;
       while (deltaSudut > 180) deltaSudut -= 360;
@@ -628,33 +607,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const absDeltaSudut = Math.abs(deltaSudut);
       const deltaJarak = Math.abs(jarakKini - jarakAwal);
 
-      // 1. Klasifikasi Intent Gestur untuk mencegah konflik gerakan
+      // Klasifikasi Intent Gestur
       if (duaJariRef.current.mode === "undecided") {
-        // TILT 3D: Geser 2 jari paralel ke atas/bawah bersamaan (Google Earth)
-        if (Math.abs(avgDy) > 16 && diffDy < 34 && diffDx < 34 && absDeltaSudut < 12 && deltaJarak < 32) {
-          duaJariRef.current.mode = "tilt";
-        }
-        // ROTASI: Putar 2 jari secara melingkar (Avenza Maps)
-        else if (absDeltaSudut > 8 && jarakKini > 40) {
+        if (absDeltaSudut > 8 && jarakKini > 40) {
           duaJariRef.current.mode = "rotate_zoom";
-        }
-        // ZOOM: Cubit 2 jari (Pinch)
-        else if (deltaJarak > 22 && absDeltaSudut < 8) {
+        } else if (deltaJarak > 18) {
           duaJariRef.current.mode = "zoom_only";
         }
       }
 
-      // 2. Eksekusi gerakan sesuai mode yang terkunci
-      if (duaJariRef.current.mode === "tilt") {
-        // Kunci rotasi dan zoom: HANYA ubah pitch kemiringan 3D
-        const deltaPitch = -avgDy * 0.28;
-        const pitchBaru = Math.min(60, Math.max(0, Math.round(pitchAwal + deltaPitch)));
-        setPitch(pitchBaru);
-        return;
-      }
-
       if (duaJariRef.current.mode === "rotate_zoom") {
-        // Kunci pitch: HANYA ubah rotasi arah peta dan zoom cubit
         let bearingBaru = Math.round(bearingAwal + deltaSudut) % 360;
         if (bearingBaru < 0) bearingBaru += 360;
         setBearing(bearingBaru);
@@ -670,7 +632,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
 
       if (duaJariRef.current.mode === "zoom_only") {
-        // Kunci pitch: HANYA ubah zoom cubit
         const rect = wadahPetaRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
         const midKini = { x: (p1.clientX + p2.clientX) / 2 - rect.left, y: (p1.clientY + p2.clientY) / 2 - rect.top };
         const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
@@ -694,13 +655,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setModeIkutiKompas(false); // geser manual menonaktifkan mode kompas otomatis
     }
 
-    // Rotasi dan proyeksi translasi layar ke koordinat peta lokal (memperhitungkan rotasi & kemiringan 3D)
+    // Rotasi translasi layar ke koordinat peta lokal (2D)
     const rad = (bearingRef.current * Math.PI) / 180;
-    const pitchRad = (pitchRef.current * Math.PI) / 180;
-    const cosP = Math.max(0.2, Math.cos(pitchRad));
-    const dyGround = dy / cosP;
-    const localDx = dx * Math.cos(rad) - dyGround * Math.sin(rad);
-    const localDy = dx * Math.sin(rad) + dyGround * Math.cos(rad);
+    const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
 
     const startTx = lngToTileX(dragRef.current.startLng, zoom);
     const startTy = latToTileY(dragRef.current.startLat, zoom);
@@ -759,9 +717,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           y: cH / 2 + (clickY - rect.height / 2)
         };
 
-        if (pitch > 0 || bearingAktif !== 0) {
-          const inv = layarKeKanvas(clickX, clickY, rect.width, rect.height, cW, cH, pitch, bearingAktif);
-          if (inv) ptLayar = inv;
+        if (bearingAktif !== 0) {
+          ptLayar = layarKeKanvas(clickX, clickY, rect.width, rect.height, cW, cH, bearingAktif);
         }
 
         for (const item of dataSpasial) {
@@ -952,7 +909,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           >
             <MapPin size={18} />
             <span>
-              Peta dasar<small>Peta online dan medan 3D</small>
+              Peta dasar<small>Citra satelit resolusi tinggi</small>
             </span>
           </button>
           {areaOffline.map((area) => (
@@ -1057,18 +1014,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         ref={wadahPetaRef}
         style={tinggiPeta !== null ? { height: tinggiPeta } : undefined}
       >
-        <div className="map-canvas-3d-viewport" style={pitch > 0 && !petaKustomAktif ? { visibility: "hidden" } : undefined}>
+        <div className="map-canvas-viewport">
           <div
-            className="map-canvas-3d-inner"
+            className="map-canvas-inner"
             style={{
               width: `${ukuranCanvas}px`,
               height: `${ukuranCanvas}px`,
+              position: "absolute",
               left: "50%",
               top: "50%",
               marginLeft: `${-ukuranCanvas / 2}px`,
               marginTop: `${-ukuranCanvas / 2}px`,
-              transform: `perspective(1000px) rotateX(${pitch}deg) rotateZ(${-bearingAktif}deg)`,
-              transformOrigin: "50% 50%"
+              transform: bearingAktif !== 0 ? `rotateZ(${-bearingAktif}deg)` : undefined,
+              transformOrigin: "50% 50%",
+              transition: modeIkutiKompas ? "transform 0.15s ease-out" : "none"
             }}
           >
             <canvas
@@ -1080,34 +1039,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               onPointerCancel={handlePointerCancel}
             />
           </div>
-        </div>
-
-        {pitch > 0 && !petaKustomAktif && (
-          <Suspense fallback={<div className="medan-status">Memuat mesin medan 3D…</div>}>
-            <Medan3D
-              center={center}
-              zoom={zoom}
-              pitch={pitch}
-              bearing={bearingAktif}
-              basemap={basemap}
-              data={dataSpasial}
-              draft={titikDraft}
-              polygon={modeRekam === "polygon"}
-              gps={gpsPos}
-              onCamera={(c, z, p, b) => {
-                setCenter(c);
-                setZoom(z);
-                setPitch(p);
-                setBearing(b);
-              }}
-              onSelect={(id) => setObjekTerpilih(dataSpasial.find((d) => d.id === id) ?? null)}
-              onClose={() => setPitch(0)}
-            />
-          </Suspense>
-        )}
-
-        <div className="bidikan-peta" aria-hidden="true">
-          ＋
         </div>
 
         {/* PILL KOORDINAT RINGKAS DI KIRI ATAS (KETUK UNTUK GANTI DD/DMS/UTM) */}
@@ -1140,77 +1071,78 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
         {/* TOMBOL KONTROL RINGKAS DI KANAN ATAS (TIDAK MENGHALANGI PETA) */}
         <div className="map-overlay-top-right">
-          {onBukaSmartwatch && (
-            <button type="button" className="map-ctrl-btn smartwatch-map-btn" onClick={onBukaSmartwatch} title="Mode Smartwatch">
-              <Watch size={16} />
-            </button>
-          )}
-
-          {/* Tombol Kompas Peta Avenza Style:
-              - Jika berputar / 3D: Ketuk untuk Reset ke Utara (0°) & 2D Datar
-              - Jika normal: Ketuk untuk Mode Kompas HP (Peta Berputar Otomatis Mengikuti Sensor HP) */}
-          <button
-            type="button"
-            className={`map-ctrl-btn compass-ctrl-btn ${modeIkutiKompas ? "compass-mode-active" : bearingAktif !== 0 || pitch !== 0 ? "compass-rotated" : ""}`}
-            onClick={() => {
-              if (modeIkutiKompas) {
-                setModeIkutiKompas(false);
-                setBearing(0);
-                setPitch(0);
-              } else if (bearingAktif !== 0 || pitch !== 0) {
-                setModeIkutiKompas(false);
-                setBearing(0);
-                setPitch(0);
-              } else {
-                setModeIkutiKompas(true);
-              }
-            }}
-            title={
-              modeIkutiKompas
-                ? "Mode Kompas Sensor HP Aktif. Ketuk untuk matikan."
-                : bearingAktif !== 0 || pitch !== 0
-                  ? `Rotasi: ${bearingAktif}°, Kemiringan: ${pitch}°. Ketuk untuk reset ke Utara (0°) & 2D Datar.`
-                  : "Ketuk untuk Mode Kompas Sensor HP (Otomatis Putar Saat Berjalan)"
-            }
-          >
-            <Compass
-              size={18}
-              style={{
-                transform: `rotate(${-bearingAktif}deg)`,
-                transition: "transform 0.15s ease-out",
-                color: modeIkutiKompas ? "#10b981" : bearingAktif !== 0 || pitch !== 0 ? "#ef4444" : "#475569"
-              }}
-            />
-          </button>
-
-          {/* Tombol Cepat Alih Mode 2D / 3D (Google Earth Style) */}
-          <button
-            type="button"
-            className={`map-ctrl-btn toggle-3d-btn ${pitch > 0 ? "active-3d" : ""}`}
-            onClick={() => setPitch((p) => (p > 0 ? 0 : 45))}
-            title={pitch > 0 ? "Beralih ke Peta Datar 2D" : "Buka medan 3D dengan data elevasi"}
-          >
-            <span style={{ fontSize: "0.72rem", fontWeight: 800 }}>{pitch > 0 ? "2D" : "3D"}</span>
-          </button>
-
           <button
             type="button"
             className={`map-ctrl-btn ${bukaMenuPeta ? "active-ctrl" : ""}`}
             onClick={() => setBukaMenuPeta((v) => !v)}
-            title="Lapisan Peta & Alat Offline"
+            title="Peta Dasar & Lapisan"
           >
             <Layers size={17} />
           </button>
+
+          {/* Tombol Terpadu: 1x Klik = Posisi Kita, 2x Klik = Peta Mengikuti Arah Kita */}
           <button
             type="button"
-            className="map-ctrl-btn"
-            onClick={() => gpsPos && setCenter({ lat: gpsPos.lat, lng: gpsPos.lng })}
+            className={`map-ctrl-btn ${modeIkutiKompas ? "active-ctrl" : ""}`}
+            onClick={() => {
+              const now = Date.now();
+              const selisih = now - lastGpsClickRef.current;
+              lastGpsClickRef.current = now;
+
+              if (clickTimeoutRef.current) {
+                window.clearTimeout(clickTimeoutRef.current);
+                clickTimeoutRef.current = null;
+              }
+
+              if (selisih < 350) {
+                // 2x KLIK: Aktifkan mode peta mengikuti arah/orientasi kompas kita
+                void aktifkanKompas();
+                setModeIkutiKompas(true);
+                if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+              } else {
+                // 1x KLIK: Pusatkan peta ke posisi kita
+                clickTimeoutRef.current = window.setTimeout(() => {
+                  if (modeIkutiKompas) {
+                    setModeIkutiKompas(false);
+                    setBearing(0);
+                  }
+                  if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+                }, 220);
+              }
+            }}
+            onDoubleClick={() => {
+              if (clickTimeoutRef.current) {
+                window.clearTimeout(clickTimeoutRef.current);
+                clickTimeoutRef.current = null;
+              }
+              void aktifkanKompas();
+              setModeIkutiKompas(true);
+              if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+            }}
             disabled={!gpsPos}
             style={gpsPos ? undefined : { opacity: 0.45 }}
-            title={gpsPos ? "Pusatkan ke GPS Saya" : "Menunggu posisi GPS"}
+            title={
+              modeIkutiKompas
+                ? "Orientasi aktif (mengikuti arah kita). 1x klik untuk reset ke posisi tegak utara."
+                : gpsPos
+                  ? "1x klik: Pusatkan posisi kita | 2x klik: Peta ikuti arah kita"
+                  : "Menunggu posisi GPS"
+            }
           >
-            <Navigation size={16} />
+            {modeIkutiKompas ? (
+              <Compass
+                size={18}
+                style={{
+                  transform: `rotate(${-bearingAktif}deg)`,
+                  transition: "transform 0.15s ease-out",
+                  color: "#ffffff"
+                }}
+              />
+            ) : (
+              <Navigation size={16} />
+            )}
           </button>
+
           <button
             type="button"
             className="map-ctrl-btn"
@@ -1235,20 +1167,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             basemap={basemap}
             jumlahObjek={dataSpasial.length}
             tampilDaftarObjek={tampilDaftarObjek}
-            pitch={pitch}
-            bearing={bearingAktif}
-            modeIkutiKompas={modeIkutiKompas}
-            onAlihModeIkutiKompas={() => setModeIkutiKompas((v) => !v)}
-            onUbahPitch={(p) => setPitch(p)}
-            onUbahBearing={(b) => {
-              setModeIkutiKompas(false);
-              setBearing(b);
-            }}
-            onReset3D={() => {
-              setModeIkutiKompas(false);
-              setPitch(0);
-              setBearing(0);
-            }}
             onPilihBasemap={setBasemap}
             onUnduhOffline={() => unduh.bukaModalUnduh(hitungKotakTerlihat(), zoom)}
             onPilihBerkas={handleImporFileSpasial}

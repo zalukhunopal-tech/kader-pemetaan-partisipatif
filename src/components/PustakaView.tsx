@@ -396,7 +396,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <div className="avenza-basemap-banner-wrap">
             <div className="avenza-basemap-banner" onClick={onBukaPetaDasar}>
               <LatarPetaDasar />
-              <span className="pustaka-terrain-badge">2D / 3D</span>
+              <span className="pustaka-terrain-badge">CITRA SATELIT HD</span>
 
               <button
                 type="button"

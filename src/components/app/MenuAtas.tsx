@@ -11,7 +11,6 @@ import {
   Shield,
   User,
   UserCheck,
-  Watch,
   Wifi,
   WifiOff
 } from "lucide-react";
@@ -41,7 +40,6 @@ interface MenuAtasProps {
   modeOfflineManual: boolean;
   setModeOfflineManual: React.Dispatch<React.SetStateAction<boolean>>;
   tampilkanToast: (pesan: string) => void;
-  onBukaSmartwatch: () => void;
   onBukaPemberitahuan: () => void;
   onBukaEkspor: () => void;
   onModePilihPustaka: () => void;
@@ -64,7 +62,6 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
   modeOfflineManual,
   setModeOfflineManual,
   tampilkanToast,
-  onBukaSmartwatch,
   onBukaPemberitahuan,
   onBukaEkspor,
   onModePilihPustaka,
@@ -120,17 +117,6 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
           </div>
 
           <div className="avenza-overflow-divider" />
-
-          <button
-            type="button"
-            className="avenza-overflow-item"
-            onClick={() => {
-              setBukaMenuTitikTiga(false);
-              onBukaSmartwatch();
-            }}
-          >
-            <Watch size={16} /> Smartwatch
-          </button>
 
           <button
             type="button"

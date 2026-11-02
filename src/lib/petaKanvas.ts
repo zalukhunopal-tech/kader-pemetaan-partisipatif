@@ -408,29 +408,5 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     ctx.stroke();
     ctx.restore();
   }
-
-  // 8. Bidikan Tengah (Crosshair)
-  ctx.save();
-  const cx = W / 2;
-  const cy = H / 2;
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 12, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx - 18, cy);
-  ctx.lineTo(cx - 5, cy);
-  ctx.moveTo(cx + 5, cy);
-  ctx.lineTo(cx + 18, cy);
-  ctx.moveTo(cx, cy - 18);
-  ctx.lineTo(cx, cy - 5);
-  ctx.moveTo(cx, cy + 5);
-  ctx.lineTo(cx, cy + 18);
-  ctx.stroke();
-  ctx.fillStyle = "#fbbf24";
-  ctx.beginPath();
-  ctx.arc(cx, cy, 2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 }
+

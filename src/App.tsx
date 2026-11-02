@@ -60,7 +60,6 @@ import { RewardView } from "./components/RewardView";
 import { TugasPengumumanView } from "./components/TugasPengumumanView";
 import { KomunikasiView } from "./components/KomunikasiView";
 import { AdminDashboardView } from "./components/AdminDashboardView";
-import { SmartwatchModal } from "./components/SmartwatchModal";
 import { GantiSandiModal } from "./components/GantiSandiModal";
 import { GerbangAdminView } from "./components/GerbangAdminView";
 import { KunciAplikasiView } from "./components/KunciAplikasiView";
@@ -127,7 +126,6 @@ export const App: React.FC = () => {
   const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
   const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
-  const [bukaSmartwatch, setBukaSmartwatch] = useState<boolean>(false);
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   // id naik setiap toast baru, sehingga efek di bawah memulai ulang hitung mundurnya
@@ -681,7 +679,6 @@ export const App: React.FC = () => {
         modeOfflineManual={modeOfflineManual}
         setModeOfflineManual={setModeOfflineManual}
         tampilkanToast={tampilkanToast}
-        onBukaSmartwatch={() => setBukaSmartwatch(true)}
         onBukaPemberitahuan={() => setBukaPemberitahuan(true)}
         onBukaEkspor={() => setBukaPengaturanEkspor(true)}
         onModePilihPustaka={() => setModePilihPustaka(true)}
@@ -796,7 +793,6 @@ export const App: React.FC = () => {
                 onTambahPembaruanObjek={handleTambahPembaruanObjek}
                 onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
                 onImporBerkas={handleImporBerkas}
-                onBukaSmartwatch={() => setBukaSmartwatch(true)}
               />
             )}
 
@@ -911,16 +907,6 @@ export const App: React.FC = () => {
             setBukaGantiSandi(false);
             tampilkanToast("✓ Kata sandi berhasil diganti.");
           }}
-        />
-      )}
-
-      {/* MODAL SMARTWATCH BLUETOOTH */}
-      {bukaSmartwatch && (
-        <SmartwatchModal
-          dataSpasial={dataSpasial}
-          profil={profil}
-          onSimpanDataBaru={handleSimpanDataBaru}
-          onTutup={() => setBukaSmartwatch(false)}
         />
       )}
 
