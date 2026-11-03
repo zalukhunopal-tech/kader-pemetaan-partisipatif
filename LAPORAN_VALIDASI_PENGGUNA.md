@@ -140,3 +140,16 @@ PWA v2.0.0 (precache 28 entries, 5.1 MB)
 | **Pilihan Peta & Lapisan (Pustaka)** | Segmented control lama dengan garis batas kaku dan tata letak kurang rapi | Dirapikan menjadi *dual-capsule segmented control* modern (maks 360px di tengah) dengan ikon Peta & Lapisan, elevasi kartu putih saat aktif, dan tipografi seimbang. |
 | **Wallpaper Buka Peta Dasar** | Memiliki teks badge "CITRA SATELIT HD" | Teks "CITRA SATELIT HD" telah dihapus dari banner peta dasar sehingga tampilan wallpaper bersih dan fokus pada tombol buka peta. |
 | **Menu Pencarian Pustaka** | Bilah input pencarian melebar ke seluruh layar | Dibatasi lebarnya (maks 340px), sudut membulat 10px, dan tinggi 38px proporsional dengan bilah filter di atasnya. |
+
+
+---
+
+## 7. Perbaikan Overlap Tab Admin, Penghapusan Akun Dummy & Penyesuaian Responsif Peta (November 2026)
+
+| Komponen | Masalah Sebelumnya | Solusi & Hasil Perbaikan |
+| :--- | :--- | :--- |
+| **Akun Dummy di Tab Admin** | Muncul data tiruan bawaan (Budi Santoso, Siti Rahmawati, Ahmad Dahlan) saat data sedikit | Seluruh akun dummy **dihapus bersih**. Direktori kader kini 100% memuat data otentik dari akun terdaftar (`muatSemuaAkun`) dan riwayat data spasial kader. |
+| **Data User & Level Kader (Overlap Teks)** | Nama kader dan badge level saling menimpa/terpotong; form input HOK berhimpitan di mobile | Menggunakan tata letak fleksibel `flex-wrap: wrap` pada header kartu, grid metrik 2x2 di mobile & 4 kolom di PC, serta form HOK responsif (vertikal di mobile & 3 kolom di desktop) tanpa tumpang tindih kata. |
+| **Sub-navigasi Admin (PC vs Mobile)** | Kotak tab menu admin berhimpit atau teks terpotong di layar kecil | Mengadopsi tata letak responsif: 6 kolom satu baris rapi di desktop/PC (`>=768px`) dan 3 kolom terpusat dengan padding nyaman di layar ponsel (`<640px`). |
+| **Peta Interaktif: Elemen Atas Overlap Header** | Chip koordinat, tombol HUD kanan atas, dan bilah pencarian menimpa header lembar peta GeoPDF | Diberikan aturan selektor `.avenza-custom-active` otomatis menggeser chip koordinat, HUD pod, floating search, dan layers popover ke posisi aman (`top: 60px`). |
+| **Peta Interaktif: Bentrokan Bawah (Rail vs Draf/Skala)** | Tombol draf survei dan strip objek menutupi rail alat zoom di kanan bawah; skala menimpa atribusi | Batang skala diatur di atas atribusi (`bottom: 44px`), sedangkan panel draf dan strip objek dibatasi (`right: 80px`) sehingga rail tombol zoom dan survei tetap bebas dan dapat diakses dengan mudah di mobile maupun PC. |
