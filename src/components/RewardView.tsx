@@ -1,4 +1,3 @@
-import { BukuHokPanel } from "./BukuHokPanel";
 import { useMuatGambar } from "../lib/useMuatGambar";
 import { kompresFotoKeDataUrl } from "../lib/foto";
 import { lukisSertifikatKeCanvas } from "../lib/kanvasSertifikat";
@@ -365,8 +364,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
 
   return (
     <div className="page-container reward-page-clean">
-      <BukuHokPanel data={dataSpasial} profil={profil} admin={peran === "admin"} />
-      {/* INPUT FILE TERSEMBUNYI UNTUK FOTO KADER DI SERTIFIKAT */}
+            {/* INPUT FILE TERSEMBUNYI UNTUK FOTO KADER DI SERTIFIKAT */}
       <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePilihFotoSertifikat} />
 
       {/* 1. KARTU LEVEL KADER (GESER KIRI / KANAN DENGAN IKON KUNCI UNTUK LEVEL BELUM TERBUKA, TANPA XP) */}
@@ -542,17 +540,17 @@ export const RewardView: React.FC<RewardViewProps> = ({
         </div>
       </div>
 
-      {/* HERO METRIC CARDS (Total HOK / Insentif, Jarak Tempuh, Titik Sah) */}
+      {/* HERO METRIC CARDS (Cakupan Area, Jarak Tempuh, Survei Sah) */}
       <div className="reward-hero-grid">
         <div className="reward-hero-card">
           <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Insentif HOK
+            Cakupan Area
           </span>
           <strong className="reward-hero-val text-emerald">
-            Rp {(capaianTerverifikasi.totalPoinTitik * 25000 + Math.round(capaianTerverifikasi.totalTrackingKm * 15000)).toLocaleString("id-ID")}
+            {totalHa.toFixed(1)} <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>Ha</span>
           </strong>
           <small className="text-muted" style={{ fontSize: "0.7rem", marginTop: 3 }}>
-            Jerih payah lapangan
+            Luas poligon wilayah
           </small>
         </div>
 

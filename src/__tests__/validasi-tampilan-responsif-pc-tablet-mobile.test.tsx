@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { KomunikasiView } from "../components/KomunikasiView";
 import { PanelDataUserLevel } from "../components/PanelDataUserLevel";
+import { RewardView } from "../components/RewardView";
 import { ProfilKader, DataSpasialItem } from "../types";
 
 const mockProfil: ProfilKader = {
@@ -124,5 +125,55 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
 
     expect(html).toContain("komunikasi-wrapper");
     expect(html).toContain("max-width:1100px");
+  });
+
+  it("9. Pustaka segmented control dan menu pencarian melebar proporsional di PC (max-width 580px/640px) tanpa mengubah mobile", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    expect(css).toContain(".avenza-segmented-control");
+    expect(css).toContain("max-width: 580px;");
+    expect(css).toContain(".avenza-search-bar");
+  });
+
+  it("10. Fitur HOK dihapus sepenuhnya dari tab sertifikat (RewardView)", () => {
+    const rewardTsxPath = path.resolve(__dirname, "../components/RewardView.tsx");
+    const rewardCode = fs.readFileSync(rewardTsxPath, "utf8");
+
+    expect(rewardCode).not.toContain("BukuHokPanel");
+
+    const html = renderToString(
+      <RewardView
+        dataSpasial={[mockItemSurvey]}
+        profil={mockProfil}
+        peran="admin"
+        sertifikatList={[]}
+        pesanList={[]}
+        tugasList={[]}
+        onUbahProfil={() => {}}
+      />
+    );
+
+    expect(html).not.toContain("buku-hok");
+    expect(html).not.toContain("Insentif HOK");
+  });
+
+  it("11. Peta interaktif pilihan lapisan diperkecil proporsional (max-width 320px) dan popover koordinat anti-overlap", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    expect(css).toContain(".avenza-layers-modal");
+    expect(css).toContain("max-width: 320px;");
+    expect(css).toContain(".coord-crs-popover");
+    expect(css).toContain("z-index: 50;");
+  });
+
+  it("12. Bagian level kader di Data User & Level Kader tidak overlap kotak (border-radius 8px, white-space nowrap)", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    expect(css).toContain(".kader-tier-badge");
+    expect(css).toContain("border-radius: 8px;");
+    expect(css).toContain("white-space: nowrap;");
   });
 });

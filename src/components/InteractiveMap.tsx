@@ -894,7 +894,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
               type="button"
               className="avenza-head-btn"
               title="Cari Koordinat / Wilayah"
-              onClick={() => setCariKoordTerbuka((v) => !v)}
+              onClick={() => { setBukaMenuPeta(false); setCariKoordTerbuka((v) => !v); }}
               aria-label="Cari di Peta"
             >
               <Search size={20} />
@@ -1048,7 +1048,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           <button
             type="button"
             className={`map-hud-btn map-ctrl-btn ${bukaMenuPeta ? "active active-ctrl" : ""}`}
-            onClick={() => { setObjekTerpilih(null); setBukaMenuPeta((v) => !v); }}
+            onClick={() => { setObjekTerpilih(null); setCariKoordTerbuka(false); setBukaMenuPeta((v) => !v); }}
             title="Peta Dasar & Lapisan"
           >
             <Layers size={20} />
@@ -1081,7 +1081,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           <button
             type="button"
             className={`map-hud-btn map-ctrl-btn ${cariKoordTerbuka ? "active" : ""}`}
-            onClick={() => setCariKoordTerbuka((v) => !v)}
+            onClick={() => { setBukaMenuPeta(false); setCariKoordTerbuka((v) => !v); }}
             title="Cari Koordinat / Nama Objek"
           >
             <Search size={18} />
