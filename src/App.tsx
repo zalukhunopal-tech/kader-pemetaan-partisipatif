@@ -744,7 +744,7 @@ export const App: React.FC = () => {
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
-        className={`app-main ${desktop && (tabAktif === "admin" || tabAktif === "data_sync") ? "gis-split-workspace" : ""} ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
+        className={`app-main ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
         onTouchStart={handleGeserMulai}
         onTouchEnd={handleGeserSelesai}
         onTouchCancel={() => (awalGeserRef.current = null)}
