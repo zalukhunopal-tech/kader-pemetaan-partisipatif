@@ -12,7 +12,8 @@ import {
 import {
   muatDataSpasial,
   simpanDataSpasial,
-  muatAreaOffline
+  muatAreaOffline,
+  simpanAreaOffline
 } from "../../lib/storage";
 import { hitungCapaianKader } from "../../lib/rewardEngine";
 import { payloadVerifikasi, matriksQr } from "../../lib/qr";
@@ -161,6 +162,22 @@ describe("Kategori G: Perangkat Lapangan, Baterai & Siklus Hidup PWA (Skenario 5
       noHp: "08123456789",
       modeKombinasiTarget: "gabungan_proporsional"
     };
+    simpanAreaOffline([
+      {
+        id: "MAP-TEST-MARATHON",
+        namaArea: "Wilayah Uji Marathon",
+        basemapId: "satelit",
+        minLat: 2.8,
+        maxLat: 2.9,
+        minLng: 117.3,
+        maxLng: 117.4,
+        zoomMin: 12,
+        zoomMax: 14,
+        jumlahTile: 20,
+        ukuranMb: 5,
+        diunduhPada: new Date().toISOString()
+      }
+    ]);
     const daftarPeta = muatAreaOffline();
     expect(daftarPeta.length).toBeGreaterThan(0);
 

@@ -60,31 +60,7 @@ export const PROFIL_BAWAAN: ProfilKader = {
 
 // Seluruh data awal dimulai kosong (tanpa data contoh/dummy)
 export const DATA_SPASIAL_AWAL: DataSpasialItem[] = [];
-export const PETA_TANJUNG_SELOR_BAWAAN: AreaPetaOffline = {
-  id: "MAP-TANJUNG-SELOR-01",
-  namaArea: "Peta_Fungsi_Kawasan_Hutan_Kec_Tanjung_Selor_A3_GeoPDF",
-  basemapId: "topo",
-  minLat: 2.65,
-  maxLat: 3.05,
-  minLng: 117.15,
-  maxLng: 117.65,
-  zoomMin: 11,
-  zoomMax: 18,
-  jumlahTile: 1250,
-  ukuranMb: 12.5,
-  jarakKm: 0,
-  crs: "EPSG:32650 (WGS 84 / UTM Zone 50N)",
-  crsDeskripsi: "WGS 84 / UTM Zona 50 Utara (Kecamatan Tanjung Selor, Bulungan)",
-  thumbnailType: "geopdf_sheet",
-  petaKustomUrl: "/peta/tanjung_selor_lembar.jpg",
-  thumbnailUrl: "/peta/tanjung_selor_thumb.jpg",
-  diunduhPada: new Date().toISOString(),
-  jenisFile: "GeoPDF / GeoTIFF",
-  unduhanNyata: true,
-  statusTeks: "Pada peta"
-};
-
-export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [PETA_TANJUNG_SELOR_BAWAAN];
+export const AREA_OFFLINE_AWAL: AreaPetaOffline[] = [];
 export const LAPISAN_AWAL: LapisanSpasial[] = [];
 export const SERTIFIKAT_AWAL: SertifikatKader[] = [];
 export const PENGUMUMAN_AWAL: PengumumanBroadcast[] = [];
@@ -144,23 +120,20 @@ export const simpanProfil = (v: ProfilKader) => simpanJson(KEY_PROFIL, v);
 export const muatDataSpasial = () => unikkanId(bacaJson<DataSpasialItem[]>(KEY_SPASIAL, DATA_SPASIAL_AWAL));
 export const simpanDataSpasial = (v: DataSpasialItem[]) => simpanJson(KEY_SPASIAL, v);
 
-export const muatAreaOffline = () => {
+export const muatAreaOffline = (): AreaPetaOffline[] => {
   const data = unikkanId(bacaJson<AreaPetaOffline[]>(KEY_OFFLINE_MAPS, AREA_OFFLINE_AWAL));
-  if (!Array.isArray(data) || data.length === 0) return AREA_OFFLINE_AWAL;
-  if (!data.some((a) => a.namaArea.includes("Tanjung_Selor"))) {
-    return [PETA_TANJUNG_SELOR_BAWAAN, ...data];
+  if (!Array.isArray(data)) return [];
+  // Hapus permanen peta fungsi kawasan yang telah dihapus pengguna agar tidak muncul kembali
+  const hasilBersih = data.filter(
+    (item) =>
+      !item.namaArea.toLowerCase().includes("tanjung_selor") &&
+      !item.namaArea.toLowerCase().includes("fungsi_kawasan") &&
+      item.id !== "MAP-TANJUNG-SELOR-01"
+  );
+  if (hasilBersih.length !== data.length) {
+    simpanAreaOffline(hasilBersih);
   }
-  return data.map((item) => {
-    if (item.namaArea.includes("Tanjung_Selor")) {
-      return {
-        ...item,
-        petaKustomUrl: item.petaKustomUrl || "/peta/tanjung_selor_lembar.jpg",
-        thumbnailUrl: item.thumbnailUrl || "/peta/tanjung_selor_thumb.jpg",
-        statusTeks: item.statusTeks || "Pada peta"
-      };
-    }
-    return item;
-  });
+  return hasilBersih;
 };
 export const simpanAreaOffline = (v: AreaPetaOffline[]) => simpanJson(KEY_OFFLINE_MAPS, v);
 

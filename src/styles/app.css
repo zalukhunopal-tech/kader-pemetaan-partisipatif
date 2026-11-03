@@ -113,48 +113,24 @@ body {
 
 @media (min-width: 768px) {
   .app-shell {
-    flex-direction: row;
-    padding-bottom: 0;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  .avenza-bottom-nav {
-    position: static;
-    width: 84px;
-    height: 100vh;
     flex-direction: column;
-    justify-content: flex-start;
-    padding: 24px 8px;
-    gap: 16px;
-    border-top: none;
-    border-right: 1px solid var(--border);
-    flex-shrink: 0;
-    background: #ffffff;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.03);
-    z-index: 50;
-  }
-
-  .avenza-bottom-nav .avenza-nav-item {
-    width: 100%;
-    height: 56px;
-    min-height: 48px;
-    padding: 8px 4px;
-    border-radius: 12px;
-  }
-
-  .avenza-bottom-nav .avenza-nav-item.active {
-    background: var(--brand-primary-soft);
-    color: var(--brand-primary);
+    padding-bottom: 0;
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: calc(100% - var(--sidebar-w, 160px));
+    margin-left: var(--sidebar-w, 160px);
+    max-width: none;
   }
 
   .app-main {
     flex: 1;
-    height: 100vh;
-    overflow-y: auto;
+    min-height: 0;
     position: relative;
     display: flex;
     flex-direction: column;
+    width: 100%;
   }
 
   .avenza-topbar {
@@ -4085,24 +4061,23 @@ label {
   color: #475569;
 }
 
-/* Sub-menu Admin: HP 3 + 2 (tanpa tombol yatim), tablet 5 kolom, PC ikon di samping teks */
+/* Sub-menu Admin: 3 kolom rapi di semua layar (3 di atas, 3 di bawah), teks tidak terpotong */
 .admin-subnav {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 14px;
 }
 
 .admin-subnav-btn {
-  grid-column: span 2;
   min-width: 0;
-  min-height: 60px;
+  min-height: 52px;
   padding: 8px 6px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.15;
   cursor: pointer;
@@ -4110,16 +4085,11 @@ label {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   text-align: center;
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
-}
-
-.admin-subnav-btn:nth-child(4),
-.admin-subnav-btn:nth-child(5) {
-  grid-column: span 3;
 }
 
 .admin-subnav-btn svg {
@@ -4148,24 +4118,13 @@ label {
   outline-offset: 2px;
 }
 
-@media (min-width: 560px) {
-  .admin-subnav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .admin-subnav-btn,
-  .admin-subnav-btn:nth-child(4),
-  .admin-subnav-btn:nth-child(5) {
-    grid-column: auto;
-  }
-}
-
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   .admin-subnav-btn {
     flex-direction: row;
-    min-height: 46px;
-    gap: 7px;
-    font-size: 0.82rem;
+    min-height: 44px;
+    gap: 6px;
+    font-size: 0.8rem;
+    padding: 8px 10px;
   }
 }
 
@@ -6810,45 +6769,77 @@ button:disabled {
   min-width: 0;
   height: 48px;
 }
-.field-telemetry {
+.field-telemetry-compact {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 72px;
-  z-index: 12;
-  display: flex;
+  top: 12px;
+  left: 12px;
+  z-index: 22;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 10px;
-  background: var(--field-surface);
-  color: var(--field-ink);
-  border: 1px solid var(--field-line);
-  border-radius: 18px;
-  box-shadow: var(--field-shadow);
-  max-width: 580px;
+  padding: 4px 10px;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.92));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border, rgba(200, 215, 205, 0.7));
+  border-radius: 9999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  max-width: min(340px, calc(100vw - 120px));
+  pointer-events: auto;
 }
-.field-telemetry-coordinate {
+.field-telemetry-coord-btn {
   background: transparent;
-  color: inherit;
   border: 0;
-  flex: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: inherit;
+  cursor: pointer;
   min-width: 0;
   text-align: left;
-  padding: 0;
 }
-.field-telemetry-coordinate strong {
-  display: block;
-  font:
-    600 11px ui-monospace,
-    monospace;
-  overflow-wrap: anywhere;
-  line-height: 1.4;
+.telemetry-coord-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.field-telemetry-coordinate small {
-  display: block;
+.telemetry-accuracy {
   font-size: 10px;
-  margin-top: 3px;
-  color: var(--field-muted);
+  font-weight: 600;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 1px 5px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.telemetry-format-pill {
+  background: rgba(0, 0, 0, 0.06);
+  border: 0;
+  border-radius: 9999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #047857;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.telemetry-format-pill:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+.telemetry-timer-pill {
+  font-size: 10px;
+  font-weight: 700;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 2px 6px;
+  border-radius: 9999px;
+  white-space: nowrap;
 }
 .field-gps-indicator {
   width: 8px;
@@ -6866,24 +6857,18 @@ button:disabled {
 [data-gps="lemah"] .field-gps-indicator {
   background: #a91624;
 }
-.telemetry-format {
-  background: transparent;
-  color: var(--field-accent);
-  border: 0;
-  font-size: 11px;
-  padding: 0;
-}
-.telemetry-timer {
-  font:
-    600 11px ui-monospace,
-    monospace;
-  color: var(--field-danger);
-}
 .field-map-message {
   position: absolute;
-  top: 84px;
+  top: 48px;
   left: 12px;
-  right: 72px;
+  z-index: 22;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease;
   color: var(--field-ink);
   background: var(--field-surface);
   z-index: 12;
@@ -6906,58 +6891,126 @@ button:disabled {
   bottom: 8px;
   left: 8px;
   right: 8px;
-  gap: 8px;
+  pointer-events: none;
+  z-index: 15;
 }
-.temukan-field .field-action-pod {
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-left: auto;
-  max-width: calc(100% - 62px);
-  padding: 6px;
-  border: 1px solid var(--field-line);
-  background: var(--field-surface);
-  border-radius: 20px;
-  box-shadow: var(--field-shadow);
+.temukan-field .map-action-pill-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.94));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border, rgba(200, 215, 205, 0.75));
+  border-radius: 9999px;
+  padding: 3px 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
+  position: absolute !important;
+  bottom: 22px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+  z-index: 26 !important;
+  white-space: nowrap;
 }
-.field-action-pod > button {
+
+.temukan-field .map-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 9999px;
+  border: 0;
+  background: transparent;
+  color: #1e3a29;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.map-action-pill:hover {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+.map-action-pill:active {
+  transform: scale(0.96);
+}
+
+.map-action-pill.map-action-point {
+  background: #059669;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+}
+
+.map-action-pill.map-action-point:hover {
+  background: #047857;
+  color: #ffffff;
+}
+
+.temukan-search-floating {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 70px;
+  max-width: 440px;
+  z-index: 30;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.96));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border, rgba(200, 215, 205, 0.8));
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  padding: 8px 10px;
+  max-height: 50vh;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+.temukan-search-floating .avenza-map-search-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px;
-  border: 0;
-  color: var(--field-accent);
-  background: var(--field-surface);
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.field-action-pod > .field-add-point {
-  background: var(--field-accent);
-  color: var(--field-on-accent);
-}
-.temukan-field .field-action-pod .map-fab-record-trigger {
-  padding: 10px;
-  background: var(--field-canvas);
-  color: var(--field-accent);
-  border-radius: 14px;
+  gap: 8px;
+  margin: 0;
   box-shadow: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.temukan-search-floating input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1e293b;
+}
+
+.temukan-search-floating button[type="submit"] {
+  background: #059669;
+  color: #ffffff;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.temukan-search-error {
+  padding: 6px 4px;
   font-size: 11px;
+  color: #b91c1c;
 }
-.temukan-field .field-action-pod .map-fab-record-trigger span {
-  display: none;
-}
-.temukan-field .avenza-gps-fab-btn {
-  width: 48px;
-  height: 48px;
-  right: 12px;
-  bottom: 86px;
-  background: var(--field-surface);
-  color: var(--field-accent);
-  border-color: var(--field-line);
-}
+
 .temukan-field .avenza-scale-bar-wrap {
-  bottom: 90px;
+  bottom: 38px;
 }
 .field-resume-draft {
   position: absolute;
@@ -7366,4 +7419,230 @@ html[data-field-theme="matahari"] .section-card h2 {
   min-height: min(280px, 50dvh);
 }
 
-.temukan-field .map-hud-pod.bottom-right { bottom: 120px; }
+.temukan-field .map-hud-pod.bottom-right { bottom: 20px; }
+.temukan-field .avenza-scale-bar-wrap { bottom: 22px; }
+
+/* ==========================================================================
+   AUTH MODAL & LOGIN VIEW STYLES
+   ========================================================================== */
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  overflow-y: auto;
+  background-color: #022c22;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-sizing: border-box;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 860px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  margin: auto;
+  border: 1px solid rgba(6, 78, 59, 0.2);
+}
+
+/* Panel Kiri: Hero Desktop */
+.auth-hero {
+  flex: 0 0 42%;
+  min-width: 320px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 36px 30px;
+  color: #ffffff;
+  background: linear-gradient(150deg, #064e3b 0%, #0d7344 60%, #042f2e 100%);
+  background-size: cover;
+  background-position: center;
+  box-sizing: border-box;
+}
+
+.auth-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(2, 44, 34, 0.65) 0%, rgba(4, 47, 46, 0.94) 100%);
+  pointer-events: none;
+}
+
+.auth-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+}
+
+.auth-hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.auth-hero-brand h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.auth-hero-brand p {
+  font-size: 0.78rem;
+  color: #a7f3d0;
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+
+.auth-feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.auth-feature-item {
+  background: rgba(4, 47, 46, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(167, 243, 208, 0.22);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.auth-feature-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6ee7b7;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-feature-desc {
+  font-size: 0.74rem;
+  color: rgba(236, 253, 245, 0.9);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.auth-hero-footer {
+  font-size: 0.72rem;
+  color: rgba(167, 243, 208, 0.75);
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(167, 243, 208, 0.2);
+  padding-top: 14px;
+  margin-top: 18px;
+}
+
+/* Panel Kanan: Form */
+.auth-form-panel {
+  flex: 1 1 58%;
+  background: #ffffff;
+  color: #1e293b;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 36px 36px 28px;
+  box-sizing: border-box;
+}
+
+.auth-mobile-header {
+  display: none;
+}
+
+.auth-desktop-header {
+  margin-bottom: 20px;
+}
+
+.auth-desktop-header h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.auth-desktop-header p {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.auth-body {
+  flex: 1;
+}
+
+/* Penyesuaian Responsif Mobile (layar kecil < 768px) */
+@media (max-width: 768px) {
+  .auth-overlay {
+    padding: 12px;
+    align-items: center;
+  }
+
+  .auth-card {
+    max-width: 420px;
+    flex-direction: column;
+    border-radius: 18px;
+    margin: 8px auto;
+  }
+
+  .auth-hero {
+    display: none !important;
+  }
+
+  .auth-mobile-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px 20px 20px;
+    background: linear-gradient(135deg, #064e3b 0%, #0d7344 100%);
+    color: #ffffff;
+    box-sizing: border-box;
+  }
+
+  .auth-mobile-header img {
+    margin-bottom: 8px;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  }
+
+  .auth-mobile-header h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  .auth-mobile-header p {
+    font-size: 0.78rem;
+    color: #a7f3d0;
+    margin: 4px 0 0;
+  }
+
+  .auth-desktop-header {
+    display: none;
+  }
+
+  .auth-form-panel {
+    padding: 24px 20px 20px;
+  }
+}

@@ -31,25 +31,9 @@ const metadataArsipMbtiles = new Map<string, MetadataMbtilesSql>();
  */
 export function dapatkanSqlJs(): Promise<SqlJsStatic> {
   if (!sqlStaticPromise) {
-    sqlStaticPromise = (async () => {
-      // Jika di lingkungan Node.js (Vitest)
-      if (typeof window === "undefined" || !window.document) {
-        try {
-          const fs = await import("fs");
-          const path = await import("path");
-          const wasmPath = path.resolve(process.cwd(), "public", "sql-wasm.wasm");
-          if (fs.existsSync(wasmPath)) {
-            const wasmBinary = fs.readFileSync(wasmPath);
-            return await initSqlJs({ wasmBinary: new Uint8Array(wasmBinary).buffer as ArrayBuffer });
-          }
-        } catch {
-          // fallback
-        }
-      }
-      return await initSqlJs({
-        locateFile: () => "/sql-wasm.wasm"
-      });
-    })();
+    sqlStaticPromise = initSqlJs({
+      locateFile: (file: string) => (typeof window === "undefined" ? `./public/${file}` : `/${file}`)
+    });
   }
   return sqlStaticPromise;
 }

@@ -40,7 +40,7 @@ import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googleTiles";
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
-import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, X } from "lucide-react";
+import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Route, Search, Square, X } from "lucide-react";
 
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
@@ -125,7 +125,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [bukaInfoPetaKustom, setBukaInfoPetaKustom] = useState<boolean>(false);
   const [cariKoordInput, setCariKoordInput] = useState<string>("");
   const [cariKoordTerbuka, setCariKoordTerbuka] = useState<boolean>(false);
-  const [pilihPetaTerbuka, setPilihPetaTerbuka] = useState(false);
   const [galatPencarian, setGalatPencarian] = useState("");
   const cariKoordinat = () => {
     const match = cariKoordInput.trim().match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
@@ -190,7 +189,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // State UI Clean Mode: fitur disembunyikan agar tidak menghalangi peta di HP
   const [bukaMenuPeta, setBukaMenuPeta] = useState<boolean>(false);
-  const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
   const [tampilDaftarObjek, setTampilDaftarObjek] = useState<boolean>(false);
 
   // Navigasi: posisi GPS dan arah kompas dari sensor perangkat (null selama belum ada data)
@@ -348,7 +346,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       window.removeEventListener("resize", hitung);
       ro?.disconnect();
     };
-  }, [cariKoordTerbuka, pilihPetaTerbuka, petaKustomAktif, targetGoTo]);
+  }, [petaKustomAktif, targetGoTo]);
 
   // Roda tetikus dan cubit trackpad (PC/laptop): perbesar/perkecil di sekitar penunjuk.
   // Didaftarkan manual karena onWheel React bersifat pasif dan tidak bisa mencegah gulir halaman.
@@ -767,7 +765,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setBukaMenuPeta(false);
     setObjekTerpilih(null);
     setModeRekam(jenis);
-    setBukaAlatRekam(false);
     const ptAwal = titikDariBidikan(center, posisiNyata);
     if (jenis === "point") {
       setTitikDraft([ptAwal]);
@@ -891,115 +888,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </header>
       )}
 
-      <div className="temukan-toolbar">
-        <button
-          type="button"
-          className="temukan-search-trigger"
-          aria-expanded={cariKoordTerbuka}
-          onClick={() => setCariKoordTerbuka((v) => !v)}
-        >
-          <Search size={19} />
-          <span>Cari koordinat atau objek</span>
-        </button>
-        <button
-          type="button"
-          className="temukan-map-picker"
-          aria-expanded={pilihPetaTerbuka}
-          onClick={() => setPilihPetaTerbuka((v) => !v)}
-        >
-          <Layers size={18} />
-          <span>Peta saya</span>
-        </button>
-      </div>
-      {pilihPetaTerbuka && (
-        <section className="temukan-map-list" aria-label="Pilih peta tersimpan">
-          <div className="temukan-panel-title">
-            <strong>Pilih peta</strong>
-            <button type="button" aria-label="Tutup pilihan peta" onClick={() => setPilihPetaTerbuka(false)}>
-              <X size={18} />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              onTutupPetaKustom?.();
-              setPilihPetaTerbuka(false);
-            }}
-          >
-            <MapPin size={18} />
-            <span>
-              Peta dasar<small>Citra satelit resolusi tinggi</small>
-            </span>
-          </button>
-          {areaOffline.map((area) => (
-            <button
-              type="button"
-              key={area.id}
-              onClick={() => {
-                onPilihPetaKustom?.(area);
-                setPilihPetaTerbuka(false);
-              }}
-            >
-              <Layers size={18} />
-              <span>
-                {area.namaArea}
-                <small>{area.jenisFile || "Peta tersimpan"}</small>
-              </span>
-            </button>
-          ))}
-          {!areaOffline.length && <p>Belum ada peta tersimpan. Impor peta dari tab Pustaka.</p>}
-        </section>
-      )}
-      {cariKoordTerbuka && (
-        <section className="temukan-search-panel" aria-label="Pencarian peta">
-          <form
-            className="avenza-map-search-bar"
-            onSubmit={(e) => {
-              e.preventDefault();
-              cariKoordinat();
-            }}
-          >
-            <Search size={16} />
-            <input
-              autoFocus
-              aria-label="Koordinat atau nama objek"
-              placeholder="−6.1754, 106.8272 atau nama objek"
-              value={cariKoordInput}
-              onChange={(e) => {
-                setCariKoordInput(e.target.value);
-                setGalatPencarian("");
-              }}
-            />
-            <button type="submit">Cari</button>
-            <button type="button" aria-label="Tutup pencarian peta" onClick={() => setCariKoordTerbuka(false)}>
-              <X size={16} />
-            </button>
-          </form>
-          {galatPencarian && <p role="alert">{galatPencarian}</p>}
-          {cariKoordInput.trim() &&
-            dataSpasial
-              .filter((d) => d.judul.toLocaleLowerCase().includes(cariKoordInput.trim().toLocaleLowerCase()))
-              .slice(0, 8)
-              .map((d) => (
-                <button
-                  className="temukan-search-result"
-                  type="button"
-                  key={d.id}
-                  onClick={() => {
-                    if (d.koordinat[0]) setCenter(d.koordinat[0]);
-                    setObjekTerpilih(d);
-                    setCariKoordTerbuka(false);
-                  }}
-                >
-                  <MapPin size={16} />
-                  <span>
-                    {d.judul}
-                    <small>{d.jenisGeometri === "point" ? "Titik" : d.jenisGeometri === "line" ? "Jalur" : "Poligon"}</small>
-                  </span>
-                </button>
-              ))}
-        </section>
-      )}
+
 
       {/* BANNER NAVIGASI GO-TO WAYPOINT JIKA AKTIF */}
       {targetGoTo && (
@@ -1060,9 +949,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         </div>
 
-        <div className="bidikan-peta" aria-hidden="true"><Crosshair size={24} /></div>
+        {modeRekam && <div className="bidikan-peta" aria-hidden="true"><Crosshair size={24} /></div>}
+
+        {/* TELEMETRI GPS RINGKAS MENGAPUNG (TIDAK MENGHALANGI PETA) */}
         <div
-          className="field-telemetry"
+          className="field-telemetry-compact"
           data-gps={
             posisiNyata?.akurasi !== undefined
               ? posisiNyata.akurasi < 10
@@ -1076,37 +967,100 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <span className="field-gps-indicator" aria-hidden="true" />
           <button
             type="button"
-            className="field-telemetry-coordinate"
+            className="field-telemetry-coord-btn"
             disabled={!posisiNyata}
-            aria-label="Salin koordinat GPS"
+            title={posisiNyata ? "Ketuk untuk salin koordinat" : "Menunggu sinyal GPS"}
             onClick={() => {
               if (!navigator.clipboard) {
-                setPesanSalin("Papan klip tidak tersedia. Koordinat dapat dibaca pada panel GPS.");
+                setPesanSalin("Papan klip tidak tersedia");
                 return;
               }
-              if (posisiNyata)
+              if (posisiNyata) {
                 void navigator.clipboard
                   .writeText(`${posisiNyata.lat.toFixed(7)}, ${posisiNyata.lng.toFixed(7)}`)
                   .then(() => setPesanSalin("Koordinat GPS disalin"))
-                  .catch(() => setPesanSalin("Tidak dapat menyalin. Izinkan akses papan klip."));
+                  .catch(() => setPesanSalin("Gagal menyalin koordinat"));
+              }
             }}
           >
-            <strong>{posisiNyata ? formatKoordinatTeks(posisiNyata.lat, posisiNyata.lng, formatKoord) : infoGps.teks}</strong>
-            <small>{posisiNyata ? `GPS ±${posisiNyata.akurasi?.toFixed(1) ?? "?"} m` : "GPS belum tersedia"}</small>
+            <span className="telemetry-coord-text">
+              {posisiNyata ? formatKoordinatTeks(posisiNyata.lat, posisiNyata.lng, formatKoord) : infoGps.teks}
+            </span>
+            {posisiNyata?.akurasi !== undefined && (
+              <span className="telemetry-accuracy">±{posisiNyata.akurasi.toFixed(0)}m</span>
+            )}
           </button>
           <button
             type="button"
-            className="telemetry-format"
+            className="telemetry-format-pill"
             aria-label="Ubah format koordinat"
+            title={`Format saat ini: ${formatKoord}. Ketuk untuk beralih.`}
             onClick={() => setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))}
           >
             {formatKoord}
           </button>
-          {rekamLatar.status !== "idle" && <span className="telemetry-timer">● {formatDurasi(durasiRekamMs(rekamLatar))}</span>}
+          {rekamLatar.status !== "idle" && (
+            <span className="telemetry-timer-pill">REC {formatDurasi(durasiRekamMs(rekamLatar))}</span>
+          )}
         </div>
-        <span className="field-map-message" role="status">
-          {pesanSalin}
-        </span>
+
+        {/* PENCARIAN KOORDINAT / OBJEK MENGAPUNG (TIDAK MEMOTONG TINGGI KANVAS) */}
+        {cariKoordTerbuka && (
+          <section className="temukan-search-floating" aria-label="Pencarian peta">
+            <form
+              className="avenza-map-search-bar"
+              onSubmit={(e) => {
+                e.preventDefault();
+                cariKoordinat();
+              }}
+            >
+              <Search size={16} />
+              <input
+                autoFocus
+                aria-label="Koordinat atau nama objek"
+                placeholder="−6.1754, 106.8272 atau nama objek"
+                value={cariKoordInput}
+                onChange={(e) => {
+                  setCariKoordInput(e.target.value);
+                  setGalatPencarian("");
+                }}
+              />
+              <button type="submit">Cari</button>
+              <button type="button" aria-label="Tutup pencarian peta" onClick={() => setCariKoordTerbuka(false)}>
+                <X size={16} />
+              </button>
+            </form>
+            {galatPencarian && <p className="temukan-search-error" role="alert">{galatPencarian}</p>}
+            {cariKoordInput.trim() &&
+              dataSpasial
+                .filter((d) => d.judul.toLocaleLowerCase().includes(cariKoordInput.trim().toLocaleLowerCase()))
+                .slice(0, 6)
+                .map((d) => (
+                  <button
+                    className="temukan-search-result"
+                    type="button"
+                    key={d.id}
+                    onClick={() => {
+                      if (d.koordinat[0]) setCenter(d.koordinat[0]);
+                      setObjekTerpilih(d);
+                      setCariKoordTerbuka(false);
+                    }}
+                  >
+                    <MapPin size={15} />
+                    <span>
+                      {d.judul}
+                      <small>{d.jenisGeometri === "point" ? "Titik" : d.jenisGeometri === "line" ? "Jalur" : "Poligon"}</small>
+                    </span>
+                  </button>
+                ))}
+          </section>
+        )}
+
+        {pesanSalin && (
+          <span className="field-map-message" role="status">
+            {pesanSalin}
+          </span>
+        )}
         {/* TOP-RIGHT GLASSMORPHIC CONTROL POD (Layers, Orientasi Kompas, Basemap, Cari) */}
         <div className="map-hud-pod top-right map-overlay-top-right">
           <button
@@ -1221,7 +1175,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             basemap={basemap}
             jumlahObjek={dataSpasial.length}
             tampilDaftarObjek={tampilDaftarObjek}
+            areaOffline={areaOffline}
+            petaKustomAktif={petaKustomAktif}
             onPilihBasemap={setBasemap}
+            onPilihPetaKustom={onPilihPetaKustom}
+            onTutupPetaKustom={onTutupPetaKustom}
             onUnduhOffline={() => unduh.bukaModalUnduh(hitungKotakTerlihat(), zoom)}
             onPilihBerkas={handleImporFileSpasial}
             onAlihDaftarObjek={() => setTampilDaftarObjek((v) => !v)}
@@ -1293,44 +1251,34 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           )}
           {/* TOMBOL REKAM RINGKAS YANG BISA DISEMBUNYIKAN AGAR TIDAK MENGHALANGI PETA */}
           {!modeRekam && (
-            <div className="map-clean-bottom-bar field-action-pod">
-              <button type="button" className="field-add-point" onClick={() => mulaiModeRekam("point")}>
-                <MapPin size={20} />
-                <span>Tambah titik</span>
+            <div className="map-action-pill-bar" role="toolbar" aria-label="Alat rekam spasial">
+              <button
+                type="button"
+                className="map-action-pill map-action-point"
+                onClick={() => mulaiModeRekam("point")}
+                title="Rekam Titik Lokasi / Waypoint"
+              >
+                <MapPin size={15} />
+                <span>Titik</span>
               </button>
-              <button type="button" className="field-start-track" onClick={() => mulaiModeRekam("line")}>
-                <Route size={20} />
-                <span>Rekam jalur</span>
+              <button
+                type="button"
+                className="map-action-pill"
+                onClick={() => mulaiModeRekam("line")}
+                title="Rekam Jalur / Tracking GPS"
+              >
+                <Route size={15} />
+                <span>Jalur</span>
               </button>
-              {!bukaAlatRekam ? (
-                <button type="button" className="map-fab-record-trigger" onClick={() => setBukaAlatRekam(true)}>
-                  <Plus size={18} strokeWidth={2.5} />
-                  <span>Rekam Lokasi</span>
-                </button>
-              ) : (
-                <div className="map-compact-record-pills">
-                  <button type="button" className="compact-rec-pill" onClick={() => mulaiModeRekam("point")}>
-                    <MapPin size={15} />
-                    <span>Titik</span>
-                  </button>
-                  <button type="button" className="compact-rec-pill" onClick={() => mulaiModeRekam("line")}>
-                    <Route size={15} />
-                    <span>Jalur</span>
-                  </button>
-                  <button type="button" className="compact-rec-pill" onClick={() => mulaiModeRekam("polygon")}>
-                    <Square size={15} />
-                    <span>Poligon</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="compact-rec-close"
-                    onClick={() => setBukaAlatRekam(false)}
-                    title="Sembunyikan alat rekam"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              )}
+              <button
+                type="button"
+                className="map-action-pill"
+                onClick={() => mulaiModeRekam("polygon")}
+                title="Rekam Area / Poligon"
+              >
+                <Square size={15} />
+                <span>Area</span>
+              </button>
             </div>
           )}
         </div>
@@ -1345,28 +1293,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         </div>
 
-        {/* TOMBOL PUSATKAN KE GPS (AVENZA MAPS FAB STYLE) */}
-        <button
-          type="button"
-          className="avenza-gps-fab-btn"
-          disabled={!gpsPos && !petaKustomAktif}
-          onClick={() => {
-            if (gpsPos) {
-              setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-              setZoom((z) => Math.max(z, 15));
-            } else if (petaKustomAktif) {
-              setCenter({
-                lat: (petaKustomAktif.minLat + petaKustomAktif.maxLat) / 2,
-                lng: (petaKustomAktif.minLng + petaKustomAktif.maxLng) / 2
-              });
-              setZoom(14);
-            }
-          }}
-          title={gpsPos ? "Pusatkan ke posisi GPS saya" : "Pusatkan ke peta GeoPDF"}
-          aria-label="Pusatkan ke GPS"
-        >
-          <MapPin size={26} color="#059669" fill="#059669" />
-        </button>
+
       </div>
 
       {/* PANEL DETAIL OBJEK EXISTING KETIKA DIKLIK DI PETA */}

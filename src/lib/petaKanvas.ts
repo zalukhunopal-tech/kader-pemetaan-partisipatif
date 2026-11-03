@@ -184,10 +184,7 @@ export function gambarLembarPetaGeoPdf(
   ctx.restore();
 
   // 3. Tampilkan gambar lembar peta asli pengguna (otentik tanpa rekayasa bentuk buatan)
-  const urlGambar =
-    peta.petaKustomDataUrl ||
-    peta.petaKustomUrl ||
-    (peta.namaArea.toLowerCase().includes("tanjung_selor") ? "/peta/tanjung_selor_lembar.jpg" : undefined);
+  const urlGambar = peta.petaKustomDataUrl || peta.petaKustomUrl;
 
   if (urlGambar) {
     const img = muatGambarPetaKustom(urlGambar, saatGambarSiap);

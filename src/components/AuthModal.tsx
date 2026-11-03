@@ -22,27 +22,38 @@ interface AuthModalProps {
 
 type Mode = "setup_admin" | "login" | "kode_totp" | "daftar_totp" | "kode_pemulihan" | "ganti_sandi" | "lupa_password";
 
-const gayaLabel: React.CSSProperties = { display: "block", fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 4 };
+const gayaLabel: React.CSSProperties = {
+  display: "block",
+  fontSize: "0.78rem",
+  fontWeight: 700,
+  color: "#334155",
+  marginBottom: 5
+};
 const gayaInput: React.CSSProperties = {
   width: "100%",
-  height: 42,
+  height: 44,
   padding: "0 12px",
   borderRadius: 10,
   border: "1.5px solid #cbd5e1",
   fontSize: "0.88rem",
-  outline: "none"
+  background: "#ffffff",
+  color: "#0f172a",
+  outline: "none",
+  boxSizing: "border-box"
 };
-const gayaInputIkon: React.CSSProperties = { ...gayaInput, padding: "0 12px 0 36px" };
+const gayaInputIkon: React.CSSProperties = { ...gayaInput, padding: "0 12px 0 38px" };
 const gayaTombol = (sibuk: boolean): React.CSSProperties => ({
-  height: 44,
+  width: "100%",
+  height: 46,
   borderRadius: 10,
   background: "#0d7344",
   color: "#ffffff",
   border: "none",
   fontWeight: 700,
-  fontSize: "0.9rem",
+  fontSize: "0.92rem",
   cursor: sibuk ? "wait" : "pointer",
-  opacity: sibuk ? 0.7 : 1
+  opacity: sibuk ? 0.7 : 1,
+  boxShadow: "0 2px 8px rgba(13, 115, 68, 0.25)"
 });
 const gayaTautan: React.CSSProperties = {
   border: "none",
@@ -52,7 +63,14 @@ const gayaTautan: React.CSSProperties = {
   fontWeight: 600,
   cursor: "pointer"
 };
-const gayaIkonKiri: React.CSSProperties = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" };
+const gayaIkonKiri: React.CSSProperties = {
+  position: "absolute",
+  left: 12,
+  top: "50%",
+  transform: "translateY(-50%)",
+  color: "#64748b",
+  pointerEvents: "none"
+};
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
   // Wallpaper harian otomatis dari Google Drive yang berganti tiap hari
@@ -273,86 +291,88 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
 
   return (
     <div
+      className="auth-overlay"
       style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 999,
-        background: urlGambar
-          ? `linear-gradient(135deg, rgba(2, 44, 34, 0.88), rgba(4, 47, 46, 0.94)), url(${urlGambar}) center/cover no-repeat`
-          : "linear-gradient(135deg, #022c22 0%, #064e3b 50%, #042f2e 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "12px",
-        overflowY: "auto"
+        backgroundImage: urlGambar
+          ? `linear-gradient(135deg, rgba(2, 44, 34, 0.90), rgba(4, 47, 46, 0.95)), url(${urlGambar})`
+          : "linear-gradient(135deg, #022c22 0%, #064e3b 50%, #042f2e 100%)"
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "440px",
-          background: "#ffffff",
-          borderRadius: "20px",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.45)",
-          overflow: "hidden",
-          margin: "auto"
-        }}
-      >
-        {/* HEADER BRANDING DENGAN WALLPAPER HARIAN */}
+      <div className="auth-card">
+        {/* PANEL KIRI KHUSUS DESKTOP DENGAN WALLPAPER HARIAN */}
         <div
+          className="auth-hero"
           style={{
-            position: "relative",
-            backgroundImage: urlGambar
-              ? `linear-gradient(to bottom, rgba(2, 44, 34, 0.45) 0%, rgba(4, 47, 46, 0.85) 100%), url(${urlGambar})`
-              : "linear-gradient(135deg, #064e3b, #0d7344)",
-            backgroundColor: "#064e3b",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            color: "#ffffff",
-            padding: "24px 16px 20px",
-            textAlign: "center",
-            overflow: "hidden"
+            backgroundImage: urlGambar ? `url(${urlGambar})` : undefined
           }}
         >
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <img
-              src="./icon.svg"
-              alt=""
-              width={58}
-              height={58}
-              style={{
-                display: "block",
-                margin: "0 auto 8px",
-                filter: "drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6))"
-              }}
-            />
-            <h2
-              style={{
-                margin: "0 0 4px",
-                fontSize: "1.35rem",
-                fontWeight: 800,
-                color: "#ffffff",
-                letterSpacing: "0.02em",
-                textShadow: "0 2px 6px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.95)"
-              }}
-            >
-              Titik Tapak
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.82rem",
-                fontWeight: 600,
-                color: "#ecfdf5",
-                textShadow: "0 1px 4px rgba(0, 0, 0, 0.95)"
-              }}
-            >
-              Pemetaan Partisipatif Masyarakat
-            </p>
+          <div className="auth-hero-overlay" />
+          <div className="auth-hero-content">
+            <div>
+              <div className="auth-hero-brand">
+                <img src="./icon.svg" alt="" width={44} height={44} style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
+                <div>
+                  <h1>Titik Tapak</h1>
+                  <p>Pemetaan Partisipatif</p>
+                </div>
+              </div>
+              <div className="auth-feature-list">
+                <div className="auth-feature-item">
+                  <div className="auth-feature-title">🌿 Survei Keanekaragaman Hayati</div>
+                  <div className="auth-feature-desc">
+                    Pencatatan flora, fauna, mata air, dan batas wilayah adat langsung dari kader lapangan.
+                  </div>
+                </div>
+                <div className="auth-feature-item">
+                  <div className="auth-feature-title">📡 Offline-First & GPS Akurat</div>
+                  <div className="auth-feature-desc">
+                    Bekerja tanpa sinyal seluler di hutan pedalaman dengan sinkronisasi otomatis Google Drive.
+                  </div>
+                </div>
+                <div className="auth-feature-item">
+                  <div className="auth-feature-title">🔒 Keamanan Terverifikasi</div>
+                  <div className="auth-feature-desc">
+                    Verifikasi dua langkah (Google Authenticator) & PIN proteksi data spasial desa.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="auth-hero-footer">
+              <span>Titik Tapak v1.0</span>
+              <span>Jejak Baik Untuk Bumi</span>
+            </div>
           </div>
         </div>
 
-        <div style={{ padding: "18px" }}>
+        {/* PANEL KANAN: FORM LOGIN & IDENTIFIKASI */}
+        <div className="auth-form-panel">
+          {/* HEADER MOBILE (Hanya tampil di layar kecil < 768px) */}
+          <div
+            className="auth-mobile-header"
+            style={{
+              backgroundImage: urlGambar
+                ? `linear-gradient(to bottom, rgba(2, 44, 34, 0.5) 0%, rgba(4, 47, 46, 0.92) 100%), url(${urlGambar})`
+                : "linear-gradient(135deg, #064e3b, #0d7344)",
+              backgroundSize: "cover",
+              backgroundPosition: "center"
+            }}
+          >
+            <img src="./icon.svg" alt="" width={52} height={52} />
+            <h2>Titik Tapak</h2>
+            <p>Pemetaan Partisipatif Masyarakat</p>
+          </div>
+
+          {/* DESKTOP FORM HEADER */}
+          <div className="auth-desktop-header">
+            <h2>{mode === "setup_admin" ? "Inisialisasi Sistem" : "Masuk ke Titik Tapak"}</h2>
+            <p>
+              {mode === "setup_admin"
+                ? "Daftarkan akun administrator utama pertama untuk perangkat ini."
+                : "Silakan masukkan email dan kata sandi akun Anda."}
+            </p>
+          </div>
+
+          <div className="auth-body">
           {pesanError && (
             <div
               role="alert"
@@ -776,6 +796,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
             <TombolInstal className="auth-instal-tombol" label="Pasang Titik Tapak di HP ini" />
           </div>
         )}
+        </div>
       </div>
     </div>
   );

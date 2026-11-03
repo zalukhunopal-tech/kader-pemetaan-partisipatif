@@ -7,7 +7,19 @@ import { GoogleGenAI } from "@google/genai";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+
+function parseArg(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  if (idx !== -1 && idx + 1 < process.argv.length) {
+    return process.argv[idx + 1];
+  }
+  return undefined;
+}
+
+const cliPort = parseArg("--port");
+const PORT = cliPort ? Number(cliPort) : (Number(process.env.PORT) || 3000);
+const cliHost = parseArg("--host");
+const HOST = cliHost || process.env.HOST || "0.0.0.0";
 
 // Nonaktifkan header identifikasi server demi keamanan
 app.disable("x-powered-by");
@@ -106,14 +118,22 @@ app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
 });
 
 // Inisialisasi Google GenAI SDK (User-Agent aistudio-build wajib sesuai panduan)
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build"
-    }
+let cachedAi: GoogleGenAI | null = null;
+function getAi(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  if (!cachedAi) {
+    cachedAi = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build"
+        }
+      }
+    });
   }
-});
+  return cachedAi;
+}
 
 const SYSTEM_INSTRUCTION = `Kamu adalah Asisten Virtual Cerdas Admin Titik Tapak (aplikasi survei keanekaragaman hayati dan pemetaan partisipatif kader masyarakat).
 
@@ -165,8 +185,8 @@ app.post("/api/gemini/chat-admin", async (req: Request, res: Response) => {
       return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const ai = getAi();
+    if (!ai) {
       // Jika API key belum terpasang di environment, teruskan langsung ke Admin
       res.json({
         sukses: true,
@@ -255,7 +275,7 @@ async function startServer() {
 
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true, host: "0.0.0.0", port: PORT },
+      server: { middlewareMode: true, host: HOST, port: PORT, hmr: false },
       appType: "spa"
     });
     app.use(vite.middlewares);
@@ -298,9 +318,12 @@ async function startServer() {
     res.status(500).json({ sukses: false, error: "Terjadi kesalahan internal pada server." });
   });
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Titik Tapak server running on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Titik Tapak server running on http://${HOST}:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Gagal memulai server Titik Tapak:", err);
+  process.exit(1);
+});

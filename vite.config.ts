@@ -45,12 +45,14 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,mjs,css,html,svg,png,ico,json,webp}"],
         // Tangkapan layar hanya untuk dialog pemasangan, tidak perlu disimpan untuk offline
-        globIgnores: ["**/screenshot-*"]
+        globIgnores: ["**/screenshot-*"],
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
       }
     })
   ],
   server: {
     host: "0.0.0.0",
-    port: 3000
+    port: 3000,
+    hmr: false
   }
 });
