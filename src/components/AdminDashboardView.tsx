@@ -548,7 +548,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
           <div className="section-card">
             <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>📋 Daftar Tugas ({tugasList.length})</h3>
             {tugasList.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                 {tugasList.map((t) => (
                   <div
                     key={t.id}
@@ -556,11 +556,10 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                       background: "#f8faf9",
                       border: "1px solid #d5dcd8",
                       borderRadius: 12,
-                      padding: "12px",
+                      padding: "14px",
                       display: "flex",
-                      alignItems: "center",
+                      flexDirection: "column",
                       justifyContent: "space-between",
-                      flexWrap: "wrap",
                       gap: 10
                     }}
                   >

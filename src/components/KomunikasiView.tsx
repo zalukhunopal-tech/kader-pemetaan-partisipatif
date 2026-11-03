@@ -154,11 +154,13 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         flexDirection: "column",
         height: "calc(100vh - 128px)",
         maxHeight: "840px",
+        maxWidth: "1100px",
+        width: "calc(100% - 20px)",
+        margin: "10px auto",
         background: "#efeae2",
         borderRadius: "16px",
         overflow: "hidden",
         border: "1px solid #d1d7db",
-        margin: "8px 10px",
         boxShadow: "0 4px 16px rgba(0,0,0,0.08)"
       }}
     >

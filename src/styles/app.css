@@ -138,9 +138,9 @@ body {
   }
 
   .page-container {
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: 24px 24px 80px;
+    padding: 24px 32px 80px;
     width: 100%;
   }
 
@@ -337,6 +337,10 @@ body {
   flex-direction: column;
   flex: 1;
   background: #ffffff;
+  max-width: 1240px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Segmented Control: Peta | Lapisan (Modern, Rapi & Proporsional) */
@@ -649,6 +653,29 @@ body {
   display: flex;
   flex-direction: column;
   padding: 0 16px 90px;
+}
+
+@media (min-width: 768px) {
+  .avenza-map-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+    padding: 0 20px 90px;
+  }
+
+  .avenza-map-row {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .avenza-map-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
 }
 
 .avenza-map-row {
@@ -1596,22 +1623,40 @@ body {
   font-size: 0.76rem;
 }
 
-/* PAGE CONTAINER & CARDS */
+/* PAGE CONTAINER & CARDS (RESPONSIF MOBILE, TABLET & PC) */
 .page-container {
   width: 100%;
-  padding: 14px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 14px 16px 80px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .page-container {
+    padding: 18px 24px 80px;
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container {
+    padding: 24px 32px 80px;
+    gap: 20px;
+  }
 }
 
 .section-card {
   background: #ffffff;
   border: 1px solid #d5dcd8;
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: clamp(12px, 1.3vw, 16px);
+  padding: clamp(14px, 1.6vw, 22px);
   min-width: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .section-card h2,
@@ -2643,7 +2688,14 @@ label {
 /* =========================================================
    RESPONSIVE MOBILE RULES (FIX OVERLAPPING TEXT ON HP)
    ========================================================= */
-@media (max-width: 768px) {
+@media (max-width: 900px) and (min-width: 641px) {
+  .form-row-3 {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
   .stat-grid-3,
   .form-row-2,
   .form-row-3,
@@ -2651,6 +2703,7 @@ label {
   .reward-targets-grid,
   .gis-level-updown-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .map-canvas-container {
@@ -4103,17 +4156,17 @@ label {
   color: #475569;
 }
 
-/* Sub-menu Admin: 3 kolom rapi di semua layar (3 di atas, 3 di bawah), teks tidak terpotong */
+/* Sub-menu Admin: adaptif otomatis di semua ukuran layar (Mobile, Tablet & PC) */
 .admin-subnav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
   gap: 6px;
   margin-top: 14px;
 }
 
 @media (min-width: 768px) {
   .admin-subnav {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
   }
 }
@@ -6354,6 +6407,18 @@ label {
   gap: 8px;
 }
 
+@media (max-width: 520px) {
+  .sync-pipeline-stages {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .pipeline-stage-arrow {
+    transform: rotate(90deg);
+    padding: 2px 0;
+  }
+}
+
 .pipeline-stage-card {
   display: flex;
   flex-direction: column;
@@ -6397,9 +6462,31 @@ label {
 /* RewardView Hero Metrics & Podium */
 .reward-hero-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
+}
+
+@media (max-width: 640px) {
+  .reward-hero-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .reward-hero-card {
+    padding: 10px 8px;
+  }
+
+  .reward-hero-val {
+    font-size: 1.15rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .reward-hero-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .reward-hero-card {
@@ -7862,15 +7949,14 @@ html[data-field-theme="malam"] :is(.btn-outline-sm, .btn-tool, .btn-icon-close, 
     border: 1px solid var(--field-line);
   }
   .gis-split-workspace {
-    display: grid;
-    grid-template-columns: minmax(300px, 42%) minmax(0, 1fr);
-    align-items: start;
-    grid-template-areas: "panel map";
+    display: flex;
+    flex-direction: column;
+    width: 100%;
   }
   .gis-split-workspace > .page-container {
-    grid-area: panel;
     min-width: 0;
     padding: 16px;
+    width: 100%;
   }
   .gis-split-workspace > .workspace-map {
     grid-area: map;
@@ -8255,9 +8341,16 @@ html[data-field-theme="matahari"] .section-card h2 {
   gap: 14px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 680px) {
   .panel-user-cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .panel-user-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
     gap: 16px;
   }
 }
@@ -8380,15 +8473,16 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 6px 8px;
-  font-size: 0.75rem;
+  padding: 6px 6px;
+  font-size: 0.74rem;
   color: #334155;
   text-align: center;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.25;
 }
 
 .kader-hok-admin-control {
