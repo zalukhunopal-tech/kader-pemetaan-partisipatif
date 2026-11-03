@@ -275,7 +275,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             onClick={() => setSaluranAktif("komunitas")}
           >
             <span className="seg-icon">👥</span>
-            <span className="seg-label">Ruang Diskusi Kader</span>
+            <span className="seg-label seg-label-desktop">Ruang Diskusi Kader</span>
+            <span className="seg-label seg-label-mobile">Diskusi Kader</span>
             <span className="seg-badge">{pesanList.filter((p) => p.saluran === "komunitas").length}</span>
           </button>
           <button
@@ -286,7 +287,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             onClick={() => setSaluranAktif("admin")}
           >
             <span className="seg-icon">🛡️</span>
-            <span className="seg-label">Jalur Koordinasi Admin</span>
+            <span className="seg-label seg-label-desktop">Jalur Koordinasi Admin</span>
+            <span className="seg-label seg-label-mobile">Jalur Admin</span>
             <span className="seg-badge admin-badge">Resmi</span>
           </button>
         </div>
