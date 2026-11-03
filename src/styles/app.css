@@ -6857,14 +6857,14 @@ label {
 /* RewardView Hero Metrics & Podium */
 .reward-hero-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
 
 @media (max-width: 640px) {
   .reward-hero-grid {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 14px;
   }
@@ -6878,10 +6878,11 @@ label {
   }
 }
 
-@media (max-width: 380px) {
-  .reward-hero-grid {
-    grid-template-columns: 1fr;
-  }
+.reward-hero-card.reward-hero-card-wide {
+  grid-column: 1 / -1;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
 }
 
 .reward-hero-card {
@@ -7852,14 +7853,22 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   width: 100%;
-  padding-bottom: 2px;
+  padding: 2px 2px 6px;
+  margin: 0;
+}
+
+.panel-tier-pills::-webkit-scrollbar {
+  display: none;
 }
 
 .tier-pill {
-  padding: 6px 14px;
-  border-radius: 8px;
+  padding: 7px 16px;
+  border-radius: 9999px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #475569;
@@ -7868,13 +7877,34 @@ button:disabled {
   cursor: pointer;
   white-space: nowrap;
   flex: 0 0 auto;
-  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
+}
+
+.tier-pill:hover:not(.active) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
 }
 
 .tier-pill.active {
   background: #0d7344;
   color: #ffffff;
   border-color: #0d7344;
+  box-shadow: 0 2px 6px rgba(13, 115, 68, 0.25);
+}
+
+@media (min-width: 768px) {
+  .panel-tier-pills {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 10px;
+    padding: 4px 0 6px;
+  }
+  .tier-pill {
+    font-size: 0.84rem;
+    padding: 8px 18px;
+  }
 }
 
 /* panel-user-cards-grid and kader-user-level-card moved to dedicated responsive section */
@@ -9116,6 +9146,39 @@ html[data-field-theme="matahari"] .section-card h2 {
   transform: scale(0.96);
 }
 
+.rail-gps {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.rail-gps-btn {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.16s ease-in-out;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.rail-gps-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0d7344;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+.rail-gps-btn.active {
+  background: #0d7344 !important;
+  color: #ffffff !important;
+  border-color: #0d7344 !important;
+  box-shadow: 0 3px 12px rgba(13, 115, 68, 0.35);
+}
 .rail-divider {
   width: 32px;
   height: 1px;
@@ -9808,55 +9871,57 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 /* Responsivitas rail alat zoom & survei di mobile dan PC */
 @media (max-width: 640px) {
-  /* Pod kontrol atas kanan (Layer, Kompas) di mobile agar kompak dan tidak berhimpitan */
+  /* Pod kontrol atas kanan (Layer, Kompas) di mobile agar kompak dan anti-overlap */
   .map-hud-pod.top-right {
-    top: 10px !important;
-    right: 10px !important;
-    padding: 4px !important;
-    gap: 4px !important;
-    border-radius: 14px !important;
+    top: 8px !important;
+    right: 8px !important;
+    padding: 3px !important;
+    gap: 3px !important;
+    border-radius: 12px !important;
   }
   .map-hud-pod.top-right .map-hud-btn,
   .map-hud-pod.top-right .map-ctrl-btn {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
-    border-radius: 10px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    border-radius: 8px !important;
   }
   .map-hud-pod.top-right .map-hud-btn svg,
   .map-hud-pod.top-right .map-ctrl-btn svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 17px !important;
+    height: 17px !important;
   }
 
-  /* Rail alat zoom & survei di mobile dibuat kompak, proporsional, dan anti-overlap */
+  /* Rail alat GPS, zoom & survei di mobile dibuat terpadu, proporsional, dan anti-overlap */
   .map-tool-rail {
-    bottom: 12px !important;
-    right: 10px !important;
-    padding: 4px 3px !important;
+    bottom: 8px !important;
+    right: 8px !important;
+    padding: 3px !important;
     gap: 2px !important;
-    border-radius: 14px !important;
-    max-height: calc(100vh - 160px) !important;
+    border-radius: 12px !important;
+    max-height: calc(100vh - 210px) !important;
     overflow-y: auto !important;
     scrollbar-width: none !important;
   }
   .map-tool-rail::-webkit-scrollbar {
     display: none;
   }
-  .rail-btn {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
-    border-radius: 9px !important;
+  .rail-btn,
+  .rail-gps-btn {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    border-radius: 8px !important;
   }
-  .rail-btn svg {
-    width: 17px !important;
-    height: 17px !important;
+  .rail-btn svg,
+  .rail-gps-btn svg {
+    width: 16px !important;
+    height: 16px !important;
   }
   .rail-tool {
-    height: 38px !important;
+    height: 36px !important;
     padding: 2px 1px !important;
   }
   .rail-tool-label {
@@ -9865,8 +9930,10 @@ html[data-field-theme="matahari"] .section-card h2 {
     line-height: 1 !important;
   }
   .rail-divider {
-    width: 24px !important;
-    margin: 2px 0 !important;
+    width: 20px !important;
+    height: 1px !important;
+    background: rgba(203, 213, 225, 0.85) !important;
+    margin: 2px auto !important;
   }
   .coord-chip-wrap {
     max-width: calc(100vw - 110px) !important;
@@ -9934,4 +10001,15 @@ html[data-field-theme="matahari"] .section-card h2 {
     min-height: 34px !important;
     flex-shrink: 0 !important;
   }
+}
+
+/* Mode admin banner anti-overlap interactive map HUD & rail */
+.banner-mode-admin ~ * .map-hud-pod.top-right,
+.banner-mode-admin + * .map-hud-pod.top-right {
+  top: 6px !important;
+}
+.banner-mode-admin ~ * .map-tool-rail,
+.banner-mode-admin + * .map-tool-rail {
+  max-height: calc(100vh - 240px) !important;
+  bottom: 6px !important;
 }

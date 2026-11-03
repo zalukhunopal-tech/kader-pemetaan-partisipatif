@@ -285,7 +285,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
   });
 
   // SIMULASI 7: Penggantian Buku HOK menjadi Panel Data User & Level Kader
-  it("Simulasi 7: Panel Data User & Level Kader menampilkan tingkatan user otomatis dan kontrol penentuan HOK", () => {
+  it("Simulasi 7: Panel Data User & Level Kader menampilkan tingkatan user otomatis dan fitur HOK telah dihapus", () => {
     // Uji fungsi kenaikan level otomatis
     const lvl1 = hitungLevelKaderOtomatis(2, 1.5, 0.5);
     expect(lvl1.tierNama).toBe("Kader Pemula");
@@ -306,7 +306,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     );
 
     expect(html).toContain("Data User &amp; Level Kader");
-    expect(html).toContain("Penetapan Alokasi HOK");
+    expect(html).not.toContain("Penetapan Alokasi HOK");
     expect(html).toContain("Rian Hidayat");
     expect(html).toContain("Tanjung Selor Hilir");
   });

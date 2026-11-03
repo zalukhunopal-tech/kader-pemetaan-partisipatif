@@ -566,15 +566,15 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </small>
         </div>
 
-        <div className="reward-hero-card">
+        <div className="reward-hero-card reward-hero-card-wide">
           <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Survei Sah
+            Terverifikasi
           </span>
           <strong className="reward-hero-val" style={{ color: "var(--brand-accent)" }}>
             {capaianTerverifikasi.totalPoinTitik} <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>titik</span>
           </strong>
           <small className="text-muted" style={{ fontSize: "0.7rem", marginTop: 3 }}>
-            Terverifikasi admin
+            Data survei terverifikasi admin
           </small>
         </div>
       </div>
