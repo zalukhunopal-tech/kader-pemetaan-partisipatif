@@ -16,9 +16,12 @@ import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
 import { AkunSesi } from "../lib/auth";
 import { AkunAdminPanel } from "./AkunAdminPanel";
 import { CatatanPerangkat } from "./CatatanPerangkat";
+import { PanelDataUserLevel } from "./PanelDataUserLevel";
+import { Users } from "lucide-react";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
-import { Check, Award, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
+import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
+import { Check, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
 
 interface AdminDashboardViewProps {
   dataSpasial: DataSpasialItem[];
@@ -58,9 +61,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onHapusTugas,
   onFokusKePeta
 }) => {
-  const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "hok">(
-    "kader_aktif"
-  );
+const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "user_level" | "hok">("kader_aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
 
@@ -183,11 +184,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           {(
             [
               { id: "kader_aktif", label: "Monitor", Ikon: Radio },
+              { id: "user_level", label: "User & Level", Ikon: Users },
               { id: "kelola_data", label: `Data (${dataSpasial.length})`, Ikon: Edit3 },
               { id: "tugas_survei", label: `Tugas (${tugasList.length})`, Ikon: PlusCircle },
-              { id: "sertifikat", label: "Sertifikat", Ikon: Award },
-              { id: "akun", label: "Akun", Ikon: UserCog },
-              { id: "hok", label: "Buku HOK", Ikon: Award }
+{ id: "sertifikat", label: "Sertifikat", Ikon: LogoSertifikatResmiSvg },
+              { id: "akun", label: "Akun", Ikon: UserCog }
             ] as const
           ).map(({ id, label, Ikon }) => (
             <button
@@ -206,6 +207,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
       {subTabAdmin === "hok" && <BukuHokPanel data={dataSpasial} profil={profilKader} admin />}
       {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} dataSpasial={dataSpasial} sertifikatList={sertifikatList} />}
+
+      {subTabAdmin === "user_level" && (
+        <PanelDataUserLevel
+          dataSpasial={dataSpasial}
+          profilSaya={profilKader}
+          peranPengguna="admin"
+          onFokusPetaKader={onFokusKePeta}
+        />
+      )}
 
       {/* 2. TAB A: MONITOR KADER AKTIF */}
       {subTabAdmin === "kader_aktif" && (
@@ -631,7 +641,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div className="section-card">
             <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <Award size={18} color="#0d7344" /> Sertifikat
+              <LogoSertifikatResmiSvg size={20} variant="zamrud" /> Sertifikat
             </h3>
 
             <div className="form-row-3">
@@ -753,7 +763,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                               if (hasil.ok && hasil.sertifikat) onTerbitkanSertifikat(hasil.sertifikat);
                             }}
                           >
-                            <Award size={13} /> Terbitkan
+                            <LogoSertifikatResmiSvg size={14} variant="zamrud" /> Terbitkan
                           </button>
                         </td>
                       </tr>

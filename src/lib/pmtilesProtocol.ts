@@ -63,17 +63,43 @@ export function dapatkanProtokolPmtiles(): pmtiles.Protocol {
 /**
  * Daftarkan protokol pmtiles:// ke MapLibre GL instance secara aman (idempotent).
  */
-export function registrasiProtokolPmtiles(maplibreInstance?: Pick<typeof maplibregl, "addProtocol">): pmtiles.Protocol {
+/**
+ * Handler protokol pmtiles:// dengan auto-rehidrasi transparan dari IndexedDB saat refresh (F5).
+ */
+export async function tileHandlerPmtiles(params: any, abortController: any) {
+  const proto = dapatkanProtokolPmtiles();
+  const rawUrl = params.url.replace(/^pmtiles:\/\//, "");
+  const id = rawUrl.split("/")[0].replace(/\.json$/, "");
+
+  if (id && !daftarArsipPmtiles.has(id)) {
+    try {
+      const { ambilArsipPeta } = await import("./penyimpananPetaLuring");
+      const arsip = await ambilArsipPeta(id);
+      if (arsip && arsip.berkas) {
+        daftarkanSumberPmtiles(id, arsip.berkas);
+      }
+    } catch (err) {
+      console.warn("Gagal rehidrasi PMTiles " + id + " dari IndexedDB:", err);
+    }
+  }
+
+  return proto.tile(params, abortController);
+}
+
+/**
+ * Daftarkan protokol pmtiles:// ke MapLibre GL instance secara aman (idempotent).
+ */
+export function registrasiProtokolPmtiles(maplibreInstance?: any): pmtiles.Protocol {
   const proto = dapatkanProtokolPmtiles();
   if (maplibreInstance && typeof maplibreInstance.addProtocol === "function") {
     try {
-      maplibreInstance.addProtocol("pmtiles", proto.tile);
+      maplibreInstance.addProtocol("pmtiles", tileHandlerPmtiles as any);
     } catch {
       // Protokol mungkin telah terdaftar di instance ini
     }
   } else if (!pmtilesTerdaftar && maplibregl && typeof maplibregl.addProtocol === "function") {
     try {
-      maplibregl.addProtocol("pmtiles", proto.tile);
+      maplibregl.addProtocol("pmtiles", tileHandlerPmtiles as any);
       pmtilesTerdaftar = true;
     } catch {
       // Protokol mungkin telah terdaftar di instance lain
@@ -113,7 +139,7 @@ export function ambilSumberPmtiles(id: string): pmtiles.PMTiles | undefined {
 export function hapusSumberPmtiles(id: string): void {
   daftarArsipPmtiles.delete(id);
   try {
-    const proto = dapatkanProtokolPmtiles();
+    const proto = dapatkanProtokolPmtiles() as any;
     if (proto.tiles && typeof proto.tiles.delete === "function") {
       proto.tiles.delete(id);
     }
@@ -128,7 +154,7 @@ export function hapusSumberPmtiles(id: string): void {
  */
 export async function bacaMetadataPmtiles(fileOrBlob: Blob | File | ArrayBuffer, namaArea = "Peta PMTiles"): Promise<MetadataPmtiles> {
   let headerBytes: ArrayBuffer;
-  let ukuranMb: number;
+  let ukuranMb = 0;
 
   if (fileOrBlob instanceof ArrayBuffer) {
     headerBytes = fileOrBlob.slice(0, Math.min(fileOrBlob.byteLength, 127));
@@ -154,8 +180,8 @@ export async function bacaMetadataPmtiles(fileOrBlob: Blob | File | ArrayBuffer,
 
   const h = pmtiles.bytesToHeader(headerBytes);
 
-  let tileType: MetadataPmtiles["tileType"];
-  let format: MetadataPmtiles["format"];
+  let tileType: MetadataPmtiles["tileType"] = "unknown";
+  let format: MetadataPmtiles["format"] = "unknown";
 
   switch (h.tileType) {
     case pmtiles.TileType.Mvt:
