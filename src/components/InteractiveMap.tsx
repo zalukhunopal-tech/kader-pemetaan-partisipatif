@@ -38,6 +38,9 @@ import { PanelLapisanPeta } from "./peta/PanelLapisanPeta";
 import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
+import { RailAlatPeta } from "./peta/RailAlatPeta";
+import { ChipKoordinatPeta } from "./peta/ChipKoordinatPeta";
+import { bacaSistemKoordinat, simpanSistemKoordinat, SistemKoordinat } from "../lib/sistemKoordinat";
 import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googleTiles";
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
 import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, X, PenTool, Edit3 } from "lucide-react";
@@ -187,6 +190,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [versiGoogle, setVersiGoogle] = useState(0);
   useEffect(() => pantauSesiGoogle(() => setVersiGoogle((v) => v + 1)), []);
   const [formatKoord, setFormatKoord] = useState<FormatKoordinat>("DD");
+  const [sistemKoord, setSistemKoord] = useState<SistemKoordinat>(() => bacaSistemKoordinat());
   const [renderTick, setRenderTick] = useState<number>(0);
 
   // State UI Clean Mode: fitur disembunyikan agar tidak menghalangi peta di HP
@@ -962,58 +966,25 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
 
         {modeRekam && <div className="bidikan-peta" aria-hidden="true"><Crosshair size={24} /></div>}
 
-        {/* TELEMETRI GPS RINGKAS MENGAPUNG (TIDAK MENGHALANGI PETA) */}
-        <div
-          className="field-telemetry-compact"
-          data-gps={
-            posisiNyata?.akurasi !== undefined
-              ? posisiNyata.akurasi < 10
-                ? "baik"
-                : posisiNyata.akurasi <= 25
-                  ? "sedang"
-                  : "lemah"
-              : "kosong"
-          }
-        >
-          <span className="field-gps-indicator" aria-hidden="true" />
-          <button
-            type="button"
-            className="field-telemetry-coord-btn"
-            disabled={!posisiNyata}
-            title={posisiNyata ? "Ketuk untuk salin koordinat" : "Menunggu sinyal GPS"}
-            onClick={() => {
-              if (!navigator.clipboard) {
-                setPesanSalin("Papan klip tidak tersedia");
-                return;
-              }
-              if (posisiNyata) {
-                void navigator.clipboard
-                  .writeText(`${posisiNyata.lat.toFixed(7)}, ${posisiNyata.lng.toFixed(7)}`)
-                  .then(() => setPesanSalin("Koordinat GPS disalin"))
-                  .catch(() => setPesanSalin("Gagal menyalin koordinat"));
-              }
-            }}
-          >
-            <span className="telemetry-coord-text">
-              {posisiNyata ? formatKoordinatTeks(posisiNyata.lat, posisiNyata.lng, formatKoord) : infoGps.teks}
-            </span>
-            {posisiNyata?.akurasi !== undefined && (
-              <span className="telemetry-accuracy">±{posisiNyata.akurasi.toFixed(0)}m</span>
-            )}
-          </button>
-          <button
-            type="button"
-            className="telemetry-format-pill"
-            aria-label="Ubah format koordinat"
-            title={`Format saat ini: ${formatKoord}. Ketuk untuk beralih.`}
-            onClick={() => setFormatKoord((f) => (f === "DD" ? "DMS" : f === "DMS" ? "UTM" : "DD"))}
-          >
-            {formatKoord}
-          </button>
-          {rekamLatar.status !== "idle" && (
-            <span className="telemetry-timer-pill">REC {formatDurasi(durasiRekamMs(rekamLatar))}</span>
-          )}
-        </div>
+        {/* CHIP KOORDINAT SIMPEL & MENARIK (GANTI SISTEM KOORDINAT DD, DDM, DMS, UTM, TM-3) */}
+        <ChipKoordinatPeta
+          posisi={posisiNyata}
+          teksMenunggu={infoGps.teks}
+          sistem={sistemKoord}
+          onGantiSistem={(s) => {
+            setSistemKoord(s);
+            simpanSistemKoordinat(s);
+          }}
+          onSalin={(teks) => {
+            if (navigator.clipboard) {
+              void navigator.clipboard
+                .writeText(teks)
+                .then(() => setPesanSalin("Koordinat disalin: " + teks))
+                .catch(() => setPesanSalin("Gagal menyalin koordinat"));
+            }
+          }}
+          rekam={rekamLatar.status !== "idle" ? formatDurasi(durasiRekamMs(rekamLatar)) : null}
+        />
 
         {/* PENCARIAN KOORDINAT / OBJEK MENGAPUNG (TIDAK MEMOTONG TINGGI KANVAS) */}
         {cariKoordTerbuka && (
@@ -1117,127 +1088,42 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           </button>
         </div>
 
-        {/* BOTTOM-RIGHT GLASSMORPHIC CONTROL POD (Recenter GPS, Zoom, Action) */}
-        <div className="map-hud-pod bottom-right">
-          <button
-            type="button"
-            className={`map-hud-btn map-ctrl-btn ${modeIkutiKompas ? "active active-ctrl" : ""}`}
-            onClick={() => {
-              const now = Date.now();
-              const selisih = now - lastGpsClickRef.current;
-              lastGpsClickRef.current = now;
+        {/* INTEGRASI TOOL PENGAMBILAN TITIK, JALUR, DAN POLIGON KE DALAM KONTROL ZOOM (RAIL ALAT PETA) */}
+        <RailAlatPeta
+          modeRekam={modeRekam}
+          gpsTersedia={Boolean(gpsPos)}
+          ikutiKompas={modeIkutiKompas}
+          onGps={() => {
+            const now = Date.now();
+            const selisih = now - lastGpsClickRef.current;
+            lastGpsClickRef.current = now;
 
-              if (clickTimeoutRef.current) {
-                window.clearTimeout(clickTimeoutRef.current);
-                clickTimeoutRef.current = null;
-              }
-
-              if (selisih < 350) {
-                // 2x KLIK: Aktifkan mode peta mengikuti arah/orientasi kompas kita
-                void aktifkanKompas();
-                setModeIkutiKompas(true);
-                if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-              } else {
-                // 1x KLIK: Pusatkan peta ke posisi kita
-                clickTimeoutRef.current = window.setTimeout(() => {
-                  if (modeIkutiKompas) {
-                    setModeIkutiKompas(false);
-                    setBearing(0);
-                  }
-                  if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-                }, 220);
-              }
-            }}
-            disabled={!gpsPos}
-            style={gpsPos ? undefined : { opacity: 0.45 }}
-            title={
-              modeIkutiKompas
-                ? "Orientasi aktif (mengikuti arah kita). 1x klik untuk reset posisi tegak utara."
-                : gpsPos
-                  ? "1x klik: Pusatkan posisi kita | 2x klik: Peta ikuti arah kita"
-                  : "Menunggu posisi GPS"
+            if (clickTimeoutRef.current) {
+              window.clearTimeout(clickTimeoutRef.current);
+              clickTimeoutRef.current = null;
             }
-          >
-            <Navigation size={18} />
-          </button>
 
-          <button
-            type="button"
-            className="map-hud-btn map-ctrl-btn"
-            onClick={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
-            title="Perbesar Peta"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            className="map-hud-btn map-ctrl-btn"
-            onClick={() => setZoom((z) => Math.max(ZOOM_MIN_PETA, Math.ceil(z - 0.01) - 1))}
-            title="Perkecil Peta"
-          >
-            −
-          </button>
-
-
-          {/* UNIFIED DRAWING TOOL DIRECTLY BELOW ZOOM STACK */}
-          <div className="drawing-tool-container-pod">
-            <button
-              type="button"
-              className={`map-hud-btn map-ctrl-btn drawing-tool-main-trigger ${bukaAlatRekam || modeRekam ? "active active-tool" : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setBukaAlatRekam((v) => !v);
-              }}
-              title="Tool Gambar Spasial (Ambil Titik, Rekam Jalur, Buat Poligon)"
-              aria-label="Tool Gambar"
-            >
-              <PenTool size={18} />
-            </button>
-
-            {/* EXPAND-ON-SELECT FLYOUT MENU */}
-            {bukaAlatRekam && !modeRekam && (
-              <div className="drawing-tool-flyout-menu" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className="flyout-tool-choice"
-                  onClick={() => {
-                    mulaiModeRekam("point");
-                    setBukaAlatRekam(false);
-                  }}
-                  title="Ambil Titik Koordinat"
-                >
-                  <MapPin size={16} className="text-emerald" />
-                  <span>📍 Ambil Titik</span>
-                </button>
-                <button
-                  type="button"
-                  className="flyout-tool-choice"
-                  onClick={() => {
-                    mulaiModeRekam("line");
-                    setBukaAlatRekam(false);
-                  }}
-                  title="Rekam Jalur Patroli"
-                >
-                  <Route size={16} className="text-sky" />
-                  <span>〰️ Rekam Jalur</span>
-                </button>
-                <button
-                  type="button"
-                  className="flyout-tool-choice"
-                  onClick={() => {
-                    mulaiModeRekam("polygon");
-                    setBukaAlatRekam(false);
-                  }}
-                  title="Buat Poligon Area"
-                >
-                  <Square size={16} className="text-amber" />
-                  <span>⬠ Buat Poligon</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-        </div>
+            if (selisih < 350) {
+              void aktifkanKompas();
+              setModeIkutiKompas(true);
+              if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+            } else {
+              clickTimeoutRef.current = window.setTimeout(() => {
+                if (modeIkutiKompas) {
+                  setModeIkutiKompas(false);
+                  setBearing(0);
+                }
+                if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+              }, 220);
+            }
+          }}
+          onZoomMasuk={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
+          onZoomKeluar={() => setZoom((z) => Math.max(ZOOM_MIN_PETA, Math.ceil(z - 0.01) - 1))}
+          onPilihAlat={(jenis) => mulaiModeRekam(jenis)}
+          onAlatAktif={(jenis) => {
+            if (jenis === "point") setBukaModalForm(true);
+          }}
+        />
 
         {/* POPOVER LAPISAN & ALAT PETA (HANYA TAMPIL SAAT TOMBOL LAYERS DIKETUK) */}
         {bukaMenuPeta && (
@@ -1320,38 +1206,6 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
                 setTitikDraft([]);
               }}
             />
-          )}
-          {/* TOMBOL REKAM RINGKAS YANG BISA DISEMBUNYIKAN AGAR TIDAK MENGHALANGI PETA */}
-          {!modeRekam && (
-            <div className="map-action-pill-bar" role="toolbar" aria-label="Alat rekam spasial">
-              <button
-                type="button"
-                className="map-action-pill map-action-point"
-                onClick={() => mulaiModeRekam("point")}
-                title="Rekam Titik Lokasi / Waypoint"
-              >
-                <MapPin size={15} />
-                <span>Titik</span>
-              </button>
-              <button
-                type="button"
-                className="map-action-pill"
-                onClick={() => mulaiModeRekam("line")}
-                title="Rekam Jalur / Tracking GPS"
-              >
-                <Route size={15} />
-                <span>Jalur</span>
-              </button>
-              <button
-                type="button"
-                className="map-action-pill"
-                onClick={() => mulaiModeRekam("polygon")}
-                title="Rekam Area / Poligon"
-              >
-                <Square size={15} />
-                <span>Area</span>
-              </button>
-            </div>
           )}
         </div>
 
@@ -1436,6 +1290,12 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           onSimpan={handleSimpanForm}
           onTutup={() => {
             setBukaModalForm(false);
+          }}
+          sistemKoordinat={sistemKoord}
+          onGantiSistemKoordinat={setSistemKoord}
+          onUbahKoordinat={(titikBaru: KoordinatTitik) => {
+            setTitikDraft([titikBaru]);
+            setCenter(titikBaru);
           }}
         />
       )}

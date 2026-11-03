@@ -8307,3 +8307,676 @@ html[data-field-theme="matahari"] .section-card h2 {
   margin-left: 4px;
 
 }
+
+
+/* ==========================================================================
+   REVISI UI SENIOR: INTEGRASI TOOL SURVEI KE ZOOM & CHIP KOORDINAT MODERN
+   ========================================================================== */
+
+/* 1. RAIL ALAT PETA TERPADU (GPS + ZOOM IN/OUT + TITIK/JALUR/AREA) */
+.map-tool-rail {
+  position: absolute;
+  bottom: 24px;
+  right: 14px;
+  z-index: 28;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.rail-btn {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.16s ease-in-out;
+  touch-action: manipulation;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.rail-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0d7344;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.rail-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.rail-divider {
+  width: 32px;
+  height: 1px;
+  background: rgba(203, 213, 225, 0.85);
+  margin: 4px 0;
+}
+
+/* Tombol alat survei di dalam rail zoom */
+.rail-tool {
+  height: 52px;
+  padding: 4px 2px;
+}
+
+.rail-tool-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #475569;
+  line-height: 1;
+}
+
+.rail-tool-point:hover .rail-tool-label {
+  color: #0d7344;
+}
+
+.rail-tool-point.active {
+  background: #0d7344 !important;
+  color: #ffffff !important;
+  border-color: #0d7344 !important;
+  box-shadow: 0 3px 12px rgba(13, 115, 68, 0.35);
+}
+.rail-tool-point.active .rail-tool-label {
+  color: #ffffff !important;
+}
+
+.rail-tool-line.active {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.35);
+}
+.rail-tool-line.active .rail-tool-label {
+  color: #ffffff !important;
+}
+
+.rail-tool-polygon.active {
+  background: #d97706 !important;
+  color: #ffffff !important;
+  border-color: #d97706 !important;
+  box-shadow: 0 3px 12px rgba(217, 119, 6, 0.35);
+}
+.rail-tool-polygon.active .rail-tool-label {
+  color: #ffffff !important;
+}
+
+/* 2. CHIP KOORDINAT SIMPEL & MENARIK (FLOATING TELEMETRI) */
+.coord-chip-wrap {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(380px, calc(100vw - 110px));
+}
+
+.coord-chip {
+  display: flex;
+  align-items: stretch;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.coord-chip:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.14);
+}
+
+.coord-chip-main {
+  background: transparent;
+  border: 0;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  position: relative;
+}
+
+.coord-chip-main:disabled {
+  cursor: default;
+}
+
+.coord-chip-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #64748b;
+  width: 100%;
+}
+
+.coord-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex-shrink: 0;
+}
+
+[data-gps="baik"] .coord-chip-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+[data-gps="sedang"] .coord-chip-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+[data-gps="lemah"] .coord-chip-dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+.coord-chip-label {
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.coord-chip-meta {
+  font-size: 9.5px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: auto;
+}
+
+.coord-chip-values {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.coord-chip-values span {
+  display: block;
+}
+
+.coord-chip-waiting {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  font-family: inherit;
+  padding: 3px 0;
+}
+
+.coord-chip-copy {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.coord-chip:hover .coord-chip-copy {
+  opacity: 0.8;
+}
+
+/* Tombol ganti CRS di chip */
+.coord-chip-crs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 10px;
+  background: rgba(13, 115, 68, 0.08);
+  border: 0;
+  border-left: 1px solid rgba(203, 213, 225, 0.7);
+  color: #0d7344;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.coord-chip-crs:hover {
+  background: rgba(13, 115, 68, 0.16);
+  color: #085331;
+}
+
+.coord-chip-rec {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #dc2626;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);
+  animation: pulse 1.8s infinite;
+}
+
+/* Popover Pemilih Sistem Koordinat */
+.coord-crs-popover {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2), 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 10px;
+  width: 290px;
+  max-width: calc(100vw - 28px);
+  animation: fadeInPop 0.16s ease-out;
+}
+
+.coord-crs-popover-head {
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.coord-crs-popover-head strong {
+  display: block;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.coord-crs-popover-head small {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.crs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crs-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.crs-list-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.crs-list-item.aktif {
+  background: rgba(13, 115, 68, 0.08);
+  border-color: rgba(13, 115, 68, 0.4);
+}
+
+.crs-list-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #0d7344;
+  background: #ffffff;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(13, 115, 68, 0.2);
+  min-width: 36px;
+  text-align: center;
+}
+
+.crs-list-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.crs-list-text strong {
+  font-size: 11.5px;
+  color: #0f172a;
+}
+
+.crs-list-text small {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.crs-list-text code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 9.5px;
+  color: #475569;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.crs-list-check {
+  color: #0d7344;
+  flex-shrink: 0;
+}
+
+/* Row Chip CRS (Segmented Chips di dalam form) */
+.crs-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.crs-chip {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crs-chip:hover {
+  border-color: #0d7344;
+  color: #0d7344;
+}
+
+.crs-chip.aktif {
+  background: #0d7344;
+  border-color: #0d7344;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(13, 115, 68, 0.25);
+}
+
+/* 3. KARTU LOKASI KOORDINAT DI FORM SURVEI (MODERN GIS FORM) */
+.loc-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.loc-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loc-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(13, 115, 68, 0.1);
+  color: #0d7344;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.loc-card-head-text {
+  flex: 1;
+}
+
+.loc-card-head-text strong {
+  font-size: 13px;
+  color: #0f172a;
+  display: block;
+}
+
+.loc-card-head-text small {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.loc-accuracy {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.loc-accuracy-baik {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.loc-accuracy-sedang {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.loc-accuracy-lemah {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.loc-accuracy-kosong {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Grid nilai koordinat terformat */
+.loc-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.loc-value {
+  display: flex;
+  flex-direction: column;
+}
+
+.loc-value-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.loc-value-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.loc-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loc-copy:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.loc-crs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loc-crs-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.loc-crs-hint {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.loc-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.loc-action {
+  flex: 1 1 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loc-action:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.loc-action-primary {
+  background: rgba(13, 115, 68, 0.08);
+  border-color: rgba(13, 115, 68, 0.3);
+  color: #0d7344;
+}
+
+.loc-action-primary:hover {
+  background: rgba(13, 115, 68, 0.14);
+  border-color: #0d7344;
+}
+
+.loc-action-busy {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.loc-action.aktif {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.loc-help {
+  font-size: 10.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.loc-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin: 0;
+}
+
+.loc-manual {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.15s ease;
+}
+
+.loc-manual-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .loc-values {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .loc-copy {
+    justify-content: center;
+  }
+}
