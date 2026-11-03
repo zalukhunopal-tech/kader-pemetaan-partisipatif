@@ -366,7 +366,7 @@ body {
 
 @media (min-width: 768px) {
   .avenza-segmented-control {
-    max-width: 580px;
+    max-width: 760px;
     height: 48px;
     padding: 5px;
     border-radius: 14px;
@@ -380,7 +380,7 @@ body {
 
 @media (min-width: 1200px) {
   .avenza-segmented-control {
-    max-width: 640px;
+    max-width: 880px;
   }
 }
 
@@ -540,19 +540,19 @@ body {
 
 @media (min-width: 768px) {
   .avenza-search-bar {
-    max-width: 580px;
-    height: 42px;
+    max-width: 760px;
+    height: 44px;
     margin: 8px auto 14px;
-    padding: 8px 14px;
+    padding: 8px 16px;
   }
   .avenza-search-bar input {
-    font-size: 0.92rem;
+    font-size: 0.95rem;
   }
 }
 
 @media (min-width: 1200px) {
   .avenza-search-bar {
-    max-width: 640px;
+    max-width: 880px;
   }
 }
 
@@ -5918,18 +5918,51 @@ label {
   border-color: #e2e8f0;
   background: #f1f5f9;
 }
+@media (min-width: 768px) {
+  .pustaka-field .avenza-segmented-control {
+    max-width: 760px;
+    height: 48px;
+    padding: 5px;
+    border-radius: 14px;
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-segmented-control {
+    max-width: 880px;
+  }
+}
 .pustaka-field .avenza-segment-btn.active {
   background: #ffffff;
   color: #047857;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .pustaka-field .avenza-filter-row {
   padding: 8px 16px;
   gap: 6px;
   border: 0;
 }
+@media (min-width: 768px) {
+  .pustaka-field .avenza-filter-row {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 10px 0;
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-filter-row {
+    max-width: 880px;
+  }
+}
 .pustaka-field .avenza-pill-select-wrap {
-  background: #f2f4f1;
-  border-color: transparent;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+.pustaka-field .avenza-pill-select-wrap:hover {
+  border-color: #059669;
 }
 .pustaka-field .avenza-search-bar {
   max-width: 340px;
@@ -5942,6 +5975,25 @@ label {
   border-radius: 10px;
   box-sizing: border-box;
 }
+@media (min-width: 768px) {
+  .pustaka-field .avenza-search-bar {
+    max-width: 760px;
+    width: 100%;
+    height: 46px;
+    margin: 8px auto 16px;
+    padding: 8px 18px;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  }
+  .pustaka-field .avenza-search-bar input {
+    font-size: 0.95rem;
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-search-bar {
+    max-width: 880px;
+  }
+}
 .pustaka-field .avenza-search-bar input {
   min-width: 0;
   background: transparent;
@@ -5949,6 +6001,19 @@ label {
 }
 .pustaka-field .avenza-basemap-banner-wrap {
   padding: 0 16px;
+}
+@media (min-width: 768px) {
+  .pustaka-field .avenza-basemap-banner-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0;
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-basemap-banner-wrap {
+    max-width: 880px;
+  }
 }
 .pustaka-field .avenza-basemap-banner {
   border-radius: 14px;
@@ -5992,6 +6057,19 @@ label {
   font-size: 14px;
   font-weight: 650;
 }
+@media (min-width: 768px) {
+  .pustaka-list-heading {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 24px 0 10px;
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-list-heading {
+    max-width: 880px;
+  }
+}
 .pustaka-list-heading b {
   margin-left: 6px;
   border-radius: 12px;
@@ -6020,6 +6098,31 @@ label {
 }
 .pustaka-field .avenza-map-list {
   padding: 0 16px 100px;
+}
+@media (min-width: 768px) {
+  .pustaka-field .avenza-map-list:not(.pustaka-grid) {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 0 100px;
+  }
+  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.15s ease;
+  }
+  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-map-list:not(.pustaka-grid) {
+    max-width: 880px;
+  }
 }
 .pustaka-field .avenza-map-row {
   padding: 16px 0;
@@ -6054,33 +6157,168 @@ label {
   min-width: 36px;
   min-height: 40px;
 }
+
+/* VIEW KOLOM / GRID (DITENGAHKAN SECARA RAPI) */
 .pustaka-field .pustaka-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 220px));
+  justify-content: center; /* WAJIB TENGAH */
+  justify-items: center;
+  align-content: start;
+  gap: 16px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: center;
+    justify-items: stretch;
+    gap: 12px;
+  }
+}
+@media (min-width: 768px) {
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 250px));
+    justify-content: center; /* WAJIB TENGAH */
+    justify-items: stretch;
+    max-width: 880px;
+    gap: 20px;
+    padding: 0 0 100px;
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .pustaka-grid {
+    max-width: 1080px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
+    justify-content: center;
+    justify-items: stretch;
+  }
 }
 .pustaka-field .pustaka-grid .avenza-map-row {
   position: relative;
-  flex-wrap: wrap;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
   padding: 12px;
   border: 1px solid #e4e8e1;
-  border-radius: 8px;
-  align-content: start;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: visible;
+}
+.pustaka-field .pustaka-grid .avenza-map-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
 }
 .pustaka-field .pustaka-grid .avenza-map-thumb-wrap {
   width: 100%;
-  height: 130px;
+  height: 135px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .pustaka-field .pustaka-grid .avenza-map-info {
   width: 100%;
-  flex: auto;
-  padding-right: 20px;
+  flex: 1;
+  padding: 10px 2px 4px;
+  box-sizing: border-box;
+}
+.pustaka-field .pustaka-grid .avenza-map-title {
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: #0f172a;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.pustaka-field .pustaka-grid .avenza-map-meta {
+  font-size: 0.76rem;
+  margin-top: 6px;
+  color: #64748b;
+  line-height: 1.45;
 }
 .pustaka-field .pustaka-grid .avenza-map-more-wrap {
   position: absolute;
-  right: 2px;
-  bottom: 8px;
+  top: 18px;
+  right: 18px;
+  bottom: auto;
+  z-index: 5;
 }
+.pustaka-field .pustaka-grid .avenza-more-dots-btn {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  color: #334155;
+  transition: all 0.15s ease;
+}
+.pustaka-field .pustaka-grid .avenza-more-dots-btn:hover {
+  background: #ffffff;
+  color: #0f172a;
+  transform: scale(1.06);
+}
+.pustaka-field .pustaka-grid .avenza-row-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 25;
+  margin-top: 4px;
+}
+
+/* KONTEN TAB LAPISAN */
+.pustaka-field .avenza-lapisan-content {
+  background: transparent;
+  padding-bottom: 120px;
+}
+@media (min-width: 768px) {
+  .pustaka-field .avenza-layer-list {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 0 100px;
+  }
+  .pustaka-field .avenza-layer-row {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.15s ease;
+  }
+  .pustaka-field .avenza-layer-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+}
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-layer-list {
+    max-width: 880px;
+  }
+}
+
 .pustaka-field .single-fab {
   border-radius: 50%;
   background: #ee6d20;
