@@ -1,3 +1,4 @@
+import { usePosisiPerangkat } from "../lib/posisiPerangkat";
 import React, { useState, useRef, useEffect } from "react";
 import { PeranPengguna, PesanKomunikasi, ProfilKader } from "../types";
 import { CatatanPerangkat } from "./CatatanPerangkat";
@@ -32,6 +33,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   onLihatPinDiPeta,
   onEskalasiKeAdmin
 }) => {
+  const perangkat = usePosisiPerangkat();
   const [saluranAktif, setSaluranAktif] = useState<"komunitas" | "admin">("komunitas");
   const [teksPesan, setTeksPesan] = useState("");
   const [menuLampiranTerbuka, setMenuLampiranTerbuka] = useState(false);
@@ -652,7 +654,13 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         >
           <button
             type="button"
-            onClick={() => setBukaInputPin(true)}
+            onClick={() => {
+    if (perangkat.posisi) {
+      setLatPin(perangkat.posisi.lat.toFixed(6));
+      setLngPin(perangkat.posisi.lng.toFixed(6));
+    }
+    setBukaInputPin(true);
+  }}
             style={{
               display: "flex",
               flexDirection: "column",

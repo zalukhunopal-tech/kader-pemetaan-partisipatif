@@ -1,3 +1,4 @@
+import { sanitasiTeksInput } from "../../lib/geoUtils";
 import React from "react";
 import { BottomSheet } from "./BottomSheet";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
@@ -78,7 +79,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
           style={{ marginTop: "8px", width: "100%" }}
           onClick={() => {
             if (!kondisiUpdateInput.trim()) return;
-            const diterima = onTambahPembaruanObjek(objek.id, kondisiUpdateInput.trim(), "");
+            const diterima = onTambahPembaruanObjek(objek.id, sanitasiTeksInput(kondisiUpdateInput.trim()), "");
             if (diterima) {
               setKondisiUpdateInput("");
             }

@@ -18,6 +18,7 @@ import {
   SUMBER_TILE,
   basemapBawaan,
   basemapTersedia,
+  isiTemplateTile,
   muatGambarTile,
   laporHasilTile,
   zoomSumber,
@@ -151,7 +152,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // Rotasi arah peta (0-359°)
   const [bearing, setBearing] = useState<number>(() => posisiTersimpan?.bearing ?? 0);
   // Mode Orientasi Otomatis (peta berputar mengikuti sensor arah hadap/kompas perangkat)
-  const [modeIkutiKompas, setModeIkutiKompas] = useState<boolean>(false);
+  const [modeIkutiGps, setModeIkutiGps] = useState<"mati" | "posisi" | "kompas">("mati");
+  const modeIkutiKompas = modeIkutiGps === "kompas";
+  const setModeIkutiKompas = (v: boolean | ((old: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(modeIkutiGps === "kompas") : v;
+    setModeIkutiGps(next ? "kompas" : "mati");
+  };
 
   // Pelacak klik tombol navigasi gabungan: 1x klik = pusatkan posisi, 2x klik = ikuti arah kompas
   const lastGpsClickRef = useRef<number>(0);
@@ -228,6 +234,26 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     rekamLatar.status !== "idle" ? rekamLatar.titik : (form.rekaman?.titik ?? [])
   );
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
+  useEffect(() => {
+    if ((modeIkutiGps === "posisi" || modeIkutiGps === "kompas") && gpsPos) {
+      setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+    }
+  }, [modeIkutiGps, gpsPos?.lat, gpsPos?.lng]);
+
+  useEffect(() => {
+    if (!gpsPos) return;
+    const interval = setInterval(() => {
+      setRenderTick((t) => t + 1);
+    }, 80);
+    return () => clearInterval(interval);
+  }, [Boolean(gpsPos)]);
+
+  useEffect(() => {
+    if (modeRekam) {
+      setModePetaBersih(false);
+    }
+  }, [modeRekam]);
+
   const [detikTick, setDetikTick] = useState<number>(0);
   useEffect(() => {
     simpanGeometri(modeRekam, titikDraft);
@@ -462,6 +488,51 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       ctx.fillRect(0, 0, W, H);
     }
 
+
+    // 2.1 Muat Tile Archive PMTiles / MBTiles jika peta kustom offline aktif berformat tile
+    const adalahTileArchive = Boolean(
+      petaKustomAktif &&
+        ((petaKustomAktif.petaKustomUrl &&
+          (petaKustomAktif.petaKustomUrl.startsWith("pmtiles://") || petaKustomAktif.petaKustomUrl.startsWith("mbtiles://"))) ||
+          (petaKustomAktif.templateTile &&
+            (petaKustomAktif.templateTile.startsWith("pmtiles://") || petaKustomAktif.templateTile.startsWith("mbtiles://"))))
+    );
+
+    if (adalahTileArchive && petaKustomAktif) {
+      const templateArchive = petaKustomAktif.templateTile || petaKustomAktif.petaKustomUrl || "";
+      const zTile = Math.round(zoom);
+      const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
+      const centerTx = lngToTileX(center.lng, zTile);
+      const centerTy = latToTileY(center.lat, zTile);
+      const startTileX = Math.floor(centerTx - W / (2 * ukuranTile)) - 1;
+      const endTileX = Math.floor(centerTx + W / (2 * ukuranTile)) + 1;
+      const startTileY = Math.floor(centerTy - H / (2 * ukuranTile)) - 1;
+      const endTileY = Math.floor(centerTy + H / (2 * ukuranTile)) + 1;
+      for (let tx = startTileX; tx <= endTileX; tx++) {
+        for (let ty = startTileY; ty <= endTileY; ty++) {
+          const url = isiTemplateTile(templateArchive, zTile, tx, ty);
+          if (!url) continue;
+          const drawX = Math.round(W / 2 + (tx - centerTx) * ukuranTile);
+          const drawY = Math.round(H / 2 + (ty - centerTy) * ukuranTile);
+          const sisi = Math.ceil(ukuranTile);
+          const cached = tileCacheRef.current.get(url);
+          if (cached && cached !== "loading" && cached !== "error") {
+            ctx.drawImage(cached, drawX, drawY, sisi, sisi);
+          } else if (!cached) {
+            tileCacheRef.current.set(url, "loading");
+            muatGambarTile(url).then(
+              (img) => {
+                tileCacheRef.current.set(url, img);
+                setRenderTick((t) => t + 1);
+              },
+              () => {
+                tileCacheRef.current.set(url, "error");
+              }
+            );
+          }
+        }
+      }
+    }
     // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo (HANYA PADA PARTISI PETA DASAR ONLINE)
     // Pemisahan tegas: saat partisi lembar peta aktif, tile basemap TIDAK digambar agar tidak bercampur!
     if (!petaKustomAktif && basemap !== "taktis") {
@@ -722,6 +793,11 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     dragRef.current.active = false;
 
     if (!wasMoved && canvasRef.current) {
+      if (modePetaBersih) {
+        setModePetaBersih(false);
+        return;
+      }
+
       const rect = wadahPetaRef.current?.getBoundingClientRect() || canvasRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
@@ -738,16 +814,72 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           ptLayar = layarKeKanvas(clickX, clickY, rect.width, rect.height, cW, cH, bearingAktif);
         }
 
+        const jarakKeSegmen = (p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number => {
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+          let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+          t = Math.max(0, Math.min(1, t));
+          return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+        };
+
+        const diDalamPoligon = (pt: { x: number; y: number }, poly: { x: number; y: number }[]): boolean => {
+          let inside = false;
+          for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const xi = poly[i].x, yi = poly[i].y;
+            const xj = poly[j].x, yj = poly[j].y;
+            const intersect = ((yi > pt.y) !== (yj > pt.y)) && (pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+          }
+          return inside;
+        };
+
         let objekKena = false;
         for (const item of dataSpasial) {
-          const refCoord = item.koordinat[0];
-          if (!refCoord) continue;
-          const p = latLngToPixel(refCoord.lat, refCoord.lng, cW, cH);
-          const dist = Math.hypot(ptLayar.x - p.x, ptLayar.y - p.y);
-          if (dist <= 28) {
-            setObjekTerpilih(item);
-            objekKena = true;
-            return;
+          const pikselCoords = item.koordinat.map((k) => latLngToPixel(k.lat, k.lng, cW, cH));
+          // 1. Cek semua vertex (<= 28px)
+          for (const p of pikselCoords) {
+            if (Math.hypot(ptLayar.x - p.x, ptLayar.y - p.y) <= 28) {
+              setObjekTerpilih(item);
+              objekKena = true;
+              return;
+            }
+          }
+          // 2. Cek Poligon (centroid, point-in-polygon, ruas tepi <= 18px)
+          if (item.jenisGeometri === "polygon" && pikselCoords.length >= 3) {
+            const cX = pikselCoords.reduce((a, b) => a + b.x, 0) / pikselCoords.length;
+            const cY = pikselCoords.reduce((a, b) => a + b.y, 0) / pikselCoords.length;
+            if (Math.hypot(ptLayar.x - cX, ptLayar.y - cY) <= 36 || diDalamPoligon(ptLayar, pikselCoords)) {
+              setObjekTerpilih(item);
+              objekKena = true;
+              return;
+            }
+            for (let i = 0; i < pikselCoords.length; i++) {
+              const next = (i + 1) % pikselCoords.length;
+              if (jarakKeSegmen(ptLayar, pikselCoords[i], pikselCoords[next]) <= 18) {
+                setObjekTerpilih(item);
+                objekKena = true;
+                return;
+              }
+            }
+          }
+          // 3. Cek Garis (titik tengah <= 36px, ruas segmen <= 18px)
+          if (item.jenisGeometri === "line" && pikselCoords.length >= 2) {
+            const midIdx = Math.floor(pikselCoords.length / 2);
+            const midP = pikselCoords[midIdx];
+            if (midP && Math.hypot(ptLayar.x - midP.x, ptLayar.y - midP.y) <= 36) {
+              setObjekTerpilih(item);
+              objekKena = true;
+              return;
+            }
+            for (let i = 0; i < pikselCoords.length - 1; i++) {
+              if (jarakKeSegmen(ptLayar, pikselCoords[i], pikselCoords[i + 1]) <= 18) {
+                setObjekTerpilih(item);
+                objekKena = true;
+                return;
+              }
+            }
           }
         }
 
