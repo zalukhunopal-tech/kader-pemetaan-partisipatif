@@ -259,4 +259,33 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(css).toContain(".kader-user-level-card");
     expect(css).toContain("border-radius: 18px;");
   });
+
+  it("17. Revisi responsif diskusi mobile anti-overlap, peta HUD/rail mobile kompak, pustaka segmented bebas double-box, dan filter/kolom centered", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    // 1. Tab diskusi label responsif dan grid 1fr 1fr di mobile
+    expect(css).toContain(".seg-label-desktop");
+    expect(css).toContain(".seg-label-mobile");
+    expect(css).toContain("grid-template-columns: 1fr 1fr;");
+
+    // 2. Peta interaktif HUD pod dan rail kompak di mobile
+    expect(css).toContain(".map-hud-pod.top-right");
+    expect(css).toContain("max-height: calc(100vh - 160px) !important;");
+
+    // 3. Pustaka segmented control seamless anti double-box
+    expect(css).toContain(".pustaka-field .avenza-segmented-control");
+    expect(css).toContain("overflow: hidden;");
+    expect(css).toContain("min-height: 0 !important;");
+
+    // 4. Pustaka filter row mobile 1 baris kompak
+    expect(css).toContain(".avenza-pills-left");
+    expect(css).toContain("flex-wrap: nowrap !important;");
+    expect(css).toContain("flex: 1 1 0 !important;");
+
+    // 5. Pustaka mode kolom/grid selalu ke tengah di mobile dan PC
+    expect(css).toContain(".pustaka-field .pustaka-grid .avenza-map-row");
+    expect(css).toContain("max-width: 270px;");
+    expect(css).toContain("margin: 0 auto;");
+  });
 });

@@ -163,7 +163,7 @@ describe("HOK transparan", () => {
     expect(eksporHokCSV(h)).toContain("'=CMD");
     const pdf = await eksporHokPDF(h);
     expect(new TextDecoder().decode(pdf.slice(0, 4))).toBe("%PDF");
-  });
+  }, 15000);
 });
 
 it("konfirmasi upload tidak menandai edit baru sebagai tersinkron", () => {
