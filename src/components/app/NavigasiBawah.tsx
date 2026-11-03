@@ -18,18 +18,27 @@ interface NavigasiBawahProps {
  */
 export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, setTabAktif, onModeUser }) => {
   const roNavRef = useRef<ResizeObserver | null>(null);
+  const rafNavRef = useRef<number | null>(null);
   const ukurBilahBawah = useCallback((el: HTMLElement | null) => {
+    if (rafNavRef.current !== null) {
+      cancelAnimationFrame(rafNavRef.current);
+      rafNavRef.current = null;
+    }
     roNavRef.current?.disconnect();
     roNavRef.current = null;
     if (!el) return;
-    const atur = () =>
-      document.documentElement.style.setProperty(
-        "--tinggi-nav",
-        `${window.matchMedia("(min-width: 768px)").matches ? 0 : Math.ceil(el.getBoundingClientRect().height)}px`
-      );
+    const atur = () => {
+      if (rafNavRef.current !== null) cancelAnimationFrame(rafNavRef.current);
+      rafNavRef.current = requestAnimationFrame(() => {
+        const tinggi = window.matchMedia("(min-width: 768px)").matches ? 0 : Math.ceil(el.getBoundingClientRect().height);
+        document.documentElement.style.setProperty("--tinggi-nav", `${tinggi}px`);
+      });
+    };
     atur();
     if (typeof ResizeObserver !== "undefined") {
-      roNavRef.current = new ResizeObserver(atur);
+      roNavRef.current = new ResizeObserver(() => {
+        atur();
+      });
       roNavRef.current.observe(el);
     }
   }, []);

@@ -345,8 +345,9 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     };
     hitung();
     window.addEventListener("resize", hitung);
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(hitung) : null;
-    ro?.observe(document.body);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => hitung()) : null;
+    const induk = el.parentElement;
+    if (induk) ro?.observe(induk);
     const nav = document.querySelector<HTMLElement>(".avenza-bottom-nav");
     if (nav) ro?.observe(nav);
     return () => {
