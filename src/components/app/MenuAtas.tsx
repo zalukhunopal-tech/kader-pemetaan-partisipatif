@@ -87,18 +87,6 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
         {sedangOnline ? <Wifi size={13} /> : <WifiOff size={13} />}
         <span>{!jaringanTersedia ? "Offline" : modeOfflineManual ? "Luring (Manual)" : "Online"}</span>
       </button>
-
-      {autoSync && (
-        <div
-          className={`avenza-autosync-pill ${autoSync.status}`}
-          title={autoSync.pesanStatus}
-        >
-          {autoSync.status === "menyinkronkan" && <span className="sync-icon spin">🔄</span>}
-          {autoSync.status === "tersinkron" && <span className="sync-icon">🟢</span>}
-          {(autoSync.status === "offline" || autoSync.status === "antrean") && <span className="sync-icon">☁️</span>}
-          <span className="sync-label">{autoSync.pesanStatus}</span>
-        </div>
-      )}
     </div>
 
     <div className="avenza-topbar-actions" onClick={(e) => e.stopPropagation()}>
@@ -108,7 +96,7 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
         onClick={() => setBukaMenuTitikTiga((v) => !v)}
         title="Buka Toolbar"
       >
-        <MoreVertical size={19} strokeWidth={2.2} />
+        <MoreVertical size={16} strokeWidth={2.4} />
         <span>Menu</span>
       </button>
 

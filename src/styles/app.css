@@ -339,37 +339,65 @@ body {
   background: #ffffff;
 }
 
-/* Segmented Control: Peta | Lapisan */
+/* Segmented Control: Peta | Lapisan (Modern, Rapi & Proporsional) */
 .avenza-segmented-wrap {
-  padding: 14px 16px 10px;
+  padding: 12px 16px 8px;
   background: #ffffff;
+  display: flex;
+  justify-content: center;
 }
 
 .avenza-segmented-control {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: 40px;
-  border: 1.5px solid var(--avenza-green);
-  border-radius: 999px;
-  overflow: hidden;
-  background: #ffffff;
+  width: 100%;
+  max-width: 360px;
+  height: 42px;
+  padding: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-sizing: border-box;
 }
 
 .avenza-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
   border: none;
-  background: #ffffff;
-  color: var(--avenza-green);
-  font-size: 0.92rem;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.88rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.avenza-segment-btn:hover:not(.active) {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .avenza-segment-btn.active {
-  background: var(--avenza-green);
-  color: #ffffff;
+  background: #ffffff;
+  color: #047857;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.avenza-segment-btn .segment-icon {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.avenza-segment-btn.active .segment-icon {
+  color: #059669;
+  transform: scale(1.05);
 }
 
 /* Filter & Sort Pill Row */
@@ -475,11 +503,15 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 16px 4px;
-  padding: 8px 14px;
-  border-radius: 99px;
-  background: #f1f5f3;
-  border: 1px solid #d4dad7;
+  max-width: 340px;
+  width: calc(100% - 32px);
+  margin: 6px 16px 10px;
+  padding: 6px 12px;
+  height: 38px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
 }
 
 .avenza-search-bar input {
@@ -487,8 +519,8 @@ body {
   min-width: 0;
   border: none;
   background: transparent;
-  font-size: 0.9rem;
-  color: #181a19;
+  font-size: 0.86rem;
+  color: #0f172a;
 }
 
 .avenza-search-bar input:focus {
@@ -3382,24 +3414,34 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #f1f5f3;
-  color: #181a19;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  background: #f8fafc;
+  color: #334155;
   border: 1px solid #cbd5e1;
-  border-radius: 99px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition:
     background 0.15s ease,
-    border-color 0.15s ease;
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.avenza-toolbar-toggle-btn:active {
+  transform: scale(0.96);
 }
 
 .avenza-toolbar-toggle-btn.active,
 .avenza-toolbar-toggle-btn:hover {
-  background: #e8f5ee;
-  border-color: var(--avenza-green);
-  color: var(--avenza-green);
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
 }
 
 .toolbar-popover {
@@ -5759,13 +5801,18 @@ label {
 }
 .pustaka-field .avenza-segmented-wrap {
   padding: 12px 16px 8px;
+  background: #ffffff;
+  display: flex;
+  justify-content: center;
 }
 .pustaka-field .avenza-segmented-control {
-  height: 38px;
-  border-color: #287946;
+  height: 42px;
+  border-color: #e2e8f0;
+  background: #f1f5f9;
 }
 .pustaka-field .avenza-segment-btn.active {
-  background: #287946;
+  background: #ffffff;
+  color: #047857;
 }
 .pustaka-field .avenza-filter-row {
   padding: 8px 16px;
@@ -5777,15 +5824,20 @@ label {
   border-color: transparent;
 }
 .pustaka-field .avenza-search-bar {
-  margin: 0 16px 12px;
-  padding: 10px 12px;
-  background: #f1f3f1;
-  border: 1px solid #e4e8e3;
-  border-radius: 8px;
+  max-width: 340px;
+  width: calc(100% - 32px);
+  margin: 4px 16px 12px;
+  padding: 6px 12px;
+  height: 38px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-sizing: border-box;
 }
 .pustaka-field .avenza-search-bar input {
   min-width: 0;
   background: transparent;
+  font-size: 0.86rem;
 }
 .pustaka-field .avenza-basemap-banner-wrap {
   padding: 0 16px;
@@ -6256,8 +6308,7 @@ label {
 
 /* Touch Targets 48px Enforcement */
 .avenza-icon-btn,
-.avenza-more-dots-btn,
-.avenza-toolbar-toggle-btn {
+.avenza-more-dots-btn {
   min-width: 48px;
   min-height: 48px;
 }
