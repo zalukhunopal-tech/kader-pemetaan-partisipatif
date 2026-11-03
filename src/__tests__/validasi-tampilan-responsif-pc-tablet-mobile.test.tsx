@@ -127,13 +127,15 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(html).toContain("max-width:1100px");
   });
 
-  it("9. Pustaka segmented control dan menu pencarian melebar proporsional di PC (max-width 580px/640px) tanpa mengubah mobile", () => {
+  it("9. Pustaka segmented control dan menu pencarian diperpanjang di PC (max-width 760px/880px) tanpa mengubah ukuran mobile (340px)", () => {
     const cssPath = path.resolve(__dirname, "../styles/app.css");
     const css = fs.readFileSync(cssPath, "utf8");
 
     expect(css).toContain(".avenza-segmented-control");
-    expect(css).toContain("max-width: 580px;");
+    expect(css).toContain("max-width: 760px;");
+    expect(css).toContain("max-width: 880px;");
     expect(css).toContain(".avenza-search-bar");
+    expect(css).toContain("max-width: 340px;");
   });
 
   it("10. Fitur HOK dihapus sepenuhnya dari tab sertifikat (RewardView)", () => {
@@ -175,5 +177,16 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(css).toContain(".kader-tier-badge");
     expect(css).toContain("border-radius: 8px;");
     expect(css).toContain("white-space: nowrap;");
+  });
+
+  it("13. View kolom/grid di pustaka ditengahkan (justify-content: center) dan kartu tertata rapi", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    expect(css).toContain(".pustaka-field .pustaka-grid");
+    expect(css).toContain("justify-content: center;");
+    expect(css).toContain(".pustaka-field .pustaka-grid .avenza-map-row");
+    expect(css).toContain("display: flex;");
+    expect(css).toContain("flex-direction: column;");
   });
 });
