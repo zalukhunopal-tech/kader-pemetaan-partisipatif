@@ -147,6 +147,10 @@ interface UnduhOfflineModalProps {
 
 /** Modal pengunduh tile peta (Satelit/Topografi/OSM) untuk dipakai tanpa internet */
 export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, areaOffline, unduh, onBukaArea }) => {
+  const [calibNwLat, setCalibNwLat] = useState("");
+  const [calibNwLng, setCalibNwLng] = useState("");
+  const [calibSeLat, setCalibSeLat] = useState("");
+  const [calibSeLng, setCalibSeLng] = useState("");
   const {
     setBukaModalOffline,
     namaAreaOfflineBaru,
@@ -327,21 +331,37 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                   <div>
                     <label style={{ fontSize: "0.72rem" }}>Barat Laut (NW) Lat</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 3.05" className="form-input" id="calib-nw-lat" />
+                    <input type="number" step="0.0001" placeholder="Misal: 3.05" className="form-input" id="calib-nw-lat" value={calibNwLat} onChange={(e) => setCalibNwLat(e.target.value)} />
                   </div>
                   <div>
                     <label style={{ fontSize: "0.72rem" }}>Barat Laut (NW) Lng</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 117.15" className="form-input" id="calib-nw-lng" />
+                    <input type="number" step="0.0001" placeholder="Misal: 117.15" className="form-input" id="calib-nw-lng" value={calibNwLng} onChange={(e) => setCalibNwLng(e.target.value)} />
                   </div>
                   <div>
                     <label style={{ fontSize: "0.72rem" }}>Tenggara (SE) Lat</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 2.65" className="form-input" id="calib-se-lat" />
+                    <input type="number" step="0.0001" placeholder="Misal: 2.65" className="form-input" id="calib-se-lat" value={calibSeLat} onChange={(e) => setCalibSeLat(e.target.value)} />
                   </div>
                   <div>
                     <label style={{ fontSize: "0.72rem" }}>Tenggara (SE) Lng</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 117.65" className="form-input" id="calib-se-lng" />
+                    <input type="number" step="0.0001" placeholder="Misal: 117.65" className="form-input" id="calib-se-lng" value={calibSeLng} onChange={(e) => setCalibSeLng(e.target.value)} />
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  style={{ alignSelf: "flex-start", marginTop: 4 }}
+                  onClick={() => {
+                    const nwLat = parseFloat(calibNwLat);
+                    const nwLng = parseFloat(calibNwLng);
+                    const seLat = parseFloat(calibSeLat);
+                    const seLng = parseFloat(calibSeLng);
+                    if (!isNaN(nwLat) && !isNaN(nwLng) && !isNaN(seLat) && !isNaN(seLng)) {
+                      onBukaArea?.({ lat: (nwLat + seLat) / 2, lng: (nwLng + seLng) / 2 });
+                    }
+                  }}
+                >
+                  Terapkan Kalibrasi
+                </button>
               </div>
             </details>
           </div>

@@ -10,7 +10,7 @@ import {
   MemoSuara,
   ProfilKader
 } from "../../types";
-import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
+import { hitungLuasPoligonHa, hitungPanjangGarisKm, sanitasiTeksInput } from "../../lib/geoUtils";
 import { buatId } from "../../lib/id";
 import { capWilayah } from "../../lib/auth";
 import { kompresFoto, perkiraBytesDataUrl, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } from "../../lib/foto";
@@ -96,7 +96,7 @@ export function useFormSurvei(idKader: string) {
         ? {
             saksi: isian.saksi
               .split(",")
-              .map((n) => n.trim())
+              .map((n) => sanitasiTeksInput(n.trim()))
               .filter(Boolean),
             catatan: isian.deskripsi
           }

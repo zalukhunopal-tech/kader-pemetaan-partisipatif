@@ -66,6 +66,17 @@ export const ThumbnailDokumenPeta: React.FC<{ size?: number }> = ({ size = 52 })
   </div>
 );
 
+
+function ambilUrlGambarThumbnail(item: { thumbnailUrl?: string; thumbnailDataUrl?: string; petaKustomDataUrl?: string; petaKustomUrl?: string }): string | null {
+  if (item.thumbnailUrl) return item.thumbnailUrl;
+  if (item.thumbnailDataUrl) return item.thumbnailDataUrl;
+  if (item.petaKustomDataUrl) return item.petaKustomDataUrl;
+  if (item.petaKustomUrl && !item.petaKustomUrl.startsWith("pmtiles://") && !item.petaKustomUrl.startsWith("mbtiles://")) {
+    return item.petaKustomUrl;
+  }
+  return null;
+}
+
 export const PustakaView: React.FC<PustakaViewProps> = ({
   areaOffline,
   lapisanList,
@@ -976,7 +987,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={!metadataPetaBaru || !petaKustomDataUrlBaru || sedangMemprosesBerkas || !!galatImpor}
+                  disabled={!namaPetaBaru.trim() || !metadataPetaBaru || (!petaKustomDataUrlBaru && !berkasPetaMentah) || sedangMemprosesBerkas || !!galatImpor}
                 >
                   Simpan ke Pustaka Peta
                 </button>

@@ -71,8 +71,8 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
   const [geomTugas, setGeomTugas] = useState<JenisGeometri>("polygon");
   const [katTugas, setKatTugas] = useState<KategoriSurvei>("Wilayah Adat / Lahan");
   const [kuantitasTugas, setKuantitasTugas] = useState("");
-  const [latTugas, setLatTugas] = useState("-0.9470");
-  const [lngTugas, setLngTugas] = useState("100.4190");
+  const [latTugas, setLatTugas] = useState("2.8575");
+  const [lngTugas, setLngTugas] = useState("117.3775");
   const [deadlineTugas, setDeadlineTugas] = useState(new Date().toISOString().slice(0, 10));
 
   // Form Pengumuman Baru
@@ -106,8 +106,8 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
       targetKuantitas: kuantitasTugas.trim() || "1 Paket",
       batasWaktu: deadlineTugas,
       koordinatAcuan: {
-        lat: Number(latTugas) || -0.947,
-        lng: Number(lngTugas) || 100.419
+        lat: Number(latTugas) || 2.8575,
+        lng: Number(lngTugas) || 117.3775
       },
       status: "aktif",
       dibuatOleh: "Admin GIS"

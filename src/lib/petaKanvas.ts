@@ -1,6 +1,6 @@
 import { fraksiBarisGeografis } from "./rasterGeografis";
 import { AreaPetaOffline, DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik } from "../types";
-import { StatePosisiPerangkat } from "./posisiPerangkat";
+import { StatePosisiPerangkat, StatusGps } from "./posisiPerangkat";
 
 /**
  * Matematika tile Web Mercator, teks status sensor, dan penggambar lapisan peta di atas tile
@@ -85,6 +85,9 @@ export interface LapisanPeta {
   kompasDerajat?: number;
   petaKustomAktif?: AreaPetaOffline | null;
   saatGambarSiap?: () => void;
+  waktuMs?: number;
+  statusGps?: StatusGps;
+  bearingPeta?: number;
 }
 
 const cacheGambarPetaKustom = new Map<string, HTMLImageElement | "loading" | "error">();
@@ -218,7 +221,10 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     gpsPos,
     kompasDerajat,
     petaKustomAktif,
-    saatGambarSiap
+    saatGambarSiap,
+    waktuMs,
+    statusGps,
+    bearingPeta
   } = lapisan;
 
   // 1. Gambar Lembar Peta GeoPDF Georeferensi (Jika sedang membuka peta kustom/GeoPDF)
@@ -320,14 +326,18 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
       ctx.strokeStyle = "#ffffff";
       ctx.stroke();
 
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      if (bearingPeta) ctx.rotate((bearingPeta * Math.PI) / 180);
       ctx.fillStyle = "rgba(6, 20, 17, 0.82)";
       const label = item.namaLokal || item.judul.slice(0, 16);
       const tw = ctx.measureText(label).width + 12;
-      ctx.fillRect(p.x - tw / 2, p.y + 12, tw, 18);
+      ctx.fillRect(-tw / 2, 12, tw, 18);
       ctx.fillStyle = "#e2e8f0";
       ctx.font = "600 11px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(label, p.x, p.y + 24);
+      ctx.fillText(label, 0, 24);
+      ctx.restore();
       ctx.restore();
     }
   });
@@ -378,33 +388,111 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     ctx.restore();
   }
 
-  // 7. Posisi GPS Biru (hanya bila perangkat sudah memberi posisi)
+  // 7. Posisi GPS Biru & Animasi Denyut / Senter Arah (Pulsing Blue Dot + Flashlight Heading Beam)
   if (gpsPos) {
     const gpsPx = keLayar(gpsPos.lat, gpsPos.lng);
-    // Lingkaran akurasi digambar sesuai skala peta (meter per piksel pada zoom ini)
     const meterPerPiksel = (156543.03392 * Math.cos((gpsPos.lat * Math.PI) / 180)) / Math.pow(2, zoom);
     const radiusAkurasi = gpsPos.akurasi ? Math.min(240, Math.max(16, gpsPos.akurasi / meterPerPiksel)) : 16;
+    const isStale = statusGps === "galat" || statusGps === "tidak_tersedia";
+
+    // Indikator panah tepi layar (Off-Screen Edge Pointer)
+    const padding = 20;
+    const isOffScreen = gpsPx.x < 0 || gpsPx.x > W || gpsPx.y < 0 || gpsPx.y > H;
+    if (isOffScreen) {
+      ctx.save();
+      const cx = W / 2;
+      const cy = H / 2;
+      const dx = gpsPx.x - cx;
+      const dy = gpsPx.y - cy;
+      const sudutKeGps = Math.atan2(dy, dx);
+      const edgeX = Math.max(padding, Math.min(W - padding, cx + Math.cos(sudutKeGps) * (W / 2 - padding)));
+      const edgeY = Math.max(padding, Math.min(H - padding, cy + Math.sin(sudutKeGps) * (H / 2 - padding)));
+      ctx.translate(edgeX, edgeY);
+      ctx.rotate(sudutKeGps);
+      ctx.beginPath();
+      ctx.moveTo(10, 0);
+      ctx.lineTo(-6, -6);
+      ctx.lineTo(-3, 0);
+      ctx.lineTo(-6, 6);
+      ctx.closePath();
+      ctx.fillStyle = isStale ? "#94a3b8" : "#0ea5e9";
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.save();
+    // 7.1 Lingkaran Akurasi Geografis (Physical Accuracy Halo)
     ctx.beginPath();
     ctx.arc(gpsPx.x, gpsPx.y, radiusAkurasi, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+    ctx.fillStyle = isStale ? "rgba(148, 163, 184, 0.15)" : "rgba(14, 165, 233, 0.14)";
     ctx.fill();
+    ctx.strokeStyle = isStale ? "rgba(148, 163, 184, 0.35)" : "rgba(14, 165, 233, 0.48)";
+    ctx.lineWidth = 1.25;
+    ctx.stroke();
+
+    // 7.2 Sinar Senter Arah Kompas (Directional Flashlight Beam Gradient)
     if (kompasDerajat !== undefined) {
       const sudut = ((kompasDerajat - 90) * Math.PI) / 180;
+      ctx.save();
       ctx.beginPath();
       ctx.moveTo(gpsPx.x, gpsPx.y);
-      ctx.arc(gpsPx.x, gpsPx.y, 34, sudut - 0.45, sudut + 0.45);
+      ctx.arc(gpsPx.x, gpsPx.y, 34, sudut - 0.48, sudut + 0.48);
       ctx.closePath();
-      ctx.fillStyle = "rgba(14, 165, 233, 0.5)";
+      if (!isStale && typeof ctx.createRadialGradient === "function") {
+        try {
+          const grad = ctx.createRadialGradient(gpsPx.x, gpsPx.y, 4, gpsPx.x, gpsPx.y, 46);
+          if (grad && typeof grad.addColorStop === "function") {
+            grad.addColorStop(0, "rgba(14, 165, 233, 0.58)");
+            grad.addColorStop(0.55, "rgba(56, 189, 248, 0.24)");
+            grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+            ctx.fillStyle = grad;
+          } else {
+            ctx.fillStyle = "rgba(14, 165, 233, 0.5)";
+          }
+        } catch {
+          ctx.fillStyle = "rgba(14, 165, 233, 0.5)";
+        }
+      } else {
+        ctx.fillStyle = isStale ? "rgba(148, 163, 184, 0.25)" : "rgba(14, 165, 233, 0.5)";
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 7.3 Gelombang Denyut Halus (Animated Pulse Ring) saat tidak stale
+    if (!isStale) {
+      const ms = waktuMs ?? Date.now();
+      const fase = (ms % 2000) / 2000;
+      const ease = 1 - Math.pow(1 - fase, 3);
+      const pulseRadius = 7.5 + ease * 15;
+      ctx.beginPath();
+      ctx.arc(gpsPx.x, gpsPx.y, pulseRadius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(14, 165, 233, ${(1 - ease) * 0.45})`;
       ctx.fill();
     }
+
+    // 7.4 Inti Titik Biru (Core Blue Puck) dengan Cincin Putih & Drop Shadow
+    ctx.shadowColor = "rgba(15, 23, 42, 0.38)";
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 1.5;
+
     ctx.beginPath();
-    ctx.arc(gpsPx.x, gpsPx.y, 6.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#0ea5e9";
+    ctx.arc(gpsPx.x, gpsPx.y, 8.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
     ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#ffffff";
-    ctx.stroke();
+
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.beginPath();
+    ctx.arc(gpsPx.x, gpsPx.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = isStale ? "#94a3b8" : "#0284c7";
+    ctx.fill();
+
     ctx.restore();
   }
 }

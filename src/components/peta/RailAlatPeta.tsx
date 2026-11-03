@@ -5,7 +5,8 @@ import { JenisGeometri } from "../../types";
 interface RailAlatPetaProps {
   modeRekam: JenisGeometri | null;
   gpsTersedia: boolean;
-  ikutiKompas: boolean;
+  ikutiKompas?: boolean;
+  modeIkutiGps?: "mati" | "posisi" | "kompas";
   onGps: () => void;
   onZoomMasuk: () => void;
   onZoomKeluar: () => void;
@@ -29,18 +30,26 @@ export function RailAlatPeta({
   modeRekam,
   gpsTersedia,
   ikutiKompas,
+  modeIkutiGps,
   onGps,
   onZoomMasuk,
   onZoomKeluar,
   onPilihAlat,
   onAlatAktif
 }: RailAlatPetaProps) {
+  const statusNav = modeIkutiGps ?? (ikutiKompas ? "kompas" : "mati");
+  const kelasGps = statusNav === "kompas"
+    ? "active active-ctrl mode-kompas"
+    : statusNav === "posisi"
+    ? "active mode-posisi"
+    : "";
+
   return (
     <div className="map-hud-pod bottom-right map-tool-rail" role="toolbar" aria-label="Kontrol peta dan alat survei" aria-orientation="vertical">
       <div className="rail-group rail-gps">
         <button
           type="button"
-          className={`map-hud-btn map-ctrl-btn rail-btn rail-gps-btn ${ikutiKompas ? "active active-ctrl" : ""}`}
+          className={`map-hud-btn map-ctrl-btn rail-btn rail-gps-btn ${kelasGps}`}
           onClick={onGps}
           disabled={!gpsTersedia}
           style={gpsTersedia ? undefined : { opacity: 0.45 }}

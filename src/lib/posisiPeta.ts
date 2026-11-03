@@ -7,7 +7,7 @@ import { BasemapType } from "../types";
 
 export const KUNCI_POSISI_PETA = "geokader_posisi_peta_v1";
 /** Dipakai hanya bila belum pernah ada posisi tersimpan dan GPS belum tersedia */
-export const POSISI_AWAL_PETA = { lat: -0.9475, lng: 100.4192 };
+export const POSISI_AWAL_PETA = { lat: 2.8575, lng: 117.3775 };
 export const ZOOM_MIN_PETA = 11;
 export const ZOOM_MAKS_PETA = 19;
 const BASEMAP_SAH: BasemapType[] = ["satelit", "google", "esri", "osm", "topo", "taktis"];

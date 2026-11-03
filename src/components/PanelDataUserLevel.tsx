@@ -3,6 +3,8 @@ import { Users, Search, Check, Shield, Award, MapPin, Route, Square, DollarSign,
 import { DataSpasialItem, ProfilKader, PeranPengguna } from "../types";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
 import { muatSemuaAkun } from "../lib/auth";
+import { dihitungUntukCapaian } from "../lib/geoUtils";
+import { hitungSkorKualitasData } from "../lib/kualitasData";
 
 export interface MetrikKaderUser {
   idKader: string;
@@ -61,6 +63,13 @@ interface PanelDataUserLevelProps {
   onFokusPetaKader?: (lat: number, lng: number, nama: string) => void;
 }
 
+
+function hitungRerataKualitas(items: DataSpasialItem[]): number {
+  if (items.length === 0) return 80;
+  const total = items.reduce((acc, d) => acc + hitungSkorKualitasData(d).skor, 0);
+  return Math.round(total / items.length);
+}
+
 export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
   dataSpasial,
   peranPengguna = "admin",
@@ -76,7 +85,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
 
     // Tambahkan profil pengguna sendiri terlebih dahulu
     if (profilSaya) {
-      const dataSaya = dataSpasial.filter((d) => d.idKader === profilSaya.idKader);
+      const dataSaya = dataSpasial.filter((d) => d.idKader === profilSaya.idKader && dihitungUntukCapaian(d));
       const jmlTitik = dataSaya.filter((d) => d.jenisGeometri === "point").length;
       const jmlKm = dataSaya.reduce((acc, d) => acc + (d.panjangKm || 0), 0);
       const jmlHa = dataSaya.reduce((acc, d) => acc + (d.luasHa || 0), 0);
@@ -89,7 +98,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
         totalTitik: jmlTitik,
         totalJalurKm: Number(jmlKm.toFixed(2)),
         totalPoligonHa: Number(jmlHa.toFixed(2)),
-        skorKualitas: dataSaya.length > 0 ? 95 : 80,
+        skorKualitas: hitungRerataKualitas(dataSaya),
         level: lvl.level,
         tierNama: lvl.tierNama,
         tierBadgeColor: lvl.tierBadgeColor,
@@ -101,7 +110,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
     dataSpasial.forEach((d) => {
       const id = d.idKader || "KADER-UMUM";
       if (!petaKader.has(id)) {
-        const dataDia = dataSpasial.filter((x) => (x.idKader || "KADER-UMUM") === id);
+        const dataDia = dataSpasial.filter((x) => (x.idKader || "KADER-UMUM") === id && dihitungUntukCapaian(x));
         const jmlTitik = dataDia.filter((x) => x.jenisGeometri === "point").length;
         const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
         const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
@@ -114,7 +123,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
           totalTitik: jmlTitik,
           totalJalurKm: Number(jmlKm.toFixed(2)),
           totalPoligonHa: Number(jmlHa.toFixed(2)),
-          skorKualitas: 92,
+          skorKualitas: hitungRerataKualitas(dataDia),
           level: lvl.level,
           tierNama: lvl.tierNama,
           tierBadgeColor: lvl.tierBadgeColor,
@@ -129,7 +138,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       akunTerdaftar.forEach((a) => {
         const id = a.idKader || a.email;
         if (!petaKader.has(id)) {
-          const dataDia = dataSpasial.filter((x) => (x.idKader || "") === a.idKader || (x.namaKader || "").toLowerCase() === a.nama.toLowerCase());
+          const dataDia = dataSpasial.filter((x) => ((x.idKader || "") === a.idKader || (x.namaKader || "").toLowerCase() === a.nama.toLowerCase()) && dihitungUntukCapaian(x));
           const jmlTitik = dataDia.filter((x) => x.jenisGeometri === "point").length;
           const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
           const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
@@ -142,7 +151,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
             totalTitik: jmlTitik,
             totalJalurKm: Number(jmlKm.toFixed(2)),
             totalPoligonHa: Number(jmlHa.toFixed(2)),
-            skorKualitas: dataDia.length > 0 ? 95 : 85,
+            skorKualitas: hitungRerataKualitas(dataDia),
             level: lvl.level,
             tierNama: lvl.tierNama,
             tierBadgeColor: lvl.tierBadgeColor,

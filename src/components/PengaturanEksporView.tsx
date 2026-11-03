@@ -33,7 +33,15 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
 
   const handleEksporSekarang = () => {
     const namaBersih = (namaFile.trim() || "Ekspor_AM_2").replace(/\s+/g, "_");
-    const sumberData = hanyaSkema ? [] : dataSpasial;
+    const dataFilter = sertakanFoto
+      ? dataSpasial
+      : dataSpasial.map((d) => ({
+          ...d,
+          fotoBase64: undefined,
+          buktiFoto: undefined,
+          driveFileUrl: undefined
+        }));
+    const sumberData = hanyaSkema ? [] : dataFilter;
 
     if (formatFile === ".kml") {
       unduhBerkas(`${namaBersih}.kml`, eksporKeKML(sumberData), "application/vnd.google-earth.kml+xml");
