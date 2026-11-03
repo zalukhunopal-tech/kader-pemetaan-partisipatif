@@ -189,4 +189,22 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(css).toContain("display: flex;");
     expect(css).toContain("flex-direction: column;");
   });
+
+  it("14. Pustaka view list & kolom ke tengah semua, hilangkan kotak overlap pada pilihan peta/lapisan, dan form kader anti-overlap", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    // View list ditengahkan
+    expect(css).toContain(".pustaka-field .avenza-map-list:not(.pustaka-grid)");
+    expect(css).toContain("align-items: center;");
+
+    // Pilihan peta & lapisan tidak memiliki kotak outline tambahan / overlap saat dipilih
+    expect(css).toContain(".avenza-segment-btn:focus");
+    expect(css).toContain("outline: none !important;");
+
+    // Form kader (HOK) menggunakan flex-wrap responsif anti-overlap
+    expect(css).toContain(".hok-inputs-flex");
+    expect(css).toContain("flex-wrap: wrap;");
+    expect(css).toContain(".admin-subnav-btn");
+  });
 });

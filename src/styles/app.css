@@ -372,25 +372,12 @@ body {
     border-radius: 14px;
   }
   .avenza-segment-btn {
-    font-size: 0.95rem;
-    gap: 10px;
-    border-radius: 10px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .avenza-segmented-control {
-    max-width: 880px;
-  }
-}
-
-.avenza-segment-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   height: 100%;
-  border: none;
+  border: none !important;
   border-radius: 9px;
   background: transparent;
   color: #64748b;
@@ -400,6 +387,17 @@ body {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
+.avenza-segment-btn:focus,
+.avenza-segment-btn:focus-visible,
+.avenza-segment-btn:active {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
 }
 
 .avenza-segment-btn:hover:not(.active) {
@@ -411,7 +409,9 @@ body {
   background: #ffffff;
   color: #047857;
   font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  outline: none !important;
+  border: none !important;
 }
 
 .avenza-segment-btn .segment-icon {
@@ -4198,48 +4198,37 @@ label {
 .admin-subnav {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
-  gap: 6px;
+  gap: 8px;
   margin-top: 14px;
 }
 
 @media (min-width: 768px) {
   .admin-subnav {
+    display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
   }
 }
 
 .admin-subnav-btn {
-  min-width: 0;
-  min-height: 48px;
-  padding: 6px 4px;
+  flex: 1 1 auto;
+  min-width: max-content;
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1.2;
-  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  text-align: center;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-@media (min-width: 768px) {
-  .admin-subnav-btn {
-    flex-direction: row;
-    min-height: 44px;
-    gap: 6px;
-    font-size: 0.8rem;
-    padding: 8px 10px;
-  }
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .admin-subnav-btn svg {
@@ -4248,10 +4237,9 @@ label {
 }
 
 .admin-subnav-btn span {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .admin-subnav-btn:hover {
@@ -5906,17 +5894,25 @@ label {
 .pustaka-field {
   --field-green: #287946;
   color: #27332d;
+  width: 100%;
+  box-sizing: border-box;
 }
 .pustaka-field .avenza-segmented-wrap {
   padding: 12px 16px 8px;
   background: #ffffff;
   display: flex;
   justify-content: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 .pustaka-field .avenza-segmented-control {
   height: 42px;
   border-color: #e2e8f0;
   background: #f1f5f9;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 360px;
 }
 @media (min-width: 768px) {
   .pustaka-field .avenza-segmented-control {
@@ -5931,24 +5927,35 @@ label {
     max-width: 880px;
   }
 }
+.pustaka-field .avenza-segment-btn {
+  outline: none !important;
+  border: none !important;
+}
+.pustaka-field .avenza-segment-btn:focus,
+.pustaka-field .avenza-segment-btn:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
 .pustaka-field .avenza-segment-btn.active {
   background: #ffffff;
   color: #047857;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  outline: none !important;
+  border: none !important;
 }
 .pustaka-field .avenza-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 16px;
-  gap: 6px;
+  gap: 8px;
   border: 0;
-}
-@media (min-width: 768px) {
-  .pustaka-field .avenza-filter-row {
-    max-width: 760px;
-    margin: 0 auto;
-    width: 100%;
-    padding: 10px 0;
-  }
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 @media (min-width: 1200px) {
   .pustaka-field .avenza-filter-row {
@@ -5965,9 +5972,12 @@ label {
   border-color: #059669;
 }
 .pustaka-field .avenza-search-bar {
-  max-width: 340px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: calc(100% - 32px);
-  margin: 4px 16px 12px;
+  max-width: 340px;
+  margin: 4px auto 12px;
   padding: 6px 12px;
   height: 38px;
   background: #f8fafc;
@@ -5978,7 +5988,7 @@ label {
 @media (min-width: 768px) {
   .pustaka-field .avenza-search-bar {
     max-width: 760px;
-    width: 100%;
+    width: calc(100% - 32px);
     height: 46px;
     margin: 8px auto 16px;
     padding: 8px 18px;
@@ -6001,14 +6011,10 @@ label {
 }
 .pustaka-field .avenza-basemap-banner-wrap {
   padding: 0 16px;
-}
-@media (min-width: 768px) {
-  .pustaka-field .avenza-basemap-banner-wrap {
-    max-width: 760px;
-    margin: 0 auto;
-    width: 100%;
-    padding: 0;
-  }
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 @media (min-width: 1200px) {
   .pustaka-field .avenza-basemap-banner-wrap {
@@ -6053,17 +6059,13 @@ label {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   padding: 22px 16px 8px;
   font-size: 14px;
   font-weight: 650;
-}
-@media (min-width: 768px) {
-  .pustaka-list-heading {
-    max-width: 760px;
-    margin: 0 auto;
-    width: 100%;
-    padding: 24px 0 10px;
-  }
+  box-sizing: border-box;
 }
 @media (min-width: 1200px) {
   .pustaka-list-heading {
@@ -6096,45 +6098,47 @@ label {
   color: #277745;
   background: #eaf2e9;
 }
-.pustaka-field .avenza-map-list {
+
+/* VIEW LIST (TENGAKHAN SEMUA KARTU DAFTAR) */
+.pustaka-field .avenza-map-list:not(.pustaka-grid) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   padding: 0 16px 100px;
+  box-sizing: border-box;
 }
-@media (min-width: 768px) {
-  .pustaka-field .avenza-map-list:not(.pustaka-grid) {
-    max-width: 760px;
-    margin: 0 auto;
-    width: 100%;
-    padding: 0 0 100px;
-  }
-  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px 18px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: all 0.15s ease;
-  }
-  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  }
+.pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  background: #ffffff;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+.pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 @media (min-width: 1200px) {
-  .pustaka-field .avenza-map-list:not(.pustaka-grid) {
+  .pustaka-field .avenza-map-list:not(.pustaka-grid),
+  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
     max-width: 880px;
   }
-}
-.pustaka-field .avenza-map-row {
-  padding: 16px 0;
-  border-bottom: 1px solid #e8ece5;
-  gap: 14px;
-  background: #fff;
 }
 .pustaka-field .avenza-map-thumb-wrap {
   width: 64px;
   height: 72px;
   border: 1px solid #e4e8e1;
-  border-radius: 5px;
+  border-radius: 8px;
   background: #f5f6f2;
   flex-shrink: 0;
 }
@@ -6161,13 +6165,15 @@ label {
 /* VIEW KOLOM / GRID (DITENGAHKAN SECARA RAPI) */
 .pustaka-field .pustaka-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 220px));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 230px));
   justify-content: center; /* WAJIB TENGAH */
   justify-items: center;
   align-content: start;
   gap: 16px;
   margin: 0 auto;
   width: 100%;
+  max-width: 760px;
+  padding: 0 16px 100px;
   box-sizing: border-box;
 }
 @media (max-width: 480px) {
@@ -6176,6 +6182,7 @@ label {
     justify-content: center;
     justify-items: stretch;
     gap: 12px;
+    padding: 0 12px 100px;
   }
 }
 @media (min-width: 768px) {
@@ -6185,7 +6192,6 @@ label {
     justify-items: stretch;
     max-width: 880px;
     gap: 20px;
-    padding: 0 0 100px;
   }
 }
 @media (min-width: 1200px) {
@@ -6291,27 +6297,29 @@ label {
 .pustaka-field .avenza-lapisan-content {
   background: transparent;
   padding-bottom: 120px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
-@media (min-width: 768px) {
-  .pustaka-field .avenza-layer-list {
-    max-width: 760px;
-    margin: 0 auto;
-    width: 100%;
-    padding: 0 0 100px;
-  }
-  .pustaka-field .avenza-layer-row {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px 18px;
-    margin-bottom: 12px;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: all 0.15s ease;
-  }
-  .pustaka-field .avenza-layer-row:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  }
+.pustaka-field .avenza-layer-list {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 16px 100px;
+  box-sizing: border-box;
+}
+.pustaka-field .avenza-layer-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+.pustaka-field .avenza-layer-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 @media (min-width: 1200px) {
   .pustaka-field .avenza-layer-list {
@@ -6326,9 +6334,9 @@ label {
   height: 58px;
   box-shadow: 0 4px 10px #0003;
 }
-.pustaka-field button:focus-visible,
+.pustaka-field button:not(.avenza-segment-btn):focus-visible,
 .temukan-field button:focus-visible,
-.pustaka-field [role="button"]:focus-visible {
+.pustaka-field [role="button"]:not(.avenza-segment-btn):focus-visible {
   outline: 3px solid #ed8c25;
   outline-offset: 3px;
 }
@@ -7674,7 +7682,8 @@ button:disabled {
 .panel-user-filter-bar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  width: 100%;
 }
 
 .panel-search-box {
@@ -7685,6 +7694,8 @@ button:disabled {
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   padding: 8px 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .panel-search-box input {
@@ -7697,22 +7708,23 @@ button:disabled {
 .panel-tier-pills {
   display: flex;
   align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  white-space: nowrap;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
   padding-bottom: 2px;
 }
 
 .tier-pill {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #475569;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  flex: 0 0 auto;
   transition: all 0.15s ease;
 }
 
@@ -8581,15 +8593,8 @@ html[data-field-theme="matahari"] .section-card h2 {
 .panel-user-filter-bar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-@media (min-width: 768px) {
-  .panel-user-filter-bar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
+  gap: 12px;
+  width: 100%;
 }
 
 .panel-search-box {
@@ -8599,16 +8604,16 @@ html[data-field-theme="matahari"] .section-card h2 {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
-  padding: 6px 12px;
-  flex: 1 1 240px;
-  max-width: 380px;
+  padding: 8px 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .panel-search-box input {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: #0f172a;
   width: 100%;
 }
@@ -8616,11 +8621,10 @@ html[data-field-theme="matahari"] .section-card h2 {
 .panel-tier-pills {
   display: flex;
   align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  white-space: nowrap;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
   padding-bottom: 2px;
-  -webkit-overflow-scrolling: touch;
 }
 
 .panel-user-cards-grid {
@@ -8802,23 +8806,20 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 .hok-inputs-flex {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-@media (min-width: 580px) {
-  .hok-inputs-flex {
-    grid-template-columns: 140px 1fr auto;
-    align-items: center;
-  }
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .hok-input-nominal-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  width: 100%;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 100%;
 }
 
 .hok-rp-label {
@@ -8843,36 +8844,39 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 .hok-input-notes {
-  width: 100%;
-  padding: 8px 10px;
+  flex: 2 1 200px;
+  min-width: 160px;
+  max-width: 100%;
+  padding: 8px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: #1e293b;
   background: #ffffff;
   box-sizing: border-box;
 }
 
 .btn-hok-save {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   min-height: 38px;
   border: none;
   background: #0d7344;
   color: #ffffff;
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease;
 }
 
 .btn-hok-save:hover {
-  background: #0b5e37;
+  background: #059669;
 }
 
 .btn-hok-save:active {
