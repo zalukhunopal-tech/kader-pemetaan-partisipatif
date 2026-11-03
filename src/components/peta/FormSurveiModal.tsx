@@ -19,6 +19,8 @@ import { ambilRataRataGps } from "../../lib/posisiPerangkat";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { BottomSheet } from "./BottomSheet";
 import { PerekamMemoSuara } from "./PerekamMemoSuara";
+import { KartuLokasiTitik } from "./KartuLokasiTitik";
+import { bacaSistemKoordinat, simpanSistemKoordinat, SistemKoordinat } from "../../lib/sistemKoordinat";
 
 export const KATEGORI_VISUAL: { kategori: KategoriSurvei; judul: string; contoh: string; Ikon: typeof Leaf }[] = [
   { kategori: "Tanda Batas", judul: "Batas desa / adat", contoh: "Patok, batas alam", Ikon: Flag },
@@ -141,6 +143,9 @@ interface FormSurveiModalProps {
   onHasilAveraging: (hasil: HasilRataRataGps) => void;
   onSimpan: (e: React.FormEvent) => void;
   onTutup: () => void;
+  sistemKoordinat?: SistemKoordinat;
+  onGantiSistemKoordinat?: (s: SistemKoordinat) => void;
+  onUbahKoordinat?: (titik: KoordinatTitik) => void;
 }
 export function FormSurveiModal({
   form,
@@ -152,8 +157,15 @@ export function FormSurveiModal({
   galatGeometri,
   onHasilAveraging,
   onSimpan,
-  onTutup
+  onTutup,
+  sistemKoordinat,
+  onGantiSistemKoordinat,
+  onUbahKoordinat
 }: FormSurveiModalProps) {
+  const [sistemAktif, setSistemAktif] = useState<SistemKoordinat>(() => sistemKoordinat || bacaSistemKoordinat());
+  useEffect(() => {
+    if (sistemKoordinat) setSistemAktif(sistemKoordinat);
+  }, [sistemKoordinat]);
   const [detail, setDetail] = useState(Boolean(form.isian.judul)),
     [stamp, setStamp] = useState(true),
     [memoSibuk, setMemoSibuk] = useState(false),
@@ -256,34 +268,29 @@ export function FormSurveiModal({
           )}
           {field("judul", "Nama Objek *", true)}
           {modeRekam === "point" && (
-            <section className="gps-averaging-card">
-              <h4>
-                <MapPin size={18} /> Rata-rata titik GPS
-              </h4>
-              <p className="field-help">Tetap diam selama 10 detik. Titik hasil menggantikan lokasi bidikan.</p>
-              <button type="button" className="btn-outline-sm" disabled={gpsSibuk} onClick={() => void rataGps()}>
-                {gpsSibuk ? `Mengukur · ${sampel} sampel` : "Ukur GPS 10 detik"}
-              </button>
-              {gpsSibuk && (
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  onClick={() => {
-                    abort.current?.abort();
-                    setGpsSibuk(false);
-                  }}
-                >
-                  Batalkan pengukuran
-                </button>
-              )}
-              {isian.averaging && (
-                <p role="status">
-                  {isian.averaging.jumlahSampel} sampel · sebaran {isian.averaging.sebaranMeter.toFixed(1)} m · akurasi perangkat ±
-                  {isian.averaging.titik.akurasi?.toFixed(1)} m
-                </p>
-              )}
-              {galatGps && <p role="alert">{galatGps}</p>}
-            </section>
+            <KartuLokasiTitik
+              titik={koordinat[0]}
+              sistem={sistemAktif}
+              onGantiSistem={(s) => {
+                setSistemAktif(s);
+                simpanSistemKoordinat(s);
+                onGantiSistemKoordinat?.(s);
+              }}
+              onUbahKoordinat={onUbahKoordinat}
+              gpsSibuk={gpsSibuk}
+              sampel={sampel}
+              onUkurGps={() => void rataGps()}
+              onBatalUkur={() => {
+                abort.current?.abort();
+                setGpsSibuk(false);
+              }}
+              infoAveraging={
+                isian.averaging
+                  ? `${isian.averaging.jumlahSampel} sampel · sebaran ${isian.averaging.sebaranMeter.toFixed(1)} m · akurasi ±${isian.averaging.titik.akurasi?.toFixed(1)} m`
+                  : undefined
+              }
+              galatGps={galatGps}
+            />
           )}
           <div className="form-row-2">
             {field("namaLokal", "Nama Lokal")}

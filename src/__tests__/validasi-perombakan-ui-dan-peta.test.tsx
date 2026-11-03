@@ -16,6 +16,10 @@ import { NavigasiBawah } from "../components/app/NavigasiBawah";
 import { LogoSertifikatResmiSvg } from "../components/sertifikat/LogoSertifikatResmiSvg";
 import { KomunikasiView } from "../components/KomunikasiView";
 import { PanelDataUserLevel, hitungLevelKaderOtomatis } from "../components/PanelDataUserLevel";
+import { RailAlatPeta } from "../components/peta/RailAlatPeta";
+import { ChipKoordinatPeta } from "../components/peta/ChipKoordinatPeta";
+import { KartuLokasiTitik } from "../components/peta/KartuLokasiTitik";
+import { formatKoordinat } from "../lib/sistemKoordinat";
 import { PDFDocument, PDFName } from "pdf-lib";
 import { AreaPetaOffline, DataSpasialItem, ProfilKader } from "../types";
 
@@ -305,5 +309,68 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(html).toContain("Penetapan Alokasi HOK");
     expect(html).toContain("Rian Hidayat");
     expect(html).toContain("Tanjung Selor Hilir");
+  });
+  // SIMULASI 8: RailAlatPeta menyatukan Zoom In/Out dengan Alat Survei (Titik, Jalur, Area)
+  it("Simulasi 8: RailAlatPeta menyatukan tombol zoom dan aksi survei dalam 1 rail terpadu", () => {
+    let modeTerpilih = "";
+    const html = renderToString(
+      <RailAlatPeta
+        modeRekam={null}
+        gpsTersedia={true}
+        ikutiKompas={false}
+        onGps={vi.fn()}
+        onZoomMasuk={vi.fn()}
+        onZoomKeluar={vi.fn()}
+        onPilihAlat={(jenis) => {
+          modeTerpilih = jenis;
+        }}
+      />
+    );
+
+    expect(html).toContain("map-tool-rail");
+    expect(html).toContain("rail-zoom");
+    expect(html).toContain("rail-tools");
+    expect(html).toContain("Titik");
+    expect(html).toContain("Jalur");
+    expect(html).toContain("Area");
+  });
+
+  // SIMULASI 9: Tampilan Koordinat Simpel & Pengisian Form Titik dengan Ganti Sistem Koordinat
+  it("Simulasi 9: ChipKoordinatPeta dan KartuLokasiTitik memformat koordinat WGS 84 dan UTM serta memudahkan form titik", () => {
+    const dummyPos = { lat: 2.857472, lng: 117.377476, akurasi: 4.2 };
+
+    // A. Chip Telemetri Peta
+    const htmlChip = renderToString(
+      <ChipKoordinatPeta
+        posisi={dummyPos}
+        teksMenunggu="Mencari sinyal..."
+        sistem="UTM"
+        onGantiSistem={vi.fn()}
+        onSalin={vi.fn()}
+      />
+    );
+    expect(htmlChip).toContain("coord-chip");
+    expect(htmlChip).toContain("50N");
+    expect(htmlChip).toContain("UTM");
+
+    // B. Kartu Lokasi Titik di dalam Form Survei
+    const htmlKartu = renderToString(
+      <KartuLokasiTitik
+        titik={dummyPos}
+        sistem="DD"
+        onGantiSistem={vi.fn()}
+        onUbahKoordinat={vi.fn()}
+        gpsSibuk={false}
+        sampel={0}
+        onUkurGps={vi.fn()}
+        onBatalUkur={vi.fn()}
+      />
+    );
+    expect(htmlKartu).toContain("loc-card");
+    expect(htmlKartu).toContain("Koordinat Titik");
+    expect(htmlKartu).toContain("Lintang");
+    expect(htmlKartu).toContain("Bujur");
+    expect(htmlKartu).toContain("Ukur GPS 10 detik");
+    expect(htmlKartu).toContain("Ketik manual");
   });
 });
