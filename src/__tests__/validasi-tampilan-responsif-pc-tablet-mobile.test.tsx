@@ -231,4 +231,32 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(css).toContain("padding: 8px 14px 10px;");
     expect(css).toContain("width: calc(100% - 28px);");
   });
+
+  it("16. Pustaka semua mode view ditengahkan, menu admin subnav anti-overlap, dan CSS brace seimbang", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    // Verifikasi CSS brace balance = 0 (tidak ada unclosed media query yang mematikan style PC)
+    let balance = 0;
+    for (const char of css) {
+      if (char === "{") balance++;
+      if (char === "}") balance--;
+    }
+    expect(balance).toBe(0);
+
+    // Pustaka mode grid/kolom ditengahkan secara rapi menggunakan auto-fit
+    expect(css).toContain(".pustaka-field .pustaka-grid");
+    expect(css).toContain("repeat(auto-fit, minmax(210px, 260px))");
+    expect(css).toContain("justify-content: center;");
+
+    // Menu admin subnav User & Level dan Data anti-overlap (min-width: 0 dan overflow: hidden)
+    expect(css).toContain(".admin-subnav-btn");
+    expect(css).toContain("min-width: 0;");
+    expect(css).toContain("overflow: hidden;");
+    expect(css).not.toContain("min-width: max-content;");
+
+    // Data User & Level Kader kartu memiliki styling lengkap (border-radius 18px & shadow)
+    expect(css).toContain(".kader-user-level-card");
+    expect(css).toContain("border-radius: 18px;");
+  });
 });
