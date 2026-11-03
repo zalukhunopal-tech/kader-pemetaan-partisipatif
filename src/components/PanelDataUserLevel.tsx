@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, Search, Check, Shield, Award, MapPin, Route, Square, DollarSign, Filter, Save } from "lucide-react";
 import { DataSpasialItem, ProfilKader, PeranPengguna } from "../types";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
+import { muatSemuaAkun } from "../lib/auth";
 
 export interface MetrikKaderUser {
   idKader: string;
@@ -146,34 +147,39 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       }
     });
 
-    // Default contoh kader jika data lokal masih sedikit
-    if (petaKader.size < 3) {
-      const contoh = [
-        { id: "KAD-01", nama: "Budi Santoso", desa: "Tanjung Palas", titik: 18, km: 12.4, ha: 4.5, lvl: 8, tier: "Kader Pelaksana", color: "#0d7344" },
-        { id: "KAD-02", nama: "Siti Rahmawati", desa: "Tanjung Selor Hilir", titik: 42, km: 28.5, ha: 14.2, lvl: 14, tier: "Kader Utama", color: "#0284c7" },
-        { id: "KAD-03", nama: "Ahmad Dahlan", desa: "Gunung Seriang", titik: 85, km: 64.0, ha: 32.8, lvl: 18, tier: "Kader Ahli", color: "#7c3aed" }
-      ];
-      contoh.forEach((c) => {
-        if (!petaKader.has(c.id)) {
-          const alokasi = alokasiHokStore[c.id] || { nominalRp: Math.round(c.km * 15000), catatan: "Alokasi HOK Lapangan" };
-          petaKader.set(c.id, {
-            idKader: c.id,
-            nama: c.nama,
-            desaWilayah: c.desa,
-            kelompok: "Tim Pemetaan Partisipatif",
-            totalTitik: c.titik,
-            totalJalurKm: c.km,
-            totalPoligonHa: c.ha,
-            skorKualitas: 96,
-            level: c.lvl,
-            tierNama: c.tier,
-            tierBadgeColor: c.color,
+    // Muat semua akun kader/user riil terdaftar dari sistem autentikasi (tanpa akun dummy)
+    try {
+      const akunTerdaftar = muatSemuaAkun();
+      akunTerdaftar.forEach((a) => {
+        const id = a.idKader || a.email;
+        if (!petaKader.has(id)) {
+          const dataDia = dataSpasial.filter((x) => (x.idKader || "") === a.idKader || (x.namaKader || "").toLowerCase() === a.nama.toLowerCase());
+          const jmlTitik = dataDia.filter((x) => x.jenisGeometri === "point").length;
+          const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
+          const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
+          const lvl = hitungLevelKaderOtomatis(jmlTitik, jmlKm, jmlHa);
+          const alokasi = alokasiHokStore[id] || { nominalRp: Math.round(jmlKm * 15000 + jmlTitik * 10000), catatan: "HOK Standar Lapangan" };
+
+          petaKader.set(id, {
+            idKader: a.idKader || id,
+            nama: a.nama,
+            desaWilayah: a.desaWilayah || (a.wilayah ? a.wilayah.desa : "Desa Binaan"),
+            kelompok: a.kelompokMasyarakat || (a.peran === "admin" ? "Administrator GIS" : "Kader Lapangan"),
+            totalTitik: jmlTitik,
+            totalJalurKm: Number(jmlKm.toFixed(2)),
+            totalPoligonHa: Number(jmlHa.toFixed(2)),
+            skorKualitas: dataDia.length > 0 ? 95 : 85,
+            level: lvl.level,
+            tierNama: lvl.tierNama,
+            tierBadgeColor: lvl.tierBadgeColor,
             hokDisetujuiRp: alokasi.nominalRp,
             catatanHok: alokasi.catatan,
-            terakhirAktif: "Kemarin"
+            terakhirAktif: dataDia.length > 0 ? "Aktif survei" : "Terdaftar"
           });
         }
       });
+    } catch {
+      // Abaikan jika auth belum siap
     }
 
     return Array.from(petaKader.values());
@@ -311,17 +317,18 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                   <div className="kader-avatar-circle" style={{ borderColor: kader.tierBadgeColor }}>
                     <span className="kader-avatar-lvl">{kader.level}</span>
                   </div>
-                  <div>
+                  <div className="kader-profile-info">
                     <h4 className="kader-name">{kader.nama}</h4>
                     <div className="kader-id-desa">
-                      <span>{kader.idKader}</span> • <span>{kader.desaWilayah}</span>
+                      <span className="kader-id-badge">{kader.idKader}</span>
+                      <span className="kader-desa-badge">{kader.desaWilayah}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="kader-tier-badge" style={{ backgroundColor: `${kader.tierBadgeColor}15`, color: kader.tierBadgeColor, borderColor: `${kader.tierBadgeColor}40` }}>
                   <LogoSertifikatResmiSvg size={14} warna={kader.tierBadgeColor} />
-                  <span>Level {kader.level} — {kader.tierNama}</span>
+                  <span>Level {kader.level} • {kader.tierNama}</span>
                 </div>
               </div>
 
@@ -363,7 +370,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                         const val = e.target.value.replace(/\D/g, "");
                         setInputHok((prev) => ({ ...prev, [kader.idKader]: val }));
                       }}
-                      placeholder="Contoh: 150000"
+                      placeholder="Nominal HOK"
                     />
                   </div>
 
@@ -390,7 +397,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                 </div>
 
                 <div className="hok-approved-status">
-                  <span>HOK Berjalan Saat Ini: <b>Rp {kader.hokDisetujuiRp.toLocaleString("id-ID")}</b></span>
+                  <span className="hok-curr-badge">HOK Disetujui: <b>Rp {kader.hokDisetujuiRp.toLocaleString("id-ID")}</b></span>
                   {kader.catatanHok && <span className="hok-approved-note">• {kader.catatanHok}</span>}
                 </div>
               </div>

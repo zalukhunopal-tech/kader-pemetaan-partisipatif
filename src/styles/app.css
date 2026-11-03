@@ -4107,21 +4107,28 @@ label {
 .admin-subnav {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
   margin-top: 14px;
+}
+
+@media (min-width: 768px) {
+  .admin-subnav {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+  }
 }
 
 .admin-subnav-btn {
   min-width: 0;
-  min-height: 52px;
-  padding: 8px 6px;
+  min-height: 48px;
+  padding: 6px 4px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -4132,6 +4139,16 @@ label {
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
+}
+
+@media (min-width: 768px) {
+  .admin-subnav-btn {
+    flex-direction: row;
+    min-height: 44px;
+    gap: 6px;
+    font-size: 0.8rem;
+    padding: 8px 10px;
+  }
 }
 
 .admin-subnav-btn svg {
@@ -7330,61 +7347,7 @@ button:disabled {
   border-color: #0d7344;
 }
 
-.panel-user-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 12px;
-}
-
-.kader-user-level-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-
-.kader-card-top-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.kader-profile-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.kader-avatar-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #0d7344;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  color: #0f172a;
-  flex-shrink: 0;
-}
-
-.kader-name {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* panel-user-cards-grid and kader-user-level-card moved to dedicated responsive section */
 
 .telemetry-accuracy {
   font-size: 10px;
@@ -8224,57 +8187,218 @@ html[data-field-theme="matahari"] .section-card h2 {
     padding: 24px 20px 20px;
   }
 
+/* =========================================================
+   DATA USER & LEVEL KADER (ANTI OVERLAP, MOBILE & PC RESPONSIVE)
+   ========================================================= */
+.panel-data-user-level-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-user-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-user-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .panel-user-filter-bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.panel-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 6px 12px;
+  flex: 1 1 240px;
+  max-width: 380px;
+}
+
+.panel-search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.85rem;
+  color: #0f172a;
+  width: 100%;
+}
+
+.panel-tier-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel-user-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 768px) {
+  .panel-user-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
+  }
+}
+
+.kader-user-level-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kader-user-level-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.kader-card-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kader-profile-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.kader-avatar-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2.5px solid #0d7344;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.kader-profile-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.kader-name {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
 .kader-id-desa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.kader-id-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.kader-desa-badge {
   font-size: 0.74rem;
   color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .kader-tier-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 8px;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
   border: 1px solid transparent;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  white-space: nowrap;
   flex-shrink: 0;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .kader-metrics-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 10px 0;
   border-top: 1px solid #f1f5f9;
   border-bottom: 1px solid #f1f5f9;
 }
 
+@media (min-width: 640px) {
+  .kader-metrics-strip {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .metric-pill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 0.72rem;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
   color: #334155;
+  text-align: center;
   white-space: nowrap;
 }
 
 .kader-hok-admin-control {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 12px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .hok-control-title {
@@ -8287,76 +8411,106 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 .hok-inputs-flex {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 580px) {
+  .hok-inputs-flex {
+    grid-template-columns: 140px 1fr auto;
+    align-items: center;
+  }
 }
 
 .hok-input-nominal-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  flex: 1 1 120px;
+  width: 100%;
 }
 
 .hok-rp-label {
   position: absolute;
-  left: 8px;
+  left: 10px;
   font-size: 0.75rem;
   font-weight: 700;
   color: #64748b;
+  pointer-events: none;
 }
 
 .hok-input-nominal {
   width: 100%;
-  padding: 6px 8px 6px 26px;
+  padding: 8px 10px 8px 28px;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #0f172a;
+  background: #ffffff;
+  box-sizing: border-box;
 }
 
 .hok-input-notes {
-  flex: 2 1 150px;
-  padding: 6px 8px;
+  width: 100%;
+  padding: 8px 10px;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  color: #334155;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #1e293b;
+  background: #ffffff;
+  box-sizing: border-box;
 }
 
 .btn-hok-save {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  min-height: 38px;
   border: none;
   background: #0d7344;
   color: #ffffff;
-  border-radius: 6px;
-  font-size: 0.78rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 
 .btn-hok-save:hover {
   background: #0b5e37;
 }
 
+.btn-hok-save:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 579px) {
+  .btn-hok-save {
+    width: 100%;
+  }
+}
+
 .hok-approved-status {
-  font-size: 0.72rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.75rem;
   color: #065f46;
   margin-top: 2px;
+  line-height: 1.4;
+}
+
+.hok-curr-badge {
+  font-weight: 500;
 }
 
 .hok-approved-note {
   color: #64748b;
-  margin-left: 4px;
-
 }
 
 
@@ -9029,5 +9183,107 @@ html[data-field-theme="matahari"] .section-card h2 {
   }
   .loc-copy {
     justify-content: center;
+  }
+}
+
+/* =========================================================
+   PETA INTERAKTIF: PERBAIKAN OVERLAP & RESPONSIVE PC / MOBILE
+   ========================================================= */
+
+/* Geser semua kontrol atas ke bawah ketika lembar peta kustom GeoPDF / GeoTIFF aktif */
+.temukan-field.avenza-custom-active .coord-chip-wrap,
+.map-module-wrapper.avenza-custom-active .coord-chip-wrap {
+  top: 60px !important;
+}
+
+.temukan-field.avenza-custom-active .map-hud-pod.top-right,
+.map-module-wrapper.avenza-custom-active .map-hud-pod.top-right {
+  top: 60px !important;
+}
+
+.temukan-field.avenza-custom-active .temukan-search-floating,
+.map-module-wrapper.avenza-custom-active .temukan-search-floating {
+  top: 60px !important;
+}
+
+.temukan-field.avenza-custom-active .map-layers-popover,
+.map-module-wrapper.avenza-custom-active .map-layers-popover {
+  top: 60px !important;
+}
+
+.temukan-field.avenza-custom-active .field-map-message,
+.map-module-wrapper.avenza-custom-active .field-map-message {
+  top: 60px !important;
+}
+
+/* Batang skala ditempatkan rapi di atas atribusi peta */
+.temukan-field .avenza-scale-bar-wrap {
+  bottom: 44px !important;
+  left: 14px !important;
+  pointer-events: none;
+  z-index: 22;
+}
+
+.temukan-field .map-bawah {
+  bottom: 6px;
+  left: 8px;
+  right: 80px;
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* Panel draf & strip objek tidak menabrak / overlap dengan rail alat kanan bawah */
+.field-resume-draft {
+  position: absolute;
+  bottom: 20px;
+  left: 14px;
+  right: 80px;
+  max-width: 380px;
+  z-index: 22;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.map-feature-strip {
+  position: absolute;
+  bottom: 84px;
+  left: 14px;
+  right: 80px;
+  max-width: 480px;
+  z-index: 22;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 99px;
+  padding: 4px 10px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* Responsivitas rail alat zoom & survei di mobile dan PC */
+@media (max-width: 640px) {
+  .map-tool-rail {
+    bottom: 18px !important;
+    right: 10px !important;
+    padding: 5px !important;
+    gap: 3px !important;
+  }
+  .rail-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  .rail-tool {
+    height: 46px !important;
+  }
+  .coord-chip-wrap {
+    max-width: calc(100vw - 110px) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .map-tool-rail {
+    bottom: 28px !important;
+    right: 24px !important;
   }
 }
