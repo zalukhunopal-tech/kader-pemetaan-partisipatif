@@ -207,4 +207,28 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(css).toContain("flex-wrap: wrap;");
     expect(css).toContain(".admin-subnav-btn");
   });
+
+  it("15. Pustaka pill terbaru dan semua item terstruktur rapi dengan ikon absolut, space tipis anti-mentok, dan tombol segmen rapi dalam bingkai", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    // Segmented control button tidak menonjol keluar dan memiliki concentric border-radius
+    expect(css).toContain(".avenza-segmented-control");
+    expect(css).toContain(".avenza-segment-btn.active");
+    expect(css).toContain("border-radius: 8px;");
+
+    // Pill Terbaru & Semua item memiliki padding terstruktur dan posisi ikon absolut
+    expect(css).toContain(".avenza-pill-select-wrap");
+    expect(css).toContain("padding: 0 28px 0 32px;");
+    expect(css).toContain(".avenza-pill-icon");
+    expect(css).toContain("position: absolute;");
+    expect(css).toContain("left: 10px;");
+    expect(css).toContain(".avenza-pill-caret");
+    expect(css).toContain("right: 10px;");
+
+    // Space tipis anti-mentok untuk baris filter dan search bar
+    expect(css).toContain(".avenza-filter-row");
+    expect(css).toContain("padding: 8px 14px 10px;");
+    expect(css).toContain("width: calc(100% - 28px);");
+  });
 });
