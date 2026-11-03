@@ -23,7 +23,8 @@ import {
   TARGET_TRACKING_KM
 } from "../lib/rewardEngine";
 import {
-  Award,
+  LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
+import {
   Download,
   ShieldCheck,
   Settings,
@@ -629,7 +630,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
       <div className="section-card certificate-section-card">
         <div className="certificate-header-bar">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Award size={20} color="#0d7344" />
+            <LogoSertifikatResmiSvg size={22} variant="zamrud" />
             <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat</h3>
           </div>
           {peran === "admin" && (

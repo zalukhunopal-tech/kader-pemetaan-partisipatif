@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -57,6 +57,7 @@ import { PemberitahuanView } from "./components/PemberitahuanView";
 import { PengaturanEksporView } from "./components/PengaturanEksporView";
 import { InteractiveMap } from "./components/InteractiveMap";
 import { DatabaseSyncView } from "./components/DatabaseSyncView";
+import { useAutoSyncGDrive } from "./lib/gdriveSync";
 import { RewardView } from "./components/RewardView";
 import { TugasPengumumanView } from "./components/TugasPengumumanView";
 import { KomunikasiView } from "./components/KomunikasiView";
@@ -227,6 +228,18 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  const handleTandaiTersinkron = useCallback((idTersinkron: string[]) => {
+    setDataSpasial((lama) => {
+      const set = new Set(idTersinkron);
+      const next = lama.map((d) =>
+        set.has(d.id) ? { ...d, statusSinkron: "tersinkron" as const, updatedAt: new Date().toISOString() } : d
+      );
+      simpanDataSpasial(next);
+      return next;
+    });
+  }, []);
+
+  const autoSync = useAutoSyncGDrive(dataSpasial, handleTandaiTersinkron);
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
   const tampilkanToast = (pesan: string) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1 }));
@@ -692,6 +705,7 @@ export const App: React.FC = () => {
         onBukaKeamanan={() => setBukaKeamanan(true)}
         onBukaGantiSandi={() => setBukaGantiSandi(true)}
         onKeluar={handleLogout}
+        autoSync={autoSync}
       />
 
       {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
@@ -799,6 +813,7 @@ export const App: React.FC = () => {
                 onSimpanDataBaru={handleSimpanDataBaru}
                 onTambahPembaruanObjek={handleTambahPembaruanObjek}
                 onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
+                onHapusAreaOffline={handleHapusAreaOffline}
                 onImporBerkas={handleImporBerkas}
               />
             )}

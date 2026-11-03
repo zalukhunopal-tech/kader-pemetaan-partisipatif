@@ -258,48 +258,35 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             <Search size={17} />
           </button>
 
-          {/* Tab Selector Pill WA */}
-          <div
-            style={{
-              display: "flex",
-              background: "rgba(0,0,0,0.22)",
-              borderRadius: 99,
-              padding: 2
-            }}
+
+        </div>
+      </div>
+
+      {/* MODERN SEGMENTED CONTROL: RUANG DISKUSI KADER VS JALUR KOORDINASI ADMIN */}
+      <div className="komunikasi-segmented-wrapper">
+        <div className="komunikasi-segmented-control" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={saluranAktif === "komunitas"}
+            className={`komunikasi-seg-btn ${saluranAktif === "komunitas" ? "active" : ""}`}
+            onClick={() => setSaluranAktif("komunitas")}
           >
-            <button
-              type="button"
-              onClick={() => setSaluranAktif("komunitas")}
-              style={{
-                background: saluranAktif === "komunitas" ? "#ffffff" : "transparent",
-                color: saluranAktif === "komunitas" ? "#075e54" : "#ffffff",
-                border: "none",
-                borderRadius: 99,
-                padding: "4px 9px",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                cursor: "pointer"
-              }}
-            >
-              Kader
-            </button>
-            <button
-              type="button"
-              onClick={() => setSaluranAktif("admin")}
-              style={{
-                background: saluranAktif === "admin" ? "#ffffff" : "transparent",
-                color: saluranAktif === "admin" ? "#075e54" : "#ffffff",
-                border: "none",
-                borderRadius: 99,
-                padding: "4px 9px",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                cursor: "pointer"
-              }}
-            >
-              Admin
-            </button>
-          </div>
+            <span className="seg-icon">👥</span>
+            <span className="seg-label">Ruang Diskusi Kader</span>
+            <span className="seg-badge">{pesanList.filter((p) => p.saluran === "komunitas").length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={saluranAktif === "admin"}
+            className={`komunikasi-seg-btn ${saluranAktif === "admin" ? "active" : ""}`}
+            onClick={() => setSaluranAktif("admin")}
+          >
+            <span className="seg-icon">🛡️</span>
+            <span className="seg-label">Jalur Koordinasi Admin</span>
+            <span className="seg-badge admin-badge">Resmi</span>
+          </button>
         </div>
       </div>
 

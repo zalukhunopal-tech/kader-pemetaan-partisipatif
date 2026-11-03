@@ -64,7 +64,19 @@ export function registrasiProtokolMbtiles(maplibreInstance?: typeof maplibregl):
 
         if (params.type === "json" || rawUrl.endsWith("tile.json") || rawUrl.endsWith(".json")) {
           const id = rawUrl.split("/")[0].replace(/\.json$/, "");
-          const meta = metadataArsipMbtiles.get(id);
+          let meta = metadataArsipMbtiles.get(id);
+      if (!meta) {
+        try {
+          const { ambilArsipPeta } = await import("./penyimpananPetaLuring");
+          const arsip = await ambilArsipPeta(id);
+          if (arsip && arsip.berkas) {
+            await daftarkanSumberMbtiles(id, arsip.berkas);
+            meta = metadataArsipMbtiles.get(id);
+          }
+        } catch (err) {
+          console.warn("Gagal memuat ulang metadata MBTiles " + id + ":", err);
+        }
+      }
           const tileJson = {
             tilejson: "2.2.0",
             name: meta?.namaArea || id,
@@ -88,7 +100,19 @@ export function registrasiProtokolMbtiles(maplibreInstance?: typeof maplibregl):
         const x = parseInt(match[3], 10);
         const y = parseInt(match[4], 10);
 
-        const db = daftarArsipMbtiles.get(id);
+        let db = daftarArsipMbtiles.get(id);
+        if (!db) {
+          try {
+            const { ambilArsipPeta } = await import("./penyimpananPetaLuring");
+            const arsip = await ambilArsipPeta(id);
+            if (arsip && arsip.berkas) {
+              await daftarkanSumberMbtiles(id, arsip.berkas);
+              db = daftarArsipMbtiles.get(id);
+            }
+          } catch (err) {
+            console.warn("Gagal rehidrasi MBTiles " + id + ":", err);
+          }
+        }
         if (!db) {
           throw new Error(`Basis data MBTiles dengan ID '${id}' belum terdaftar.`);
         }

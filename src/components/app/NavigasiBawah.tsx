@@ -1,20 +1,22 @@
 import React, { useCallback, useRef } from "react";
-import { Award, CloudUpload, Folder, Map, MessageSquare, ShieldCheck, User } from "lucide-react";
+import { Folder, Map, MessageSquare, ShieldCheck, User } from "lucide-react";
+import { LogoSertifikatResmiSvg } from "../sertifikat/LogoSertifikatResmiSvg";
 import { MenuTab, PeranPengguna } from "../../types";
 
 interface NavigasiBawahProps {
   peran: PeranPengguna;
   tabAktif: MenuTab;
   setTabAktif: (tab: MenuTab) => void;
-  /** Jumlah data yang belum terunggah, tampil sebagai lencana di GDrive */
+  /** Jumlah data yang belum terunggah (sinkronisasi otomatis berjalan di latar belakang) */
   antreanLokalCount: number;
   onModeUser: () => void;
 }
 
-/** Bilah navigasi bawah: berbeda untuk akun admin dan akun user */
-export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, setTabAktif, antreanLokalCount, onModeUser }) => {
-  // Tinggi bilah bawah yang sebenarnya (membesar bila ukuran huruf HP diperbesar) dipakai CSS untuk
-  // ruang bawah halaman, tombol mengambang, dan tinggi peta, supaya tidak ada yang tertutup bilah bawah.
+/**
+ * Bilah navigasi bawah Titik Tapak
+ * Bersih, elegan, tanpa menu sinkronisasi manual karena sinkronisasi 100% otomatis di latar belakang.
+ */
+export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, setTabAktif, onModeUser }) => {
   const roNavRef = useRef<ResizeObserver | null>(null);
   const ukurBilahBawah = useCallback((el: HTMLElement | null) => {
     roNavRef.current?.disconnect();
@@ -42,21 +44,13 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             <span>Pustaka</span>
           </button>
 
-          <button type="button" className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`} onClick={() => setTabAktif("peta")}>
-            <Map size={20} />
-            <span>Temukan</span>
-          </button>
-
           <button
             type="button"
-            className={`avenza-nav-item ${tabAktif === "data_sync" ? "active" : ""}`}
-            onClick={() => setTabAktif("data_sync")}
+            className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
+            onClick={() => setTabAktif("peta")}
           >
-            <div className="nav-icon-wrap">
-              <CloudUpload size={20} />
-              {antreanLokalCount > 0 && <span className="nav-badge">{antreanLokalCount}</span>}
-            </div>
-            <span>GDrive</span>
+            <Map size={20} />
+            <span>Temukan</span>
           </button>
 
           <button
@@ -64,7 +58,11 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "reward" ? "active" : ""}`}
             onClick={() => setTabAktif("reward")}
           >
-            <Award size={20} />
+            <LogoSertifikatResmiSvg
+              size={21}
+              variant={tabAktif === "reward" ? "zamrud" : "monokrom"}
+              warna={tabAktif === "reward" ? "#0d7344" : "#64748b"}
+            />
             <span>Sertifikat</span>
           </button>
 
@@ -80,23 +78,22 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
       ) : (
         // NAVIGASI KHUSUS AKUN ADMIN
         <>
-          <button type="button" className={`avenza-nav-item ${tabAktif === "admin" ? "active" : ""}`} onClick={() => setTabAktif("admin")}>
+          <button
+            type="button"
+            className={`avenza-nav-item ${tabAktif === "admin" ? "active" : ""}`}
+            onClick={() => setTabAktif("admin")}
+          >
             <ShieldCheck size={20} color={tabAktif === "admin" ? "#0284c7" : "#64748b"} />
             <span style={{ color: tabAktif === "admin" ? "#0284c7" : "#64748b" }}>Admin</span>
           </button>
 
-          <button type="button" className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`} onClick={() => setTabAktif("peta")}>
-            <Map size={20} />
-            <span>Temukan</span>
-          </button>
-
           <button
             type="button"
-            className={`avenza-nav-item ${tabAktif === "data_sync" ? "active" : ""}`}
-            onClick={() => setTabAktif("data_sync")}
+            className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
+            onClick={() => setTabAktif("peta")}
           >
-            <CloudUpload size={20} />
-            <span>GDrive</span>
+            <Map size={20} />
+            <span>Temukan</span>
           </button>
 
           <button

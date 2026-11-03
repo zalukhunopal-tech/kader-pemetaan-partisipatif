@@ -63,17 +63,43 @@ export function dapatkanProtokolPmtiles(): pmtiles.Protocol {
 /**
  * Daftarkan protokol pmtiles:// ke MapLibre GL instance secara aman (idempotent).
  */
+/**
+ * Handler protokol pmtiles:// dengan auto-rehidrasi transparan dari IndexedDB saat refresh (F5).
+ */
+export async function tileHandlerPmtiles(params: any, abortController: any) {
+  const proto = dapatkanProtokolPmtiles();
+  const rawUrl = params.url.replace(/^pmtiles:\/\//, "");
+  const id = rawUrl.split("/")[0].replace(/\.json$/, "");
+
+  if (id && !daftarArsipPmtiles.has(id)) {
+    try {
+      const { ambilArsipPeta } = await import("./penyimpananPetaLuring");
+      const arsip = await ambilArsipPeta(id);
+      if (arsip && arsip.berkas) {
+        daftarkanSumberPmtiles(id, arsip.berkas);
+      }
+    } catch (err) {
+      console.warn("Gagal rehidrasi PMTiles " + id + " dari IndexedDB:", err);
+    }
+  }
+
+  return proto.tile(params, abortController);
+}
+
+/**
+ * Daftarkan protokol pmtiles:// ke MapLibre GL instance secara aman (idempotent).
+ */
 export function registrasiProtokolPmtiles(maplibreInstance?: typeof maplibregl): pmtiles.Protocol {
   const proto = dapatkanProtokolPmtiles();
   if (maplibreInstance && typeof maplibreInstance.addProtocol === "function") {
     try {
-      maplibreInstance.addProtocol("pmtiles", proto.tile);
+      maplibreInstance.addProtocol("pmtiles", tileHandlerPmtiles as any);
     } catch {
       // Protokol mungkin telah terdaftar di instance ini
     }
   } else if (!pmtilesTerdaftar && maplibregl && typeof maplibregl.addProtocol === "function") {
     try {
-      maplibregl.addProtocol("pmtiles", proto.tile);
+      maplibregl.addProtocol("pmtiles", tileHandlerPmtiles as any);
       pmtilesTerdaftar = true;
     } catch {
       // Protokol mungkin telah terdaftar di instance lain

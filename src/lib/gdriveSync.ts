@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DataSpasialItem, WilayahAdministrasi } from "../types";
 import { eksporKeGeoJSON, keWKT } from "./geoUtils";
 import { wilayahAkun } from "./auth";
@@ -246,4 +247,132 @@ export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], opsi: 
       ? `${idTersinkron.length} dari ${total} data tersimpan di Google Drive. ${jumlahGagal} belum berhasil (${alasan}). Data yang belum tersimpan tetap aman di HP.`
       : `Gagal mengunggah ke Google Drive: ${alasan}. Data tetap aman di memori HP.`;
   return { sukses: false, pesan, idTersinkron, jumlahGagal };
+}
+
+export type StatusAutoSync = "tersinkron" | "menyinkronkan" | "offline" | "antrean" | "galat";
+
+export interface StateAutoSync {
+  status: StatusAutoSync;
+  antreanCount: number;
+  pesanStatus: string;
+  sedangSinkron: boolean;
+  sinkronSekarang: () => Promise<void>;
+}
+
+/**
+ * Hook 100% Automatic Background Sync ke Google Drive & Cloud
+ * Berjalan otomatis di latar belakang saat online, saat ada rekaman data baru,
+ * dan berkala 60 detik tanpa memerlukan menu intervensi manual dari kader.
+ */
+export function useAutoSyncGDrive(
+  dataSpasial: DataSpasialItem[],
+  onDataTersinkron: (idTersinkron: string[]) => void
+): StateAutoSync {
+  const [online, setOnline] = useState<boolean>(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [sedangSinkron, setSedangSinkron] = useState<boolean>(false);
+  const [status, setStatus] = useState<StatusAutoSync>("tersinkron");
+  const [pesanStatus, setPesanStatus] = useState<string>("Tersinkron Otomatis");
+  const isSyncingRef = useRef<boolean>(false);
+  const dataSpasialRef = useRef(dataSpasial);
+  dataSpasialRef.current = dataSpasial;
+
+  const antreanCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
+
+  const jalankanSinkron = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setStatus("offline");
+      setPesanStatus(
+        antreanCount > 0
+          ? `Mode Offline (${antreanCount} data tersimpan aman di HP)`
+          : "Mode Offline (Data tersimpan aman)"
+      );
+      return;
+    }
+
+    const belumSinkron = dataSpasialRef.current.filter((d) => d.statusSinkron === "lokal");
+    if (belumSinkron.length === 0) {
+      setStatus("tersinkron");
+      setPesanStatus("Tersinkron Otomatis");
+      return;
+    }
+
+    isSyncingRef.current = true;
+    setSedangSinkron(true);
+    setStatus("menyinkronkan");
+    setPesanStatus(`Menyinkronkan ${belumSinkron.length} data ke Cloud…`);
+
+    try {
+      const hasil = await sinkronkanDataKeGDrive(belumSinkron);
+      if (hasil.idTersinkron.length > 0) {
+        onDataTersinkron(hasil.idTersinkron);
+      }
+
+      if (hasil.sukses) {
+        setStatus("tersinkron");
+        setPesanStatus("Tersinkron Otomatis");
+      } else {
+        setStatus("antrean");
+        setPesanStatus(`Tersimpan lokal (${hasil.jumlahGagal} dalam antrean auto-sync)`);
+      }
+    } catch {
+      setStatus("antrean");
+      setPesanStatus(`Tersimpan aman di HP (${belumSinkron.length} data)`);
+    } finally {
+      isSyncingRef.current = false;
+      setSedangSinkron(false);
+    }
+  }, [antreanCount, onDataTersinkron]);
+
+  // Listener event online / offline browser
+  useEffect(() => {
+    const saatOnline = () => {
+      setOnline(true);
+      void jalankanSinkron();
+    };
+    const saatOffline = () => {
+      setOnline(false);
+      setStatus("offline");
+      setPesanStatus(
+        antreanCount > 0
+          ? `Mode Offline (${antreanCount} data tersimpan aman di HP)`
+          : "Mode Offline"
+      );
+    };
+
+    window.addEventListener("online", saatOnline);
+    window.addEventListener("offline", saatOffline);
+    return () => {
+      window.removeEventListener("online", saatOnline);
+      window.removeEventListener("offline", saatOffline);
+    };
+  }, [jalankanSinkron, antreanCount]);
+
+  // Trigger auto-sync saat data baru disimpan ketika perangkat sedang online
+  useEffect(() => {
+    if (online && antreanCount > 0 && !isSyncingRef.current) {
+      const timer = setTimeout(() => {
+        void jalankanSinkron();
+      }, 1200); // Debounce sedikit agar batching data tidak spam network
+      return () => clearTimeout(timer);
+    }
+  }, [antreanCount, online, jalankanSinkron]);
+
+  // Polling auto-sync berkala setiap 60 detik jika ada antrean data
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (online && antreanCount > 0 && !isSyncingRef.current) {
+        void jalankanSinkron();
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [online, antreanCount, jalankanSinkron]);
+
+  return {
+    status,
+    antreanCount,
+    pesanStatus,
+    sedangSinkron,
+    sinkronSekarang: jalankanSinkron
+  };
 }

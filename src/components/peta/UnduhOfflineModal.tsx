@@ -313,6 +313,39 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
             </div>
           )}
 
+          
+          {/* KALIBRASI MANUAL 2-TITIK / 4-SUDUT FALLBACK DOKUMEN CETAK NON-GEOPDF */}
+          <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
+            <details style={{ fontSize: "0.82rem" }}>
+              <summary style={{ cursor: "pointer", fontWeight: 700, color: "#0d7344" }}>
+                📐 Kalibrasi Manual Dokumen PDF / Peta Cetak (2-Titik / 4-Sudut)
+              </summary>
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                <p style={{ margin: 0, color: "#64748b", fontSize: "0.76rem" }}>
+                  Bila dokumen PDF Anda tidak memiliki metadata GeoPDF bawaan, masukkan koordinat sudut Barat Laut (NW) dan Tenggara (SE) untuk menggeoreferensikan lembar peta.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <div>
+                    <label style={{ fontSize: "0.72rem" }}>Barat Laut (NW) Lat</label>
+                    <input type="number" step="0.0001" placeholder="Misal: 3.05" className="form-input" id="calib-nw-lat" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.72rem" }}>Barat Laut (NW) Lng</label>
+                    <input type="number" step="0.0001" placeholder="Misal: 117.15" className="form-input" id="calib-nw-lng" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.72rem" }}>Tenggara (SE) Lat</label>
+                    <input type="number" step="0.0001" placeholder="Misal: 2.65" className="form-input" id="calib-se-lat" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.72rem" }}>Tenggara (SE) Lng</label>
+                    <input type="number" step="0.0001" placeholder="Misal: 117.65" className="form-input" id="calib-se-lng" />
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+
           {sedangMengunduhTile ? (
             <button type="button" className="btn-outline-sm" onClick={batalkanUnduhan}>
               Batalkan Unduhan
