@@ -40,7 +40,7 @@ import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googleTiles";
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
-import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Route, Search, Square, X } from "lucide-react";
+import { ArrowLeft, Compass, Crosshair, Info, Layers, MapPin, Navigation, Plus, Route, Search, Square, X, PenTool, Edit3 } from "lucide-react";
 
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
@@ -56,6 +56,7 @@ interface InteractiveMapProps {
   onTambahPembaruanObjek: (idData: string, kondisiTerbaru: string, catatan: string, fotoBase64?: string) => boolean;
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
   onImporBerkas: (namaBerkas: string, isi: string) => boolean;
+  onHapusAreaOffline?: (id: string) => void;
 }
 
 /** Format nama peta agar tidak melebar atau meluap keluar layar (Avenza style) */
@@ -118,7 +119,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanDataBaru,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
-  onImporBerkas
+  onImporBerkas,
+  onHapusAreaOffline
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
@@ -156,7 +158,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [ukuranCanvas, setUkuranCanvas] = useState<number>(() => {
     if (typeof window !== "undefined") {
       const diag = Math.hypot(window.innerWidth, window.innerHeight);
-      return Math.max(1200, Math.ceil(diag * 1.85));
+      return Math.max(1600, Math.ceil(diag * 2.2));
     }
     return 1400;
   });
@@ -167,7 +169,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const hitungUkuran = () => {
       const rect = el.getBoundingClientRect();
       const diag = Math.hypot(rect.width || window.innerWidth, rect.height || window.innerHeight);
-      const side = Math.max(1200, Math.ceil(diag * 1.85));
+      const side = Math.max(1600, Math.ceil(diag * 2.2));
       setUkuranCanvas((prev) => (Math.abs(prev - side) > 20 ? side : prev));
     };
     hitungUkuran();
@@ -189,6 +191,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // State UI Clean Mode: fitur disembunyikan agar tidak menghalangi peta di HP
   const [bukaMenuPeta, setBukaMenuPeta] = useState<boolean>(false);
+const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
+  const [modePetaBersih, setModePetaBersih] = useState<boolean>(false);
   const [tampilDaftarObjek, setTampilDaftarObjek] = useState<boolean>(false);
 
   // Navigasi: posisi GPS dan arah kompas dari sensor perangkat (null selama belum ada data)
@@ -729,6 +733,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           ptLayar = layarKeKanvas(clickX, clickY, rect.width, rect.height, cW, cH, bearingAktif);
         }
 
+        let objekKena = false;
         for (const item of dataSpasial) {
           const refCoord = item.koordinat[0];
           if (!refCoord) continue;
@@ -736,8 +741,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           const dist = Math.hypot(ptLayar.x - p.x, ptLayar.y - p.y);
           if (dist <= 28) {
             setObjekTerpilih(item);
+            objekKena = true;
             return;
           }
+        }
+
+        // 1-Click Clean Map Mode toggle saat kanvas peta diketuk tanpa menyeret
+        if (!objekKena) {
+          setModePetaBersih((v) => !v);
         }
       }
     }
@@ -847,7 +858,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const skalaInfo = hitungSkalaPeta(center.lat, zoom);
 
   return (
-    <div className={`map-module-wrapper clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""}`}>
+    <div className={`map-module-wrapper clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""}`}>
       {/* HEADER BAR KHUSUS LEMBAR PETA GEOPDF (AVENZA MAPS STYLE) */}
       {petaKustomAktif && (
         <header className="avenza-map-header-bar">
@@ -1167,6 +1178,65 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             −
           </button>
 
+
+          {/* UNIFIED DRAWING TOOL DIRECTLY BELOW ZOOM STACK */}
+          <div className="drawing-tool-container-pod">
+            <button
+              type="button"
+              className={`map-hud-btn map-ctrl-btn drawing-tool-main-trigger ${bukaAlatRekam || modeRekam ? "active active-tool" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setBukaAlatRekam((v) => !v);
+              }}
+              title="Tool Gambar Spasial (Ambil Titik, Rekam Jalur, Buat Poligon)"
+              aria-label="Tool Gambar"
+            >
+              <PenTool size={18} />
+            </button>
+
+            {/* EXPAND-ON-SELECT FLYOUT MENU */}
+            {bukaAlatRekam && !modeRekam && (
+              <div className="drawing-tool-flyout-menu" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="flyout-tool-choice"
+                  onClick={() => {
+                    mulaiModeRekam("point");
+                    setBukaAlatRekam(false);
+                  }}
+                  title="Ambil Titik Koordinat"
+                >
+                  <MapPin size={16} className="text-emerald" />
+                  <span>📍 Ambil Titik</span>
+                </button>
+                <button
+                  type="button"
+                  className="flyout-tool-choice"
+                  onClick={() => {
+                    mulaiModeRekam("line");
+                    setBukaAlatRekam(false);
+                  }}
+                  title="Rekam Jalur Patroli"
+                >
+                  <Route size={16} className="text-sky" />
+                  <span>〰️ Rekam Jalur</span>
+                </button>
+                <button
+                  type="button"
+                  className="flyout-tool-choice"
+                  onClick={() => {
+                    mulaiModeRekam("polygon");
+                    setBukaAlatRekam(false);
+                  }}
+                  title="Buat Poligon Area"
+                >
+                  <Square size={16} className="text-amber" />
+                  <span>⬠ Buat Poligon</span>
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* POPOVER LAPISAN & ALAT PETA (HANYA TAMPIL SAAT TOMBOL LAYERS DIKETUK) */}
@@ -1178,12 +1248,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             areaOffline={areaOffline}
             petaKustomAktif={petaKustomAktif}
             onPilihBasemap={setBasemap}
-            onPilihPetaKustom={onPilihPetaKustom}
-            onTutupPetaKustom={onTutupPetaKustom}
             onUnduhOffline={() => unduh.bukaModalUnduh(hitungKotakTerlihat(), zoom)}
             onPilihBerkas={handleImporFileSpasial}
             onAlihDaftarObjek={() => setTampilDaftarObjek((v) => !v)}
             onTutup={() => setBukaMenuPeta(false)}
+            onPilihPetaKustom={onPilihPetaKustom}
+            onTutupPetaKustom={onTutupPetaKustom}
+            onHapusAreaOffline={onHapusAreaOffline}
+            center={center}
           />
         )}
 

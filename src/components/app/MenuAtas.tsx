@@ -15,6 +15,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { MenuTab, PeranPengguna } from "../../types";
+import { StateAutoSync } from "../../lib/gdriveSync";
 import { TombolInstal } from "../InstalAplikasi";
 
 const JUDUL_TAB: Record<MenuTab, string> = {
@@ -46,6 +47,7 @@ interface MenuAtasProps {
   onBukaKeamanan: () => void;
   onBukaGantiSandi: () => void;
   onKeluar: () => void;
+  autoSync?: StateAutoSync;
 }
 
 /** Bilah atas: judul halaman dan tombol Menu yang membuka toolbar (koneksi, peran, dan semua aksi akun) */
@@ -67,7 +69,8 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
   onModePilihPustaka,
   onBukaKeamanan,
   onBukaGantiSandi,
-  onKeluar
+  onKeluar,
+  autoSync
 }) => (
   <header className="avenza-topbar">
     <div className="avenza-topbar-left">
@@ -84,6 +87,18 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
         {sedangOnline ? <Wifi size={13} /> : <WifiOff size={13} />}
         <span>{!jaringanTersedia ? "Offline" : modeOfflineManual ? "Luring (Manual)" : "Online"}</span>
       </button>
+
+      {autoSync && (
+        <div
+          className={`avenza-autosync-pill ${autoSync.status}`}
+          title={autoSync.pesanStatus}
+        >
+          {autoSync.status === "menyinkronkan" && <span className="sync-icon spin">🔄</span>}
+          {autoSync.status === "tersinkron" && <span className="sync-icon">🟢</span>}
+          {(autoSync.status === "offline" || autoSync.status === "antrean") && <span className="sync-icon">☁️</span>}
+          <span className="sync-label">{autoSync.pesanStatus}</span>
+        </div>
+      )}
     </div>
 
     <div className="avenza-topbar-actions" onClick={(e) => e.stopPropagation()}>

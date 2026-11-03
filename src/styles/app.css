@@ -6393,6 +6393,7 @@ label {
   order: 3;
 }
 
+
 /* Lapangan: panel yang dapat dijangkau, ruang kerja GIS dan tema berbasis token. */
 :root {
   --field-accent: #0b613b;
@@ -6804,10 +6805,536 @@ button:disabled {
   font-size: 11px;
   font-weight: 600;
   color: #1e293b;
+}
+
+/* ==========================================================================
+   PEROMBAKAN UI TITIK TAPAK (AVENZA MAPS UPGRADE & CLEAN MAP MODE)
+   ========================================================================== */
+
+/* 1. Rotasi Kanvas Anti Garis Putih & Viewport Peta */
+.map-canvas-viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b1724;
+}
+
+.map-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b1724;
+}
+
+.temukan-field {
+  background: #0b1724;
+}
+
+/* 2. 1-Click Clean Map Mode (Immersive Full-Screen Toggle) */
+.clean-map-immersion .avenza-topbar,
+.clean-map-immersion .avenza-bottom-nav,
+.clean-map-immersion .map-hud-pod,
+.clean-map-immersion .map-coord-mini-pill,
+.clean-map-immersion .avenza-scale-bar-wrap,
+.clean-map-immersion .temukan-toolbar,
+.clean-map-immersion .map-bawah,
+.clean-map-immersion .avenza-gps-fab-btn {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(16px) !important;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 3. Expandable Spatial Drawing Tool Below Zoom Buttons */
+.drawing-tool-container-pod {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.drawing-tool-main-trigger {
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drawing-tool-main-trigger.active-tool {
+  background: #0d7344;
+  color: #ffffff;
+  border-color: #0d7344;
+}
+
+.drawing-tool-flyout-menu {
+  position: absolute;
+  right: 48px;
+  top: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  z-index: 50;
+  animation: fadeInPop 0.18s ease-out;
+}
+
+@keyframes fadeInPop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+
+.flyout-tool-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.flyout-tool-choice:hover {
+  background: #f1f5f9;
+}
+
+/* 4. Tab "Pustaka" & Tata Letak Horizontal pada Menu Peta & Lapisan */
+.avenza-layers-modal {
+  width: 92%;
+  max-width: 440px;
+}
+
+.pustaka-tabs-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  margin: 10px 0 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.pustaka-tab-nav-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  transition: all 0.18s ease;
+}
+
+.pustaka-tab-nav-btn.active {
+  background: #ffffff;
+  color: #0d7344;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.pustaka-card-list-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.pustaka-offline-item-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.pustaka-offline-item-card.active-map {
+  border-color: #0d7344;
+  background: #f4fbf7;
+}
+
+.pustaka-card-top-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pustaka-card-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.pustaka-format-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.pustaka-card-meta-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pustaka-meta-pill {
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pustaka-meta-pill.on-map-pill {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #0d7344;
+}
+
+.pustaka-meta-pill.crs-pill {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.pustaka-card-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.btn-pustaka-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-pustaka-action:hover {
+  background: #f8fafc;
+}
+
+.btn-pustaka-action.active {
+  background: #0d7344;
+  color: #ffffff;
+  border-color: #0d7344;
+}
+
+.btn-pustaka-action.danger {
+  flex: 0 0 auto;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.btn-pustaka-action.danger:hover {
+  background: #fef2f2;
+}
+
+/* 5. Modern Segmented Switch Diskusi (Kader vs Admin) */
+.komunikasi-segmented-wrapper {
+  background: #ffffff;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d1d7db;
+}
+
+.komunikasi-segmented-control {
+  display: flex;
+  background: #e2e8f0;
+  border-radius: 12px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.komunikasi-seg-btn {
+  flex: 1;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.komunikasi-seg-btn.active {
+  background: #ffffff;
+  color: #075e54;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  font-weight: 700;
+}
+
+.seg-badge {
+  background: #cbd5e1;
+  color: #334155;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-weight: 700;
+}
+
+.komunikasi-seg-btn.active .seg-badge {
+  background: #128c7e;
+  color: #ffffff;
+}
+
+.seg-badge.admin-badge {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+/* 6. Status Badge Auto-Sync di Menu Atas */
+.avenza-autosync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d5dcd8;
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.avenza-autosync-pill.tersinkron {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.avenza-autosync-pill.menyinkronkan {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.avenza-autosync-pill.offline,
+.avenza-autosync-pill.antrean {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.sync-icon.spin {
+  display: inline-block;
+  animation: spinIcon 1s linear infinite;
+}
+
+@keyframes spinIcon {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 7. Panel Data User & Level Kader */
+.panel-data-user-level-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px;
+}
+
+.panel-user-header {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.panel-user-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.panel-user-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.panel-search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.88rem;
+}
+
+.panel-tier-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 2px;
+}
+
+.tier-pill {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.tier-pill.active {
+  background: #0d7344;
+  color: #ffffff;
+  border-color: #0d7344;
+}
+
+.panel-user-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.kader-user-level-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.kader-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kader-profile-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.kader-avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #0d7344;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.kader-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .telemetry-accuracy {
   font-size: 10px;
   font-weight: 600;
@@ -7422,7 +7949,7 @@ html[data-field-theme="matahari"] .section-card h2 {
 .temukan-field .map-hud-pod.bottom-right { bottom: 20px; }
 .temukan-field .avenza-scale-bar-wrap { bottom: 22px; }
 
-/* ==========================================================================
+/* 
    AUTH MODAL & LOGIN VIEW STYLES
    ========================================================================== */
 
@@ -7645,4 +8172,138 @@ html[data-field-theme="matahari"] .section-card h2 {
   .auth-form-panel {
     padding: 24px 20px 20px;
   }
+
+.kader-id-desa {
+  font-size: 0.74rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kader-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.kader-metrics-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.kader-hok-admin-control {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hok-control-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.hok-inputs-flex {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hok-input-nominal-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 120px;
+}
+
+.hok-rp-label {
+  position: absolute;
+  left: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.hok-input-nominal {
+  width: 100%;
+  padding: 6px 8px 6px 26px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.hok-input-notes {
+  flex: 2 1 150px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #334155;
+}
+
+.btn-hok-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  background: #0d7344;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.btn-hok-save:hover {
+  background: #0b5e37;
+}
+
+.hok-approved-status {
+  font-size: 0.72rem;
+  color: #065f46;
+  margin-top: 2px;
+}
+
+.hok-approved-note {
+  color: #64748b;
+  margin-left: 4px;
+
 }

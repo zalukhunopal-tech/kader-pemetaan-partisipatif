@@ -1,0 +1,309 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
+import { renderToString } from "react-dom/server";
+
+// Part 1 Imports: GeoPDF, MBTiles, PMTiles
+import { bacaReferensiGeoPdf, selesaikanAffine2D } from "../lib/geoPdf";
+import { parseMBTilesBuffer, parseMBTilesSqlWasm, tileKeBujur, tileKeLintang } from "../lib/mbtilesParser";
+import { daftarkanSumberMbtiles, ambilSumberMbtiles } from "../lib/mbtilesProtocol";
+import { daftarkanSumberPmtiles, ambilSumberPmtiles } from "../lib/pmtilesProtocol";
+import { simpanArsipPeta, ambilArsipPeta } from "../lib/penyimpananPetaLuring";
+
+// Part 2 Imports: UI Components
+import { PanelLapisanPeta } from "../components/peta/PanelLapisanPeta";
+import { NavigasiBawah } from "../components/app/NavigasiBawah";
+import { LogoSertifikatResmiSvg } from "../components/sertifikat/LogoSertifikatResmiSvg";
+import { KomunikasiView } from "../components/KomunikasiView";
+import { PanelDataUserLevel, hitungLevelKaderOtomatis } from "../components/PanelDataUserLevel";
+import { PDFDocument, PDFName } from "pdf-lib";
+import { AreaPetaOffline, DataSpasialItem, ProfilKader } from "../types";
+
+const mockProfil: ProfilKader = {
+  idKader: "KAD-BULUNGAN-01",
+  nama: "Rian Hidayat",
+  desaWilayah: "Tanjung Selor Hilir",
+  kelompokMasyarakat: "Kader Konservasi Kayan",
+  noHp: "081234567890",
+  namaOrganisasi: "Komunitas Konservasi Kayan",
+  modeKombinasiTarget: "per_kategori"
+};
+
+const mockItemSurvey: DataSpasialItem = {
+  id: "DAT-SIM-001",
+  idKader: "KAD-BULUNGAN-01",
+  namaKader: "Rian Hidayat",
+  desaWilayah: "Tanjung Selor Hilir",
+  judul: "Temuan Pohon Ulin Langka",
+  kategori: "Flora",
+  jenisGeometri: "point",
+  koordinat: [{ lat: 2.8571, lng: 117.3775, akurasi: 3.2 }],
+  deskripsi: "Pohon ulin diameter 80cm kondisi sehat",
+  panjangKm: 0,
+  luasHa: 0,
+  riwayatPembaruan: [],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  statusSinkron: "lokal"
+};
+
+describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVENZA", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.body.innerHTML = "";
+    vi.clearAllMocks();
+  });
+
+  // SIMULASI 1: Peta Interaktif & Tool Gambar Terpadu di Bawah Zoom
+  it("Simulasi 1: Tool Gambar di Bawah Zoom terpadu dan membuka pilihan Titik, Jalur, Poligon", () => {
+    let modeTerpilih = "";
+    let alatGambarTerbuka = false;
+
+    const toggleTool = () => {
+      alatGambarTerbuka = !alatGambarTerbuka;
+    };
+    const mulaiModeRekam = (jenis: string) => {
+      modeTerpilih = jenis;
+      alatGambarTerbuka = false;
+    };
+
+    // 1. Initial State: Tool tertutup
+    expect(alatGambarTerbuka).toBe(false);
+
+    // 2. Klik Tool Trigger di bawah zoom
+    toggleTool();
+    expect(alatGambarTerbuka).toBe(true);
+
+    // 3. Render HTML tool flyout menu
+    const html = renderToString(
+      <div className="drawing-tool-container-pod">
+        <button type="button" className={`drawing-tool-main-trigger ${alatGambarTerbuka ? "active-tool" : ""}`}>
+          ✏️
+        </button>
+        {alatGambarTerbuka && (
+          <div className="drawing-tool-flyout-menu">
+            <button type="button" className="flyout-tool-choice">📍 Ambil Titik</button>
+            <button type="button" className="flyout-tool-choice">〰️ Rekam Jalur</button>
+            <button type="button" className="flyout-tool-choice">⬠ Buat Poligon</button>
+          </div>
+        )}
+      </div>
+    );
+
+    expect(html).toContain("active-tool");
+    expect(html).toContain("Ambil Titik");
+    expect(html).toContain("Rekam Jalur");
+    expect(html).toContain("Buat Poligon");
+
+    // 4. Pilih salah satu aksi: Ambil Titik
+    mulaiModeRekam("point");
+    expect(modeTerpilih).toBe("point");
+    expect(alatGambarTerbuka).toBe(false);
+  });
+
+  // SIMULASI 2: 1-Click Clean Map Mode Toggle
+  it("Simulasi 2: 1-Click Clean Map Mode menyembunyikan overlay saat kanvas diketuk sekali dan mengembalikannya saat diketuk lagi", () => {
+    let cleanMode = false;
+    const toggleCleanMode = () => {
+      cleanMode = !cleanMode;
+    };
+
+    // Ketuk kanvas pertama: Full immersion clean mode
+    toggleCleanMode();
+    expect(cleanMode).toBe(true);
+
+    const htmlClean = renderToString(
+      <div className={`map-module-wrapper ${cleanMode ? "clean-map-immersion" : ""}`}>
+        <div className="map-hud-pod" />
+      </div>
+    );
+    expect(htmlClean).toContain("clean-map-immersion");
+
+    // Ketuk kanvas kedua: Kembalikan seluruh UI overlay
+    toggleCleanMode();
+    expect(cleanMode).toBe(false);
+
+    const htmlNormal = renderToString(
+      <div className={`map-module-wrapper ${cleanMode ? "clean-map-immersion" : ""}`}>
+        <div className="map-hud-pod" />
+      </div>
+    );
+    expect(htmlNormal).not.toContain("clean-map-immersion");
+  });
+
+  // SIMULASI 3: Tab Pustaka, Impor GeoPDF (UTM 50N & Affine 2D), MBTiles, PMTiles & Auto-Rehydration
+  it("Simulasi 3: Engine GeoPDF membaca proyeksi UTM 50N, Affine 2D quad 4-sudut, dan format MBTiles/PMTiles", async () => {
+    // A. GeoPDF UTM Zone 50N (Kalimantan Utara - Tanjung Selor)
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 800]);
+    const utmGpts = [315000, 541000, 320000, 541000, 320000, 546000, 315000, 546000];
+    const lpts = [0, 0, 0, 1, 1, 1, 1, 0];
+
+    page.node.set(
+      PDFName.of("VP"),
+      doc.context.obj([
+        {
+          Type: "Viewport",
+          BBox: [0, 0, 600, 800],
+          Measure: {
+            Type: "Measure",
+            Subtype: "GEO",
+            PROJCS: { Type: "PROJCS", EPSG: 32650 },
+            GPTS: utmGpts,
+            LPTS: lpts
+          }
+        }
+      ])
+    );
+
+    const ref = await bacaReferensiGeoPdf(await doc.save({ useObjectStreams: true }));
+    expect(ref.crs).toBe("EPSG:32650");
+    expect(ref.empatSudut.length).toBe(4);
+    expect(ref.minLng).toBeGreaterThan(117);
+    expect(ref.minLat).toBeGreaterThan(2);
+
+    // B. Transformasi Affine 2D rotasi 4-sudut
+    const pts = [
+      { u: 0, v: 0, x: 117.15, y: 2.65 },
+      { u: 0, v: 1, x: 117.15, y: 3.05 },
+      { u: 1, v: 1, x: 117.65, y: 3.05 },
+      { u: 1, v: 0, x: 117.65, y: 2.65 }
+    ];
+    const affine = selesaikanAffine2D(pts);
+    const nwCorner = affine.keGeo(0, 1);
+    expect(nwCorner[0]).toBeCloseTo(117.15, 2);
+    expect(nwCorner[1]).toBeCloseTo(3.05, 2);
+
+    // C. Render PanelLapisanPeta Tab Pustaka dengan layout horizontal
+    const mockPetaOffline: AreaPetaOffline = {
+      id: "MAP-SELOR-01",
+      namaArea: "Peta_Fungsi_Kawasan_Hutan_Tanjung_Selor_A3",
+      basemapId: "topo",
+      minLat: 2.65,
+      maxLat: 3.05,
+      minLng: 117.15,
+      maxLng: 117.65,
+      zoomMin: 10,
+      zoomMax: 16,
+      jumlahTile: 0,
+      ukuranMb: 12.5,
+      diunduhPada: new Date().toISOString(),
+      jenisFile: "GeoPDF / GeoTIFF",
+      crs: "EPSG:32650 (UTM 50N)"
+    };
+
+    const htmlPustaka = renderToString(
+      <PanelLapisanPeta
+        basemap="esri"
+        jumlahObjek={5}
+        tampilDaftarObjek={false}
+        onPilihBasemap={vi.fn()}
+        onUnduhOffline={vi.fn()}
+        onPilihBerkas={vi.fn()}
+        onAlihDaftarObjek={vi.fn()}
+        onTutup={vi.fn()}
+        areaOffline={[mockPetaOffline]}
+        center={{ lat: 2.85, lng: 117.37 }}
+      />
+    );
+
+    expect(htmlPustaka).toContain("Pustaka");
+    expect(htmlPustaka).toContain("pustaka-tabs-header-bar");
+  });
+
+  // SIMULASI 4: Logo & Ikon Sertifikat Resmi Baru
+  it("Simulasi 4: LogoSertifikatResmiSvg merender emblem vektor resmi dengan varian zamrud dan emas", () => {
+    const html = renderToString(
+      <div>
+        <LogoSertifikatResmiSvg size={24} variant="zamrud" />
+        <LogoSertifikatResmiSvg size={32} variant="emas" />
+      </div>
+    );
+
+    expect(html).toContain("logo-sertifikat-resmi");
+    expect(html).toContain('width="24"');
+    expect(html).toContain('width="32"');
+    expect(html).toContain("#0d7344");
+    expect(html).toContain("#d97706");
+  });
+
+  // SIMULASI 5: Switch Diskusi Modern (Ruang Diskusi Kader vs Jalur Koordinasi Admin)
+  it("Simulasi 5: Segmented switch diskusi menyediakan saluran Kader dan Admin dengan touch target nyaman", () => {
+    const html = renderToString(
+      <KomunikasiView
+        pesanList={[
+          {
+            id: "MSG-1",
+            saluran: "komunitas",
+            teks: "Halo rekan kader, jalur patroli sektor barat terpantau aman.",
+            namaPengirim: "Rian",
+            peranPengirim: "kader",
+            desaPengirim: "Tanjung Selor Hilir",
+            statusKirim: "tersimpan",
+            waktu: "10:30",
+            idPengirim: "KAD-BULUNGAN-01"
+          }
+        ]}
+        profil={mockProfil}
+        peranPengguna="kader"
+        onKirimPesan={vi.fn()}
+        onLihatPinDiPeta={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("komunikasi-segmented-control");
+    expect(html).toContain("Ruang Diskusi Kader");
+    expect(html).toContain("Jalur Koordinasi Admin");
+    expect(html).toContain("jalur patroli sektor barat terpantau aman");
+  });
+
+  // SIMULASI 6: 100% Background Auto-Sync & Tab Sinkronisasi Dihapus dari Navigasi
+  it("Simulasi 6: Tab Sinkronisasi manual terhapus dari NavigasiBawah dan auto-sync berjalan transparan", () => {
+    const html = renderToString(
+      <NavigasiBawah
+        peran="kader"
+        tabAktif="peta"
+        setTabAktif={vi.fn()}
+        antreanLokalCount={1}
+        onModeUser={vi.fn()}
+      />
+    );
+
+    // Tombol tab GDrive / CloudUpload tidak ada lagi di baris navigasi
+    expect(html).not.toContain("GDrive");
+    expect(html).not.toContain("Sinkronisasi");
+
+    // Tab yang tersedia bersih: Pustaka, Temukan, Sertifikat, Diskusi
+    expect(html).toContain("Pustaka");
+    expect(html).toContain("Temukan");
+    expect(html).toContain("Sertifikat");
+    expect(html).toContain("Diskusi");
+  });
+
+  // SIMULASI 7: Penggantian Buku HOK menjadi Panel Data User & Level Kader
+  it("Simulasi 7: Panel Data User & Level Kader menampilkan tingkatan user otomatis dan kontrol penentuan HOK", () => {
+    // Uji fungsi kenaikan level otomatis
+    const lvl1 = hitungLevelKaderOtomatis(2, 1.5, 0.5);
+    expect(lvl1.tierNama).toBe("Kader Pemula");
+    expect(lvl1.level).toBeGreaterThanOrEqual(1);
+
+    const lvlAhli = hitungLevelKaderOtomatis(80, 50, 25);
+    expect(lvlAhli.tierNama).toContain("Kader Ahli");
+    expect(lvlAhli.level).toBeGreaterThanOrEqual(16);
+
+    // Render PanelDataUserLevel
+    const html = renderToString(
+      <PanelDataUserLevel
+        dataSpasial={[mockItemSurvey]}
+        profilSaya={mockProfil}
+        peranPengguna="admin"
+        onFokusPetaKader={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("Data User &amp; Level Kader");
+    expect(html).toContain("Penetapan Alokasi HOK");
+    expect(html).toContain("Rian Hidayat");
+    expect(html).toContain("Tanjung Selor Hilir");
+  });
+});

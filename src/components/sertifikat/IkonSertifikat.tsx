@@ -1,4 +1,5 @@
 import React from "react";
+export { LogoSertifikatResmiSvg } from "./LogoSertifikatResmiSvg";
 
 /**
  * Komponen SVG Siluet Orang bergaya WhatsApp Default Avatar
