@@ -354,16 +354,26 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     <div className="avenza-pustaka-container pustaka-field">
       {/* SEGMENTED PILL TABS: PETA | LAPISAN */}
       <div className="avenza-segmented-wrap">
-        <div className="avenza-segmented-control">
-          <button type="button" className={`avenza-segment-btn ${subTab === "peta" ? "active" : ""}`} onClick={() => setSubTab("peta")}>
-            Peta
+        <div className="avenza-segmented-control" role="tablist" aria-label="Pilihan Pustaka">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === "peta"}
+            className={`avenza-segment-btn ${subTab === "peta" ? "active" : ""}`}
+            onClick={() => setSubTab("peta")}
+          >
+            <MapIcon size={16} className="segment-icon" />
+            <span>Peta</span>
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={subTab === "lapisan"}
             className={`avenza-segment-btn ${subTab === "lapisan" ? "active" : ""}`}
             onClick={() => setSubTab("lapisan")}
           >
-            Lapisan
+            <Layers size={16} className="segment-icon" />
+            <span>Lapisan</span>
           </button>
         </div>
       </div>
@@ -459,7 +469,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <div className="avenza-basemap-banner-wrap">
             <div className="avenza-basemap-banner" onClick={onBukaPetaDasar}>
               <LatarPetaDasar />
-              <span className="pustaka-terrain-badge">CITRA SATELIT HD</span>
 
               <button
                 type="button"

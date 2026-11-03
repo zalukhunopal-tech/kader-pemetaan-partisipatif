@@ -126,3 +126,17 @@ PWA v2.0.0 (precache 28 entries, 5.1 MB)
    - Ketuk tombol sistem koordinat pada chip kiri atas peta atau di dalam form (pilihan: **DD**, **DMS**, **DDM**, **UTM**, **TM-3**).
    - Nilai koordinat langsung dikonversi seketika secara presisi.
    - Ketuk chip koordinat untuk menyalin ke clipboard.
+
+
+---
+
+## 6. Penyempurnaan UI Pustaka, Menu, dan Pembersihan Tampilan (November 2026)
+
+| Komponen | Kondisi Sebelumnya | Pembaruan & Penyempurnaan |
+| :--- | :--- | :--- |
+| **Simbol Tersinkron Otomatis** | Tampil pil indikator hijau/biru di bilah atas | Simbol visual dihilangkan dari topbar agar header bersih. Fitur sinkronisasi otomatis ke Google Drive di latar belakang **tetap aktif 100%**. |
+| **Simbol Tombol Menu** | Kotak tombol menu terlalu besar (terkena paksaan 48px) | Kotak tombol luar dirampingkan ke tinggi 34px dengan sudut membulat 8px, padding pas, ikon 16px proporsional, dan bayangan halus. |
+| **Tampilan Lapangan** | Terdapat selector "Tampilan lapangan" (Standar/Matahari/Malam) | Tampilan lapangan beserta komponen dan fungsinya dihilangkan sepenuhnya dari antarmuka. |
+| **Pilihan Peta & Lapisan (Pustaka)** | Segmented control lama dengan garis batas kaku dan tata letak kurang rapi | Dirapikan menjadi *dual-capsule segmented control* modern (maks 360px di tengah) dengan ikon Peta & Lapisan, elevasi kartu putih saat aktif, dan tipografi seimbang. |
+| **Wallpaper Buka Peta Dasar** | Memiliki teks badge "CITRA SATELIT HD" | Teks "CITRA SATELIT HD" telah dihapus dari banner peta dasar sehingga tampilan wallpaper bersih dan fokus pada tombol buka peta. |
+| **Menu Pencarian Pustaka** | Bilah input pencarian melebar ke seluruh layar | Dibatasi lebarnya (maks 340px), sudut membulat 10px, dan tinggi 38px proporsional dengan bilah filter di atasnya. |

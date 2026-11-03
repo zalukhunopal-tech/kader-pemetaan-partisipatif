@@ -1,4 +1,3 @@
-import { ModeLapangan } from "./components/app/ModeLapangan";
 import { useDesktop } from "./lib/tampilanLapangan";
 import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState, useCallback } from "react";
@@ -715,8 +714,6 @@ export const App: React.FC = () => {
         onKeluar={handleLogout}
         autoSync={autoSync}
       />
-
-      <ModeLapangan />
       {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
       {aksesAdmin && (
         <BannerModeAdmin
