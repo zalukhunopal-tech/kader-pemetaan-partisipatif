@@ -88,7 +88,9 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     const cssPath = path.resolve(__dirname, "../styles/app.css");
     const css = fs.readFileSync(cssPath, "utf8");
 
-    expect(css).toContain("repeat(auto-fit, minmax(130px, 1fr))");
+    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
+    expect(css).toContain(".reward-hero-card.reward-hero-card-wide");
+    expect(css).toContain("grid-column: 1 / -1;");
   });
 
   it("7. PanelDataUserLevel kartu grid responsif (minmax 310px di tablet) dan pil metrik fleksibel tanpa overflow", () => {
@@ -271,7 +273,7 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
 
     // 2. Peta interaktif HUD pod dan rail kompak di mobile
     expect(css).toContain(".map-hud-pod.top-right");
-    expect(css).toContain("max-height: calc(100vh - 160px) !important;");
+    expect(css).toContain("max-height: calc(100vh - 210px) !important;");
 
     // 3. Pustaka segmented control seamless anti double-box
     expect(css).toContain(".pustaka-field .avenza-segmented-control");

@@ -1,4 +1,3 @@
-import { BukuHokPanel } from "./BukuHokPanel";
 import { hitungSkorKualitasData } from "../lib/kualitasData";
 import React, { useState } from "react";
 import {
@@ -61,7 +60,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onHapusTugas,
   onFokusKePeta
 }) => {
-const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "user_level" | "hok">("kader_aktif");
+const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "user_level">("kader_aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
 
@@ -205,8 +204,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
         </nav>
       </div>
 
-      {subTabAdmin === "hok" && <BukuHokPanel data={dataSpasial} profil={profilKader} admin />}
-      {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} dataSpasial={dataSpasial} sertifikatList={sertifikatList} />}
+            {subTabAdmin === "akun" && <AkunAdminPanel sesiAdmin={sesiAdmin} dataSpasial={dataSpasial} sertifikatList={sertifikatList} />}
 
       {subTabAdmin === "user_level" && (
         <PanelDataUserLevel

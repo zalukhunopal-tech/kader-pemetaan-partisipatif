@@ -37,17 +37,21 @@ export function RailAlatPeta({
 }: RailAlatPetaProps) {
   return (
     <div className="map-hud-pod bottom-right map-tool-rail" role="toolbar" aria-label="Kontrol peta dan alat survei" aria-orientation="vertical">
-      <button
-        type="button"
-        className={`map-hud-btn map-ctrl-btn ${ikutiKompas ? "active active-ctrl" : ""}`}
-        onClick={onGps}
-        disabled={!gpsTersedia}
-        style={gpsTersedia ? undefined : { opacity: 0.45 }}
-        title={gpsTersedia ? "1x: pusatkan ke posisi saya · 2x: peta ikuti arah" : "Menunggu posisi GPS"}
-        aria-label="Posisi saya"
-      >
-        <Navigation size={18} />
-      </button>
+      <div className="rail-group rail-gps">
+        <button
+          type="button"
+          className={`map-hud-btn map-ctrl-btn rail-btn rail-gps-btn ${ikutiKompas ? "active active-ctrl" : ""}`}
+          onClick={onGps}
+          disabled={!gpsTersedia}
+          style={gpsTersedia ? undefined : { opacity: 0.45 }}
+          title={gpsTersedia ? "1x: pusatkan ke posisi saya · 2x: peta ikuti arah" : "Menunggu posisi GPS"}
+          aria-label="Posisi saya (mencari lokasi terkini)"
+        >
+          <Navigation size={18} />
+        </button>
+      </div>
+
+      <span className="rail-divider" aria-hidden="true" />
 
       <div className="rail-group rail-zoom">
         <button type="button" className="map-hud-btn map-ctrl-btn rail-btn" onClick={onZoomMasuk} title="Perbesar peta" aria-label="Perbesar peta">

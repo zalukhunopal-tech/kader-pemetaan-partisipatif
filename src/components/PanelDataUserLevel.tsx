@@ -16,9 +16,7 @@ export interface MetrikKaderUser {
   level: number;
   tierNama: string;
   tierBadgeColor: string;
-  hokDisetujuiRp: number;
-  catatanHok?: string;
-  terakhirAktif: string;
+    terakhirAktif: string;
 }
 
 export function hitungLevelKaderOtomatis(titik: number, jalurKm: number, poligonHa: number): {
@@ -63,8 +61,6 @@ interface PanelDataUserLevelProps {
   onFokusPetaKader?: (lat: number, lng: number, nama: string) => void;
 }
 
-const STORAGE_KEY_HOK = "geokader_alokasi_hok_admin_v1";
-
 export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
   dataSpasial,
   peranPengguna = "admin",
@@ -73,18 +69,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
 }) => {
   const [kataKunci, setKataKunci] = useState("");
   const [filterTier, setFilterTier] = useState<string>("semua");
-  const [alokasiHokStore, setAlokasiHokStore] = useState<Record<string, { nominalRp: number; catatan: string }>>(() => {
-    try {
-      const tersimpan = localStorage.getItem(STORAGE_KEY_HOK);
-      return tersimpan ? JSON.parse(tersimpan) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const [inputHok, setInputHok] = useState<Record<string, string>>({});
-  const [inputCatatan, setInputCatatan] = useState<Record<string, string>>({});
-  const [pesanSukses, setPesanSukses] = useState<string | null>(null);
 
   // Kompilasi data direktori kader dari data spasial riil & profil
   const daftarKader = React.useMemo(() => {
@@ -97,8 +81,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       const jmlKm = dataSaya.reduce((acc, d) => acc + (d.panjangKm || 0), 0);
       const jmlHa = dataSaya.reduce((acc, d) => acc + (d.luasHa || 0), 0);
       const lvl = hitungLevelKaderOtomatis(jmlTitik, jmlKm, jmlHa);
-      const alokasi = alokasiHokStore[profilSaya.idKader] || { nominalRp: Math.round(jmlKm * 15000 + jmlTitik * 10000), catatan: "HOK Standar Lapangan" };
-
       petaKader.set(profilSaya.idKader, {
         idKader: profilSaya.idKader,
         nama: profilSaya.nama,
@@ -111,8 +93,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
         level: lvl.level,
         tierNama: lvl.tierNama,
         tierBadgeColor: lvl.tierBadgeColor,
-        hokDisetujuiRp: alokasi.nominalRp,
-        catatanHok: alokasi.catatan,
         terakhirAktif: "Hari ini"
       });
     }
@@ -126,8 +106,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
         const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
         const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
         const lvl = hitungLevelKaderOtomatis(jmlTitik, jmlKm, jmlHa);
-        const alokasi = alokasiHokStore[id] || { nominalRp: Math.round(jmlKm * 15000 + jmlTitik * 10000), catatan: "Insentif Standar Patroli" };
-
         petaKader.set(id, {
           idKader: id,
           nama: d.namaKader || `Kader (${id})`,
@@ -140,8 +118,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
           level: lvl.level,
           tierNama: lvl.tierNama,
           tierBadgeColor: lvl.tierBadgeColor,
-          hokDisetujuiRp: alokasi.nominalRp,
-          catatanHok: alokasi.catatan,
           terakhirAktif: d.createdAt ? new Date(d.createdAt).toLocaleDateString("id-ID") : "Baru saja"
         });
       }
@@ -158,8 +134,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
           const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
           const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
           const lvl = hitungLevelKaderOtomatis(jmlTitik, jmlKm, jmlHa);
-          const alokasi = alokasiHokStore[id] || { nominalRp: Math.round(jmlKm * 15000 + jmlTitik * 10000), catatan: "HOK Standar Lapangan" };
-
           petaKader.set(id, {
             idKader: a.idKader || id,
             nama: a.nama,
@@ -172,8 +146,6 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
             level: lvl.level,
             tierNama: lvl.tierNama,
             tierBadgeColor: lvl.tierBadgeColor,
-            hokDisetujuiRp: alokasi.nominalRp,
-            catatanHok: alokasi.catatan,
             terakhirAktif: dataDia.length > 0 ? "Aktif survei" : "Terdaftar"
           });
         }
@@ -183,7 +155,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
     }
 
     return Array.from(petaKader.values());
-  }, [dataSpasial, profilSaya, alokasiHokStore]);
+  }, [dataSpasial, profilSaya]);
 
   const kaderTersaring = daftarKader.filter((k) => {
     const cocokTeks =
@@ -200,32 +172,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
     return true;
   });
 
-  const handleSimpanHok = (idKader: string, namaKader: string) => {
-    const nominalTeks = inputHok[idKader];
-    const nominal = nominalTeks !== undefined ? parseInt(nominalTeks.replace(/\D/g, ""), 10) : undefined;
-    const catatan = inputCatatan[idKader];
-
-    if (nominal === undefined && catatan === undefined) return;
-
-    const kaderLama = alokasiHokStore[idKader] || { nominalRp: 0, catatan: "" };
-    const nextNominal = nominal !== undefined && !isNaN(nominal) ? nominal : kaderLama.nominalRp;
-    const nextCatatan = catatan !== undefined ? catatan : kaderLama.catatan;
-
-    const nextStore = {
-      ...alokasiHokStore,
-      [idKader]: { nominalRp: nextNominal, catatan: nextCatatan }
-    };
-
-    setAlokasiHokStore(nextStore);
-    try {
-      localStorage.setItem(STORAGE_KEY_HOK, JSON.stringify(nextStore));
-    } catch {
-      //
-    }
-
-    setPesanSukses(`✓ HOK untuk ${namaKader} berhasil ditetapkan: Rp ${nextNominal.toLocaleString("id-ID")}`);
-    setTimeout(() => setPesanSukses(null), 4000);
-  };
+  
 
   return (
     <div className="panel-data-user-level-container">
@@ -240,17 +187,13 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
               Data User & Level Kader
             </h3>
             <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "#64748b" }}>
-              Direktori kader terdaftar, klasifikasi tingkatan otomatis (Level 1–20), dan kendali insentif HOK.
+              Direktori kader terdaftar dan klasifikasi tingkatan otomatis (Level 1–20).
             </p>
           </div>
         </div>
       </div>
 
-      {pesanSukses && (
-        <div className="alert-banner-success" style={{ margin: "10px 0" }}>
-          <Check size={16} /> <span>{pesanSukses}</span>
-        </div>
-      )}
+      
 
       {/* FILTER & PENCARIAN KADER */}
       <div className="panel-user-filter-bar">
@@ -306,8 +249,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       {/* DAFTAR KARTU KADER & KONTROL HOK */}
       <div className="panel-user-cards-grid">
         {kaderTersaring.map((kader) => {
-          const nominalInput = inputHok[kader.idKader] ?? kader.hokDisetujuiRp.toString();
-          const catatanInput = inputCatatan[kader.idKader] ?? (kader.catatanHok || "");
+          
 
           return (
             <div key={kader.idKader} className="kader-user-level-card">
@@ -352,56 +294,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                 </div>
               </div>
 
-              {/* BOTTOM ROW: KONTROL PENENTUAN HOK MANUAL OLEH ADMIN */}
-              <div className="kader-hok-admin-control">
-                <div className="hok-control-title">
-                  <DollarSign size={14} className="text-emerald" />
-                  <span>Penetapan Alokasi HOK (Hari Orang Kerja):</span>
-                </div>
-
-                <div className="hok-inputs-flex">
-                  <div className="hok-input-nominal-wrap">
-                    <span className="hok-rp-label">Rp</span>
-                    <input
-                      type="text"
-                      className="hok-input-nominal"
-                      value={nominalInput}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setInputHok((prev) => ({ ...prev, [kader.idKader]: val }));
-                      }}
-                      placeholder="Nominal HOK"
-                    />
-                  </div>
-
-                  <input
-                    type="text"
-                    className="hok-input-notes"
-                    value={catatanInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setInputCatatan((prev) => ({ ...prev, [kader.idKader]: val }));
-                    }}
-                    placeholder="Catatan verifikasi penugasan..."
-                  />
-
-                  <button
-                    type="button"
-                    className="btn-hok-save"
-                    onClick={() => handleSimpanHok(kader.idKader, kader.nama)}
-                    title="Simpan & Setujui Alokasi HOK"
-                  >
-                    <Save size={14} />
-                    <span>Setujui HOK</span>
-                  </button>
-                </div>
-
-                <div className="hok-approved-status">
-                  <span className="hok-curr-badge">HOK Disetujui: <b>Rp {kader.hokDisetujuiRp.toLocaleString("id-ID")}</b></span>
-                  {kader.catatanHok && <span className="hok-approved-note">• {kader.catatanHok}</span>}
-                </div>
               </div>
-            </div>
           );
         })}
 
