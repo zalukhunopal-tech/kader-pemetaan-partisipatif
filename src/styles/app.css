@@ -356,7 +356,7 @@ body {
   grid-template-columns: 1fr 1fr;
   width: 100%;
   max-width: 360px;
-  height: 42px;
+  height: 44px;
   padding: 4px;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
@@ -371,14 +371,23 @@ body {
     padding: 5px;
     border-radius: 14px;
   }
-  .avenza-segment-btn {
+}
+
+@media (min-width: 1200px) {
+  .avenza-segmented-control {
+    max-width: 880px;
+  }
+}
+
+.avenza-segment-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   height: 100%;
+  width: 100%;
   border: none !important;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
   color: #64748b;
   font-size: 0.88rem;
@@ -390,6 +399,7 @@ body {
   outline: none !important;
   outline-offset: 0 !important;
   box-shadow: none !important;
+  box-sizing: border-box;
 }
 
 .avenza-segment-btn:focus,
@@ -412,6 +422,20 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   outline: none !important;
   border: none !important;
+  border-radius: 8px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .avenza-segment-btn {
+    font-size: 0.95rem;
+    gap: 10px;
+    border-radius: 10px;
+  }
+  .avenza-segment-btn.active {
+    border-radius: 10px;
+  }
 }
 
 .avenza-segment-btn .segment-icon {
@@ -429,16 +453,26 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px 12px;
+  padding: 8px 14px 10px;
   border-bottom: 1px solid #e5e9e7;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1200px) {
+  .avenza-filter-row {
+    max-width: 880px;
+  }
 }
 
 .avenza-pills-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   min-width: 0;
   flex: 1;
 }
@@ -448,19 +482,34 @@ body {
   display: inline-flex;
   align-items: center;
   height: 36px;
-  border: 1px solid #d4dad7;
+  border: 1.5px solid #cbd5e1;
   border-radius: 999px;
   background: #ffffff;
-  padding: 0 10px;
-  color: #262927;
-  max-width: 100%;
-  flex: 0 1 auto;
-  min-width: 0;
+  padding: 0 28px 0 32px;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.avenza-pill-select-wrap:hover {
+  border-color: #059669;
 }
 
 .avenza-pill-icon {
-  color: #4b5563;
-  margin-right: 5px;
+  position: absolute;
+  left: 10px;
+  color: #059669;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.avenza-pill-caret {
+  position: absolute;
+  right: 10px;
+  color: #64748b;
+  pointer-events: none;
   flex-shrink: 0;
 }
 
@@ -470,15 +519,14 @@ body {
   border: none;
   background: transparent;
   font-size: 0.82rem;
-  font-weight: 500;
-  color: #1f2937;
-  padding-right: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  padding: 0 2px;
+  margin: 0;
   cursor: pointer;
-  max-width: 165px;
-  min-width: 0;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 34px;
+  height: 100%;
+  outline: none;
   white-space: nowrap;
 }
 
@@ -486,27 +534,17 @@ body {
   outline: none;
 }
 
-/* Layar sangat sempit: ikon chip disembunyikan agar teks "Baru dilihat" dan "Semua item" tidak terpotong */
+/* Layar sangat sempit */
 @media (max-width: 360px) {
   .avenza-pill-icon {
     display: none;
   }
-
   .avenza-pill-select-wrap {
-    padding: 0 6px 0 10px;
+    padding: 0 24px 0 10px;
   }
-
   .avenza-pill-select {
     font-size: 0.8rem;
-    padding-right: 18px;
   }
-}
-
-.avenza-pill-caret {
-  position: absolute;
-  right: 8px;
-  pointer-events: none;
-  color: #1f2937;
 }
 
 .avenza-search-icon-btn {
@@ -527,15 +565,17 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: calc(100% - 28px);
   max-width: 340px;
-  width: calc(100% - 32px);
-  margin: 6px 16px 10px;
-  padding: 6px 12px;
-  height: 38px;
+  margin: 6px auto 12px;
+  padding: 8px 14px;
+  height: 40px;
   border-radius: 10px;
   background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
 }
 
 @media (min-width: 768px) {
@@ -5898,7 +5938,7 @@ label {
   box-sizing: border-box;
 }
 .pustaka-field .avenza-segmented-wrap {
-  padding: 12px 16px 8px;
+  padding: 12px 14px 8px;
   background: #ffffff;
   display: flex;
   justify-content: center;
@@ -5907,12 +5947,14 @@ label {
   box-sizing: border-box;
 }
 .pustaka-field .avenza-segmented-control {
-  height: 42px;
+  height: 44px;
+  padding: 4px;
   border-color: #e2e8f0;
   background: #f1f5f9;
   margin: 0 auto;
   width: 100%;
   max-width: 360px;
+  box-sizing: border-box;
 }
 @media (min-width: 768px) {
   .pustaka-field .avenza-segmented-control {
@@ -5928,6 +5970,10 @@ label {
   }
 }
 .pustaka-field .avenza-segment-btn {
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
+  box-sizing: border-box;
   outline: none !important;
   border: none !important;
 }
@@ -5944,13 +5990,22 @@ label {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   outline: none !important;
   border: none !important;
+  border-radius: 8px;
+  height: 100%;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .pustaka-field .avenza-segment-btn,
+  .pustaka-field .avenza-segment-btn.active {
+    border-radius: 10px;
+  }
 }
 .pustaka-field .avenza-filter-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 8px 14px 10px;
+  gap: 10px;
   border: 0;
   width: 100%;
   max-width: 760px;
@@ -5964,8 +6019,8 @@ label {
 }
 .pustaka-field .avenza-pill-select-wrap {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.15s ease;
 }
 .pustaka-field .avenza-pill-select-wrap:hover {
@@ -5975,20 +6030,20 @@ label {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: calc(100% - 32px);
+  width: calc(100% - 28px);
   max-width: 340px;
   margin: 4px auto 12px;
-  padding: 6px 12px;
-  height: 38px;
+  padding: 8px 14px;
+  height: 40px;
   background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   border-radius: 10px;
   box-sizing: border-box;
 }
 @media (min-width: 768px) {
   .pustaka-field .avenza-search-bar {
     max-width: 760px;
-    width: calc(100% - 32px);
+    width: calc(100% - 28px);
     height: 46px;
     margin: 8px auto 16px;
     padding: 8px 18px;
@@ -6010,7 +6065,7 @@ label {
   font-size: 0.86rem;
 }
 .pustaka-field .avenza-basemap-banner-wrap {
-  padding: 0 16px;
+  padding: 0 14px;
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
@@ -6062,7 +6117,7 @@ label {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
-  padding: 22px 16px 8px;
+  padding: 20px 14px 8px;
   font-size: 14px;
   font-weight: 650;
   box-sizing: border-box;
@@ -6107,7 +6162,7 @@ label {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
-  padding: 0 16px 100px;
+  padding: 0 14px 100px;
   box-sizing: border-box;
 }
 .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
@@ -6173,7 +6228,7 @@ label {
   margin: 0 auto;
   width: 100%;
   max-width: 760px;
-  padding: 0 16px 100px;
+  padding: 0 14px 100px;
   box-sizing: border-box;
 }
 @media (max-width: 480px) {
