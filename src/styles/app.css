@@ -731,14 +731,22 @@ body {
   display: flex;
   flex-direction: column;
   padding: 0 16px 90px;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 760px;
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
   .avenza-map-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    justify-content: center;
     gap: 14px;
     padding: 0 20px 90px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 760px;
   }
 
   .avenza-map-row {
@@ -4240,21 +4248,23 @@ label {
   grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
   gap: 8px;
   margin-top: 14px;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .admin-subnav {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 }
 
 .admin-subnav-btn {
-  flex: 1 1 auto;
-  min-width: max-content;
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: 8px 6px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
@@ -4262,24 +4272,28 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font-size: 0.82rem;
+  gap: 5px;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   box-sizing: border-box;
+  overflow: hidden;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .admin-subnav-btn svg {
   color: #38bdf8;
   flex-shrink: 0;
+  width: 15px;
+  height: 15px;
 }
 
 .admin-subnav-btn span {
   white-space: nowrap;
-  overflow: visible;
-  text-overflow: unset;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .admin-subnav-btn:hover {
@@ -4300,8 +4314,20 @@ label {
   .admin-subnav-btn {
     flex-direction: row;
     min-height: 44px;
+    gap: 5px;
+    font-size: 0.78rem;
+    padding: 8px 6px;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1080px) {
+  .admin-subnav {
+    gap: 10px;
+  }
+  .admin-subnav-btn {
     gap: 6px;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     padding: 8px 10px;
   }
 }
@@ -6242,9 +6268,9 @@ label {
 }
 @media (min-width: 768px) {
   .pustaka-field .pustaka-grid {
-    grid-template-columns: repeat(auto-fill, minmax(210px, 250px));
+    grid-template-columns: repeat(auto-fit, minmax(210px, 260px));
     justify-content: center; /* WAJIB TENGAH */
-    justify-items: stretch;
+    justify-items: center;
     max-width: 880px;
     gap: 20px;
   }
@@ -6252,9 +6278,9 @@ label {
 @media (min-width: 1200px) {
   .pustaka-field .pustaka-grid {
     max-width: 1080px;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 270px));
     justify-content: center;
-    justify-items: stretch;
+    justify-items: center;
   }
 }
 .pustaka-field .pustaka-grid .avenza-map-row {
@@ -8627,6 +8653,7 @@ html[data-field-theme="matahari"] .section-card h2 {
   .auth-form-panel {
     padding: 24px 20px 20px;
   }
+}
 
 /* =========================================================
    DATA USER & LEVEL KADER (ANTI OVERLAP, MOBILE & PC RESPONSIVE)
@@ -8685,38 +8712,40 @@ html[data-field-theme="matahari"] .section-card h2 {
 .panel-user-cards-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 
 @media (min-width: 680px) {
   .panel-user-cards-grid {
     grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-    gap: 14px;
+    gap: 16px;
   }
 }
 
 @media (min-width: 1200px) {
   .panel-user-cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
   }
 }
 
 .kader-user-level-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
 }
 
 .kader-user-level-card:hover {
   border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
 .kader-card-top-row {
