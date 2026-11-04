@@ -4,8 +4,188 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' blob: ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://tile.googleapis.com https://*.arcgis.com https://*.arcgisonline.com https://tiles.maps.eox.at https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://tile.uji.example https://tile.openstreetmap.org https://elevation-tiles-prod.s3.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self';"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' blob: https:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; worker-src 'self' blob: https:; connect-src 'self' data: blob: ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://tile.googleapis.com https://*.arcgis.com https://*.arcgisonline.com https://tiles.maps.eox.at https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://tile.uji.example https://tile.openstreetmap.org https://elevation-tiles-prod.s3.amazonaws.com https:; object-src 'none'; base-uri 'self'; form-action 'self';"
     />
+    <script>
+      /* __agyPdfPolyfill */
+      (function () {
+        function applyPolyfill() {
+          if (typeof Map !== "undefined" && typeof Map.prototype.getOrInsertComputed !== "function") {
+            Object.defineProperty(Map.prototype, "getOrInsertComputed", {
+              value: function getOrInsertComputed(key, callbackfn) {
+                if (typeof callbackfn !== "function") throw new TypeError("Callback harus berupa fungsi.");
+                var k = Object.is(key, -0) ? 0 : key;
+                if (this.has(k)) return this.get(k);
+                var val = callbackfn(k);
+                this.set(k, val);
+                return val;
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof Map !== "undefined" && typeof Map.prototype.getOrInsert !== "function") {
+            Object.defineProperty(Map.prototype, "getOrInsert", {
+              value: function getOrInsert(key, defaultValue) {
+                var k = Object.is(key, -0) ? 0 : key;
+                if (this.has(k)) return this.get(k);
+                this.set(k, defaultValue);
+                return defaultValue;
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof WeakMap !== "undefined" && typeof WeakMap.prototype.getOrInsertComputed !== "function") {
+            Object.defineProperty(WeakMap.prototype, "getOrInsertComputed", {
+              value: function getOrInsertComputed(key, callbackfn) {
+                if (typeof callbackfn !== "function") throw new TypeError("Callback harus berupa fungsi.");
+                if (this.has(key)) return this.get(key);
+                var val = callbackfn(key);
+                this.set(key, val);
+                return val;
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof WeakMap !== "undefined" && typeof WeakMap.prototype.getOrInsert !== "function") {
+            Object.defineProperty(WeakMap.prototype, "getOrInsert", {
+              value: function getOrInsert(key, defaultValue) {
+                if (this.has(key)) return this.get(key);
+                this.set(key, defaultValue);
+                return defaultValue;
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof Promise !== "undefined" && typeof Promise.withResolvers !== "function") {
+            Object.defineProperty(Promise, "withResolvers", {
+              value: function withResolvers() {
+                var resolve, reject;
+                var promise = new Promise(function (res, rej) {
+                  resolve = res;
+                  reject = rej;
+                });
+                return { promise: promise, resolve: resolve, reject: reject };
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof Promise !== "undefined" && typeof Promise.try !== "function") {
+            Object.defineProperty(Promise, "try", {
+              value: function (fn) {
+                var args = Array.prototype.slice.call(arguments, 1);
+                return new Promise(function (resolve) {
+                  resolve(fn.apply(undefined, args));
+                });
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof URL !== "undefined" && typeof URL.parse !== "function") {
+            Object.defineProperty(URL, "parse", {
+              value: function parse(url, base) {
+                try {
+                  return base !== undefined ? new URL(url, base) : new URL(url);
+                } catch (e) {
+                  return null;
+                }
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof Math !== "undefined" && typeof Math.sumPrecise !== "function") {
+            Object.defineProperty(Math, "sumPrecise", {
+              value: function sumPrecise(items) {
+                var s = 0;
+                for (var item of items) s += Number(item);
+                return s;
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+          if (typeof Uint8Array !== "undefined" && typeof Uint8Array.prototype.toHex !== "function") {
+            Object.defineProperty(Uint8Array.prototype, "toHex", {
+              value: function toHex() {
+                var out = "";
+                for (var i = 0; i < this.length; i++) out += this[i].toString(16).padStart(2, "0");
+                return out;
+              },
+              configurable: true,
+              writable: true
+            });
+          }
+        }
+        applyPolyfill();
+        var kodeWorkerPolyfill = "/* __agyPdfPolyfill */(" + applyPolyfill.toString() + ")();\n";
+        if (typeof window !== "undefined" && !window.__agyWorkerPatched) {
+          window.__agyWorkerPatched = true;
+          if (typeof window.Blob === "function") {
+            var OrigBlob = window.Blob;
+            var PatchedBlob = function Blob(blobParts, options) {
+              if (Array.isArray(blobParts) && blobParts.length > 0) {
+                var adaImport = blobParts.some(function (p) {
+                  return typeof p === "string" && p.indexOf("import(") !== -1 && p.indexOf("__agyPdfPolyfill") === -1;
+                });
+                if (adaImport) {
+                  blobParts = [kodeWorkerPolyfill].concat(blobParts);
+                }
+              }
+              return options !== undefined ? new OrigBlob(blobParts, options) : new OrigBlob(blobParts);
+            };
+            PatchedBlob.prototype = OrigBlob.prototype;
+            Object.setPrototypeOf(PatchedBlob, OrigBlob);
+            window.Blob = PatchedBlob;
+          }
+          if (typeof window.Worker === "function") {
+            var OrigWorker = window.Worker;
+            var PatchedWorker = function Worker(scriptURL, options) {
+              var urlStr = String(scriptURL || "");
+              if (
+                urlStr &&
+                urlStr.indexOf("blob:") !== 0 &&
+                urlStr.indexOf("data:") !== 0 &&
+                ((options && options.type === "module") || urlStr.indexOf("pdf") !== -1)
+              ) {
+                try {
+                  var fullUrl = new URL(urlStr, window.location.href).href;
+                  var b = new window.Blob([kodeWorkerPolyfill + "await import(" + JSON.stringify(fullUrl) + ");\n"], {
+                    type: "text/javascript"
+                  });
+                  return new OrigWorker(URL.createObjectURL(b), Object.assign({}, options || {}, { type: "module" }));
+                } catch (e) {}
+              }
+              return options !== undefined ? new OrigWorker(scriptURL, options) : new OrigWorker(scriptURL);
+            };
+            PatchedWorker.prototype = OrigWorker.prototype;
+            Object.setPrototypeOf(PatchedWorker, OrigWorker);
+            window.Worker = PatchedWorker;
+          }
+          if ("serviceWorker" in navigator) {
+            var sedangReloadSw = false;
+            navigator.serviceWorker.addEventListener("controllerchange", function () {
+              if (sedangReloadSw) return;
+              sedangReloadSw = true;
+              window.location.reload();
+            });
+            navigator.serviceWorker
+              .getRegistrations()
+              .then(function (regs) {
+                regs.forEach(function (r) {
+                  r.update().catch(function () {});
+                });
+              })
+              .catch(function () {});
+          }
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />

@@ -289,7 +289,22 @@ async function startServer() {
         dotfiles: "ignore",
         index: false,
         fallthrough: true,
-        maxAge: "1d"
+        maxAge: "1d",
+        setHeaders(res, filePath) {
+          const baseName = path.basename(filePath).toLowerCase();
+          if (
+            baseName === "sw.js" ||
+            baseName === "registersw.js" ||
+            baseName === "manifest.webmanifest" ||
+            baseName === "index.html" ||
+            baseName === "pdf.worker.min.mjs"
+          ) {
+            res.setHeader(
+              "Cache-Control",
+              "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+            );
+          }
+        }
       })
     );
 
@@ -307,6 +322,10 @@ async function startServer() {
         return;
       }
 
+      res.setHeader(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+      );
       res.sendFile(indexPath);
     });
   }
