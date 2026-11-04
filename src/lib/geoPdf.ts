@@ -1,65 +1,79 @@
-import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFString } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString } from "pdf-lib";
 import proj4 from "proj4";
 
-const nums = (a: PDFArray) => Array.from({ length: a.size() }, (_, i) => a.lookup(i, PDFNumber).asNumber());
-
-/**
- * Daftarkan proyeksi koordinat ke proj4 bila belum tersedia di defs bawaan.
- * Mendukung EPSG umum Indonesia: UTM Zone 46N-54N, 46S-54S, DGN95, SRGI2013, Web Mercator, WGS84.
- */
-export function daftarkanCrsProj4(kodeOrWkt: string | number): string {
-  if (typeof kodeOrWkt === "number") {
-    const epsgNum = kodeOrWkt;
-    const defKey = `EPSG:${epsgNum}`;
-    if (proj4.defs(defKey)) return defKey;
-
-    if (epsgNum >= 32601 && epsgNum <= 32660) {
-      // UTM Zone North
-      const zone = epsgNum - 32600;
-      proj4.defs(defKey, `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`);
-    } else if (epsgNum >= 32701 && epsgNum <= 32760) {
-      // UTM Zone South
-      const zone = epsgNum - 32700;
-      proj4.defs(defKey, `+proj=utm +zone=${zone} +south +datum=WGS84 +units=m +no_defs`);
-    } else if (epsgNum === 4755) {
-      // DGN95 Geografis
-      proj4.defs(defKey, `+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs`);
-    } else if (epsgNum === 9489) {
-      // SRGI2013 Geografis
-      proj4.defs(defKey, `+proj=longlat +ellps=GRS80 +no_defs`);
-    } else if (epsgNum === 3857) {
-      proj4.defs(defKey, `+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs`);
-    } else if (epsgNum === 4326) {
-      proj4.defs(defKey, `+proj=longlat +datum=WGS84 +no_defs`);
-    }
-    return defKey;
-  }
-
-  const str = kodeOrWkt.trim();
-  if (str.toUpperCase().startsWith("EPSG:")) {
-    const num = parseInt(str.split(":")[1], 10);
-    if (!isNaN(num)) return daftarkanCrsProj4(num);
-  }
-
-  // Jika berupa WKT (Well-Known Text)
-  if (str.includes("PROJCS") || str.includes("GEOGCS")) {
-    const customKey = `CUSTOM_WKT_${Math.abs(hashString(str))}`;
-    if (!proj4.defs(customKey)) {
-      proj4.defs(customKey, str);
-    }
-    return customKey;
-  }
-
-  return "EPSG:4326";
+export interface TitikGeo {
+  lat: number;
+  lon: number;
 }
 
-function hashString(s: string): number {
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    hash = (hash << 5) - hash + s.charCodeAt(i);
-    hash |= 0;
-  }
-  return hash;
+export interface TitikPdf {
+  x: number;
+  y: number;
+}
+
+export interface KotakViewport {
+  xMin: number;
+  yMin: number;
+  xMaks: number;
+  yMaks: number;
+}
+
+export type FormatGeorefPdf = "iso32000" | "ogc-lgi" | "manual";
+export type MetodeTransformasi = "afin-proyeksi" | "afin-geografis" | "homografi";
+
+export interface ViewportGeo {
+  nama: string;
+  format: FormatGeorefPdf;
+  kotak: KotakViewport;
+  /** Poligon batas dalam koordinat ruang pengguna PDF (pt) */
+  batasPdf: TitikPdf[];
+  /** Pasangan titik ikat: titik PDF (pt) <-> koordinat geografis WGS84 */
+  titikIkat: { pdf: TitikPdf; geo: TitikGeo; proyeksi?: { x: number; y: number } }[];
+  crs: string | null;
+  wkt: string | null;
+  epsg: number | null;
+  /** Matriks CTM 6 angka dari LGIDict jika ada: [a,b,c,d,e,f] memetakan PDF pt -> koordinat proyeksi */
+  ctm?: [number, number, number, number, number, number];
+}
+
+export interface GeoreferensiPdf {
+  indeksHalaman: number;
+  lebarPt: number;
+  tinggiPt: number;
+  viewport: ViewportGeo[];
+  utama: ViewportGeo;
+}
+
+export interface TransformasiGeoref {
+  pdfKeGeo: (xPt: number, yPt: number) => TitikGeo | null;
+  geoKePdf: (lat: number, lon: number) => TitikPdf | null;
+  metode: MetodeTransformasi;
+  crsProyeksi: string | null;
+  /** Galat maksimum (meter) pada titik ikat, sebagai indikator kualitas */
+  sisaMeter: number;
+}
+
+export interface TitikKontrolGeoPdf {
+  /** Koordinat lokal ternormalisasi (0..1) di dalam BBox PDF */
+  u: number;
+  v: number;
+  /** Koordinat geografis atau terproyeksi (X/Bujur, Y/Lintang) */
+  x: number;
+  y: number;
+}
+
+export interface TransformasiAffineGeoPdf {
+  /** Matriks transformasi lokal (u, v) -> (lng, lat): x = a*u + b*v + c; y = d*u + e*v + f */
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+  /** Konversi titik lokal (u, v) ke [lng, lat] */
+  keGeo: (u: number, v: number) => [number, number];
+  /** Konversi titik geografis (lng, lat) ke lokal [u, v] */
+  keLokal: (lng: number, lat: number) => [number, number];
 }
 
 export interface ReferensiGeoPdf {
@@ -67,435 +81,1270 @@ export interface ReferensiGeoPdf {
   maxLat: number;
   minLng: number;
   maxLng: number;
-  pusatLat: number;
-  pusatLng: number;
-  bbox: number[];
-  crs: string;
-  crsDeskripsi: string;
-  empatSudut: [number, number][]; // [[nwLng, nwLat], [neLng, neLat], [seLng, seLat], [swLng, swLat]]
+  pusatLat?: number;
+  pusatLng?: number;
+  /** [x1, y1, x2, y2] dalam satuan titik PDF (72 pt = 1 inci, asal kiri-bawah). */
+  bbox: [number, number, number, number];
+  crs?: string;
+  crsDeskripsi?: string;
+  /** Koordinat geografis [lng, lat] keempat sudut viewport (kiri-bawah, kiri-atas, kanan-atas, kanan-bawah) */
+  empatSudut: [number, number][];
   rotasiDerajat?: number;
+  affine?: TransformasiAffineGeoPdf;
+  formatGeoref?: "iso32000" | "ogc-lgi" | "manual";
+  metodeTransformasi?: MetodeTransformasi;
+  sisaMeter?: number | null;
+  indeksHalaman?: number;
+  lebarPt?: number;
+  tinggiPt?: number;
+  batas?: TitikGeo[];
+  transformasi?: TransformasiGeoref;
+}
+
+export interface HasilImporGeoPdf extends ReferensiGeoPdf {
+  dataUrl: string;
+  thumbnailDataUrl?: string;
+  width: number;
+  height: number;
+}
+
+let crsTerdaftar = false;
+
+/**
+ * Mendaftarkan seluruh zona UTM Indonesia & Global (WGS 84), Pseudo-Mercator,
+ * serta DGN95 / Indonesia TM-3 (EPSG:23830 s.d. EPSG:23845) ke proj4.
+ */
+export function daftarkanCrsProj4(): void {
+  if (crsTerdaftar) return;
+  crsTerdaftar = true;
+
+  for (let zone = 1; zone <= 60; zone++) {
+    proj4.defs(`EPSG:${32600 + zone}`, `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`);
+    proj4.defs(`EPSG:${32700 + zone}`, `+proj=utm +zone=${zone} +south +datum=WGS84 +units=m +no_defs`);
+  }
+
+  proj4.defs(
+    "EPSG:3857",
+    "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
+  );
+
+  // DGN95 / Indonesia TM-3 (EPSG:23830 .. 23845)
+  const tm3Meridian: Record<number, number> = {
+    23830: 94.5,
+    23831: 97.5,
+    23832: 100.5,
+    23833: 103.5,
+    23834: 106.5,
+    23835: 109.5,
+    23836: 112.5,
+    23837: 115.5,
+    23838: 118.5,
+    23839: 121.5,
+    23840: 124.5,
+    23841: 127.5,
+    23842: 130.5,
+    23843: 133.5,
+    23844: 136.5,
+    23845: 139.5
+  };
+  for (const [epsgStr, lon0] of Object.entries(tm3Meridian)) {
+    proj4.defs(
+      `EPSG:${epsgStr}`,
+      `+proj=tmerc +lat_0=0 +lon_0=${lon0} +k=0.9999 +x_0=200000 +y_0=1500000 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`
+    );
+  }
+}
+
+export function definisiEpsg(kode: number): string | null {
+  daftarkanCrsProj4();
+  if (kode === 4326) return "EPSG:4326";
+  if (kode === 3857 || kode === 900913) return "EPSG:3857";
+  if ((kode >= 32601 && kode <= 32660) || (kode >= 32701 && kode <= 32760) || (kode >= 23830 && kode <= 23845)) {
+    return `EPSG:${kode}`;
+  }
+  return null;
+}
+
+export function namaCrs(crs: string | null): string {
+  if (!crs) return "WGS 84 (Geografis)";
+  if (crs === "EPSG:4326") return "WGS 84 (EPSG:4326)";
+  if (crs === "EPSG:3857") return "Web Mercator (EPSG:3857)";
+  const mUtmU = crs.match(/^EPSG:326(\d{2})$/);
+  if (mUtmU) return `WGS 84 / UTM Zona ${parseInt(mUtmU[1], 10)}N (${crs})`;
+  const mUtmS = crs.match(/^EPSG:327(\d{2})$/);
+  if (mUtmS) return `WGS 84 / UTM Zona ${parseInt(mUtmS[1], 10)}S (${crs})`;
+  const mTm3 = crs.match(/^EPSG:(238\d{2})$/);
+  if (mTm3) return `DGN95 / Indonesia TM-3 (${crs})`;
+  if (crs.startsWith("PROJCS[") || crs.startsWith("GEOGCS[")) {
+    const nama = crs.match(/^(?:PROJCS|GEOGCS)\["([^"]+)"/);
+    if (nama) return nama[1];
+  }
+  return crs;
+}
+
+function siapkanCrs(epsg: number | null, wkt: string | null): string | null {
+  daftarkanCrsProj4();
+  if (epsg) {
+    const def = definisiEpsg(epsg);
+    if (def) return def;
+  }
+  if (wkt) {
+    try {
+      proj4(wkt, "EPSG:4326", [0, 0]);
+      return wkt;
+    } catch {
+      const m = wkt.match(/UTM[_ ]zone[_ ](\d{1,2})([NS])/i);
+      if (m) {
+        const z = parseInt(m[1], 10);
+        const arah = m[2].toUpperCase();
+        const kode = arah === "N" ? 32600 + z : 32700 + z;
+        return definisiEpsg(kode);
+      }
+      const mEpsg = wkt.match(/AUTHORITY\["EPSG"\s*,\s*"?(\d+)"?\]/i);
+      if (mEpsg) {
+        return definisiEpsg(parseInt(mEpsg[1], 10));
+      }
+    }
+  }
+  return null;
 }
 
 /**
- * Menyelesaikan transformasi Affine 2D menggunakan metode Least-Squares
- * dari koordinat lembar PDF / normalized LPTS (u, v) ke koordinat geografis WGS84 (lng, lat).
- * Menghasilkan model transformasi untuk sudut miring/rotasi secara presisi.
+ * Menyelesaikan regresi kuadrat terkecil (least-squares) transformasi Affine 2D
+ * dari pasangan titik lokal (u, v) ke koordinat geografis WGS 84 (lng, lat).
  */
-export function selesaikanAffine2D(
-  pts: { u: number; v: number; x: number; y: number }[]
-): {
-  keGeo: (u: number, v: number) => [number, number];
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  f: number;
-} {
-  const N = pts.length;
-  if (N < 3) {
-    throw new Error("Dibutuhkan minimal 3 pasangan titik kontrol untuk affine transformation.");
+export function selesaikanAffine2D(titik: TitikKontrolGeoPdf[]): TransformasiAffineGeoPdf {
+  const n = titik.length;
+  if (n < 3) {
+    throw new Error("Transformasi Affine membutuhkan minimal 3 titik kontrol.");
   }
 
-  // Normal Equation: (M^T M) * params = M^T * Targets
-  let sumU2 = 0,
-    sumUV = 0,
-    sumU = 0,
-    sumV2 = 0,
-    sumV = 0;
-  let sumUX = 0,
-    sumVX = 0,
-    sumX = 0;
-  let sumUY = 0,
-    sumVY = 0,
-    sumY = 0;
+  let suu = 0,
+    suv = 0,
+    su = 0;
+  let svv = 0,
+    sv = 0;
+  let sux = 0,
+    svx = 0,
+    sx = 0;
+  let suy = 0,
+    svy = 0,
+    sy = 0;
 
-  for (const p of pts) {
-    sumU2 += p.u * p.u;
-    sumUV += p.u * p.v;
-    sumU += p.u;
-    sumV2 += p.v * p.v;
-    sumV += p.v;
-
-    sumUX += p.u * p.x;
-    sumVX += p.v * p.x;
-    sumX += p.x;
-
-    sumUY += p.u * p.y;
-    sumVY += p.v * p.y;
-    sumY += p.y;
+  for (const p of titik) {
+    suu += p.u * p.u;
+    suv += p.u * p.v;
+    su += p.u;
+    svv += p.v * p.v;
+    sv += p.v;
+    sux += p.u * p.x;
+    svx += p.v * p.x;
+    sx += p.x;
+    suy += p.u * p.y;
+    svy += p.v * p.y;
+    sy += p.y;
   }
 
-  // Inversi matriks 3x3 simetris [ [sumU2, sumUV, sumU], [sumUV, sumV2, sumV], [sumU, sumV, N] ]
-  const det =
-    sumU2 * (sumV2 * N - sumV * sumV) -
-    sumUV * (sumUV * N - sumU * sumV) +
-    sumU * (sumUV * sumV - sumU * sumV2);
+  const M = [
+    [suu, suv, su],
+    [suv, svv, sv],
+    [su, sv, n]
+  ];
 
-  if (Math.abs(det) < 1e-12) {
-    // Fallback interpolasi linear aksis-terjajar bila determinan kolinear
-    const minU = Math.min(...pts.map((p) => p.u));
-    const maxU = Math.max(...pts.map((p) => p.u));
-    const minV = Math.min(...pts.map((p) => p.v));
-    const maxV = Math.max(...pts.map((p) => p.v));
-    const minX = Math.min(...pts.map((p) => p.x));
-    const maxX = Math.max(...pts.map((p) => p.x));
-    const minY = Math.min(...pts.map((p) => p.y));
-    const maxY = Math.max(...pts.map((p) => p.y));
+  const det3 = (m: number[][]): number =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
 
-    const du = maxU - minU || 1;
-    const dv = maxV - minV || 1;
-    const a = (maxX - minX) / du;
-    const c = minX - a * minU;
-    const e = (maxY - minY) / dv;
-    const f = minY - e * minV;
-
-    return {
-      keGeo: (u, v) => [a * u + c, e * v + f],
-      a,
-      b: 0,
-      c,
-      d: 0,
-      e,
-      f
-    };
+  const D = det3(M);
+  if (Math.abs(D) < 1e-10) {
+    throw new Error("Titik kontrol GeoPDF kolinear (degenerate).");
   }
 
-  const inv00 = (sumV2 * N - sumV * sumV) / det;
-  const inv01 = (sumU * sumV - sumUV * N) / det;
-  const inv02 = (sumUV * sumV - sumU * sumV2) / det;
+  const gantiKolom = (m: number[][], kol: number, vec: number[]): number[][] =>
+    m.map((baris, r) => baris.map((val, c) => (c === kol ? vec[r] : val)));
 
-  const inv10 = inv01;
-  const inv11 = (sumU2 * N - sumU * sumU) / det;
-  const inv12 = (sumU * sumUV - sumU2 * sumV) / det;
+  const bx = [sux, svx, sx];
+  const by = [suy, svy, sy];
 
-  const inv20 = inv02;
-  const inv21 = inv12;
-  const inv22 = (sumU2 * sumV2 - sumUV * sumUV) / det;
+  const a = det3(gantiKolom(M, 0, bx)) / D;
+  const b = det3(gantiKolom(M, 1, bx)) / D;
+  const c = det3(gantiKolom(M, 2, bx)) / D;
 
-  // Parameter lng: x = a*u + b*v + c
-  const a = inv00 * sumUX + inv01 * sumVX + inv02 * sumX;
-  const b = inv10 * sumUX + inv11 * sumVX + inv12 * sumX;
-  const c = inv20 * sumUX + inv21 * sumVX + inv22 * sumX;
+  const d = det3(gantiKolom(M, 0, by)) / D;
+  const e = det3(gantiKolom(M, 1, by)) / D;
+  const f = det3(gantiKolom(M, 2, by)) / D;
 
-  // Parameter lat: y = d*u + e*v + f
-  const d = inv00 * sumUY + inv01 * sumVY + inv02 * sumY;
-  const e = inv10 * sumUY + inv11 * sumVY + inv12 * sumY;
-  const f = inv20 * sumUY + inv21 * sumVY + inv22 * sumY;
+  const detJ = a * e - b * d;
+  if (Math.abs(detJ) < 1e-12) {
+    throw new Error("Matriks transformasi GeoPDF singular (area nol).");
+  }
 
   return {
-    keGeo: (u: number, v: number) => [a * u + b * v + c, d * u + e * v + f],
     a,
     b,
     c,
     d,
     e,
-    f
+    f,
+    keGeo: (u: number, v: number): [number, number] => [a * u + b * v + c, d * u + e * v + f],
+    keLokal: (lng: number, lat: number): [number, number] => {
+      const dx = lng - c;
+      const dy = lat - f;
+      return [(e * dx - b * dy) / detJ, (-d * dx + a * dy) / detJ];
+    }
   };
 }
 
 /**
- * ISO 32000 & TerraGo GeoPDF Reader dengan dukungan multi-CRS dan rotasi/kemiringan penuh.
+ * Validasi GPTS dan LPTS GeoPDF, serta konversi otomatis dari CRS proyeksi (mis. UTM) ke WGS 84 (EPSG:4326).
+ * Menangani baik GPTS dalam derajat geografis (standar ISO 32000) maupun GPTS dalam meter UTM.
  */
-export async function bacaReferensiGeoPdf(bytes: Uint8Array): Promise<ReferensiGeoPdf> {
-  const doc = await PDFDocument.load(bytes);
-  const page = doc.getPage(0);
-  const rotasi = page.getRotation().angle || 0;
-
-  // 1. Coba baca ISO 32000 Viewport GEO (/VP)
-  const viewports = page.node.lookupMaybe(PDFName.of("VP"), PDFArray);
-  if (viewports && viewports.size() >= 1) {
-    for (let vpIdx = 0; vpIdx < viewports.size(); vpIdx++) {
-      const vp = viewports.lookup(vpIdx, PDFDict);
-      const measure = vp.lookupMaybe(PDFName.of("Measure"), PDFDict);
-      if (!measure) continue;
-
-      const subtype = measure.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString();
-      if (subtype !== "/GEO") continue;
-
-      // Ekstraksi CRS / Proyeksi
-      let crsKey = "EPSG:4326";
-      let crsNama = "EPSG:4326 (WGS 84)";
-
-      const gcs = measure.lookupMaybe(PDFName.of("GCS"), PDFDict);
-      const projcs = measure.lookupMaybe(PDFName.of("PROJCS"), PDFDict);
-      const wktStr = measure.lookupMaybe(PDFName.of("WKT"), PDFString)?.asString();
-
-      if (wktStr) {
-        crsKey = daftarkanCrsProj4(wktStr);
-        crsNama = `GeoPDF WKT (${crsKey})`;
-      } else if (projcs) {
-        const epsg = projcs.lookupMaybe(PDFName.of("EPSG"), PDFNumber)?.asNumber();
-        if (epsg) {
-          crsKey = daftarkanCrsProj4(epsg);
-          crsNama = `EPSG:${epsg}`;
-        }
-      } else if (gcs) {
-        const epsg = gcs.lookupMaybe(PDFName.of("EPSG"), PDFNumber)?.asNumber();
-        if (epsg) {
-          crsKey = daftarkanCrsProj4(epsg);
-          crsNama = `EPSG:${epsg}`;
-        }
-      }
-
-      const gptsArr = measure.lookupMaybe(PDFName.of("GPTS"), PDFArray);
-      const lptsArr = measure.lookupMaybe(PDFName.of("LPTS"), PDFArray);
-
-      if (!gptsArr || !lptsArr) continue;
-      const gpts = nums(gptsArr);
-      const lpts = nums(lptsArr);
-
-      if (gpts.length < 6 || lpts.length < 6 || gpts.length !== lpts.length) {
-        throw new Error("GeoPDF memerlukan pasangan titik kontrol yang valid (minimal 3 pasang).");
-      }
-
-      const bboxRaw = vp.lookupMaybe(PDFName.of("BBox"), PDFArray);
-      const bbox = bboxRaw ? nums(bboxRaw) : [0, 0, page.getWidth(), page.getHeight()];
-
-      return prosesKontrolGeoPdf(gpts, lpts, bbox, crsKey, crsNama, rotasi);
-    }
-  }
-
-  // 2. Coba baca format TerraGo OGC (/LGIDict)
-  const lgiDict = page.node.lookupMaybe(PDFName.of("LGIDict"), PDFDict);
-  if (lgiDict) {
-    // TerraGo structure: /Registration dictionary/array
-    const reg = lgiDict.lookupMaybe(PDFName.of("Registration"), PDFArray);
-    if (reg && reg.size() >= 4) {
-      // Pasangan titik registrasi TerraGo
-      const gpts: number[] = [];
-      const lpts: number[] = [];
-      for (let i = 0; i < reg.size(); i++) {
-        const pair = reg.lookupMaybe(i, PDFArray);
-        if (pair && pair.size() >= 4) {
-          lpts.push(pair.lookup(0, PDFNumber).asNumber(), pair.lookup(1, PDFNumber).asNumber());
-          gpts.push(pair.lookup(2, PDFNumber).asNumber(), pair.lookup(3, PDFNumber).asNumber());
-        }
-      }
-      if (gpts.length >= 6) {
-        const bbox = [0, 0, page.getWidth(), page.getHeight()];
-        return prosesKontrolGeoPdf(gpts, lpts, bbox, "EPSG:4326", "TerraGo GeoPDF (EPSG:4326)", rotasi);
-      }
-    }
-  }
-
-  throw new Error("GeoPDF harus memiliki viewport GEO atau metadata georeferensi yang valid. Gunakan kalibrasi manual jika ini dokumen PDF cetak biasa.");
-}
-
-/**
- * Menghitung koordinat quad 4-sudut (empatSudut) dan bounding box geografis WGS84
- * dari pasangan GPTS dan LPTS dengan transformasi Affine 2D Least-Squares.
- */
-function prosesKontrolGeoPdf(
+export function validasiKontrolGeoPdf(
   gpts: number[],
-  lpts: number[],
-  bbox: number[],
-  crsKey: string,
-  crsNama: string,
-  rotasiDerajat = 0
-): ReferensiGeoPdf {
-  const pasanganTitik: { u: number; v: number; x: number; y: number }[] = [];
-  const jumlahTitik = gpts.length / 2;
+  lpts: number[] = [0, 0, 0, 1, 1, 1, 1, 0],
+  crsKey = "EPSG:4326"
+): Omit<ReferensiGeoPdf, "bbox"> {
+  daftarkanCrsProj4();
 
-  // Standar ISO 32000 GEO: GPTS = [lat0, lng0, lat1, lng1, ...] atau [y0, x0, y1, x1, ...]
-  // LPTS = [u0, v0, u1, v1, ...] dalam rentang 0-1 (normalized) atau koordinat titik BBox
-  for (let i = 0; i < jumlahTitik; i++) {
-    const rawY = gpts[2 * i];
-    const rawX = gpts[2 * i + 1];
-    const u = lpts[2 * i];
-    const v = lpts[2 * i + 1];
+  if (gpts.length < 8 || gpts.length % 2 !== 0 || lpts.length !== gpts.length) {
+    throw new Error("Titik kontrol GPTS/LPTS GeoPDF tidak lengkap.");
+  }
+  if (!gpts.every(Number.isFinite) || !lpts.every(Number.isFinite)) {
+    throw new Error("Titik kontrol GeoPDF bukan angka hingga.");
+  }
 
-    if (!Number.isFinite(rawY) || !Number.isFinite(rawX) || !Number.isFinite(u) || !Number.isFinite(v)) {
-      throw new Error("Pasangan koordinat GeoPDF memuat nilai non-numerik (NaN/Infinity).");
+  const lokalUnik = new Set<string>();
+  const kontrolWgs84: TitikKontrolGeoPdf[] = [];
+
+  for (let i = 0; i < gpts.length; i += 2) {
+    const u = lpts[i];
+    const v = lpts[i + 1];
+    if (u < -0.01 || u > 1.01 || v < -0.01 || v > 1.01) {
+      throw new Error("LPTS GeoPDF di luar rentang [0, 1].");
     }
+    lokalUnik.add(`${u.toFixed(4)},${v.toFixed(4)}`);
 
-    // Proyeksikan dari CRS asal ke WGS84 (lng, lat)
-    let lng = rawX;
+    const rawY = gpts[i];
+    const rawX = gpts[i + 1];
+
     let lat = rawY;
+    let lng = rawX;
 
     if (crsKey !== "EPSG:4326") {
-      try {
-        const out = proj4(crsKey, "EPSG:4326", [rawX, rawY]);
-        lng = out[0];
-        lat = out[1];
-      } catch {
-        // Coba periksa apakah koordinat dibalik (yaitu rawY adalah easting/x dan rawX adalah northing/y)
+      // Perbaikan Bug GPTS ISO 32000: jika nilai sudah di dalam rentang derajat geografis [-90..90, -180..180],
+      // jangan diproyeksikan ulang dari UTM karena ISO 32000 menyimpan GPTS dalam derajat [lat, lon].
+      // Namun bila di luar rentang derajat (seperti meter UTM [Northing, Easting]), proyeksikan ke EPSG:4326.
+      if (Math.abs(rawY) <= 90 && Math.abs(rawX) <= 180) {
+        lat = rawY;
+        lng = rawX;
+      } else {
         try {
-          const out = proj4(crsKey, "EPSG:4326", [rawY, rawX]);
-          lng = out[0];
-          lat = out[1];
+          let xUtm = rawX;
+          let yUtm = rawY;
+          if (rawY > 100000 && rawY < 900000 && rawX > 1000000) {
+            xUtm = rawY;
+            yUtm = rawX;
+          }
+          const [projLng, projLat] = proj4(crsKey, "EPSG:4326", [xUtm, yUtm]);
+          lng = projLng;
+          lat = projLat;
         } catch {
-          lng = rawX;
-          lat = rawY;
+          if (Math.abs(rawY) <= 90 && Math.abs(rawX) <= 180) {
+            lat = rawY;
+            lng = rawX;
+          } else {
+            throw new Error(`Gagal mengonversi koordinat dari sistem ${crsKey} ke WGS 84.`);
+          }
         }
-      }
-    } else {
-      // Jika EPSG:4326, validasi apakah rawY = lat (-90 s/d 90) dan rawX = lng (-180 s/d 180)
-      if (Math.abs(rawY) > 90 && Math.abs(rawX) <= 90) {
-        lat = rawX;
-        lng = rawY;
       }
     }
 
-    pasanganTitik.push({ u, v, x: lng, y: lat });
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw new Error(`Koordinat GPTS GeoPDF di luar rentang bumi (${lat}, ${lng}).`);
+    }
+
+    kontrolWgs84.push({ u, v, x: lng, y: lat });
   }
 
-  // Hitung model affine Least-Squares
-  const model = selesaikanAffine2D(pasanganTitik);
-
-  // Evaluasi 4 sudut lembar viewport:
-  // NW (0, 1), NE (1, 1), SE (1, 0), SW (0, 0)
-  const nw = model.keGeo(0, 1);
-  const ne = model.keGeo(1, 1);
-  const se = model.keGeo(1, 0);
-  const sw = model.keGeo(0, 0);
-
-  const empatSudut: [number, number][] = [
-    [Number(nw[0].toFixed(6)), Number(nw[1].toFixed(6))],
-    [Number(ne[0].toFixed(6)), Number(ne[1].toFixed(6))],
-    [Number(se[0].toFixed(6)), Number(se[1].toFixed(6))],
-    [Number(sw[0].toFixed(6)), Number(sw[1].toFixed(6))]
-  ];
-
-  const semuaLng = [nw[0], ne[0], se[0], sw[0]];
-  const semuaLat = [nw[1], ne[1], se[1], sw[1]];
-
-  const minLng = Number(Math.min(...semuaLng).toFixed(6));
-  const maxLng = Number(Math.max(...semuaLng).toFixed(6));
-  const minLat = Number(Math.min(...semuaLat).toFixed(6));
-  const maxLat = Number(Math.max(...semuaLat).toFixed(6));
-
-  if (minLat < -85 || maxLat > 85 || minLng < -180 || maxLng > 180 || minLat >= maxLat || minLng >= maxLng) {
-    throw new Error("Batas koordinat GeoPDF di luar batas bumi atau tidak konsisten.");
+  if (lokalUnik.size < 3) {
+    throw new Error("Titik kontrol LPTS GeoPDF berulang (kurang dari 3 titik unik).");
   }
+
+  const affine = selesaikanAffine2D(kontrolWgs84);
+
+  const sudutKiriBawah = affine.keGeo(0, 0);
+  const sudutKiriAtas = affine.keGeo(0, 1);
+  const sudutKananAtas = affine.keGeo(1, 1);
+  const sudutKananBawah = affine.keGeo(1, 0);
+
+  const empatSudut: [number, number][] = [sudutKiriBawah, sudutKiriAtas, sudutKananAtas, sudutKananBawah];
+
+  const semuaLng = [...kontrolWgs84.map((p) => p.x), ...empatSudut.map((s) => s[0])];
+  const semuaLat = [...kontrolWgs84.map((p) => p.y), ...empatSudut.map((s) => s[1])];
+
+  const minLat = Number(Math.min(...semuaLat).toFixed(10));
+  const maxLat = Number(Math.max(...semuaLat).toFixed(10));
+  const minLng = Number(Math.min(...semuaLng).toFixed(10));
+  const maxLng = Number(Math.max(...semuaLng).toFixed(10));
+
+  if (maxLat - minLat < 1e-5 || maxLng - minLng < 1e-5) {
+    throw new Error("Rentang koordinat GeoPDF terlalu sempit atau kolinear.");
+  }
+
+  const dLng = sudutKananAtas[0] - sudutKiriAtas[0];
+  const dLat = sudutKananAtas[1] - sudutKiriAtas[1];
+  const rotasiDerajat = Number(((Math.atan2(dLat, dLng) * 180) / Math.PI).toFixed(2));
 
   return {
     minLat,
     maxLat,
     minLng,
     maxLng,
-    pusatLat: Number(((minLat + maxLat) / 2).toFixed(6)),
-    pusatLng: Number(((minLng + maxLng) / 2).toFixed(6)),
-    bbox,
+    pusatLat: Number(((minLat + maxLat) / 2).toFixed(7)),
+    pusatLng: Number(((minLng + maxLng) / 2).toFixed(7)),
     crs: crsKey,
-    crsDeskripsi: crsNama,
+    crsDeskripsi: namaCrs(crsKey),
     empatSudut,
-    rotasiDerajat
+    rotasiDerajat,
+    affine
   };
 }
 
 /**
- * Validasi titik kontrol untuk kompatibilitas fungsi validator sebelumnya.
+ * Mengubah objek internal pdf-lib menjadi nilai JS biasa secara rekursif (kedalaman maks 6).
  */
-export function validasiKontrolGeoPdf(gpts: number[], lpts: number[], strict = false) {
-  if (gpts.length !== 8 || lpts.length !== 8 || ![...gpts, ...lpts].every(Number.isFinite)) {
-    throw new Error("GeoPDF memerlukan empat pasangan titik kontrol yang valid.");
-  }
-  const lat = gpts.filter((_, i) => i % 2 === 0);
-  const lng = gpts.filter((_, i) => i % 2 === 1);
-  const minLat = Math.min(...lat);
-  const maxLat = Math.max(...lat);
-  const minLng = Math.min(...lng);
-  const maxLng = Math.max(...lng);
-
-  if (minLat < -85 || maxLat > 85 || minLng < -180 || maxLng > 180 || minLat >= maxLat || minLng >= maxLng || maxLng - minLng > 180) {
-    throw new Error("Batas koordinat GeoPDF tidak valid atau melewati antimeridian.");
-  }
-
-  if (strict) {
-    for (let i = 0; i < 4; i++) {
-      const u = lpts[2 * i];
-      const v = lpts[2 * i + 1];
-      if (
-        ![0, 1].includes(u) ||
-        ![0, 1].includes(v) ||
-        Math.abs(lng[i] - (minLng + u * (maxLng - minLng))) > 1e-6 ||
-        Math.abs(lat[i] - (minLat + v * (maxLat - minLat))) > 1e-6
-      ) {
-        throw new Error("GeoPDF miring/terdistorsi belum didukung dalam mode strict.");
-      }
+function pembuatKeJs(doc: PDFDocument) {
+  const ctx = doc.context;
+  const keJs = (obj: unknown, kedalaman = 0): unknown => {
+    if (kedalaman > 6 || obj === null || obj === undefined) return null;
+    if (obj instanceof PDFRef) {
+      return keJs(ctx.lookup(obj), kedalaman + 1);
     }
-  }
+    if (obj instanceof PDFNumber) return obj.asNumber();
+    if (obj instanceof PDFString || obj instanceof PDFHexString) return obj.decodeText();
+    if (obj instanceof PDFName) return obj.decodeText();
+    if (obj instanceof PDFArray) {
+      const hasil: unknown[] = [];
+      for (let i = 0; i < obj.size(); i++) {
+        hasil.push(keJs(obj.get(i), kedalaman + 1));
+      }
+      return hasil;
+    }
+    if (obj instanceof PDFDict) {
+      const hasil: Record<string, unknown> = {};
+      for (const [kunci, nilai] of obj.entries()) {
+        const namaKunci = kunci.decodeText();
+        hasil[namaKunci] = keJs(nilai, kedalaman + 1);
+      }
+      return hasil;
+    }
+    return obj;
+  };
+  return keJs;
+}
 
-  // Pastikan titik kontrol tidak degenerate
-  const unik = new Set(gpts.map((v, i) => (i % 2 === 0 ? `${v},${gpts[i + 1]}` : null)).filter(Boolean));
-  if (unik.size < 3) {
-    throw new Error("Titik kontrol GeoPDF berulang atau kurang dari 3 titik unik.");
-  }
-
-  return { minLat, maxLat, minLng, maxLng };
+function adalahAngkaArray(v: unknown): v is number[] {
+  return Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x));
 }
 
 /**
- * Impor berkas GeoPDF dengan rendering resolusi tinggi tanpa blur base64,
- * menghasilkan Blob URL terkelola dan metadata spasial 4-sudut (Avenza Maps standard).
+ * Ekstraksi viewport format ISO 32000 (/VP array dengan Measure Subtype /GEO)
  */
-export async function imporGeoPdf(file: File) {
-  if (file.size > 100 * 1024 * 1024) {
-    throw new Error("GeoPDF maksimum 100 MB. Potong lembar besar di GIS sebelum impor.");
-  }
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const ref = await bacaReferensiGeoPdf(bytes);
+function bacaViewportIso(rawVp: unknown, lebarPt: number, tinggiPt: number): ViewportGeo[] {
+  const daftarVp = Array.isArray(rawVp) ? rawVp : rawVp && typeof rawVp === "object" ? [rawVp] : [];
+  const hasil: ViewportGeo[] = [];
 
-  // Render halaman pertama PDF menggunakan PDF.js
-  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-  GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
+  for (let idx = 0; idx < daftarVp.length; idx++) {
+    const vp = daftarVp[idx];
+    if (!vp || typeof vp !== "object") continue;
+    const rec = vp as Record<string, unknown>;
+    const measure = rec.Measure as Record<string, unknown> | undefined;
+    if (!measure || measure.Subtype !== "GEO") continue;
 
-  const task = getDocument({ data: bytes.slice() });
-  try {
-    const pdf = await task.promise;
-    const page = await pdf.getPage(1);
-    const base = page.getViewport({ scale: 1 });
+    const bboxRaw = rec.BBox;
+    let kotak: KotakViewport = { xMin: 0, yMin: 0, xMaks: lebarPt, yMaks: tinggiPt };
+    if (adalahAngkaArray(bboxRaw) && bboxRaw.length >= 4) {
+      kotak = {
+        xMin: Math.min(bboxRaw[0], bboxRaw[2]),
+        yMin: Math.min(bboxRaw[1], bboxRaw[3]),
+        xMaks: Math.max(bboxRaw[0], bboxRaw[2]),
+        yMaks: Math.max(bboxRaw[1], bboxRaw[3])
+      };
+    }
 
-    // Resolusi tinggi: batasi sisi terpanjang 4096 px agar tajam tanpa blur
-    const scale = Math.min(3, 4096 / Math.max(base.width, base.height));
-    const viewport = page.getViewport({ scale });
+    const gpts = measure.GPTS;
+    if (!adalahAngkaArray(gpts) || gpts.length < 4) continue;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Kanvas tidak tersedia di peramban ini.");
+    const lpts = adalahAngkaArray(measure.LPTS) ? measure.LPTS : [0, 0, 0, 1, 1, 1, 1, 0];
+    const bounds = adalahAngkaArray(measure.Bounds) ? measure.Bounds : [0, 0, 0, 1, 1, 1, 1, 0];
 
-    await page.render({ canvasContext: ctx, canvas, viewport }).promise;
+    const gcs = (measure.GCS || measure.PROJCS || measure.GEOGCS) as Record<string, unknown> | undefined;
+    const epsg = gcs && typeof gcs.EPSG === "number" ? gcs.EPSG : null;
+    const wkt = gcs && typeof gcs.WKT === "string" ? gcs.WKT : null;
+    const crsKode = siapkanCrs(epsg, wkt);
 
-    let finalCanvas = canvas;
+    const lbrKotak = kotak.xMaks - kotak.xMin;
+    const tgiKotak = kotak.yMaks - kotak.yMin;
 
-    // Jika memiliki BBox spesifik yang lebih kecil dari ukuran halaman, potong ke viewport
-    if (ref.bbox && ref.bbox.length === 4 && ref.bbox.every(Number.isFinite)) {
-      const r = [
-        ...viewport.convertToViewportPoint(ref.bbox[0], ref.bbox[1]),
-        ...viewport.convertToViewportPoint(ref.bbox[2], ref.bbox[3])
-      ];
-      const x = Math.min(r[0], r[2]);
-      const y = Math.min(r[1], r[3]);
-      const w = Math.abs(r[2] - r[0]);
-      const h = Math.abs(r[3] - r[1]);
+    const jumlahTitik = Math.min(Math.floor(gpts.length / 2), Math.floor(lpts.length / 2));
+    const titikIkat: ViewportGeo["titikIkat"] = [];
 
-      if (w >= 10 && h >= 10 && x >= -2 && y >= -2 && x + w <= canvas.width + 2 && y + h <= canvas.height + 2) {
-        const crop = document.createElement("canvas");
-        crop.width = Math.ceil(w);
-        crop.height = Math.ceil(h);
-        crop.getContext("2d")!.drawImage(canvas, x, y, w, h, 0, 0, crop.width, crop.height);
-        finalCanvas = crop;
+    for (let i = 0; i < jumlahTitik; i++) {
+      const lx = lpts[i * 2];
+      const ly = lpts[i * 2 + 1];
+      const xPt = lx >= 0 && lx <= 1 ? kotak.xMin + lx * lbrKotak : lx;
+      const yPt = ly >= 0 && ly <= 1 ? kotak.yMin + ly * tgiKotak : ly;
+
+      const rawY = gpts[i * 2];
+      const rawX = gpts[i * 2 + 1];
+
+      let lat: number | null = null;
+      let lon: number | null = null;
+      let proyeksi: { x: number; y: number } | undefined;
+
+      // ISO 32000-1 menetapkan GPTS sebagai [lat, lon] derajat geografis.
+      // Jika sudah dalam rentang derajat [-90..90, -180..180], langsung gunakan sebagai derajat.
+      if (Math.abs(rawY) <= 90 && Math.abs(rawX) <= 180) {
+        lat = rawY;
+        lon = rawX;
+      } else if (Math.abs(rawX) <= 90 && Math.abs(rawY) <= 180) {
+        lat = rawX;
+        lon = rawY;
+      } else if (crsKode && crsKode !== "EPSG:4326") {
+        try {
+          let xUtm = rawX;
+          let yUtm = rawY;
+          if (rawY > 100000 && rawY < 900000 && rawX > 1000000) {
+            xUtm = rawY;
+            yUtm = rawX;
+          }
+          const [lngProj, latProj] = proj4(crsKode, "EPSG:4326", [xUtm, yUtm]);
+          if (Number.isFinite(latProj) && Number.isFinite(lngProj) && Math.abs(latProj) <= 90 && Math.abs(lngProj) <= 180) {
+            lat = latProj;
+            lon = lngProj;
+            proyeksi = { x: xUtm, y: yUtm };
+          }
+        } catch {
+          // Abaikan jika gagal
+        }
+      }
+
+      if (lat !== null && lon !== null && Number.isFinite(lat) && Number.isFinite(lon)) {
+        titikIkat.push({ pdf: { x: xPt, y: yPt }, geo: { lat, lon }, ...(proyeksi ? { proyeksi } : {}) });
       }
     }
 
-    // Buat Blob PNG dan URL Blob objek
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      finalCanvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Gagal membuat Blob peta."))), "image/png");
-    });
+    if (titikIkat.length < 2) continue;
 
-    const blobUrl = URL.createObjectURL(blob);
+    const batasPdf: TitikPdf[] = [];
+    for (let i = 0; i + 1 < bounds.length; i += 2) {
+      const bx = bounds[i];
+      const by = bounds[i + 1];
+      batasPdf.push({
+        x: bx >= 0 && bx <= 1 ? kotak.xMin + bx * lbrKotak : bx,
+        y: by >= 0 && by <= 1 ? kotak.yMin + by * tgiKotak : by
+      });
+    }
+
+    hasil.push({
+      nama: typeof rec.Name === "string" ? rec.Name : `Viewport ${idx + 1}`,
+      format: "iso32000",
+      kotak,
+      batasPdf,
+      titikIkat,
+      crs: crsKode ?? (epsg ? `EPSG:${epsg}` : "EPSG:4326"),
+      wkt,
+      epsg
+    });
+  }
+
+  return hasil;
+}
+
+/**
+ * Ekstraksi format OGC / TerraGo (/LGIDict di tingkat halaman)
+ */
+function bacaLgi(rawLgi: unknown, lebarPt: number, tinggiPt: number): ViewportGeo[] {
+  const daftar = Array.isArray(rawLgi) ? rawLgi : rawLgi ? [rawLgi] : [];
+  const hasil: ViewportGeo[] = [];
+
+  for (let idx = 0; idx < daftar.length; idx++) {
+    const item = daftar[idx];
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+
+    const proj = rec.Projection as Record<string, unknown> | undefined;
+    let epsg: number | null = null;
+    let wkt: string | null = null;
+    if (proj) {
+      if (typeof proj.EPSG === "number") epsg = proj.EPSG;
+      if (typeof proj.WKT === "string") wkt = proj.WKT;
+      const tipeProj = proj.ProjectionType;
+      const zona = proj.Zone;
+      const hemi = proj.Hemisphere;
+      if (!epsg && tipeProj === "UT" && typeof zona === "number") {
+        epsg = hemi === "S" || hemi === "s" ? 32700 + zona : 32600 + zona;
+      }
+      if (!epsg && (tipeProj === "GEO" || tipeProj === "GEODETIC")) {
+        epsg = 4326;
+      }
+    }
+
+    const crs = siapkanCrs(epsg, wkt);
+
+    const neat = rec.Neatline;
+    const batasPdf: TitikPdf[] = [];
+    let kotak: KotakViewport = { xMin: 0, yMin: 0, xMaks: lebarPt, yMaks: tinggiPt };
+    if (adalahAngkaArray(neat) && neat.length >= 4) {
+      let xMin = Infinity,
+        yMin = Infinity,
+        xMaks = -Infinity,
+        yMaks = -Infinity;
+      for (let i = 0; i + 1 < neat.length; i += 2) {
+        const x = neat[i],
+          y = neat[i + 1];
+        batasPdf.push({ x, y });
+        if (x < xMin) xMin = x;
+        if (y < yMin) yMin = y;
+        if (x > xMaks) xMaks = x;
+        if (y > yMaks) yMaks = y;
+      }
+      kotak = { xMin, yMin, xMaks, yMaks };
+    } else {
+      batasPdf.push(
+        { x: 0, y: 0 },
+        { x: lebarPt, y: 0 },
+        { x: lebarPt, y: tinggiPt },
+        { x: 0, y: tinggiPt }
+      );
+    }
+
+    const ctmRaw = rec.CTM;
+    let ctm: [number, number, number, number, number, number] | undefined;
+    const titikIkat: ViewportGeo["titikIkat"] = [];
+
+    if (adalahAngkaArray(ctmRaw) && ctmRaw.length >= 6) {
+      ctm = [ctmRaw[0], ctmRaw[1], ctmRaw[2], ctmRaw[3], ctmRaw[4], ctmRaw[5]];
+      const sudutPdf: TitikPdf[] = [
+        { x: kotak.xMin, y: kotak.yMin },
+        { x: kotak.xMaks, y: kotak.yMin },
+        { x: kotak.xMaks, y: kotak.yMaks },
+        { x: kotak.xMin, y: kotak.yMaks }
+      ];
+      for (const p of sudutPdf) {
+        const X = ctm[0] * p.x + ctm[2] * p.y + ctm[4];
+        const Y = ctm[1] * p.x + ctm[3] * p.y + ctm[5];
+        let lon = X,
+          lat = Y;
+        if (crs && crs !== "EPSG:4326") {
+          try {
+            const [lo, la] = proj4(crs, "EPSG:4326", [X, Y]);
+            lon = lo;
+            lat = la;
+          } catch {
+            continue;
+          }
+        }
+        if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+          titikIkat.push({ pdf: p, geo: { lat, lon }, proyeksi: { x: X, y: Y } });
+        }
+      }
+    }
+
+    const reg = rec.Registration;
+    if (titikIkat.length < 2 && Array.isArray(reg)) {
+      for (const pasangan of reg) {
+        const arr = Array.isArray(pasangan) ? pasangan : [];
+        const angka = arr.flat().filter((x): x is number => typeof x === "number");
+        if (angka.length >= 4) {
+          const [px, py, gx, gy] = angka;
+          let lon = gx,
+            lat = gy;
+          if (crs && crs !== "EPSG:4326" && (Math.abs(gx) > 180 || Math.abs(gy) > 90)) {
+            try {
+              const [lo, la] = proj4(crs, "EPSG:4326", [gx, gy]);
+              lon = lo;
+              lat = la;
+            } catch {
+              continue;
+            }
+          } else if (Math.abs(gx) <= 90 && Math.abs(gy) > 90 && Math.abs(gy) <= 180) {
+            lat = gx;
+            lon = gy;
+          }
+          if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+            titikIkat.push({ pdf: { x: px, y: py }, geo: { lat, lon } });
+          }
+        }
+      }
+    }
+
+    if (titikIkat.length < 2) continue;
+
+    hasil.push({
+      nama: typeof rec.Description === "string" ? rec.Description : `LGIDict ${idx + 1}`,
+      format: "ogc-lgi",
+      kotak,
+      batasPdf,
+      titikIkat,
+      crs: crs ?? (epsg ? `EPSG:${epsg}` : "EPSG:4326"),
+      wkt,
+      epsg,
+      ctm
+    });
+  }
+
+  return hasil;
+}
+
+function pilihViewportUtama(daftar: ViewportGeo[]): ViewportGeo {
+  let terbaik = daftar[0];
+  let luasMaks = -1;
+  for (const vp of daftar) {
+    const luas = Math.max(0, vp.kotak.xMaks - vp.kotak.xMin) * Math.max(0, vp.kotak.yMaks - vp.kotak.yMin);
+    if (luas > luasMaks) {
+      luasMaks = luas;
+      terbaik = vp;
+    }
+  }
+  return terbaik;
+}
+
+/**
+ * Membaca metadata georeferensi dari berkas PDF (mendukung ISO 32000 /VP dan TerraGo /LGIDict
+ * serta memindai seluruh halaman hingga menemukan halaman ber-georeferensi).
+ */
+export async function bacaGeoreferensi(dataPdf: ArrayBuffer | Uint8Array): Promise<GeoreferensiPdf | null> {
+  const doc = await PDFDocument.load(dataPdf, {
+    ignoreEncryption: true,
+    updateMetadata: false
+  });
+  const keJs = pembuatKeJs(doc);
+  const halaman = doc.getPages();
+
+  for (let i = 0; i < halaman.length; i++) {
+    const p = halaman[i];
+    const { width: lebarPt, height: tinggiPt } = p.getSize();
+    const dict = p.node;
+
+    const vpRaw = keJs(dict.get(PDFName.of("VP")));
+    const lgiRaw = keJs(dict.get(PDFName.of("LGIDict")));
+
+    const dariIso = vpRaw ? bacaViewportIso(vpRaw, lebarPt, tinggiPt) : [];
+    const dariLgi = lgiRaw ? bacaLgi(lgiRaw, lebarPt, tinggiPt) : [];
+    const gabungan = [...dariIso, ...dariLgi];
+
+    if (gabungan.length > 0) {
+      return {
+        indeksHalaman: i,
+        lebarPt,
+        tinggiPt,
+        viewport: gabungan,
+        utama: pilihViewportUtama(gabungan)
+      };
+    }
+  }
+
+  return null;
+}
+
+function selesaikanLinear(A: number[][], b: number[]): number[] | null {
+  const n = b.length;
+  const M = A.map((baris, i) => [...baris, b[i]]);
+
+  for (let kol = 0; kol < n; kol++) {
+    let barisMaks = kol;
+    let nilaiMaks = Math.abs(M[kol][kol]);
+    for (let r = kol + 1; r < n; r++) {
+      const v = Math.abs(M[r][kol]);
+      if (v > nilaiMaks) {
+        nilaiMaks = v;
+        barisMaks = r;
+      }
+    }
+    if (nilaiMaks < 1e-12) return null;
+    if (barisMaks !== kol) {
+      const tmp = M[kol];
+      M[kol] = M[barisMaks];
+      M[barisMaks] = tmp;
+    }
+    const pivot = M[kol][kol];
+    for (let j = kol; j <= n; j++) M[kol][j] /= pivot;
+    for (let r = 0; r < n; r++) {
+      if (r === kol) continue;
+      const faktor = M[r][kol];
+      if (faktor === 0) continue;
+      for (let j = kol; j <= n; j++) M[r][j] -= faktor * M[kol][j];
+    }
+  }
+
+  return M.map((baris) => baris[n]);
+}
+
+interface Afin2D {
+  maju: (x: number, y: number) => { X: number; Y: number };
+  balik: (X: number, Y: number) => { x: number; y: number } | null;
+}
+
+function hitungAfin(pasang: { x: number; y: number; X: number; Y: number }[]): Afin2D | null {
+  if (pasang.length < 3) {
+    if (pasang.length === 2) {
+      const [p1, p2] = pasang;
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      if (Math.abs(dx) < 1e-9 || Math.abs(dy) < 1e-9) return null;
+      const a = (p2.X - p1.X) / dx;
+      const e = (p2.Y - p1.Y) / dy;
+      const c = p1.X - a * p1.x;
+      const f = p1.Y - e * p1.y;
+      if (Math.abs(a * e) < 1e-14) return null;
+      return {
+        maju: (x, y) => ({ X: a * x + c, Y: e * y + f }),
+        balik: (X, Y) => ({ x: (X - c) / a, y: (Y - f) / e })
+      };
+    }
+    return null;
+  }
+
+  let sxx = 0,
+    sxy = 0,
+    sx = 0,
+    syy = 0,
+    sy = 0;
+  let sxX = 0,
+    syX = 0,
+    sX = 0,
+    sxY = 0,
+    syY = 0,
+    sY = 0;
+  const n = pasang.length;
+
+  for (const p of pasang) {
+    sxx += p.x * p.x;
+    sxy += p.x * p.y;
+    sx += p.x;
+    syy += p.y * p.y;
+    sy += p.y;
+    sxX += p.x * p.X;
+    syX += p.y * p.X;
+    sX += p.X;
+    sxY += p.x * p.Y;
+    syY += p.y * p.Y;
+    sY += p.Y;
+  }
+
+  const M = [
+    [sxx, sxy, sx],
+    [sxy, syy, sy],
+    [sx, sy, n]
+  ];
+  const koefX = selesaikanLinear(M, [sxX, syX, sX]);
+  const koefY = selesaikanLinear(M, [sxY, syY, sY]);
+  if (!koefX || !koefY) return null;
+
+  const [a, b, c] = koefX;
+  const [d, e, f] = koefY;
+  const det = a * e - b * d;
+  if (Math.abs(det) < 1e-14) return null;
+
+  return {
+    maju: (x, y) => ({ X: a * x + b * y + c, Y: d * x + e * y + f }),
+    balik: (X, Y) => {
+      const dx = X - c;
+      const dy = Y - f;
+      return {
+        x: (e * dx - b * dy) / det,
+        y: (-d * dx + a * dy) / det
+      };
+    }
+  };
+}
+
+interface Homografi2D {
+  maju: (x: number, y: number) => { X: number; Y: number } | null;
+  balik: (X: number, Y: number) => { x: number; y: number } | null;
+}
+
+function hitungHomografi(pasang: { x: number; y: number; X: number; Y: number }[]): Homografi2D | null {
+  if (pasang.length < 4) return null;
+
+  const norm = (pts: { u: number; v: number }[]) => {
+    let mu = 0,
+      mv = 0;
+    for (const p of pts) {
+      mu += p.u;
+      mv += p.v;
+    }
+    mu /= pts.length;
+    mv /= pts.length;
+    let rata = 0;
+    for (const p of pts) rata += Math.hypot(p.u - mu, p.v - mv);
+    rata /= pts.length;
+    const s = rata > 1e-12 ? Math.SQRT2 / rata : 1;
+    return { mu, mv, s };
+  };
+
+  const nAsal = norm(pasang.map((p) => ({ u: p.x, v: p.y })));
+  const nTuj = norm(pasang.map((p) => ({ u: p.X, v: p.Y })));
+
+  const AtA = Array.from({ length: 8 }, () => new Array(8).fill(0));
+  const Atb = new Array(8).fill(0);
+
+  for (const p of pasang) {
+    const x = (p.x - nAsal.mu) * nAsal.s;
+    const y = (p.y - nAsal.mv) * nAsal.s;
+    const X = (p.X - nTuj.mu) * nTuj.s;
+    const Y = (p.Y - nTuj.mv) * nTuj.s;
+
+    const r1 = [x, y, 1, 0, 0, 0, -x * X, -y * X];
+    const r2 = [0, 0, 0, x, y, 1, -x * Y, -y * Y];
+    for (let i = 0; i < 8; i++) {
+      Atb[i] += r1[i] * X + r2[i] * Y;
+      for (let j = 0; j < 8; j++) {
+        AtA[i][j] += r1[i] * r1[j] + r2[i] * r2[j];
+      }
+    }
+  }
+
+  const h = selesaikanLinear(AtA, Atb);
+  if (!h) return null;
+  const H = [
+    [h[0], h[1], h[2]],
+    [h[3], h[4], h[5]],
+    [h[6], h[7], 1]
+  ];
+
+  const inv3 = (m: number[][]): number[][] | null => {
+    const [r0, r1, r2] = m;
+    const k00 = r1[1] * r2[2] - r1[2] * r2[1];
+    const k01 = -(r1[0] * r2[2] - r1[2] * r2[0]);
+    const k02 = r1[0] * r2[1] - r1[1] * r2[0];
+    const det = r0[0] * k00 + r0[1] * k01 + r0[2] * k02;
+    if (Math.abs(det) < 1e-14) return null;
+    const invD = 1 / det;
+    return [
+      [k00 * invD, -(r0[1] * r2[2] - r0[2] * r2[1]) * invD, (r0[1] * r1[2] - r0[2] * r1[1]) * invD],
+      [k01 * invD, (r0[0] * r2[2] - r0[2] * r2[0]) * invD, -(r0[0] * r1[2] - r0[2] * r1[0]) * invD],
+      [k02 * invD, -(r0[0] * r2[1] - r0[1] * r2[0]) * invD, (r0[0] * r1[1] - r0[1] * r1[0]) * invD]
+    ];
+  };
+
+  const Hinv = inv3(H);
+  if (!Hinv) return null;
+
+  return {
+    maju: (x, y) => {
+      const xn = (x - nAsal.mu) * nAsal.s;
+      const yn = (y - nAsal.mv) * nAsal.s;
+      const w = H[2][0] * xn + H[2][1] * yn + H[2][2];
+      if (Math.abs(w) < 1e-12) return null;
+      const Xn = (H[0][0] * xn + H[0][1] * yn + H[0][2]) / w;
+      const Yn = (H[1][0] * xn + H[1][1] * yn + H[1][2]) / w;
+      return { X: Xn / nTuj.s + nTuj.mu, Y: Yn / nTuj.s + nTuj.mv };
+    },
+    balik: (X, Y) => {
+      const Xn = (X - nTuj.mu) * nTuj.s;
+      const Yn = (Y - nTuj.mv) * nTuj.s;
+      const w = Hinv[2][0] * Xn + Hinv[2][1] * Yn + Hinv[2][2];
+      if (Math.abs(w) < 1e-12) return null;
+      const xn = (Hinv[0][0] * Xn + Hinv[0][1] * Yn + Hinv[0][2]) / w;
+      const yn = (Hinv[1][0] * Xn + Hinv[1][1] * Yn + Hinv[1][2]) / w;
+      return { x: xn / nAsal.s + nAsal.mu, y: yn / nAsal.s + nAsal.mv };
+    }
+  };
+}
+
+function jarakHaversineMeter(a: TitikGeo, b: TitikGeo): number {
+  const R = 6371008.8;
+  const keRad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * keRad;
+  const dLon = (b.lon - a.lon) * keRad;
+  const lat1 = a.lat * keRad;
+  const lat2 = b.lat * keRad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function sisaGalatMeter(
+  titikIkat: { pdf: TitikPdf; geo: TitikGeo }[],
+  pdfKeGeo: (x: number, y: number) => TitikGeo | null
+): number {
+  let maks = 0;
+  for (const t of titikIkat) {
+    const pred = pdfKeGeo(t.pdf.x, t.pdf.y);
+    if (!pred) return Infinity;
+    const d = jarakHaversineMeter(t.geo, pred);
+    if (d > maks) maks = d;
+  }
+  return maks;
+}
+
+/**
+ * Membangun fungsi transformasi dua arah (PDF pt <-> WGS84 lat/lon)
+ * dengan 3-Tier Transform (afin-proyeksi -> afin-geografis -> homografi DLT 3x3).
+ */
+export function buatTransformasi(vp: ViewportGeo): TransformasiGeoref | null {
+  daftarkanCrsProj4();
+  const ikat = vp.titikIkat;
+  if (ikat.length < 2) return null;
+
+  const crsProyeksi = vp.crs && vp.crs !== "EPSG:4326" ? vp.crs : null;
+  if (crsProyeksi) {
+    try {
+      const pasangProyeksi = ikat.map((t) => {
+        if (t.proyeksi) {
+          return { x: t.pdf.x, y: t.pdf.y, X: t.proyeksi.x, Y: t.proyeksi.y };
+        }
+        const [X, Y] = proj4("EPSG:4326", crsProyeksi, [t.geo.lon, t.geo.lat]);
+        return { x: t.pdf.x, y: t.pdf.y, X, Y };
+      });
+      const afin = hitungAfin(pasangProyeksi);
+      if (afin) {
+        const pdfKeGeo = (xPt: number, yPt: number): TitikGeo | null => {
+          try {
+            const { X, Y } = afin.maju(xPt, yPt);
+            const [lon, lat] = proj4(crsProyeksi, "EPSG:4326", [X, Y]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+            return { lat, lon };
+          } catch {
+            return null;
+          }
+        };
+        const geoKePdf = (lat: number, lon: number): TitikPdf | null => {
+          try {
+            const [X, Y] = proj4("EPSG:4326", crsProyeksi, [lon, lat]);
+            return afin.balik(X, Y);
+          } catch {
+            return null;
+          }
+        };
+        const sisa = sisaGalatMeter(ikat, pdfKeGeo);
+        if (Number.isFinite(sisa) && sisa < 50) {
+          return { pdfKeGeo, geoKePdf, metode: "afin-proyeksi", crsProyeksi, sisaMeter: sisa };
+        }
+      }
+    } catch {
+      // Lanjut ke regresi langsung di derajat geografis
+    }
+  }
+
+  const pasangGeo = ikat.map((t) => ({ x: t.pdf.x, y: t.pdf.y, X: t.geo.lon, Y: t.geo.lat }));
+  const afinGeo = hitungAfin(pasangGeo);
+
+  let kandidatAfin: TransformasiGeoref | null = null;
+  if (afinGeo) {
+    const pdfKeGeo = (xPt: number, yPt: number): TitikGeo | null => {
+      const { X, Y } = afinGeo.maju(xPt, yPt);
+      if (!Number.isFinite(X) || !Number.isFinite(Y)) return null;
+      return { lat: Y, lon: X };
+    };
+    const geoKePdf = (lat: number, lon: number): TitikPdf | null => afinGeo.balik(lon, lat);
+    const sisa = sisaGalatMeter(ikat, pdfKeGeo);
+    kandidatAfin = { pdfKeGeo, geoKePdf, metode: "afin-geografis", crsProyeksi: null, sisaMeter: sisa };
+  }
+
+  if (ikat.length >= 4 && (!kandidatAfin || kandidatAfin.sisaMeter > 5)) {
+    const homo = hitungHomografi(pasangGeo);
+    if (homo) {
+      const pdfKeGeo = (xPt: number, yPt: number): TitikGeo | null => {
+        const h = homo.maju(xPt, yPt);
+        return h ? { lat: h.Y, lon: h.X } : null;
+      };
+      const geoKePdf = (lat: number, lon: number): TitikPdf | null => homo.balik(lon, lat);
+      const sisa = sisaGalatMeter(ikat, pdfKeGeo);
+      if (!kandidatAfin || sisa < kandidatAfin.sisaMeter) {
+        return { pdfKeGeo, geoKePdf, metode: "homografi", crsProyeksi: null, sisaMeter: sisa };
+      }
+    }
+  }
+
+  return kandidatAfin;
+}
+
+export function batasGeo(vp: ViewportGeo, tx: TransformasiGeoref): TitikGeo[] {
+  const sumber =
+    vp.batasPdf.length >= 3
+      ? vp.batasPdf
+      : [
+          { x: vp.kotak.xMin, y: vp.kotak.yMin },
+          { x: vp.kotak.xMaks, y: vp.kotak.yMin },
+          { x: vp.kotak.xMaks, y: vp.kotak.yMaks },
+          { x: vp.kotak.xMin, y: vp.kotak.yMaks }
+        ];
+  const hasil: TitikGeo[] = [];
+  for (const p of sumber) {
+    const g = tx.pdfKeGeo(p.x, p.y);
+    if (g) hasil.push(g);
+  }
+  return hasil;
+}
+
+export function kotakBatas(titik: TitikGeo[]): {
+  selatan: number;
+  barat: number;
+  utara: number;
+  timur: number;
+  tengah: TitikGeo;
+} {
+  let selatan = Infinity,
+    barat = Infinity,
+    utara = -Infinity,
+    timur = -Infinity;
+  for (const t of titik) {
+    if (t.lat < selatan) selatan = t.lat;
+    if (t.lon < barat) barat = t.lon;
+    if (t.lat > utara) utara = t.lat;
+    if (t.lon > timur) timur = t.lon;
+  }
+  return {
+    selatan: Number(selatan.toFixed(10)),
+    barat: Number(barat.toFixed(10)),
+    utara: Number(utara.toFixed(10)),
+    timur: Number(timur.toFixed(10)),
+    tengah: {
+      lat: Number(((selatan + utara) / 2).toFixed(7)),
+      lon: Number(((barat + timur) / 2).toFixed(7))
+    }
+  };
+}
+
+/** Uji apakah koordinat geografis berada di dalam poligon batas peta (ray casting) */
+export function diDalamBatas(pos: TitikGeo, poligon: TitikGeo[]): boolean {
+  if (poligon.length < 3) return false;
+  let diDalam = false;
+  for (let i = 0, j = poligon.length - 1; i < poligon.length; j = i++) {
+    const xi = poligon[i].lon,
+      yi = poligon[i].lat;
+    const xj = poligon[j].lon,
+      yj = poligon[j].lat;
+    const potong = yi > pos.lat !== yj > pos.lat && pos.lon < ((xj - xi) * (pos.lat - yi)) / (yj - yi + 1e-15) + xi;
+    if (potong) diDalam = !diDalam;
+  }
+  return diDalam;
+}
+
+export function kalibrasiManualDuaTitik(
+  lebarPt: number,
+  tinggiPt: number,
+  kiriAtas: TitikGeo,
+  kananBawah: TitikGeo
+): GeoreferensiPdf {
+  const kananAtas: TitikGeo = { lat: kiriAtas.lat, lon: kananBawah.lon };
+  const kiriBawah: TitikGeo = { lat: kananBawah.lat, lon: kiriAtas.lon };
+  const vp: ViewportGeo = {
+    nama: "Kalibrasi Manual",
+    format: "manual",
+    kotak: { xMin: 0, yMin: 0, xMaks: lebarPt, yMaks: tinggiPt },
+    batasPdf: [
+      { x: 0, y: 0 },
+      { x: lebarPt, y: 0 },
+      { x: lebarPt, y: tinggiPt },
+      { x: 0, y: tinggiPt }
+    ],
+    titikIkat: [
+      { pdf: { x: 0, y: 0 }, geo: kiriBawah },
+      { pdf: { x: 0, y: tinggiPt }, geo: kiriAtas },
+      { pdf: { x: lebarPt, y: tinggiPt }, geo: kananAtas },
+      { pdf: { x: lebarPt, y: 0 }, geo: kananBawah }
+    ],
+    crs: "EPSG:4326",
+    wkt: null,
+    epsg: 4326
+  };
+  return {
+    indeksHalaman: 0,
+    lebarPt,
+    tinggiPt,
+    viewport: [vp],
+    utama: vp
+  };
+}
+
+/**
+ * Membaca referensi spasial GeoPDF dan mengembalikan ReferensiGeoPdf lengkap.
+ */
+export async function bacaReferensiGeoPdf(buffer: ArrayBuffer | Uint8Array): Promise<ReferensiGeoPdf> {
+  daftarkanCrsProj4();
+  const georef = await bacaGeoreferensi(buffer);
+  if (!georef) {
+    throw new Error("Berkas PDF tidak memiliki metadata georeferensi (/VP atau /LGIDict viewport tidak ditemukan).");
+  }
+
+  const vp = georef.utama;
+  const tx = buatTransformasi(vp);
+  if (!tx) {
+    throw new Error("Viewport GEO tidak memiliki cukup titik kontrol georeferensi yang valid.");
+  }
+
+  const poligonBatas = batasGeo(vp, tx);
+  const gKiriBawah = tx.pdfKeGeo(vp.kotak.xMin, vp.kotak.yMin);
+  const gKiriAtas = tx.pdfKeGeo(vp.kotak.xMin, vp.kotak.yMaks);
+  const gKananAtas = tx.pdfKeGeo(vp.kotak.xMaks, vp.kotak.yMaks);
+  const gKananBawah = tx.pdfKeGeo(vp.kotak.xMaks, vp.kotak.yMin);
+
+  const sudutGeo = [gKiriBawah, gKiriAtas, gKananAtas, gKananBawah].filter((s): s is TitikGeo => s !== null);
+  const semuaTitik = [...vp.titikIkat.map((t) => t.geo), ...poligonBatas, ...sudutGeo];
+  const kb = kotakBatas(semuaTitik);
+
+  const empatSudut: [number, number][] = [
+    [Number((gKiriBawah?.lon ?? kb.barat).toFixed(10)), Number((gKiriBawah?.lat ?? kb.selatan).toFixed(10))],
+    [Number((gKiriAtas?.lon ?? kb.barat).toFixed(10)), Number((gKiriAtas?.lat ?? kb.utara).toFixed(10))],
+    [Number((gKananAtas?.lon ?? kb.timur).toFixed(10)), Number((gKananAtas?.lat ?? kb.utara).toFixed(10))],
+    [Number((gKananBawah?.lon ?? kb.timur).toFixed(10)), Number((gKananBawah?.lat ?? kb.selatan).toFixed(10))]
+  ];
+
+  const dLng = empatSudut[2][0] - empatSudut[1][0];
+  const dLat = empatSudut[2][1] - empatSudut[1][1];
+  const rotasiDerajat = Number(((Math.atan2(dLat, dLng) * 180) / Math.PI).toFixed(2));
+
+  const crs = vp.crs || "EPSG:4326";
+
+  return {
+    minLat: kb.selatan,
+    maxLat: kb.utara,
+    minLng: kb.barat,
+    maxLng: kb.timur,
+    pusatLat: kb.tengah.lat,
+    pusatLng: kb.tengah.lon,
+    bbox: [vp.kotak.xMin, vp.kotak.yMin, vp.kotak.xMaks, vp.kotak.yMaks],
+    crs,
+    crsDeskripsi: namaCrs(crs),
+    empatSudut,
+    rotasiDerajat,
+    formatGeoref: vp.format,
+    metodeTransformasi: tx.metode,
+    sisaMeter: Number.isFinite(tx.sisaMeter) ? tx.sisaMeter : null,
+    indeksHalaman: georef.indeksHalaman,
+    lebarPt: georef.lebarPt,
+    tinggiPt: georef.tinggiPt,
+    batas: poligonBatas,
+    transformasi: tx
+  };
+}
+
+function buatThumbnailDataUrlDariKanvas(kanvasSumber: HTMLCanvasElement, sisiMaks = 240): string | undefined {
+  try {
+    const rasio = Math.min(1, sisiMaks / Math.max(kanvasSumber.width, kanvasSumber.height, 1));
+    const tW = Math.max(1, Math.round(kanvasSumber.width * rasio));
+    const tH = Math.max(1, Math.round(kanvasSumber.height * rasio));
+    const thumbCanvas = document.createElement("canvas");
+    thumbCanvas.width = tW;
+    thumbCanvas.height = tH;
+    const tCtx = thumbCanvas.getContext("2d");
+    if (!tCtx) return undefined;
+    tCtx.fillStyle = "#ffffff";
+    tCtx.fillRect(0, 0, tW, tH);
+    tCtx.drawImage(kanvasSumber, 0, 0, tW, tH);
+    return thumbCanvas.toDataURL("image/jpeg", 0.75);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function renderHalamanPdfBiasa(
+  file: File | Blob,
+  maxDim = 1600
+): Promise<{
+  dataUrl: string;
+  thumbnailDataUrl?: string;
+  width: number;
+  height: number;
+  lebarPt: number;
+  tinggiPt: number;
+}> {
+  const buffer = await file.arrayBuffer();
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  try {
+    const page = await pdf.getPage(1);
+    const vp1 = page.getViewport({ scale: 1 });
+    const scale = Math.min(maxDim / Math.max(vp1.width, vp1.height, 1), 3);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(viewport.width));
+    canvas.height = Math.max(1, Math.round(viewport.height));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D tidak tersedia untuk merender PDF.");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, canvas, viewport }).promise;
+
+    const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(canvas, 240);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    const dataUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/png");
+
+    return {
+      dataUrl,
+      thumbnailDataUrl,
+      width: canvas.width,
+      height: canvas.height,
+      lebarPt: vp1.width,
+      tinggiPt: vp1.height
+    };
+  } finally {
+    await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+  }
+}
+
+export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<HasilImporGeoPdf> {
+  const buffer = await file.arrayBuffer();
+  const ref = await bacaReferensiGeoPdf(buffer);
+
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  try {
+    const nomorHalaman = Math.min(pdf.numPages, Math.max(1, (ref.indeksHalaman ?? 0) + 1));
+    const page = await pdf.getPage(nomorHalaman);
+    const vp1 = page.getViewport({ scale: 1 });
+    const [x1, y1, x2, y2] = ref.bbox;
+    const bboxW = Math.max(1, x2 - x1);
+    const bboxH = Math.max(1, y2 - y1);
+
+    const scale = Math.min(maxDim / Math.max(bboxW, bboxH), 4);
+    const viewport = page.getViewport({ scale });
+
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = Math.max(1, Math.round(viewport.width));
+    pageCanvas.height = Math.max(1, Math.round(viewport.height));
+    const pageCtx = pageCanvas.getContext("2d");
+    if (!pageCtx) throw new Error("Canvas 2D tidak tersedia untuk merender GeoPDF.");
+
+    pageCtx.fillStyle = "#ffffff";
+    pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+    await page.render({ canvasContext: pageCtx, canvas: pageCanvas, viewport }).promise;
+
+    const sx = Math.max(0, Math.round(x1 * scale));
+    const sy = Math.max(0, Math.round((vp1.height - y2) * scale));
+    const sw = Math.min(pageCanvas.width - sx, Math.max(1, Math.round(bboxW * scale)));
+    const sh = Math.min(pageCanvas.height - sy, Math.max(1, Math.round(bboxH * scale)));
+
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = sw;
+    cropCanvas.height = sh;
+    const cropCtx = cropCanvas.getContext("2d");
+    if (!cropCtx) throw new Error("Canvas 2D tidak tersedia untuk memotong viewport GeoPDF.");
+    cropCtx.drawImage(pageCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(cropCanvas, 240);
+
+    const blob = await new Promise<Blob | null>((resolve) => cropCanvas.toBlob(resolve, "image/png"));
+    const hasilUrl = blob ? URL.createObjectURL(blob) : cropCanvas.toDataURL("image/png");
 
     return {
       ...ref,
-      dataUrl: blobUrl, // Blob URL yang hemat memori
-      blobUrl,
-      width: finalCanvas.width,
-      height: finalCanvas.height
+      dataUrl: hasilUrl,
+      thumbnailDataUrl,
+      width: sw,
+      height: sh
     };
   } finally {
-    await task.destroy();
+    await (pdf as { destroy?: () => Promise<void> }).destroy?.();
   }
 }

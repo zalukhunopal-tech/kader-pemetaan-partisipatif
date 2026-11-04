@@ -239,8 +239,13 @@ export function parseKML(isi: string): HasilParse {
       bentuk.push(...uraikanGeometri({ type: "LineString", coordinates: koordinatKML(el) }, lapor));
     }
     for (const el of Array.from(pm.getElementsByTagName("Polygon"))) {
-      const luar = el.getElementsByTagName("outerBoundaryIs")[0];
+      const luar = el.getElementsByTagName("outerBoundaryIs")[0] ?? el.getElementsByTagName("LinearRing")[0] ?? el;
       bentuk.push(...uraikanGeometri({ type: "Polygon", coordinates: [koordinatKML(luar)] }, lapor));
+    }
+    if (pm.getElementsByTagName("Polygon").length === 0) {
+      for (const el of Array.from(pm.getElementsByTagName("LinearRing"))) {
+        bentuk.push(...uraikanGeometri({ type: "Polygon", coordinates: [koordinatKML(el)] }, lapor));
+      }
     }
     if (
       bentuk.length === 0 &&

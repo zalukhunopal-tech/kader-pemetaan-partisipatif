@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument, PDFName } from "pdf-lib";
-import { bacaReferensiGeoPdf, validasiKontrolGeoPdf, selesaikanAffine2D } from "./geoPdf";
+import {
+  bacaReferensiGeoPdf,
+  validasiKontrolGeoPdf,
+  selesaikanAffine2D,
+  definisiEpsg,
+  namaCrs,
+  diDalamBatas,
+  kalibrasiManualDuaTitik,
+  buatTransformasi
+} from "./geoPdf";
 
 const gpts = [-7, 110, -6, 110, -6, 111, -7, 111];
 const lpts = [0, 0, 0, 1, 1, 1, 1, 0];
@@ -22,7 +31,8 @@ describe("GeoPDF GEO", () => {
     const ref = await bacaReferensiGeoPdf(await doc.save({ useObjectStreams: true }));
     expect(ref).toMatchObject({ minLat: -7, maxLat: -6, minLng: 110, maxLng: 111, bbox: [50, 100, 550, 700] });
     expect(ref.empatSudut).toBeDefined();
-    expect(ref.empatSudut.length).toBe(4);
+    expect(ref.empatSudut!.length).toBe(4);
+    expect(ref.formatGeoref).toBe("iso32000");
   });
 
   it("mendukung GeoPDF dengan proyeksi UTM Zone (EPSG:32650 Kalimantan Utara)", async () => {
@@ -52,7 +62,58 @@ describe("GeoPDF GEO", () => {
     expect(ref.maxLng).toBeLessThan(118);
     expect(ref.minLat).toBeGreaterThan(2);
     expect(ref.maxLat).toBeLessThan(3.5);
-    expect(ref.empatSudut.length).toBe(4);
+    expect(ref.empatSudut!.length).toBe(4);
+    expect(ref.metodeTransformasi).toBe("afin-proyeksi");
+  });
+
+  it("mendukung format OGC TerraGo /LGIDict dengan matriks /CTM dan /Neatline", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([400, 400]); // Halaman sampul tanpa georeferensi
+    const petaPage = doc.addPage([500, 500]); // Halaman kedua berisi peta LGIDict
+    petaPage.node.set(
+      PDFName.of("LGIDict"),
+      doc.context.obj({
+        Type: "LGIDict",
+        Version: "2.1",
+        Description: "Peta Kehutanan TerraGo",
+        Neatline: [0, 0, 500, 0, 500, 500, 0, 500],
+        CTM: [10, 0, 0, 10, 541000, 315000],
+        Projection: {
+          ProjectionType: "UT",
+          Zone: 50,
+          Hemisphere: "N"
+        }
+      })
+    );
+    const ref = await bacaReferensiGeoPdf(await doc.save());
+    expect(ref.formatGeoref).toBe("ogc-lgi");
+    expect(ref.indeksHalaman).toBe(1);
+    expect(ref.crs).toBe("EPSG:32650");
+    expect(ref.minLng).toBeGreaterThan(117);
+    expect(ref.minLat).toBeGreaterThan(2);
+  });
+
+  it("mendukung sistem koordinat nasional DGN95 / Indonesia TM-3 (EPSG:23830 s.d. EPSG:23845)", () => {
+    expect(definisiEpsg(23837)).toBe("EPSG:23837");
+    expect(namaCrs("EPSG:23837")).toContain("DGN95 / Indonesia TM-3");
+  });
+
+  it("mendukung kalibrasi manual 2 titik dan uji poligon diDalamBatas", () => {
+    const georef = kalibrasiManualDuaTitik(600, 800, { lat: 2.9, lon: 117.3 }, { lat: 2.8, lon: 117.4 });
+    const tx = buatTransformasi(georef.utama);
+    expect(tx).not.toBeNull();
+    const tengah = tx!.pdfKeGeo(300, 400);
+    expect(tengah?.lat).toBeCloseTo(2.85, 4);
+    expect(tengah?.lon).toBeCloseTo(117.35, 4);
+
+    const batas = [
+      { lat: 2.8, lon: 117.3 },
+      { lat: 2.8, lon: 117.4 },
+      { lat: 2.9, lon: 117.4 },
+      { lat: 2.9, lon: 117.3 }
+    ];
+    expect(diDalamBatas({ lat: 2.85, lon: 117.35 }, batas)).toBe(true);
+    expect(diDalamBatas({ lat: 3.1, lon: 117.35 }, batas)).toBe(false);
   });
 
   it("menolak PDF biasa tanpa mengarang lokasi", async () => {
@@ -62,7 +123,6 @@ describe("GeoPDF GEO", () => {
   });
 
   it("menghitung transformasi Affine 2D untuk peta miring/rotasi", () => {
-    // 4 titik kontrol dengan rotasi 45 derajat
     const pts = [
       { u: 0, v: 0, x: 100, y: -1 },
       { u: 0, v: 1, x: 100.5, y: -0.5 },

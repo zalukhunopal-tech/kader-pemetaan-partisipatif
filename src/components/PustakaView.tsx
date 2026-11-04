@@ -21,7 +21,8 @@ import {
   Search,
   X
 } from "lucide-react";
-import { HasilMetadataPeta, bacaMetadataBerkasPeta } from "../lib/metaPeta";
+import { HasilMetadataPeta, bacaMetadataBerkasPeta, hitungJarakReferensiKm, formatAngkaKoma } from "../lib/metaPeta";
+import { bacaPosisiPeta, POSISI_AWAL_PETA } from "../lib/posisiPeta";
 import { simpanArsipPeta } from "../lib/penyimpananPetaLuring";
 import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
 import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
@@ -75,6 +76,44 @@ function ambilUrlGambarThumbnail(item: { thumbnailUrl?: string; thumbnailDataUrl
     return item.petaKustomUrl;
   }
   return null;
+}
+
+function buatPratinjauRasterGeotiff(meta: HasilMetadataPeta): { dataUrl: string; thumbnailDataUrl: string } | undefined {
+  try {
+    if (typeof document === "undefined") return undefined;
+    const canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 240;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
+    const grad = ctx.createLinearGradient(0, 0, 320, 240);
+    grad.addColorStop(0, "#14532d");
+    grad.addColorStop(0.5, "#166534");
+    grad.addColorStop(1, "#064e3b");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 320, 240);
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = 1;
+    for (let x = 40; x < 320; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 240);
+      ctx.stroke();
+    }
+    for (let y = 40; y < 240; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(320, y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.font = "bold 13px sans-serif";
+    ctx.fillText(meta.crs || "GeoTIFF Raster", 16, 30);
+    const url = canvas.toDataURL("image/jpeg", 0.8);
+    return { dataUrl: url, thumbnailDataUrl: url };
+  } catch {
+    return undefined;
+  }
 }
 
 export const PustakaView: React.FC<PustakaViewProps> = ({
@@ -138,6 +177,12 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
   const [galatImpor, setGalatImpor] = useState("");
   const [rasterGeoreferensi, setRasterGeoreferensi] = useState(false);
+  const [thumbnailDataUrlBaru, setThumbnailDataUrlBaru] = useState<string | undefined>(undefined);
+  const [perluKalibrasiManual, setPerluKalibrasiManual] = useState(false);
+  const [kalibLatAtas, setKalibLatAtas] = useState("");
+  const [kalibLngBarat, setKalibLngBarat] = useState("");
+  const [kalibLatBawah, setKalibLatBawah] = useState("");
+  const [kalibLngTimur, setKalibLngTimur] = useState("");
 
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
@@ -183,6 +228,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     setMetadataPetaBaru(null);
     setBerkasPetaMentah(null);
     setPetaKustomDataUrlBaru(undefined);
+    setThumbnailDataUrlBaru(undefined);
+    setPerluKalibrasiManual(false);
     setRasterGeoreferensi(false);
     try {
       const namaKecil = file.name.toLowerCase();
@@ -190,6 +237,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         const meta = await bacaMetadataBerkasPeta(file);
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
+        setThumbnailDataUrlBaru(meta.thumbnailDataUrl);
         setNamaPetaBaru(meta.namaArea.replace(/\.pmtiles$/i, ""));
         setUkuranMbBaru(meta.ukuranMbTeks);
         setJarakKmBaru(meta.jarakKmTeks);
@@ -198,38 +246,107 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         const meta = await bacaMetadataBerkasPeta(file);
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
+        setThumbnailDataUrlBaru(meta.thumbnailDataUrl);
         setNamaPetaBaru(meta.namaArea.replace(/\.mbtiles$/i, ""));
         setUkuranMbBaru(meta.ukuranMbTeks);
         setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(false);
       } else if (/\.(pdf|geopdf)$/i.test(namaKecil)) {
-        const { imporGeoPdf } = await import("../lib/geoPdf");
-        const hasil = await imporGeoPdf(file);
-        const ukuranMb = file.size / (1024 * 1024);
-        const meta: HasilMetadataPeta = {
-          ...hasil,
-          namaArea: file.name,
-          ukuranMb,
-          ukuranMbTeks: ukuranMb.toFixed(1).replace(".", ","),
-          jarakKm: 0,
-          jarakKmTeks: "0",
-          jenisFile: "GeoPDF / GeoTIFF",
-          thumbnailType: "geopdf_sheet",
-          sumberDeteksi: "geopdf",
-          crs: "EPSG:4326 (WGS 84)",
-          lebarPixel: hasil.width,
-          tinggiPixel: hasil.height
-        };
-        setMetadataPetaBaru(meta);
-        setNamaPetaBaru(meta.namaArea.replace(/\.(pdf|geopdf)$/i, ""));
-        setUkuranMbBaru(meta.ukuranMbTeks);
-        setJarakKmBaru("0");
-        setPetaKustomDataUrlBaru(hasil.dataUrl);
-        setRasterGeoreferensi(true);
+        setBerkasPetaMentah(file);
+        const { imporGeoPdf, renderHalamanPdfBiasa } = await import("../lib/geoPdf");
+        const ukuranMb = Math.max(0.1, Number((file.size / (1024 * 1024)).toFixed(1)));
+        const posisiRef = (typeof window !== "undefined" ? bacaPosisiPeta() : null) || POSISI_AWAL_PETA;
+        try {
+          const hasil = await imporGeoPdf(file);
+          const jarakKm = hitungJarakReferensiKm(posisiRef, {
+            minLat: hasil.minLat,
+            maxLat: hasil.maxLat,
+            minLng: hasil.minLng,
+            maxLng: hasil.maxLng
+          });
+          const jarakKmTeks = formatAngkaKoma(jarakKm, 1);
+          const meta: HasilMetadataPeta = {
+            ...hasil,
+            namaArea: file.name,
+            ukuranMb,
+            ukuranMbTeks: formatAngkaKoma(ukuranMb, 1),
+            jarakKm,
+            jarakKmTeks,
+            jenisFile: "GeoPDF / GeoTIFF",
+            thumbnailType: "geopdf_sheet",
+            thumbnailDataUrl: hasil.thumbnailDataUrl,
+            sumberDeteksi: "geopdf",
+            crs: hasil.crs || "EPSG:4326 (WGS 84)",
+            crsDeskripsi: hasil.crsDeskripsi,
+            lebarPixel: hasil.width,
+            tinggiPixel: hasil.height,
+            formatGeoref: hasil.formatGeoref ?? "iso32000",
+            metodeTransformasi: hasil.metodeTransformasi,
+            sisaMeter: hasil.sisaMeter,
+            indeksHalaman: hasil.indeksHalaman,
+            empatSudut: hasil.empatSudut
+          };
+          setMetadataPetaBaru(meta);
+          setNamaPetaBaru(meta.namaArea.replace(/\.(pdf|geopdf)$/i, ""));
+          setUkuranMbBaru(meta.ukuranMbTeks);
+          setJarakKmBaru(jarakKmTeks);
+          setPetaKustomDataUrlBaru(hasil.dataUrl);
+          setThumbnailDataUrlBaru(hasil.thumbnailDataUrl);
+          setRasterGeoreferensi(true);
+        } catch (errGeoPdf) {
+          // Fallback: PDF biasa tanpa georeferensi -> render halaman 1 & buka form kalibrasi manual 2 titik (Barat Laut & Tenggara)
+          const hasilBiasa = await renderHalamanPdfBiasa(file);
+          const defLatAtas = Number((posisiRef.lat + 0.015).toFixed(5));
+          const defLngBarat = Number((posisiRef.lng - 0.015).toFixed(5));
+          const defLatBawah = Number((posisiRef.lat - 0.015).toFixed(5));
+          const defLngTimur = Number((posisiRef.lng + 0.015).toFixed(5));
+          setKalibLatAtas(String(defLatAtas));
+          setKalibLngBarat(String(defLngBarat));
+          setKalibLatBawah(String(defLatBawah));
+          setKalibLngTimur(String(defLngTimur));
+          setPerluKalibrasiManual(true);
+          const metaManual: HasilMetadataPeta = {
+            namaArea: file.name,
+            ukuranMb,
+            ukuranMbTeks: formatAngkaKoma(ukuranMb, 1),
+            jarakKm: 0,
+            jarakKmTeks: "0",
+            jenisFile: "GeoPDF / GeoTIFF",
+            thumbnailType: "geopdf_sheet",
+            thumbnailDataUrl: hasilBiasa.thumbnailDataUrl,
+            sumberDeteksi: "bawaan",
+            crs: "EPSG:4326 (Kalibrasi Manual 2 Titik)",
+            crsDeskripsi: errGeoPdf instanceof Error ? errGeoPdf.message : "Kalibrasi manual sudut Barat Laut & Tenggara",
+            minLat: defLatBawah,
+            maxLat: defLatAtas,
+            minLng: defLngBarat,
+            maxLng: defLngTimur,
+            pusatLat: posisiRef.lat,
+            pusatLng: posisiRef.lng,
+            lebarPixel: hasilBiasa.width,
+            tinggiPixel: hasilBiasa.height,
+            formatGeoref: "manual",
+            metodeTransformasi: "afin-geografis",
+            sisaMeter: 0,
+            indeksHalaman: 0
+          };
+          setMetadataPetaBaru(metaManual);
+          setNamaPetaBaru(file.name.replace(/\.(pdf|geopdf)$/i, ""));
+          setUkuranMbBaru(metaManual.ukuranMbTeks);
+          setJarakKmBaru("0");
+          setPetaKustomDataUrlBaru(hasilBiasa.dataUrl);
+          setThumbnailDataUrlBaru(hasilBiasa.thumbnailDataUrl);
+          setRasterGeoreferensi(true);
+        }
       } else if (/\.(tif|tiff|geotiff)$/i.test(namaKecil)) {
         const meta = await bacaMetadataBerkasPeta(file);
+        const pratinjau = buatPratinjauRasterGeotiff(meta);
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
+        if (pratinjau) {
+          setPetaKustomDataUrlBaru(pratinjau.dataUrl);
+          setThumbnailDataUrlBaru(pratinjau.thumbnailDataUrl);
+        }
         setNamaPetaBaru(meta.namaArea.replace(/\.(tif|tiff|geotiff)$/i, ""));
         setUkuranMbBaru(meta.ukuranMbTeks);
         setJarakKmBaru(meta.jarakKmTeks);
@@ -258,7 +375,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       const namaKecil = berkasPetaMentah.name.toLowerCase();
       const isPm = /\.pmtiles$/i.test(namaKecil);
       const isMb = /\.mbtiles$/i.test(namaKecil);
-      const tipeArsip = isPm ? "pmtiles" : isMb ? "mbtiles" : "geotiff";
+      const isPdf = /\.(pdf|geopdf)$/i.test(namaKecil);
+      const tipeArsip = isPm ? "pmtiles" : isMb ? "mbtiles" : isPdf ? "geopdf" : "geotiff";
 
       try {
         await simpanArsipPeta(id, berkasPetaMentah, {
@@ -279,32 +397,55 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       }
     }
 
+    let minLatFinal = metadataPetaBaru.minLat;
+    let maxLatFinal = metadataPetaBaru.maxLat;
+    let minLngFinal = metadataPetaBaru.minLng;
+    let maxLngFinal = metadataPetaBaru.maxLng;
+    if (perluKalibrasiManual) {
+      const laAtas = parseFloat(kalibLatAtas.replace(",", "."));
+      const loBarat = parseFloat(kalibLngBarat.replace(",", "."));
+      const laBawah = parseFloat(kalibLatBawah.replace(",", "."));
+      const loTimur = parseFloat(kalibLngTimur.replace(",", "."));
+      if ([laAtas, loBarat, laBawah, loTimur].every(Number.isFinite)) {
+        minLatFinal = Math.min(laAtas, laBawah);
+        maxLatFinal = Math.max(laAtas, laBawah);
+        minLngFinal = Math.min(loBarat, loTimur);
+        maxLngFinal = Math.max(loBarat, loTimur);
+      }
+    }
+
     const itemBaru: AreaPetaOffline = {
       id,
       namaArea: namaPetaBaru.trim(),
       basemapId: "topo",
-      minLat: metadataPetaBaru.minLat,
-      maxLat: metadataPetaBaru.maxLat,
-      minLng: metadataPetaBaru.minLng,
-      maxLng: metadataPetaBaru.maxLng,
-      zoomMin: 11,
-      zoomMax: 18,
+      minLat: minLatFinal,
+      maxLat: maxLatFinal,
+      minLng: minLngFinal,
+      maxLng: maxLngFinal,
+      zoomMin: metadataPetaBaru.zoomMin ?? 11,
+      zoomMax: metadataPetaBaru.zoomMax ?? 18,
       jumlahTile: 0,
       rasterGeoreferensi,
       ukuranMb: metadataPetaBaru.ukuranMb,
       jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
       thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
+      thumbnailDataUrl: thumbnailDataUrlBaru ?? metadataPetaBaru?.thumbnailDataUrl,
       petaKustomDataUrl: petaKustomDataUrlBaru,
       petaKustomUrl,
       diunduhPada: new Date().toISOString(),
       jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
       crs: metadataPetaBaru.crs,
       crsDeskripsi: metadataPetaBaru?.crsDeskripsi,
-      pusatLat: metadataPetaBaru?.pusatLat,
-      pusatLng: metadataPetaBaru?.pusatLng,
+      pusatLat: (minLatFinal + maxLatFinal) / 2,
+      pusatLng: (minLngFinal + maxLngFinal) / 2,
       lebarPixel: metadataPetaBaru?.lebarPixel,
       tinggiPixel: metadataPetaBaru?.tinggiPixel,
       resolusiMeter: metadataPetaBaru?.resolusiMeter,
+      formatGeoref: metadataPetaBaru?.formatGeoref,
+      metodeTransformasi: metadataPetaBaru?.metodeTransformasi,
+      sisaMeter: metadataPetaBaru?.sisaMeter,
+      indeksHalaman: metadataPetaBaru?.indeksHalaman,
+      empatSudut: metadataPetaBaru?.empatSudut,
       unduhanNyata: true,
       statusTeks: "Pada peta"
     };
@@ -571,10 +712,18 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     <span className="text-emerald" style={{ fontWeight: 600 }}>
                       {item.statusTeks || (item.unduhanNyata ? "Pada peta" : "Catatan saja")}
                     </span>
-                    {item.jarakKm !== undefined && item.jarakKm > 0 && (
+                    {item.jarakKm !== undefined && item.jarakKm > 0 ? (
                       <>
                         {" "}
                         <span className="dot-sep">•</span> {formatAngkaIndo(item.jarakKm)} km
+                      </>
+                    ) : (
+                      <>
+                        {" "}
+                        <span className="dot-sep">•</span>{" "}
+                        <span className="text-emerald" style={{ fontWeight: 600 }}>
+                          Anda di area peta ini
+                        </span>
                       </>
                     )}
                     {item.crs && (
@@ -857,6 +1006,33 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <p role="alert" style={{ color: "#b42318" }}>
                   {galatImpor}
                 </p>
+              )}
+              {perluKalibrasiManual && (
+                <div className="avenza-spatial-meta-card">
+                  <div className="avenza-spatial-header">
+                    <span className="avenza-spatial-title">📐 Kalibrasi Manual 2 Sudut (PDF Tanpa Georeferensi)</span>
+                  </div>
+                  <div className="form-row-2">
+                    <div>
+                      <label>Lintang Utara (Barat Laut)</label>
+                      <input type="text" className="form-input" value={kalibLatAtas} onChange={(e) => setKalibLatAtas(e.target.value)} />
+                    </div>
+                    <div>
+                      <label>Bujur Barat (Barat Laut)</label>
+                      <input type="text" className="form-input" value={kalibLngBarat} onChange={(e) => setKalibLngBarat(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="form-row-2">
+                    <div>
+                      <label>Lintang Selatan (Tenggara)</label>
+                      <input type="text" className="form-input" value={kalibLatBawah} onChange={(e) => setKalibLatBawah(e.target.value)} />
+                    </div>
+                    <div>
+                      <label>Bujur Timur (Tenggara)</label>
+                      <input type="text" className="form-input" value={kalibLngTimur} onChange={(e) => setKalibLngTimur(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
               )}
               {/* CARD DETEKSI OTOMATIS CRS & BOUNDING BOX */}
               {metadataPetaBaru && (

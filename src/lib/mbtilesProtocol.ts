@@ -19,6 +19,7 @@ export interface MetadataMbtilesSql {
   crsDeskripsi: string;
   deskripsi?: string;
   atribusi?: string;
+  thumbnailDataUrl?: string;
 }
 
 let sqlStaticPromise: Promise<SqlJsStatic> | null = null;
@@ -284,10 +285,27 @@ export async function bacaMetadataMbtilesSql(
       }
     }
 
+    let minZoom = parseInt(metadataMap.minzoom || "", 10);
+    let maxZoom = parseInt(metadataMap.maxzoom || "", 10);
+
+    try {
+      const zoomRes = db.exec("SELECT min(zoom_level), max(zoom_level) FROM tiles");
+      if (zoomRes.length > 0 && zoomRes[0].values.length > 0) {
+        const [zMinSql, zMaxSql] = zoomRes[0].values[0];
+        if (isNaN(minZoom) && typeof zMinSql === "number") minZoom = zMinSql;
+        if (isNaN(maxZoom) && typeof zMaxSql === "number") maxZoom = zMaxSql;
+      }
+    } catch {
+      // Abaikan jika tabel tiles kosong
+    }
+    if (isNaN(minZoom)) minZoom = 0;
+    if (isNaN(maxZoom)) maxZoom = 18;
+
     let minLng = -180;
     let minLat = -85.0511;
     let maxLng = 180;
     let maxLat = 85.0511;
+    let boundsTerdeteksi = false;
 
     if (metadataMap.bounds) {
       const bParts = metadataMap.bounds.split(",").map((v) => parseFloat(v.trim()));
@@ -296,12 +314,48 @@ export async function bacaMetadataMbtilesSql(
         minLat = Number(Math.max(-85.0511, Math.min(85.0511, bParts[1])).toFixed(6));
         maxLng = Number(Math.max(-180, Math.min(180, bParts[2])).toFixed(6));
         maxLat = Number(Math.max(-85.0511, Math.min(85.0511, bParts[3])).toFixed(6));
+        boundsTerdeteksi = true;
+      }
+    }
+
+    // Fallback SQL: hitung bounding box dari tabel tiles pada zoom tertinggi bila metadata bounds kosong
+    if (!boundsTerdeteksi) {
+      try {
+        const stmt = db.prepare(
+          "SELECT min(tile_column) as minX, max(tile_column) as maxX, min(tile_row) as minY, max(tile_row) as maxY FROM tiles WHERE zoom_level = ?"
+        );
+        stmt.bind([maxZoom]);
+        if (stmt.step()) {
+          const row = stmt.getAsObject() as { minX?: number; maxX?: number; minY?: number; maxY?: number };
+          if (
+            typeof row.minX === "number" &&
+            typeof row.maxX === "number" &&
+            typeof row.minY === "number" &&
+            typeof row.maxY === "number"
+          ) {
+            const n = Math.pow(2, maxZoom);
+            const tileKeLon = (x: number) => (x / n) * 360 - 180;
+            const tileKeLat = (yOsm: number) => {
+              const rad = Math.atan(Math.sinh(Math.PI * (1 - (2 * yOsm) / n)));
+              return (rad * 180) / Math.PI;
+            };
+            const yOsmAtas = n - 1 - row.maxY;
+            const yOsmBawah = n - 1 - row.minY + 1;
+            minLng = Number(Math.max(-180, Math.min(180, tileKeLon(row.minX))).toFixed(6));
+            maxLng = Number(Math.max(-180, Math.min(180, tileKeLon(row.maxX + 1))).toFixed(6));
+            maxLat = Number(Math.max(-85.0511, Math.min(85.0511, tileKeLat(yOsmAtas))).toFixed(6));
+            minLat = Number(Math.max(-85.0511, Math.min(85.0511, tileKeLat(yOsmBawah))).toFixed(6));
+          }
+        }
+        stmt.free();
+      } catch {
+        // Gunakan batas default jika gagal
       }
     }
 
     let pusatLng = Number(((minLng + maxLng) / 2).toFixed(6));
     let pusatLat = Number(((minLat + maxLat) / 2).toFixed(6));
-    let pusatZoom = 12;
+    let pusatZoom = Math.round((minZoom + maxZoom) / 2);
 
     if (metadataMap.center) {
       const cParts = metadataMap.center.split(",").map((v) => parseFloat(v.trim()));
@@ -314,10 +368,27 @@ export async function bacaMetadataMbtilesSql(
       }
     }
 
-    let minZoom = parseInt(metadataMap.minzoom || "0", 10);
-    let maxZoom = parseInt(metadataMap.maxzoom || "18", 10);
-    if (isNaN(minZoom)) minZoom = 0;
-    if (isNaN(maxZoom)) maxZoom = 18;
+    let thumbnailDataUrl: string | undefined;
+    if (tileType === "raster") {
+      try {
+        const thumbRes = db.exec("SELECT tile_data FROM tiles ORDER BY zoom_level ASC LIMIT 1");
+        if (thumbRes.length > 0 && thumbRes[0].values.length > 0) {
+          const rawTile = thumbRes[0].values[0][0] as Uint8Array;
+          if (rawTile && rawTile.length > 0 && rawTile.length < 512 * 1024) {
+            const mime = format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";
+            let biner = "";
+            for (let i = 0; i < rawTile.length; i++) {
+              biner += String.fromCharCode(rawTile[i]);
+            }
+            if (typeof btoa === "function") {
+              thumbnailDataUrl = `data:${mime};base64,${btoa(biner)}`;
+            }
+          }
+        }
+      } catch {
+        // Abaikan jika gagal membuat thumbnail dari sampel tile
+      }
+    }
 
     return {
       namaArea,
@@ -336,7 +407,8 @@ export async function bacaMetadataMbtilesSql(
       crs: "EPSG:3857 / EPSG:4326 (WGS 84)",
       crsDeskripsi: `MBTiles SQLite (${tileType.toUpperCase()} - ${format.toUpperCase()})`,
       deskripsi: metadataMap.description,
-      atribusi: metadataMap.attribution
+      atribusi: metadataMap.attribution,
+      thumbnailDataUrl
     };
   } finally {
     db.close();

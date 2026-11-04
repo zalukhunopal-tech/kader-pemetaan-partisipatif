@@ -167,3 +167,43 @@ export async function muatSemuaArsipPetaKeProtokol(): Promise<number> {
     return 0;
   }
 }
+
+/**
+ * Memulihkan URL gambar GeoPDF dari arsip biner IndexedDB apabila Blob URL sebelumnya
+ * sudah kadaluarsa setelah halaman dimuat ulang (F5).
+ */
+export async function rehidrasiArsipGeoPdf(): Promise<
+  Record<string, { dataUrl: string; thumbnailDataUrl?: string }>
+> {
+  const hasil: Record<string, { dataUrl: string; thumbnailDataUrl?: string }> = {};
+  try {
+    const db = await bukaDbArsip();
+    const daftar = await new Promise<RekamanArsipPeta[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_ARSIP, "readonly");
+      const store = tx.objectStore(STORE_ARSIP);
+      const req = store.getAll();
+      req.onsuccess = () => resolve((req.result as RekamanArsipPeta[]) || []);
+      req.onerror = () => reject(req.error);
+    });
+
+    for (const arsip of daftar) {
+      if (arsip.tipe === "geopdf" && arsip.berkas) {
+        try {
+          const { imporGeoPdf, renderHalamanPdfBiasa } = await import("./geoPdf");
+          try {
+            const r = await imporGeoPdf(arsip.berkas);
+            hasil[arsip.id] = { dataUrl: r.dataUrl, thumbnailDataUrl: r.thumbnailDataUrl };
+          } catch {
+            const r = await renderHalamanPdfBiasa(arsip.berkas);
+            hasil[arsip.id] = { dataUrl: r.dataUrl, thumbnailDataUrl: r.thumbnailDataUrl };
+          }
+        } catch {
+          // Abaikan jika gagal merender ulang di lingkungan non-browser
+        }
+      }
+    }
+  } catch {
+    // Abaikan jika IndexedDB tidak tersedia
+  }
+  return hasil;
+}
