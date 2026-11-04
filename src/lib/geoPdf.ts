@@ -1565,9 +1565,9 @@ export function bacaLingkunganPerangkat(): LingkunganPerangkat {
 
 /**
  * Menentukan anggaran resolusi sesuai perangkat:
- * - HP berspek rendah : 3072 px / 7 juta piksel
- * - HP / tablet       : 4096 px / 12 juta piksel (di bawah batas kanvas iOS 16,7 juta)
- * - PC / laptop       : 6144 px / 24 juta piksel
+ * - HP berspek rendah : 2560 px / 4,5 juta piksel
+ * - HP / tablet       : 3072 px / 6,5 juta piksel (tajam & sangat ringan di GPU HP)
+ * - PC / laptop       : 4096 px / 10 juta piksel
  * `sisiOverride` (opsional) hanya dapat menurunkan, tidak melampaui anggaran perangkat.
  */
 export function tentukanAnggaranResolusi(
@@ -1576,9 +1576,9 @@ export function tentukanAnggaranResolusi(
 ): AnggaranResolusi {
   const rendah = lingkungan.seluler && ((lingkungan.memoriGb ?? 4) <= 3 || (lingkungan.jumlahCpu ?? 8) <= 4);
   let anggaran: AnggaranResolusi;
-  if (rendah) anggaran = { sisiMaks: 3072, pikselMaks: 7_000_000, kualitasJpeg: 0.85 };
-  else if (lingkungan.seluler) anggaran = { sisiMaks: 4096, pikselMaks: 12_000_000, kualitasJpeg: 0.88 };
-  else anggaran = { sisiMaks: 6144, pikselMaks: 24_000_000, kualitasJpeg: 0.9 };
+  if (rendah) anggaran = { sisiMaks: 2560, pikselMaks: 4_500_000, kualitasJpeg: 0.85 };
+  else if (lingkungan.seluler) anggaran = { sisiMaks: 3072, pikselMaks: 6_500_000, kualitasJpeg: 0.88 };
+  else anggaran = { sisiMaks: 4096, pikselMaks: 10_000_000, kualitasJpeg: 0.9 };
 
   if (sisiOverride && sisiOverride > 0 && sisiOverride < anggaran.sisiMaks) {
     anggaran = {

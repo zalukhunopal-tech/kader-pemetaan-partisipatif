@@ -542,10 +542,14 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     // Gunakan ukuran persegi ukuranCanvas agar seluruh sudut tertutup tanpa celah pada sudut apa pun
     const W = ukuranCanvas;
     const H = ukuranCanvas;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
-    ctx.scale(dpr, dpr);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const targetW = Math.round(W * dpr);
+    const targetH = Math.round(H * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // 1. Latar Belakang Peta: Jika partisi Lembar Peta Kustom aktif, gunakan meja netral terisolasi tanpa basemap
     if (petaKustomAktif) {
@@ -821,7 +825,13 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     const midX = (p1.x + p2.x) / 2;
     const midY = (p1.y + p2.y) / 2;
     const rect = wadahPetaRef.current?.getBoundingClientRect() || kanvas.getBoundingClientRect();
-    const titikLayar = { x: midX - rect.left, y: midY - rect.top };
+    const dx0 = midX - rect.left - rect.width / 2;
+    const dy0 = midY - rect.top - rect.height / 2;
+    const rad0 = (bearingRef.current * Math.PI) / 180;
+    const titikLayar = {
+      x: rect.width / 2 + dx0 * Math.cos(rad0) - dy0 * Math.sin(rad0),
+      y: rect.height / 2 + dx0 * Math.sin(rad0) + dy0 * Math.cos(rad0)
+    };
 
     duaJariRef.current = {
       startP1: p1,
@@ -856,8 +866,8 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       active: true,
       startX: e.clientX,
       startY: e.clientY,
-      startLat: center.lat,
-      startLng: center.lng,
+      startLat: centerRef.current.lat,
+      startLng: centerRef.current.lng,
       moved: false
     };
   };
@@ -885,22 +895,28 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       while (deltaSudut > 180) deltaSudut -= 360;
       while (deltaSudut < -180) deltaSudut += 360;
       const absDeltaSudut = Math.abs(deltaSudut);
-      const deltaJarak = Math.abs(jarakKini - jarakAwal);
 
       // Rotasi peta dua jari: orientasi peta berputar searah putaran kedua jari pengguna
+      let bearingKini = bearingAwal;
       if (absDeltaSudut >= 2) {
-        let bearingBaru = Math.round(bearingAwal - deltaSudut) % 360;
-        if (bearingBaru < 0) bearingBaru += 360;
-        setBearing(bearingBaru);
+        bearingKini = Math.round(bearingAwal - deltaSudut) % 360;
+        if (bearingKini < 0) bearingKini += 360;
+        setBearing(bearingKini);
         setModeIkutiKompas(false);
         setModeIkutiGps("mati");
         setKoordinatDipilih(null);
       }
 
-      // Perbesar/perkecil (pinch zoom) dan geser posisi jangkar dua jari secara mulus
+      // Perbesar/perkecil (pinch zoom) dan geser posisi jangkar dua jari secara mulus sesuai rotasi
       if (jarakKini > 20) {
         const rect = wadahPetaRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
-        const midKini = { x: (p1.clientX + p2.clientX) / 2 - rect.left, y: (p1.clientY + p2.clientY) / 2 - rect.top };
+        const dxKini = (p1.clientX + p2.clientX) / 2 - rect.left - rect.width / 2;
+        const dyKini = (p1.clientY + p2.clientY) / 2 - rect.top - rect.height / 2;
+        const radKini = (bearingKini * Math.PI) / 180;
+        const midKini = {
+          x: rect.width / 2 + dxKini * Math.cos(radKini) - dyKini * Math.sin(radKini),
+          y: rect.height / 2 + dxKini * Math.sin(radKini) + dyKini * Math.cos(radKini)
+        };
         const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
         setZoom(zBaru);
         setCenter(pusatUntukJangkar(jangkar, zBaru, midKini, rect.width, rect.height));
@@ -926,10 +942,11 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
     const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
 
-    const startTx = lngToTileX(dragRef.current.startLng, zoom);
-    const startTy = latToTileY(dragRef.current.startLat, zoom);
-    const newLng = tileXToLng(startTx - localDx / TILE_SIZE, zoom);
-    const newLat = tileYToLat(startTy - localDy / TILE_SIZE, zoom);
+    const zAktif = zoomRef.current;
+    const startTx = lngToTileX(dragRef.current.startLng, zAktif);
+    const startTy = latToTileY(dragRef.current.startLat, zAktif);
+    const newLng = tileXToLng(startTx - localDx / TILE_SIZE, zAktif);
+    const newLat = tileYToLat(startTy - localDy / TILE_SIZE, zAktif);
     setCenter({
       lat: Math.max(-85, Math.min(85, newLat)),
       lng: Math.max(-180, Math.min(180, newLng))
@@ -951,8 +968,8 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
         active: true,
         startX: sisa.clientX,
         startY: sisa.clientY,
-        startLat: center.lat,
-        startLng: center.lng,
+        startLat: centerRef.current.lat,
+        startLng: centerRef.current.lng,
         moved: true
       };
     } else {

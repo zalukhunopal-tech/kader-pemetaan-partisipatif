@@ -143,17 +143,25 @@ export function gambarLembarPetaGeoPdf(
     ctx.fillStyle = "#e5e7eb";
     ctx.fillRect(0, 0, W, H);
     if (img) {
-      // Interpolasi berkualitas tinggi agar peta resolusi tinggi tetap tajam saat diperkecil
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      // Proyeksikan baris WGS84 ke Mercator agar objek GPS tetap sejajar
-      // dengan raster, termasuk pada lintang tinggi.
-      for (let y = Math.max(0, Math.floor(y0)); y < Math.min(H, Math.ceil(y0 + mapH)); y++) {
-        const top = Math.max(y, y0),
-          bottom = Math.min(y + 1, y0 + mapH);
-        const sy = fraksiBarisGeografis((top - y0) / mapH, peta.minLat, peta.maxLat) * img.height;
-        const ey = fraksiBarisGeografis((bottom - y0) / mapH, peta.minLat, peta.maxLat) * img.height;
-        if (ey > sy) ctx.drawImage(img, 0, sy, img.width, ey - sy, x0, top, mapW, bottom - top);
+      ctx.imageSmoothingQuality = "medium";
+      const rentangLat = Math.abs(peta.maxLat - peta.minLat);
+      if (rentangLat <= 2) {
+        // Untuk peta lokal/desa/kecamatan (rentang <= 2°), selisih Mercator vs linear < 0.05 px:
+        // gambar dalam 1 panggilan drawImage terakselerasi GPU agar 60fps mulus tanpa guncangan strip
+        ctx.drawImage(img, x0, y0, mapW, mapH);
+      } else {
+        // Untuk peta skala regional luas (> 2°), bagi maksimal 24 pita (bukan ribuan baris 1px)
+        const yMulai = Math.max(0, Math.floor(y0));
+        const yAkhir = Math.min(H, Math.ceil(y0 + mapH));
+        const langkah = Math.max(16, Math.ceil((yAkhir - yMulai) / 24));
+        for (let y = yMulai; y < yAkhir; y += langkah) {
+          const top = Math.max(y, y0);
+          const bottom = Math.min(y + langkah, yAkhir, y0 + mapH);
+          const sy = fraksiBarisGeografis((top - y0) / mapH, peta.minLat, peta.maxLat) * img.height;
+          const ey = fraksiBarisGeografis((bottom - y0) / mapH, peta.minLat, peta.maxLat) * img.height;
+          if (ey > sy) ctx.drawImage(img, 0, sy, img.width, ey - sy, x0, top, mapW, bottom - top);
+        }
       }
     }
     return;

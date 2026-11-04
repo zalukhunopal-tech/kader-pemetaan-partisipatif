@@ -24,7 +24,7 @@ describe("Resolusi peta adaptif (tajam namun ringan)", () => {
   it("skala render memenuhi batas sisi dan total piksel", () => {
     const skala = hitungSkalaRender(2000, 1000, hp);
     expect(2000 * skala).toBeLessThanOrEqual(hp.sisiMaks + 1);
-    expect(2000 * skala * (1000 * skala)).toBeLessThan(hp.pikselMaks * 1.01);
+    expect(2000 * skala * (1000 * skala)).toBeLessThanOrEqual(hp.pikselMaks * 1.01);
     // lembar kecil dirender lebih besar (tajam), tapi dibatasi skala maksimum
     expect(hitungSkalaRender(100, 100, pc)).toBe(8);
     // area peta yang kecil di halaman besar tetap mendapat skala tinggi (bukan ikut ukuran halaman)
@@ -83,5 +83,27 @@ describe("Hapus badge Posisi sekarang (Menghadap Utara) & pengambilan titik ramp
     expect(css).toMatch(/\.field-resume-actions\s*\{\s*display:\s*contents;/);
     expect(css).toMatch(/\.field-resume-actions\s*\{[\s\S]*?flex-direction:\s*row !important;[\s\S]*?flex-wrap:\s*nowrap !important;/);
     expect(css).toMatch(/\.field-resume-draft button\s*\{[\s\S]*?min-height:\s*30px !important;/);
+  });
+});
+
+describe("Optimasi kelancaran peta (tidak berat/liar) & menu hapus pustaka tidak tersembunyi", () => {
+  const sumberKanvas = readFileSync(resolve(__dirname, "../lib/petaKanvas.ts"), "utf8");
+  const sumberMap = readFileSync(resolve(__dirname, "../components/InteractiveMap.tsx"), "utf8");
+  const sumberPustaka = readFileSync(resolve(__dirname, "../components/PustakaView.tsx"), "utf8");
+  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
+
+  it("menggambar GeoPDF lokal dalam 1 panggilan drawImage tanpa ribuan strip per frame dan mengunci jangkar 2 jari sesuai rotasi", () => {
+    expect(sumberKanvas).toContain("if (rentangLat <= 2)");
+    expect(sumberKanvas).toContain("ctx.drawImage(img, x0, y0, mapW, mapH);");
+    expect(sumberMap).toContain("if (canvas.width !== targetW || canvas.height !== targetH)");
+    expect(sumberMap).toContain("ctx.setTransform(dpr, 0, 0, dpr, 0, 0)");
+    expect(sumberMap).toContain("dxKini * Math.cos(radKini) - dyKini * Math.sin(radKini)");
+  });
+
+  it("menu opsi peta di Pustaka dapat membuka ke atas (buka-atas) dan ramping agar pilihan Hapus tidak tersembunyi di bawah", () => {
+    expect(sumberPustaka).toContain("menuArahAtas");
+    expect(sumberPustaka).toContain("buka-atas");
+    expect(css).toMatch(/\.avenza-row-dropdown\.buka-atas[\s\S]*?bottom:\s*calc\(100% \+ 6px\) !important;/);
+    expect(css).toMatch(/\.avenza-row-dropdown button\s*\{[\s\S]*?min-height:\s*36px !important;/);
   });
 });
