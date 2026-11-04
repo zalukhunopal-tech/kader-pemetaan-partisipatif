@@ -290,4 +290,24 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     expect(css).toContain("max-width: 270px;");
     expect(css).toContain("margin: 0 auto;");
   });
+
+  it("18. PanelDataUserLevel kartu kader mobile anti-overlap dari kotak aplikasi", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    // Grid kolom menggunakan minmax(0, 1fr) agar tidak meluber keluar kotak aplikasi
+    expect(css).toContain("grid-template-columns: minmax(0, 1fr);");
+
+    // Kartu kader memiliki lebar 100%, overflow hidden, dan min-width: 0
+    expect(css).toContain(".kader-user-level-card {");
+    expect(css).toContain("max-width: 100%;");
+    expect(css).toContain("overflow: hidden;");
+
+    // Strip metrik tidak memaksakan lebar di mobile
+    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
+
+    // Profil wrap dan nama kader terpotong rapi dengan ellipsis jika nama panjang
+    expect(css).toContain("text-overflow: ellipsis;");
+    expect(css).toContain(".kader-tier-badge {");
+  });
 });
