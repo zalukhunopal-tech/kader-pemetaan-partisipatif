@@ -309,9 +309,10 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
       });
       ctx.strokeStyle = isSelected ? "#fbbf24" : "#38bdf8";
       ctx.lineWidth = isSelected ? 4 : 3;
-      ctx.setLineDash([8, 4]);
-      ctx.stroke();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.setLineDash([]);
+      ctx.stroke();
 
       const mid = item.koordinat[Math.floor(item.koordinat.length / 2)];
       const mp = keLayar(mid.lat, mid.lng);
@@ -355,34 +356,39 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     }
   });
 
-  // 5. Gambar Draft Sedang Direkam
+  // 5. Gambar Draft Sedang Direkam (Garis lurus solid tanpa titik-titik untuk jalur & poligon)
   if (modeRekam && titikDraft.length > 0) {
     ctx.save();
-    ctx.beginPath();
-    titikDraft.forEach((k, idx) => {
-      const p = keLayar(k.lat, k.lng);
-      if (idx === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    if (modeRekam === "polygon" && titikDraft.length >= 3) {
-      ctx.closePath();
-      ctx.fillStyle = "rgba(251, 191, 36, 0.28)";
-      ctx.fill();
-    }
-    ctx.strokeStyle = "#fbbf24";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    titikDraft.forEach((k, idx) => {
-      const p = keLayar(k.lat, k.lng);
+    if (titikDraft.length === 1) {
+      // Jika baru ada 1 titik awal (belum membentuk garis), tandai lokasi awal
+      const p = keLayar(titikDraft[0].lat, titikDraft[0].lng);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = idx === titikDraft.length - 1 ? "#ef4444" : "#fbbf24";
+      ctx.fillStyle = "#fbbf24";
       ctx.fill();
-      ctx.strokeStyle = "#fff";
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.stroke();
-    });
+    } else {
+      // 2 titik atau lebih: gambar garis lurus solid dan bersih (bukan rangkaian titik-titik)
+      ctx.beginPath();
+      titikDraft.forEach((k, idx) => {
+        const p = keLayar(k.lat, k.lng);
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      if (modeRekam === "polygon" && titikDraft.length >= 3) {
+        ctx.closePath();
+        ctx.fillStyle = "rgba(251, 191, 36, 0.28)";
+        ctx.fill();
+      }
+      ctx.strokeStyle = "#fbbf24";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.setLineDash([]);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
