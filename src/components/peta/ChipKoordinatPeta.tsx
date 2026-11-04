@@ -234,8 +234,8 @@ export function ChipKoordinatPeta({
             </span>
             {f ? (
               <span className="coord-chip-values field-telemetry-coordinate">
-                <span>{f.baris[0].nilai}</span>
-                <span>{f.baris[1].nilai}</span>
+                <span className="coord-val-part">{f.baris[0].nilai}</span>
+                <span className="coord-val-part">{f.baris[1].nilai}</span>
               </span>
             ) : (
               <span className="coord-chip-values coord-chip-waiting">

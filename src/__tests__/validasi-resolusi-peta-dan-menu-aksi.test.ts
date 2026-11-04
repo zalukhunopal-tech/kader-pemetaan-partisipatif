@@ -154,3 +154,29 @@ describe("Menu tindakan akun di Admin > Akun & penanda GPS tidak menutupi pereka
     expect(css).toContain(".rec-error-dismiss");
   });
 });
+
+describe("Penyelarasan koordinat sejajar LU/BT, BottomSheet tanpa angka persentase, dan perbaikan overlap menu peta & lapisan", () => {
+  const sumberChip = readFileSync(resolve(__dirname, "../components/peta/ChipKoordinatPeta.tsx"), "utf8");
+  const sumberSheet = readFileSync(resolve(__dirname, "../components/peta/BottomSheet.tsx"), "utf8");
+  const sumberLapisan = readFileSync(resolve(__dirname, "../components/peta/PanelLapisanPeta.tsx"), "utf8");
+  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
+
+  it("titik koordinat LU dan BT sejajar horizontal membuat kotak chip telemetri memanjang rapi", () => {
+    expect(css).toContain("flex-direction: row;");
+    expect(css).toContain("font-size: 11.5px;");
+    expect(sumberChip).toContain("coord-val-part");
+  });
+
+  it("angka persentase 25% 55% 92% dihapus dari header bottom sheet tanpa menghilangkan fungsi ukuran dan drag", () => {
+    expect(css).toContain(".field-sheet-stops {\r\n  display: none !important;");
+    expect(sumberSheet).toContain("setTinggi(tahap");
+  });
+
+  it("menu peta dan lapisan tidak overlap antara Lapisan Berkas dan Pustaka", () => {
+    expect(css).toContain("width: 360px;");
+    expect(css).toContain(".pustaka-tab-label-full");
+    expect(css).toContain(".pustaka-tab-label-short");
+    expect(sumberLapisan).toContain("pustaka-tab-label-full");
+    expect(sumberLapisan).toContain("pustaka-tab-label-short");
+  });
+});
