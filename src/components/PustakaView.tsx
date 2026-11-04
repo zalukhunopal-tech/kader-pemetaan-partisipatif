@@ -26,6 +26,7 @@ import { bacaPosisiPeta, POSISI_AWAL_PETA } from "../lib/posisiPeta";
 import { simpanArsipPeta } from "../lib/penyimpananPetaLuring";
 import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
 import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
+import { singkatkanLabelPeta } from "../lib/labelPeta";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -238,7 +239,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
         setThumbnailDataUrlBaru(meta.thumbnailDataUrl);
-        setNamaPetaBaru(meta.namaArea.replace(/\.pmtiles$/i, ""));
+        setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
         setUkuranMbBaru(meta.ukuranMbTeks);
         setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(false);
@@ -247,7 +248,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
         setThumbnailDataUrlBaru(meta.thumbnailDataUrl);
-        setNamaPetaBaru(meta.namaArea.replace(/\.mbtiles$/i, ""));
+        setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
         setUkuranMbBaru(meta.ukuranMbTeks);
         setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(false);
@@ -287,7 +288,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             empatSudut: hasil.empatSudut
           };
           setMetadataPetaBaru(meta);
-          setNamaPetaBaru(meta.namaArea.replace(/\.(pdf|geopdf)$/i, ""));
+          setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
           setUkuranMbBaru(meta.ukuranMbTeks);
           setJarakKmBaru(jarakKmTeks);
           setPetaKustomDataUrlBaru(hasil.dataUrl);
@@ -331,7 +332,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             indeksHalaman: 0
           };
           setMetadataPetaBaru(metaManual);
-          setNamaPetaBaru(file.name.replace(/\.(pdf|geopdf)$/i, ""));
+          setNamaPetaBaru(singkatkanLabelPeta(file.name, 40));
           setUkuranMbBaru(metaManual.ukuranMbTeks);
           setJarakKmBaru("0");
           setPetaKustomDataUrlBaru(hasilBiasa.dataUrl);
@@ -347,7 +348,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           setPetaKustomDataUrlBaru(pratinjau.dataUrl);
           setThumbnailDataUrlBaru(pratinjau.thumbnailDataUrl);
         }
-        setNamaPetaBaru(meta.namaArea.replace(/\.(tif|tiff|geotiff)$/i, ""));
+        setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
         setUkuranMbBaru(meta.ukuranMbTeks);
         setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(true);
@@ -706,7 +707,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </div>
 
                 <div className="avenza-map-info">
-                  <div className="avenza-map-title">{item.namaArea}</div>
+                  <div className="avenza-map-title" title={item.namaArea}>
+                    {singkatkanLabelPeta(item.namaArea, 40)}
+                  </div>
                   <div className="avenza-map-meta">
                     {formatAngkaIndo(item.ukuranMb)} MB <span className="dot-sep">•</span>{" "}
                     <span className="text-emerald" style={{ fontWeight: 600 }}>
@@ -996,8 +999,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 )}
                 {!sedangMemprosesBerkas && metadataPetaBaru && (
                   <div className="peta-upload-status success">
-                    <Check size={14} /> Berkas dipilih: <b>{metadataPetaBaru.namaArea}</b> ({metadataPetaBaru.ukuranMbTeks} MB • Jarak{" "}
-                    {metadataPetaBaru.jarakKmTeks} km)
+                    <Check size={14} /> Berkas dipilih:{" "}
+                    <b className="peta-upload-nama-berkas" title={metadataPetaBaru.namaArea}>
+                      {singkatkanLabelPeta(metadataPetaBaru.namaArea, 30)}
+                    </b>{" "}
+                    ({metadataPetaBaru.ukuranMbTeks} MB • Jarak {metadataPetaBaru.jarakKmTeks} km)
                   </div>
                 )}
               </div>

@@ -2,7 +2,27 @@ import { usePosisiPerangkat } from "../lib/posisiPerangkat";
 import React, { useState, useRef, useEffect } from "react";
 import { PeranPengguna, PesanKomunikasi, ProfilKader } from "../types";
 import { CatatanPerangkat } from "./CatatanPerangkat";
-import { MapPin, Mic, Send, Users, ShieldAlert, Paperclip, Check, Search, Play, Pause, AlertTriangle, Compass, Bot, Sparkles } from "lucide-react";
+import {
+  MapPin,
+  Mic,
+  Send,
+  Users,
+  ShieldAlert,
+  Paperclip,
+  Check,
+  Search,
+  Play,
+  Pause,
+  AlertTriangle,
+  Compass,
+  Bot,
+  Sparkles,
+  Reply,
+  Copy,
+  Forward,
+  Trash2,
+  X
+} from "lucide-react";
 
 interface KomunikasiViewProps {
   pesanList: PesanKomunikasi[];
@@ -21,6 +41,8 @@ interface KomunikasiViewProps {
       eskalasiAdmin?: boolean;
     }
   ) => void;
+  onHapusPesan?: (idPesan: string) => void;
+  onTeruskanPesan?: (pesan: PesanKomunikasi, saluranTujuan: "komunitas" | "admin") => void;
   onLihatPinDiPeta: (lat: number, lng: number, label: string) => void;
   onEskalasiKeAdmin?: (pertanyaan: string, namaKader: string) => void;
 }
@@ -30,6 +52,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   profil,
   peranPengguna,
   onKirimPesan,
+  onHapusPesan,
+  onTeruskanPesan,
   onLihatPinDiPeta,
   onEskalasiKeAdmin
 }) => {
@@ -46,7 +70,115 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   const [audioMemutar, setAudioMemutar] = useState<string | null>(null);
   const [geminiSedangMengetik, setGeminiSedangMengetik] = useState(false);
 
+  // State WhatsApp: Pesan Terpilih (tekan tahan), Balasan (quote), Modal Teruskan, & Notifikasi Toast
+  const [pesanTerpilih, setPesanTerpilih] = useState<PesanKomunikasi | null>(null);
+  const [balasPesan, setBalasPesan] = useState<PesanKomunikasi | null>(null);
+  const [modalTeruskanTerbuka, setModalTeruskanTerbuka] = useState(false);
+  const [toastTeks, setToastTeks] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!toastTeks) return;
+    const t = setTimeout(() => setToastTeks(null), 2400);
+    return () => clearTimeout(t);
+  }, [toastTeks]);
+
+  // Deteksi Tekan-Tahan (Long-Press 450ms) pada balon pesan seperti WhatsApp
+  const handlePointerDown = (pesan: PesanKomunikasi, e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      setPesanTerpilih(pesan);
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate(40);
+        } catch (_) {}
+      }
+    }, 450);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!startPosRef.current) return;
+    const dx = Math.abs(e.clientX - startPosRef.current.x);
+    const dy = Math.abs(e.clientY - startPosRef.current.y);
+    if (dx > 10 || dy > 10) {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    startPosRef.current = null;
+  };
+
+  const handleContextMenu = (pesan: PesanKomunikasi, e: React.MouseEvent) => {
+    e.preventDefault();
+    setPesanTerpilih(pesan);
+  };
+
+  const handleAksiSalin = async () => {
+    if (!pesanTerpilih) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(pesanTerpilih.teks);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = pesanTerpilih.teks;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setToastTeks("✓ Pesan disalin ke papan klip");
+    } catch (_) {
+      setToastTeks("✓ Pesan disalin");
+    }
+    setPesanTerpilih(null);
+  };
+
+  const handleAksiBalas = () => {
+    if (!pesanTerpilih) return;
+    setBalasPesan(pesanTerpilih);
+    setPesanTerpilih(null);
+    setTimeout(() => inputRef.current?.focus(), 60);
+  };
+
+  const handleAksiBukaTeruskan = () => {
+    if (!pesanTerpilih) return;
+    setModalTeruskanTerbuka(true);
+  };
+
+  const handleKirimTeruskan = (tujuan: "komunitas" | "admin") => {
+    if (!pesanTerpilih) return;
+    if (onTeruskanPesan) {
+      onTeruskanPesan(pesanTerpilih, tujuan);
+    } else {
+      onKirimPesan(tujuan, `[Diteruskan] ${pesanTerpilih.teks}`, pesanTerpilih.pinKoordinat, pesanTerpilih.durasiSuaraDetik);
+    }
+    setModalTeruskanTerbuka(false);
+    setPesanTerpilih(null);
+    setToastTeks(`✓ Pesan diteruskan ke ${tujuan === "komunitas" ? "Komunitas" : "Admin GIS"}`);
+  };
+
+  const handleAksiHapus = () => {
+    if (!pesanTerpilih) return;
+    onHapusPesan?.(pesanTerpilih.id);
+    setPesanTerpilih(null);
+    setToastTeks("✓ Pesan berhasil dihapus");
+  };
 
   const daftarPesanSaluran = pesanList.filter((p) => {
     if (p.saluran !== saluranAktif) return false;
@@ -65,8 +197,13 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
     const pesanTeks = teksPesan.trim();
     if (!pesanTeks) return;
 
-    onKirimPesan(saluranAktif, pesanTeks);
+    const pesanKirim = balasPesan
+      ? `[Membalas ${balasPesan.namaPengirim}: "${balasPesan.teks.slice(0, 48)}${balasPesan.teks.length > 48 ? "..." : ""}"]\n${pesanTeks}`
+      : pesanTeks;
+
+    onKirimPesan(saluranAktif, pesanKirim);
     setTeksPesan("");
+    setBalasPesan(null);
     setMenuLampiranTerbuka(false);
 
     // Di saluran "admin", jika penanya bukan admin, Gemini AI menjawab pertanyaan
@@ -166,22 +303,78 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         boxShadow: "0 4px 16px rgba(0,0,0,0.08)"
       }}
     >
-      {/* 1. WHATSAPP/TELEGRAM TOPBAR HEADER */}
-      <div
-        className="komunikasi-topbar"
-        style={{
-          background: "#075e54",
-          color: "#ffffff",
-          padding: "10px 12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "8px",
-          flexWrap: "wrap",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-          zIndex: 10
-        }}
-      >
+      {/* 1. WHATSAPP TOPBAR HEADER / SELECTION ACTION BAR */}
+      {pesanTerpilih ? (
+        <div className="wa-selection-topbar">
+          <div className="wa-selection-left">
+            <button
+              type="button"
+              className="wa-action-icon"
+              onClick={() => setPesanTerpilih(null)}
+              title="Batal Pilih"
+              aria-label="Batal Pilih"
+            >
+              <X size={20} />
+            </button>
+            <span className="wa-selection-count">1 pesan dipilih</span>
+          </div>
+          <div className="wa-selection-actions">
+            <button
+              type="button"
+              className="wa-action-icon"
+              onClick={handleAksiBalas}
+              title="Balas Pesan"
+              aria-label="Balas Pesan"
+            >
+              <Reply size={20} />
+            </button>
+            <button
+              type="button"
+              className="wa-action-icon"
+              onClick={handleAksiSalin}
+              title="Salin Teks"
+              aria-label="Salin Teks"
+            >
+              <Copy size={20} />
+            </button>
+            <button
+              type="button"
+              className="wa-action-icon"
+              onClick={handleAksiBukaTeruskan}
+              title="Teruskan Pesan"
+              aria-label="Teruskan Pesan"
+            >
+              <Forward size={20} />
+            </button>
+            {onHapusPesan && (
+              <button
+                type="button"
+                className="wa-action-icon wa-action-delete"
+                onClick={handleAksiHapus}
+                title="Hapus Pesan"
+                aria-label="Hapus Pesan"
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div
+          className="komunikasi-topbar"
+          style={{
+            background: "#075e54",
+            color: "#ffffff",
+            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "8px",
+            flexWrap: "wrap",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+            zIndex: 10
+          }}
+        >
         <div
           style={{
             display: "flex",
@@ -265,6 +458,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
 
         </div>
       </div>
+      )}
 
       {/* MODERN SEGMENTED CONTROL: RUANG DISKUSI KADER VS JALUR KOORDINASI ADMIN */}
       <div className="komunikasi-segmented-wrapper">
@@ -404,15 +598,25 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 }}
               >
                 <div
+                  onPointerDown={(e) => handlePointerDown(m, e)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  onContextMenu={(e) => handleContextMenu(m, e)}
+                  className={`chat-bubble-item ${pesanTerpilih?.id === m.id ? "chat-bubble-selected" : ""}`}
                   style={{
                     maxWidth: "86%",
                     minWidth: "110px",
-                    background: adalahSaya ? "#d9fdd3" : adalahGemini ? "#f8fafc" : "#ffffff",
+                    background: pesanTerpilih?.id === m.id
+                      ? (adalahSaya ? "#bbf7d0" : "#dcfce7")
+                      : (adalahSaya ? "#d9fdd3" : adalahGemini ? "#f8fafc" : "#ffffff"),
                     border: adalahGemini ? "1.5px solid #86efac" : undefined,
                     borderRadius: adalahSaya ? "14px 4px 14px 14px" : "4px 14px 14px 14px",
                     padding: "8px 11px 6px",
                     boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
-                    position: "relative"
+                    position: "relative",
+                    cursor: "pointer",
+                    touchAction: "pan-y"
                   }}
                 >
                   {/* Sender Name if not mine */}
@@ -446,8 +650,32 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                     </div>
                   )}
 
-                  {/* Message Text */}
-                  <div style={{ fontSize: "0.88rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>{m.teks}</div>
+                  {/* Message Text with quote support */}
+                  {m.teks.startsWith("[Membalas ") && m.teks.includes("]\n") ? (
+                    <>
+                      {(() => {
+                        const idx = m.teks.indexOf("]\n");
+                        const quoteHeader = m.teks.slice(1, idx);
+                        const body = m.teks.slice(idx + 2);
+                        const colonIdx = quoteHeader.indexOf(": ");
+                        const replier = colonIdx !== -1 ? quoteHeader.slice(0, colonIdx) : quoteHeader;
+                        const snippet = colonIdx !== -1 ? quoteHeader.slice(colonIdx + 2).replace(/^"|"$/g, "") : "";
+                        return (
+                          <>
+                            <div className="chat-quoted-box">
+                              <div className="chat-quoted-author">{replier}</div>
+                              <div className="chat-quoted-snippet">{snippet}</div>
+                            </div>
+                            <div style={{ fontSize: "0.88rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>
+                              {body}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div style={{ fontSize: "0.88rem", color: "#111b21", lineHeight: 1.4, wordBreak: "break-word" }}>{m.teks}</div>
+                  )}
 
                   {/* Audio Voice Note Bubble */}
                   {m.durasiSuaraDetik && (
@@ -822,6 +1050,29 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         </div>
       )}
 
+      {/* WHATSAPP REPLY / QUOTE PREVIEW BAR */}
+      {balasPesan && (
+        <div className="chat-reply-preview-bar">
+          <div className="chat-reply-indicator" />
+          <div className="chat-reply-content">
+            <div className="chat-reply-author">
+              <Reply size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+              Membalas {balasPesan.namaPengirim}
+            </div>
+            <div className="chat-reply-snippet">{balasPesan.teks}</div>
+          </div>
+          <button
+            type="button"
+            className="chat-reply-close-btn"
+            onClick={() => setBalasPesan(null)}
+            title="Batal Balas"
+            aria-label="Batal Balas"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* 3. WHATSAPP STYLE INPUT BAR */}
       <form
         onSubmit={handleSubmit}
@@ -856,6 +1107,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         </button>
 
         <input
+          ref={inputRef}
           type="text"
           value={teksPesan}
           onChange={(e) => setTeksPesan(e.target.value)}
@@ -896,6 +1148,57 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
           {teksPesan.trim() ? <Send size={17} /> : <Mic size={17} />}
         </button>
       </form>
+
+      {/* MODAL TERUSKAN PESAN (WHATSAPP FORWARD DIALOG) */}
+      {modalTeruskanTerbuka && pesanTerpilih && (
+        <div className="wa-forward-overlay" onClick={() => setModalTeruskanTerbuka(false)}>
+          <div className="wa-forward-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="wa-forward-header">
+              <span className="wa-forward-title">Teruskan Pesan</span>
+              <button
+                type="button"
+                className="wa-action-icon dark"
+                onClick={() => setModalTeruskanTerbuka(false)}
+                title="Tutup"
+                aria-label="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="wa-forward-snippet">
+              "{pesanTerpilih.teks.slice(0, 75)}{pesanTerpilih.teks.length > 75 ? "..." : ""}"
+            </div>
+            <div className="wa-forward-prompt">Pilih saluran tujuan obrolan:</div>
+            <div className="wa-forward-options">
+              <button
+                type="button"
+                className="wa-forward-btn"
+                onClick={() => handleKirimTeruskan("komunitas")}
+              >
+                <Users size={18} className="text-emerald" />
+                <div className="wa-forward-btn-text">
+                  <strong>Saluran Komunitas</strong>
+                  <span>Grup diskusi kader masyarakat</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="wa-forward-btn"
+                onClick={() => handleKirimTeruskan("admin")}
+              >
+                <ShieldAlert size={18} className="text-sky" />
+                <div className="wa-forward-btn-text">
+                  <strong>Saluran Admin GIS</strong>
+                  <span>Konsultasi & laporan ke Administrator</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WHATSAPP TOAST NOTIFIKASI */}
+      {toastTeks && <div className="chat-wa-toast">{toastTeks}</div>}
     </div>
   );
 };
