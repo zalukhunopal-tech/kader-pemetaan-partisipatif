@@ -10829,3 +10829,47 @@ html[data-field-theme="matahari"] .section-card h2 {
     flex: 1 1 auto !important;
   }
 }
+
+/* =========================================================
+   PUSTAKA: MENU DROPDOWN PETA AGAR PILIHAN HAPUS TIDAK TERSEMBUNYI DI BAWAH
+   Berlaku di Mobile maupun PC/Tablet (List & Grid).
+   ========================================================= */
+.avenza-map-row:has(.avenza-row-dropdown) {
+  position: relative;
+  z-index: 95 !important;
+}
+
+.avenza-row-dropdown {
+  z-index: 120 !important;
+  padding: 4px 0 !important;
+}
+
+.avenza-row-dropdown.buka-atas,
+.pustaka-field .pustaka-grid .avenza-row-dropdown.buka-atas {
+  top: auto !important;
+  bottom: calc(100% + 6px) !important;
+  margin-top: 0 !important;
+}
+
+.avenza-row-dropdown button {
+  min-height: 36px !important;
+  height: auto !important;
+  padding: 8px 14px !important;
+  font-size: 0.84rem !important;
+  line-height: 1.25 !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avenza-row-dropdown button.danger-text {
+  color: #dc2626 !important;
+  font-weight: 600;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 2px;
+}
+
+.pustaka-field .avenza-map-list:not(.pustaka-grid),
+.pustaka-field .pustaka-grid {
+  padding-bottom: 200px !important;
+}

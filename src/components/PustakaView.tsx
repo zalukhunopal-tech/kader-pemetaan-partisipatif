@@ -165,6 +165,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [kataKunci, setKataKunci] = useState("");
   const [idTerpilih, setIdTerpilih] = useState<string[]>([]);
   const [menuItemTerbuka, setMenuItemTerbuka] = useState<string | null>(null);
+  const [menuArahAtas, setMenuArahAtas] = useState(false);
 
   // Modal Tambah Peta Baru / Buat Lapisan Baru (tanpa nilai contoh)
   const [bukaModalPetaBaru, setBukaModalPetaBaru] = useState(false);
@@ -749,7 +750,14 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   className="avenza-map-more-wrap"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuItemTerbuka(menuItemTerbuka === item.id ? null : item.id);
+                    if (menuItemTerbuka === item.id) {
+                      setMenuItemTerbuka(null);
+                    } else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const sisaBawah = (typeof window !== "undefined" ? window.innerHeight : 800) - rect.bottom;
+                      setMenuArahAtas(sisaBawah < 260 && rect.top > 160);
+                      setMenuItemTerbuka(item.id);
+                    }
                   }}
                 >
                   <button type="button" className="avenza-more-dots-btn" title="Opsi Peta" aria-expanded={menuItemTerbuka === item.id}>
@@ -757,7 +765,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   </button>
 
                   {menuItemTerbuka === item.id && (
-                    <div className="avenza-row-dropdown" onClick={(e) => e.stopPropagation()}>
+                    <div className={`avenza-row-dropdown ${menuArahAtas ? "buka-atas" : ""}`} onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() => {
