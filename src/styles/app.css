@@ -1393,18 +1393,39 @@ body {
   border: 1px solid #fecdd3;
   color: #9f1239;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.goto-nav-banner > div:first-child {
+  flex: 1 1 0%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.goto-nav-banner strong {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-size: 0.85rem;
 }
 
 .goto-nav-sub {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: #be123c;
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .map-canvas-container {
@@ -2664,8 +2685,15 @@ label {
   align-items: center;
   gap: 6px;
   font-size: 0.78rem;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-radius: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-wrap: wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .peta-upload-status.loading {
@@ -2678,6 +2706,14 @@ label {
   color: #065f46;
   border: 1px solid #a7f3d0;
   font-weight: 500;
+}
+
+.peta-upload-nama-berkas {
+  font-weight: 700;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  display: inline;
 }
 
 .photo-ready-badge {
@@ -10203,4 +10239,264 @@ html[data-field-theme="matahari"] .section-card h2 {
     font-weight: 700 !important;
     box-shadow: 0 2px 6px rgba(21, 128, 61, 0.28);
   }
+}
+
+/* ==========================================================================
+   FITUR OBROLAN INTERAKTIF GAYA WHATSAPP (TEKAN TAHAN / LONG-PRESS)
+   ========================================================================== */
+
+.wa-selection-topbar {
+  background: #005c4b;
+  color: #ffffff;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 15;
+  min-height: 58px;
+}
+
+.wa-selection-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wa-selection-count {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.wa-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wa-action-icon {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.wa-action-icon:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.wa-action-icon.dark {
+  color: #1e293b;
+}
+
+.wa-action-icon.dark:hover {
+  background: #f1f5f9;
+}
+
+.wa-action-delete:hover {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.chat-bubble-selected {
+  outline: 2.5px solid #10b981 !important;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35) !important;
+}
+
+.chat-reply-preview-bar {
+  background: #f0f2f5;
+  border-top: 1px solid #d1d7db;
+  padding: 8px 12px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.chat-reply-indicator {
+  width: 4px;
+  align-self: stretch;
+  background: #00a884;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.chat-reply-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-reply-author {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #00a884;
+  line-height: 1.2;
+}
+
+.chat-reply-snippet {
+  font-size: 0.8rem;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.chat-reply-close-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-reply-close-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.chat-quoted-box {
+  background: rgba(0, 0, 0, 0.05);
+  border-left: 3.5px solid #075e54;
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+}
+
+.chat-quoted-author {
+  font-weight: 700;
+  color: #075e54;
+  font-size: 0.72rem;
+  margin-bottom: 1px;
+}
+
+.chat-quoted-snippet {
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.76rem;
+}
+
+.wa-forward-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.wa-forward-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 380px;
+  width: 100%;
+  padding: 16px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.wa-forward-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.wa-forward-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.wa-forward-snippet {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: #475569;
+  font-style: italic;
+  margin-bottom: 14px;
+}
+
+.wa-forward-prompt {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.wa-forward-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wa-forward-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.wa-forward-btn:hover {
+  background: #f1f5f9;
+  border-color: #0d7344;
+}
+
+.wa-forward-btn-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.wa-forward-btn-text strong {
+  font-size: 0.84rem;
+  color: #0f172a;
+}
+
+.wa-forward-btn-text span {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.chat-wa-toast {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #ffffff;
+  padding: 7px 16px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 40;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease;
 }

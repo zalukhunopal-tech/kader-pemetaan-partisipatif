@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AreaPetaOffline, BasemapType, DataSpasialItem, FormatKoordinat, JenisGeometri, KoordinatTitik, ProfilKader } from "../types";
+import { singkatkanLabelPeta } from "../lib/labelPeta";
 import {
   formatKoordinatTeks,
   hitungBearingDerajat,
@@ -63,10 +64,9 @@ interface InteractiveMapProps {
   onHapusAreaOffline?: (id: string) => void;
 }
 
-/** Format nama peta agar tidak melebar atau meluap keluar layar (Avenza style) */
-export function formatJudulAvenza(nama: string, maxLen = 22): string {
-  if (nama.length <= maxLen) return nama;
-  return nama.slice(0, maxLen - 3) + "...";
+/** Format nama peta agar ringkas, adaptif, dan tidak meluap keluar layar */
+export function formatJudulAvenza(nama: string, maxLen = 24): string {
+  return singkatkanLabelPeta(nama, maxLen);
 }
 
 /**
@@ -390,6 +390,13 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       ro?.disconnect();
     };
   }, [petaKustomAktif, targetGoTo]);
+
+  // Jika lembar peta kustom dibuka/dipilih, bersihkan garis panduan targetGoTo
+  useEffect(() => {
+    if (petaKustomAktif) {
+      setTargetGoTo(null);
+    }
+  }, [petaKustomAktif?.id]);
 
   // Roda tetikus dan cubit trackpad (PC/laptop): perbesar/perkecil di sekitar penunjuk.
   // Didaftarkan manual karena onWheel React bersifat pasif dan tidak bisa mencegah gulir halaman.

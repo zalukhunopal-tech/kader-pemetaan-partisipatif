@@ -22,8 +22,10 @@ import { KartuLokasiTitik } from "../components/peta/KartuLokasiTitik";
 import { PanelPerekaman } from "../components/peta/PanelPerekaman";
 import { StatePerekamLatar } from "../lib/perekamLatar";
 import { formatKoordinat } from "../lib/sistemKoordinat";
+import { formatJudulAvenza } from "../components/InteractiveMap";
+import { singkatkanLabelPeta } from "../lib/labelPeta";
 import { PDFDocument, PDFName } from "pdf-lib";
-import { AreaPetaOffline, DataSpasialItem, ProfilKader } from "../types";
+import { AreaPetaOffline, DataSpasialItem, ProfilKader, PesanKomunikasi } from "../types";
 
 const mockProfil: ProfilKader = {
   idKader: "KAD-BULUNGAN-01",
@@ -430,5 +432,70 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     // Di CSS: rotateZ(-325deg) identik dengan rotateZ(+35deg) searah jarum jam
     const cssAngle = -bearingBaru;
     expect(((cssAngle % 360) + 360) % 360).toBe(35);
+  });
+
+  it("Validasi penyingkatan label adaptif peta & anti-overlap (singkatkanLabelPeta & formatJudulAvenza)", () => {
+    const rawJudulGeoPdf = "Peta_Fungsi_Kawasan_Hutan_Kecamatan_Tanjung_Selor_2024.geopdf";
+    const judulFormatPenuh = formatJudulAvenza(rawJudulGeoPdf, 45);
+    const judulFormatRingkas = formatJudulAvenza(rawJudulGeoPdf, 28);
+
+    expect(judulFormatPenuh).not.toContain(".geopdf");
+    expect(judulFormatPenuh).not.toContain("_");
+    expect(judulFormatPenuh).toBe("Peta Fungsi Kws. Htn. Kec. Tg. Selor 2024");
+
+    expect(judulFormatRingkas.length).toBeLessThanOrEqual(28);
+    expect(judulFormatRingkas.endsWith("...")).toBe(true);
+
+    // Singkatan wilayah adat
+    const rawAdat = "Batas_Wilayah_Masyarakat_Adat_Dayak_Kenyah.pmtiles";
+    const labelAdat = singkatkanLabelPeta(rawAdat, 40);
+    expect(labelAdat).toBe("Batas Wil. Masy. Adat Dayak Kenyah");
+  });
+
+  it("Validasi fitur chat interaktif ala WhatsApp: render balon pesan, kuotasi balasan, dan komponen topbar", () => {
+    const mockPesanList: PesanKomunikasi[] = [
+      {
+        id: "MSG-01",
+        saluran: "komunitas",
+        idPengirim: "KAD-01",
+        namaPengirim: "Budi",
+        peranPengirim: "kader",
+        desaPengirim: "Tanjung Selor",
+        teks: "Ditemukan sarang burung enggang di koordinat pohon damar.",
+        waktu: new Date().toISOString(),
+        statusKirim: "tersimpan"
+      },
+      {
+        id: "MSG-02",
+        saluran: "komunitas",
+        idPengirim: mockProfil.idKader,
+        namaPengirim: mockProfil.nama,
+        peranPengirim: "kader",
+        desaPengirim: mockProfil.desaWilayah,
+        teks: '[Membalas Budi: "Ditemukan sarang burung enggang..."]\nSiap, tim kami akan meluncur ke lokasi untuk mencatat GPS.',
+        waktu: new Date().toISOString(),
+        statusKirim: "tersimpan"
+      }
+    ];
+
+    const htmlChat = renderToString(
+      <KomunikasiView
+        pesanList={mockPesanList}
+        profil={mockProfil}
+        peranPengguna="kader"
+        onKirimPesan={vi.fn()}
+        onHapusPesan={vi.fn()}
+        onTeruskanPesan={vi.fn()}
+        onLihatPinDiPeta={vi.fn()}
+      />
+    );
+
+    // Balon pesan dan kutipan balasan
+    expect(htmlChat).toContain("chat-bubble-item");
+    expect(htmlChat).toContain("chat-quoted-box");
+    expect(htmlChat).toContain("chat-quoted-author");
+    expect(htmlChat).toContain("Membalas Budi");
+    expect(htmlChat).toContain("Siap, tim kami akan meluncur ke lokasi");
+    expect(htmlChat).toContain("Ditemukan sarang burung enggang");
   });
 });

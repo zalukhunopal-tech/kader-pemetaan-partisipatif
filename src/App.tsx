@@ -635,6 +635,16 @@ export const App: React.FC = () => {
     setPesanList((prev) => [...prev, msgBaru]);
   };
 
+  const handleHapusPesan = (idPesan: string) => {
+    setPesanList((prev) => prev.filter((p) => p.id !== idPesan));
+    tampilkanToast("Pesan dihapus dari obrolan.");
+  };
+
+  const handleTeruskanPesan = (pesan: PesanKomunikasi, saluranTujuan: "komunitas" | "admin") => {
+    handleKirimPesan(saluranTujuan, pesan.teks, pesan.pinKoordinat, pesan.durasiSuaraDetik);
+    tampilkanToast(`Pesan diteruskan ke ${saluranTujuan === "komunitas" ? "Grup Komunitas" : "Admin GIS"}.`);
+  };
+
   const handleEskalasiKeAdmin = (pertanyaan: string, namaKader: string) => {
     tampilkanToast(`📢 Pertanyaan diteruskan ke Admin Nopal: "${pertanyaan.slice(0, 45)}..."`);
     const notif: PengumumanBroadcast = {
@@ -792,8 +802,7 @@ export const App: React.FC = () => {
                   setPetaKustomAktif(area);
                   setFokusKoordinat({
                     lat: (area.minLat + area.maxLat) / 2,
-                    lng: (area.minLng + area.maxLng) / 2,
-                    label: area.namaArea
+                    lng: (area.minLng + area.maxLng) / 2
                   });
                   setTabAktif("peta");
                 }}
@@ -826,8 +835,7 @@ export const App: React.FC = () => {
                   setPetaKustomAktif(a);
                   setFokusKoordinat({
                     lat: (a.minLat + a.maxLat) / 2,
-                    lng: (a.minLng + a.maxLng) / 2,
-                    label: a.namaArea
+                    lng: (a.minLng + a.maxLng) / 2
                   });
                 }}
                 fokusKoordinat={fokusKoordinat}
@@ -898,6 +906,8 @@ export const App: React.FC = () => {
                 profil={profil}
                 peranPengguna={peran}
                 onKirimPesan={handleKirimPesan}
+                onHapusPesan={handleHapusPesan}
+                onTeruskanPesan={handleTeruskanPesan}
                 onLihatPinDiPeta={handleFokusKePeta}
                 onEskalasiKeAdmin={handleEskalasiKeAdmin}
               />
