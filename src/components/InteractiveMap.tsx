@@ -1417,14 +1417,12 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
               setModeIkutiKompas(false);
               setBearing(0);
               if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-              setPesanSalin("Posisi sekarang (Menghadap Utara)");
             } else {
               // Klik 2: Jika sudah di posisi sekarang -> arah peta mengikuti kompas sensor HP
               setModeIkutiGps("kompas");
               setModeIkutiKompas(true);
               void aktifkanKompas();
               if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-              setPesanSalin("Peta mengikuti arah kompas HP");
             }
           }}
           onZoomMasuk={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
@@ -1567,48 +1565,50 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
 
       {modeRekam === "point" && !bukaModalForm && (
         <div className="field-resume-draft">
-          <span style={{ fontSize: "0.8rem", fontWeight: 600, marginRight: 4 }}>
+          <span className="field-resume-coord" style={{ fontSize: "0.8rem", fontWeight: 600, marginRight: 4 }}>
             🎯 {center.lat.toFixed(5)}°, {center.lng.toFixed(5)}°
           </span>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => {
-              const ptTengah: KoordinatTitik = {
-                lat: Number(center.lat.toFixed(7)),
-                lng: Number(center.lng.toFixed(7)),
-                timestamp: new Date().toISOString()
-              };
-              setTitikDraft([ptTengah]);
-              setBukaModalForm(true);
-            }}
-          >
-            Di Tanda +
-          </button>
-          {gpsPos && (
+          <div className="field-resume-actions">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                const ptTengah: KoordinatTitik = {
+                  lat: Number(center.lat.toFixed(7)),
+                  lng: Number(center.lng.toFixed(7)),
+                  timestamp: new Date().toISOString()
+                };
+                setTitikDraft([ptTengah]);
+                setBukaModalForm(true);
+              }}
+            >
+              Di Tanda +
+            </button>
+            {gpsPos && (
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() => {
+                  setTitikDraft([gpsPos]);
+                  setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+                  setBukaModalForm(true);
+                }}
+              >
+                Di GPS Saya
+              </button>
+            )}
             <button
               type="button"
               className="btn-outline-sm"
               onClick={() => {
-                setTitikDraft([gpsPos]);
-                setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-                setBukaModalForm(true);
+                setModeRekam(null);
+                setTitikDraft([]);
+                form.kosongkan();
               }}
             >
-              Di GPS Saya
+              Batal
             </button>
-          )}
-          <button
-            type="button"
-            className="btn-outline-sm"
-            onClick={() => {
-              setModeRekam(null);
-              setTitikDraft([]);
-              form.kosongkan();
-            }}
-          >
-            Batal
-          </button>
+          </div>
         </div>
       )}
       {/* MODAL FORM PENYIMPANAN ATRIBUT SURVEI LAPANGAN */}

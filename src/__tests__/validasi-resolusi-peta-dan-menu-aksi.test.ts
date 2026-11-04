@@ -24,7 +24,7 @@ describe("Resolusi peta adaptif (tajam namun ringan)", () => {
   it("skala render memenuhi batas sisi dan total piksel", () => {
     const skala = hitungSkalaRender(2000, 1000, hp);
     expect(2000 * skala).toBeLessThanOrEqual(hp.sisiMaks + 1);
-    expect(2000 * skala * (1000 * skala)).toBeLessThanOrEqual(hp.pikselMaks * 1.01);
+    expect(2000 * skala * (1000 * skala)).toBeLessThan(hp.pikselMaks * 1.01);
     // lembar kecil dirender lebih besar (tajam), tapi dibatasi skala maksimum
     expect(hitungSkalaRender(100, 100, pc)).toBe(8);
     // area peta yang kecil di halaman besar tetap mendapat skala tinggi (bukan ikut ukuran halaman)
@@ -63,5 +63,25 @@ describe("Menu aksi data admin di HP", () => {
     expect(sumber).toContain('className="aksi-data-desktop"');
     expect(css).toMatch(/\.aksi-data-trigger\s*\{\s*display:\s*none;/);
     expect(css).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.aksi-data-desktop\s*\{\s*display:\s*none !important;/);
+  });
+});
+
+describe("Hapus badge Posisi sekarang (Menghadap Utara) & pengambilan titik ramping sejajar di HP", () => {
+  const sumberMap = readFileSync(resolve(__dirname, "../components/InteractiveMap.tsx"), "utf8");
+  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
+
+  it("tidak memunculkan tanda 'Posisi sekarang (Menghadap Utara)' namun fitur GPS bertahap tetap dipertahankan", () => {
+    expect(sumberMap).not.toContain("Posisi sekarang (Menghadap Utara)");
+    expect(sumberMap).toContain('setModeIkutiGps("posisi")');
+    expect(sumberMap).toContain('setModeIkutiGps("kompas")');
+    expect(sumberMap).toContain("setBearing(0)");
+    expect(sumberMap).toContain("setModeIkutiKompas(true)");
+  });
+
+  it("pengambilan titik di HP merampingkan kartu dan menyejajarkan Di Tanda +, Di GPS Saya, dan Batal", () => {
+    expect(sumberMap).toContain('className="field-resume-actions"');
+    expect(css).toMatch(/\.field-resume-actions\s*\{\s*display:\s*contents;/);
+    expect(css).toMatch(/\.field-resume-actions\s*\{[\s\S]*?flex-direction:\s*row !important;[\s\S]*?flex-wrap:\s*nowrap !important;/);
+    expect(css).toMatch(/\.field-resume-draft button\s*\{[\s\S]*?min-height:\s*30px !important;/);
   });
 });
