@@ -1244,148 +1244,224 @@ function buatThumbnailDataUrlDariKanvas(kanvasSumber: HTMLCanvasElement, sisiMak
 
 /**
  * Memasang polyfill metode ES2025/ES2026 (Map.prototype.getOrInsertComputed, WeakMap.prototype.getOrInsertComputed,
- * Promise.withResolvers, URL.parse, Math.sumPrecise, Uint8Array.prototype.toHex) yang dibutuhkan oleh pdfjs-dist v5/v6
- * agar berjalan mulus di WebView Android, PWA seluler, Safari iOS, dan peramban HP yang belum mendukungnya secara bawaan.
+ * Promise.withResolvers, Promise.try, URL.parse, Math.sumPrecise, Uint8Array.prototype.toHex) yang dibutuhkan oleh pdfjs-dist v5/v6
+ * baik di main thread maupun di dalam Web Worker (melalui interseptor Blob & Worker) agar berjalan mulus di WebView Android,
+ * PWA seluler terinstal, Safari iOS, dan peramban HP.
  */
 export function pasangPolyfillPdfJs(): void {
-  const mapProto = Map.prototype as unknown as {
-    getOrInsertComputed?: <K, V>(this: Map<K, V>, key: K, callbackfn: (key: K) => V) => V;
-    getOrInsert?: <K, V>(this: Map<K, V>, key: K, defaultValue: V) => V;
-  };
-  if (typeof mapProto.getOrInsertComputed !== "function") {
-    Object.defineProperty(Map.prototype, "getOrInsertComputed", {
-      value: function getOrInsertComputed<K, V>(this: Map<K, V>, key: K, callbackfn: (key: K) => V): V {
-        if (typeof callbackfn !== "function") {
-          throw new TypeError("Callback harus berupa fungsi.");
-        }
-        const k = Object.is(key, -0) ? (+0 as unknown as K) : key;
-        if (this.has(k)) return this.get(k) as V;
-        const val = callbackfn(k);
-        this.set(k, val);
-        return val;
-      },
-      configurable: true,
-      writable: true
-    });
-  }
-  if (typeof mapProto.getOrInsert !== "function") {
-    Object.defineProperty(Map.prototype, "getOrInsert", {
-      value: function getOrInsert<K, V>(this: Map<K, V>, key: K, defaultValue: V): V {
-        const k = Object.is(key, -0) ? (+0 as unknown as K) : key;
-        if (this.has(k)) return this.get(k) as V;
-        this.set(k, defaultValue);
-        return defaultValue;
-      },
-      configurable: true,
-      writable: true
-    });
-  }
-
-  const weakMapProto = WeakMap.prototype as unknown as {
-    getOrInsertComputed?: <K extends object, V>(this: WeakMap<K, V>, key: K, callbackfn: (key: K) => V) => V;
-    getOrInsert?: <K extends object, V>(this: WeakMap<K, V>, key: K, defaultValue: V) => V;
-  };
-  if (typeof weakMapProto.getOrInsertComputed !== "function") {
-    Object.defineProperty(WeakMap.prototype, "getOrInsertComputed", {
-      value: function getOrInsertComputed<K extends object, V>(this: WeakMap<K, V>, key: K, callbackfn: (key: K) => V): V {
-        if (typeof callbackfn !== "function") {
-          throw new TypeError("Callback harus berupa fungsi.");
-        }
-        if (this.has(key)) return this.get(key) as V;
-        const val = callbackfn(key);
-        this.set(key, val);
-        return val;
-      },
-      configurable: true,
-      writable: true
-    });
-  }
-  if (typeof weakMapProto.getOrInsert !== "function") {
-    Object.defineProperty(WeakMap.prototype, "getOrInsert", {
-      value: function getOrInsert<K extends object, V>(this: WeakMap<K, V>, key: K, defaultValue: V): V {
-        if (this.has(key)) return this.get(key) as V;
-        this.set(key, defaultValue);
-        return defaultValue;
-      },
-      configurable: true,
-      writable: true
-    });
-  }
-
-  const promiseStatic = Promise as unknown as {
-    withResolvers?: <T>() => {
-      promise: Promise<T>;
-      resolve: (value: T | PromiseLike<T>) => void;
-      reject: (reason?: unknown) => void;
-    };
-  };
-  if (typeof promiseStatic.withResolvers !== "function") {
-    Object.defineProperty(Promise, "withResolvers", {
-      value: function withResolvers<T>() {
-        let resolve!: (value: T | PromiseLike<T>) => void;
-        let reject!: (reason?: unknown) => void;
-        const promise = new Promise<T>((res, rej) => {
-          resolve = res;
-          reject = rej;
+  function terapkanPolyfillInti(): void {
+    if (typeof Map !== "undefined") {
+      const mapProto = Map.prototype as unknown as {
+        getOrInsertComputed?: <K, V>(this: Map<K, V>, key: K, callbackfn: (key: K) => V) => V;
+        getOrInsert?: <K, V>(this: Map<K, V>, key: K, defaultValue: V) => V;
+      };
+      if (typeof mapProto.getOrInsertComputed !== "function") {
+        Object.defineProperty(Map.prototype, "getOrInsertComputed", {
+          value: function getOrInsertComputed<K, V>(this: Map<K, V>, key: K, callbackfn: (key: K) => V): V {
+            if (typeof callbackfn !== "function") {
+              throw new TypeError("Callback harus berupa fungsi.");
+            }
+            const k = Object.is(key, -0) ? (+0 as unknown as K) : key;
+            if (this.has(k)) return this.get(k) as V;
+            const val = callbackfn(k);
+            this.set(k, val);
+            return val;
+          },
+          configurable: true,
+          writable: true
         });
-        return { promise, resolve, reject };
-      },
-      configurable: true,
-      writable: true
-    });
-  }
+      }
+      if (typeof mapProto.getOrInsert !== "function") {
+        Object.defineProperty(Map.prototype, "getOrInsert", {
+          value: function getOrInsert<K, V>(this: Map<K, V>, key: K, defaultValue: V): V {
+            const k = Object.is(key, -0) ? (+0 as unknown as K) : key;
+            if (this.has(k)) return this.get(k) as V;
+            this.set(k, defaultValue);
+            return defaultValue;
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+    }
 
-  if (typeof URL !== "undefined") {
-    const urlStatic = URL as unknown as {
-      parse?: (url: string, base?: string) => URL | null;
+    if (typeof WeakMap !== "undefined") {
+      const weakMapProto = WeakMap.prototype as unknown as {
+        getOrInsertComputed?: <K extends object, V>(this: WeakMap<K, V>, key: K, callbackfn: (key: K) => V) => V;
+        getOrInsert?: <K extends object, V>(this: WeakMap<K, V>, key: K, defaultValue: V) => V;
+      };
+      if (typeof weakMapProto.getOrInsertComputed !== "function") {
+        Object.defineProperty(WeakMap.prototype, "getOrInsertComputed", {
+          value: function getOrInsertComputed<K extends object, V>(this: WeakMap<K, V>, key: K, callbackfn: (key: K) => V): V {
+            if (typeof callbackfn !== "function") {
+              throw new TypeError("Callback harus berupa fungsi.");
+            }
+            if (this.has(key)) return this.get(key) as V;
+            const val = callbackfn(key);
+            this.set(key, val);
+            return val;
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+      if (typeof weakMapProto.getOrInsert !== "function") {
+        Object.defineProperty(WeakMap.prototype, "getOrInsert", {
+          value: function getOrInsert<K extends object, V>(this: WeakMap<K, V>, key: K, defaultValue: V): V {
+            if (this.has(key)) return this.get(key) as V;
+            this.set(key, defaultValue);
+            return defaultValue;
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+    }
+
+    if (typeof Promise !== "undefined") {
+      const promiseStatic = Promise as unknown as {
+        withResolvers?: <T>() => {
+          promise: Promise<T>;
+          resolve: (value: T | PromiseLike<T>) => void;
+          reject: (reason?: unknown) => void;
+        };
+        try?: <T>(fn: (...args: unknown[]) => T | PromiseLike<T>, ...args: unknown[]) => Promise<T>;
+      };
+      if (typeof promiseStatic.withResolvers !== "function") {
+        Object.defineProperty(Promise, "withResolvers", {
+          value: function withResolvers<T>() {
+            let resolve!: (value: T | PromiseLike<T>) => void;
+            let reject!: (reason?: unknown) => void;
+            const promise = new Promise<T>((res, rej) => {
+              resolve = res;
+              reject = rej;
+            });
+            return { promise, resolve, reject };
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+      if (typeof promiseStatic.try !== "function") {
+        Object.defineProperty(Promise, "try", {
+          value: function promiseTry<T>(fn: (...args: unknown[]) => T | PromiseLike<T>, ...args: unknown[]): Promise<T> {
+            return new Promise<T>((resolve) => {
+              resolve(fn(...args));
+            });
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+    }
+
+    if (typeof URL !== "undefined") {
+      const urlStatic = URL as unknown as {
+        parse?: (url: string, base?: string) => URL | null;
+      };
+      if (typeof urlStatic.parse !== "function") {
+        Object.defineProperty(URL, "parse", {
+          value: function parse(url: string, base?: string): URL | null {
+            try {
+              return base !== undefined ? new URL(url, base) : new URL(url);
+            } catch {
+              return null;
+            }
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+    }
+
+    const mathStatic = Math as unknown as {
+      sumPrecise?: (items: Iterable<number>) => number;
     };
-    if (typeof urlStatic.parse !== "function") {
-      Object.defineProperty(URL, "parse", {
-        value: function parse(url: string, base?: string): URL | null {
-          try {
-            return base !== undefined ? new URL(url, base) : new URL(url);
-          } catch {
-            return null;
-          }
+    if (typeof mathStatic.sumPrecise !== "function") {
+      Object.defineProperty(Math, "sumPrecise", {
+        value: function sumPrecise(items: Iterable<number>): number {
+          let sum = 0;
+          for (const n of items) sum += Number(n);
+          return sum;
         },
         configurable: true,
         writable: true
       });
     }
+
+    if (typeof Uint8Array !== "undefined") {
+      const u8Proto = Uint8Array.prototype as unknown as {
+        toHex?: (this: Uint8Array) => string;
+      };
+      if (typeof u8Proto.toHex !== "function") {
+        Object.defineProperty(Uint8Array.prototype, "toHex", {
+          value: function toHex(this: Uint8Array): string {
+            let out = "";
+            for (let i = 0; i < this.length; i++) {
+              out += this[i].toString(16).padStart(2, "0");
+            }
+            return out;
+          },
+          configurable: true,
+          writable: true
+        });
+      }
+    }
   }
 
-  const mathStatic = Math as unknown as {
-    sumPrecise?: (items: Iterable<number>) => number;
+  terapkanPolyfillInti();
+
+  // Pastikan setiap Web Worker yang dibuat untuk merender PDF juga menerima polyfill di dalam thread Worker-nya sendiri
+  const win = globalThis as unknown as {
+    __agyWorkerPatched?: boolean;
+    Blob?: typeof Blob;
+    Worker?: typeof Worker;
+    location?: Location;
   };
-  if (typeof mathStatic.sumPrecise !== "function") {
-    Object.defineProperty(Math, "sumPrecise", {
-      value: function sumPrecise(items: Iterable<number>): number {
-        let sum = 0;
-        for (const n of items) sum += Number(n);
-        return sum;
-      },
-      configurable: true,
-      writable: true
-    });
-  }
+  if (typeof win !== "undefined" && !win.__agyWorkerPatched && typeof win.Worker === "function" && typeof win.Blob === "function") {
+    win.__agyWorkerPatched = true;
+    const kodePolyfillWorker = `/* __agyPdfPolyfill */(${terapkanPolyfillInti.toString()})();\n`;
+    const OrigBlob = win.Blob;
+    const PatchedBlob = function Blob(blobParts?: BlobPart[], options?: BlobPropertyBag) {
+      if (Array.isArray(blobParts) && blobParts.length > 0) {
+        const adaImport = blobParts.some(
+          (p) => typeof p === "string" && p.includes("import(") && !p.includes("__agyPdfPolyfill")
+        );
+        if (adaImport) {
+          blobParts = [kodePolyfillWorker, ...blobParts];
+        }
+      }
+      return options !== undefined ? new OrigBlob(blobParts, options) : new OrigBlob(blobParts);
+    } as unknown as typeof Blob;
+    PatchedBlob.prototype = OrigBlob.prototype;
+    Object.setPrototypeOf(PatchedBlob, OrigBlob);
+    win.Blob = PatchedBlob;
 
-  if (typeof Uint8Array !== "undefined") {
-    const u8Proto = Uint8Array.prototype as unknown as {
-      toHex?: (this: Uint8Array) => string;
-    };
-    if (typeof u8Proto.toHex !== "function") {
-      Object.defineProperty(Uint8Array.prototype, "toHex", {
-        value: function toHex(this: Uint8Array): string {
-          let out = "";
-          for (let i = 0; i < this.length; i++) {
-            out += this[i].toString(16).padStart(2, "0");
-          }
-          return out;
-        },
-        configurable: true,
-        writable: true
-      });
-    }
+    const OrigWorker = win.Worker;
+    const PatchedWorker = function Worker(scriptURL: string | URL, options?: WorkerOptions) {
+      const urlStr = String(scriptURL || "");
+      if (
+        urlStr &&
+        !urlStr.startsWith("blob:") &&
+        !urlStr.startsWith("data:") &&
+        (options?.type === "module" || urlStr.includes("pdf"))
+      ) {
+        try {
+          const baseHref = win.location?.href || "http://localhost/";
+          const fullUrl = new URL(urlStr, baseHref).href;
+          const blob = new OrigBlob([`${kodePolyfillWorker}await import(${JSON.stringify(fullUrl)});\n`], {
+            type: "text/javascript"
+          });
+          return new OrigWorker(URL.createObjectURL(blob), { ...(options || {}), type: "module" });
+        } catch {
+          // Lanjutkan ke OrigWorker jika pembuatan Blob URL gagal
+        }
+      }
+      return options !== undefined ? new OrigWorker(scriptURL, options) : new OrigWorker(scriptURL);
+    } as unknown as typeof Worker;
+    PatchedWorker.prototype = OrigWorker.prototype;
+    Object.setPrototypeOf(PatchedWorker, OrigWorker);
+    win.Worker = PatchedWorker;
   }
 }
 
@@ -1398,33 +1474,94 @@ pasangPolyfillPdfJs();
  */
 export async function muatPdfJs(): Promise<typeof import("pdfjs-dist")> {
   pasangPolyfillPdfJs();
-  const g = globalThis as unknown as { pdfjsWorker?: unknown };
-  if (!g.pdfjsWorker) {
+  const g = globalThis as unknown as { pdfjsWorker?: { WorkerMessageHandler?: unknown } };
+  if (!g.pdfjsWorker?.WorkerMessageHandler) {
+    const ekstrakHandler = (mod: unknown) => {
+      const m = mod as { WorkerMessageHandler?: unknown; default?: { WorkerMessageHandler?: unknown } } | null;
+      return m?.WorkerMessageHandler || m?.default?.WorkerMessageHandler || g.pdfjsWorker?.WorkerMessageHandler || null;
+    };
     try {
       // @ts-expect-error sub-path worker legacy tidak memiliki deklarasi tipe terpisah
       const workerMod = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs");
-      g.pdfjsWorker = workerMod;
+      const h = ekstrakHandler(workerMod);
+      if (h) g.pdfjsWorker = { WorkerMessageHandler: h };
     } catch {
-      // Abaikan di lingkungan pengujian unit
+      try {
+        // @ts-expect-error sub-path worker standar tidak memiliki deklarasi tipe terpisah
+        const workerMod2 = await import("pdfjs-dist/build/pdf.worker.min.mjs");
+        const h2 = ekstrakHandler(workerMod2);
+        if (h2) g.pdfjsWorker = { WorkerMessageHandler: h2 };
+      } catch {
+        if (typeof window !== "undefined" && window.location?.href) {
+          try {
+            const localWorkerUrl = new URL("./pdf.worker.min.mjs", window.location.href).href;
+            const workerMod3 = await import(/* @vite-ignore */ localWorkerUrl);
+            const h3 = ekstrakHandler(workerMod3);
+            if (h3) g.pdfjsWorker = { WorkerMessageHandler: h3 };
+          } catch {
+            // Abaikan di lingkungan pengujian unit
+          }
+        }
+      }
     }
   }
+
   let pdfjs: typeof import("pdfjs-dist");
   try {
-    pdfjs = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as typeof import("pdfjs-dist");
+    const modLegacy = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as typeof import("pdfjs-dist") & {
+      default?: typeof import("pdfjs-dist");
+    };
+    pdfjs = (modLegacy.default || modLegacy) as typeof import("pdfjs-dist");
   } catch {
-    pdfjs = await import("pdfjs-dist");
+    const modStd = (await import("pdfjs-dist")) as unknown as typeof import("pdfjs-dist") & {
+      default?: typeof import("pdfjs-dist");
+    };
+    pdfjs = (modStd.default || modStd) as typeof import("pdfjs-dist");
   }
+
   try {
     if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-        import.meta.url
-      ).toString();
+      if (typeof window !== "undefined" && window.location?.href && !window.location.href.startsWith("about:")) {
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("./pdf.worker.min.mjs", window.location.href).href;
+      } else {
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+          import.meta.url
+        ).toString();
+      }
     }
   } catch {
     // Abaikan jika URL worker tidak didukung di lingkungan uji
   }
   return pdfjs;
+}
+
+async function buatDataUrlPersistenDariKanvas(canvas: HTMLCanvasElement): Promise<string> {
+  try {
+    const jpegUrl = canvas.toDataURL("image/jpeg", 0.9);
+    if (jpegUrl && jpegUrl.startsWith("data:image/") && jpegUrl.length > 64) {
+      return jpegUrl;
+    }
+  } catch {
+    // Lanjut ke PNG atau Blob
+  }
+  try {
+    const pngUrl = canvas.toDataURL("image/png");
+    if (pngUrl && pngUrl.startsWith("data:image/") && pngUrl.length > 64) {
+      return pngUrl;
+    }
+  } catch {
+    // Lanjut ke Blob
+  }
+  if (typeof canvas.toBlob === "function") {
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (blob) return URL.createObjectURL(blob);
+    } catch {
+      // Abaikan
+    }
+  }
+  return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 }
 
 function buatKanvasCadanganGeoPdf(ref: Partial<ReferensiGeoPdf>, lebar = 1024, tinggi = 1024): HTMLCanvasElement | null {
@@ -1474,14 +1611,15 @@ export async function renderHalamanPdfBiasa(
 }> {
   pasangPolyfillPdfJs();
   const buffer = await file.arrayBuffer();
-  const pdfjs = await muatPdfJs();
 
   try {
+    const pdfjs = await muatPdfJs();
     const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
     try {
       const page = await pdf.getPage(1);
       const vp1 = page.getViewport({ scale: 1 });
-      const scale = Math.min(maxDim / Math.max(vp1.width, vp1.height, 1), 3);
+      const maxCanvasDim = Math.min(maxDim, 2048);
+      const scale = Math.min(maxCanvasDim / Math.max(vp1.width, vp1.height, 1), 3);
       const viewport = page.getViewport({ scale });
 
       const canvas = document.createElement("canvas");
@@ -1495,8 +1633,7 @@ export async function renderHalamanPdfBiasa(
       await page.render({ canvasContext: ctx, canvas, viewport }).promise;
 
       const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(canvas, 240);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-      const dataUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/png");
+      const dataUrl = await buatDataUrlPersistenDariKanvas(canvas);
 
       return {
         dataUrl,
@@ -1515,7 +1652,7 @@ export async function renderHalamanPdfBiasa(
     const sz = p1 ? p1.getSize() : { width: 600, height: 800 };
     const cadangan = buatKanvasCadanganGeoPdf({ crsDeskripsi: "Dokumen PDF" }, Math.round(sz.width), Math.round(sz.height));
     const thumb = cadangan ? buatThumbnailDataUrlDariKanvas(cadangan, 240) : undefined;
-    const dataUrl = thumb || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    const dataUrl = cadangan ? await buatDataUrlPersistenDariKanvas(cadangan) : thumb || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     return {
       dataUrl,
       thumbnailDataUrl: thumb,
@@ -1543,7 +1680,12 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
       const bboxW = Math.max(1, x2 - x1);
       const bboxH = Math.max(1, y2 - y1);
 
-      const scale = Math.min(maxDim / Math.max(bboxW, bboxH), 4);
+      const maxCanvasDim = Math.min(maxDim, 2048);
+      const scale = Math.min(
+        maxCanvasDim / Math.max(bboxW, bboxH, 1),
+        maxCanvasDim / Math.max(vp1.width, vp1.height, 1),
+        4
+      );
       const viewport = page.getViewport({ scale });
 
       const pageCanvas = document.createElement("canvas");
@@ -1569,9 +1711,7 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
       cropCtx.drawImage(pageCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
       const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(cropCanvas, 240);
-
-      const blob = await new Promise<Blob | null>((resolve) => cropCanvas.toBlob(resolve, "image/png"));
-      const hasilUrl = blob ? URL.createObjectURL(blob) : cropCanvas.toDataURL("image/png");
+      const hasilUrl = await buatDataUrlPersistenDariKanvas(cropCanvas);
 
       return {
         ...ref,
@@ -1591,15 +1731,9 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
     const sh = Math.max(256, Math.round(y2 - y1) || 800);
     const cadanganCanvas = buatKanvasCadanganGeoPdf(ref, sw, sh);
     const thumbnailDataUrl = cadanganCanvas ? buatThumbnailDataUrlDariKanvas(cadanganCanvas, 240) : undefined;
-    let hasilUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-    if (cadanganCanvas) {
-      try {
-        const blob = await new Promise<Blob | null>((resolve) => cadanganCanvas.toBlob(resolve, "image/png"));
-        hasilUrl = blob ? URL.createObjectURL(blob) : cadanganCanvas.toDataURL("image/png");
-      } catch {
-        hasilUrl = thumbnailDataUrl || hasilUrl;
-      }
-    }
+    const hasilUrl = cadanganCanvas
+      ? await buatDataUrlPersistenDariKanvas(cadanganCanvas)
+      : thumbnailDataUrl || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     return {
       ...ref,
       dataUrl: hasilUrl,
