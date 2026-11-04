@@ -1317,6 +1317,31 @@ body {
   border-radius: 99px;
 }
 
+.nav-notif-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.6);
+  pointer-events: none;
+  animation: notif-dot-pulse 2s infinite ease-in-out;
+}
+
+@keyframes notif-dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.85;
+  }
+}
+
 /* =========================================================
    MODUL PETA INTERAKTIF, GDRIVE, SERTIFIKAT & DISKUSI
    ========================================================= */
