@@ -229,28 +229,28 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
             className={`tier-pill ${filterTier === "pemula" ? "active" : ""}`}
             onClick={() => setFilterTier("pemula")}
           >
-            Pemula (Lvl 1–5)
+            Pemula (1–5)
           </button>
           <button
             type="button"
             className={`tier-pill ${filterTier === "pelaksana" ? "active" : ""}`}
             onClick={() => setFilterTier("pelaksana")}
           >
-            Pelaksana (Lvl 6–10)
+            Pelaksana (6–10)
           </button>
           <button
             type="button"
             className={`tier-pill ${filterTier === "utama" ? "active" : ""}`}
             onClick={() => setFilterTier("utama")}
           >
-            Utama (Lvl 11–15)
+            Utama (11–15)
           </button>
           <button
             type="button"
             className={`tier-pill ${filterTier === "ahli" ? "active" : ""}`}
             onClick={() => setFilterTier("ahli")}
           >
-            Ahli (Lvl 16–20)
+            Ahli (16–20)
           </button>
         </div>
       </div>
@@ -258,7 +258,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       {/* DAFTAR KARTU KADER & KONTROL HOK */}
       <div className="panel-user-cards-grid">
         {kaderTersaring.map((kader) => {
-          
+          const tierRingkas = kader.tierNama.replace(/^Kader\s+/i, "");
 
           return (
             <div key={kader.idKader} className="kader-user-level-card">
@@ -269,17 +269,21 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                     <span className="kader-avatar-lvl">{kader.level}</span>
                   </div>
                   <div className="kader-profile-info">
-                    <h4 className="kader-name">{kader.nama}</h4>
+                    <h4 className="kader-name" title={kader.nama}>{kader.nama}</h4>
                     <div className="kader-id-desa">
                       <span className="kader-id-badge">{kader.idKader}</span>
-                      <span className="kader-desa-badge">{kader.desaWilayah}</span>
+                      <span className="kader-desa-badge" title={kader.desaWilayah}>{kader.desaWilayah}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="kader-tier-badge" style={{ backgroundColor: `${kader.tierBadgeColor}15`, color: kader.tierBadgeColor, borderColor: `${kader.tierBadgeColor}40` }}>
+                <div
+                  className="kader-tier-badge"
+                  title={`Level ${kader.level} • ${kader.tierNama}`}
+                  style={{ backgroundColor: `${kader.tierBadgeColor}15`, color: kader.tierBadgeColor, borderColor: `${kader.tierBadgeColor}40` }}
+                >
                   <LogoSertifikatResmiSvg size={14} warna={kader.tierBadgeColor} />
-                  <span>Level {kader.level} • {kader.tierNama}</span>
+                  <span>Lvl {kader.level} • {tierRingkas}</span>
                 </div>
               </div>
 

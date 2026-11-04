@@ -48,7 +48,7 @@ describe("Resolusi peta adaptif (tajam namun ringan)", () => {
   });
 });
 
-describe("Menu aksi data admin di HP", () => {
+describe("Menu aksi data admin di PC/Tablet & HP", () => {
   const sumber = readFileSync(resolve(__dirname, "../components/AdminDashboardView.tsx"), "utf8");
   const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
 
@@ -59,10 +59,10 @@ describe("Menu aksi data admin di HP", () => {
     expect(sumber).toContain("aksi-data-trigger");
   });
 
-  it("deretan tombol lama hanya disembunyikan di HP; desktop/tablet tidak berubah", () => {
+  it("PC/tablet dan HP sama-sama menggunakan tombol Aksi rapi dan menyembunyikan deretan tombol lama", () => {
     expect(sumber).toContain('className="aksi-data-desktop"');
-    expect(css).toMatch(/\.aksi-data-trigger\s*\{\s*display:\s*none;/);
-    expect(css).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.aksi-data-desktop\s*\{\s*display:\s*none !important;/);
+    expect(css).toMatch(/\.aksi-data-desktop\s*\{\s*display:\s*none !important;/);
+    expect(css).toMatch(/\.aksi-data-trigger\s*\{[\s\S]*?display:\s*inline-flex;/);
   });
 });
 
@@ -105,5 +105,29 @@ describe("Optimasi kelancaran peta (tidak berat/liar) & menu hapus pustaka tidak
     expect(sumberPustaka).toContain("buka-atas");
     expect(css).toMatch(/\.avenza-row-dropdown\.buka-atas[\s\S]*?bottom:\s*calc\(100% \+ 6px\) !important;/);
     expect(css).toMatch(/\.avenza-row-dropdown button\s*\{[\s\S]*?min-height:\s*36px !important;/);
+  });
+});
+
+describe("Label menu satu baris (anti ke-enter), status level kader sejajar di HP, & kotak dialog InspektorObjek rapi", () => {
+  const sumberLevel = readFileSync(resolve(__dirname, "../components/PanelDataUserLevel.tsx"), "utf8");
+  const sumberInspektor = readFileSync(resolve(__dirname, "../components/peta/InspektorObjek.tsx"), "utf8");
+  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
+
+  it("mempersingkat label filter tier level dan menahan status level kader dalam 1 baris sejajar tanpa digeser ke bawah", () => {
+    expect(sumberLevel).toContain("Pemula (1–5)");
+    expect(sumberLevel).toContain("Pelaksana (6–10)");
+    expect(sumberLevel).toContain("Utama (11–15)");
+    expect(sumberLevel).toContain("Ahli (16–20)");
+    expect(sumberLevel).toContain("Lvl {kader.level} • {tierRingkas}");
+    expect(css).toMatch(/\.kader-card-top-row\s*\{[\s\S]*?flex-wrap:\s*nowrap;/);
+    expect(css).toMatch(/text-overflow:\s*ellipsis;/);
+  });
+
+  it("menata ulang kotak dialog InspektorObjek untuk titik, jalur, dan poligon baik di PC/tablet maupun HP", () => {
+    expect(sumberInspektor).toContain("awal={55}");
+    expect(sumberInspektor).toContain("inspector-summary-strip");
+    expect(sumberInspektor).toContain("inspector-badges-row");
+    expect(css).toContain(".field-sheet.field-inspector-sheet");
+    expect(css).toContain(".workspace-map .field-sheet.field-inspector-sheet");
   });
 });

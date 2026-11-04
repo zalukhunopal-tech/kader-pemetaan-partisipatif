@@ -24,70 +24,120 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   onTambahPembaruanObjek,
   onGoTo,
   onTutup
-}) => (
-  <BottomSheet judul={objek.judul} onTutup={onTutup} awal={25} className="field-inspector-sheet">
-    <div className="inspector-header">
-      <div>
-        <span className="badge-kategori">{objek.kategori}</span>
-        <span className={`badge-sync status-${objek.statusSinkron}`}>{objek.statusSinkron.toUpperCase()}</span>
-        <p className="dqa-badge">
-          Kualitas {hitungSkorKualitasData(objek).grade} · {hitungSkorKualitasData(objek).skor}/100
-        </p>
-      </div>
-      <button type="button" className="btn-icon-close" onClick={onTutup}>
-        <X size={18} />
-      </button>
-    </div>
+}) => {
+  const dqa = hitungSkorKualitasData(objek);
+  const koordUtama = objek.koordinat[0];
+  const labelGeometri =
+    objek.jenisGeometri === "point"
+      ? "📍 Titik"
+      : objek.jenisGeometri === "line"
+        ? "〰️ Jalur"
+        : "⬠ Poligon";
+  const infoUkuran =
+    objek.jenisGeometri === "point"
+      ? `1 Titik${koordUtama?.akurasi ? ` (±${Math.round(koordUtama.akurasi)} m)` : ""}`
+      : objek.jenisGeometri === "line"
+        ? `${(objek.panjangKm || 0).toFixed(2)} km • ${objek.koordinat.length} titik`
+        : `${(objek.luasHa || 0).toFixed(2)} Ha • ${objek.koordinat.length} titik`;
 
-    <div className="inspector-grid">
-      <div>
-        <p className="inspector-desc">{objek.deskripsi}</p>
-        <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-          <button
-            type="button"
-            className="btn-primary-sm"
-            onClick={() =>
-              onGoTo({
-                lat: objek.koordinat[0].lat,
-                lng: objek.koordinat[0].lng,
-                judul: objek.judul
-              })
-            }
-          >
-            <Navigation size={14} /> Navigasi Go-To
-          </button>
+  return (
+    <BottomSheet judul={objek.judul} onTutup={onTutup} awal={55} className="field-inspector-sheet">
+      <div className="inspector-header">
+        <div className="inspector-badges-row">
+          <span className="inspector-geo-pill">{labelGeometri}</span>
+          <span className="badge-kategori">{objek.kategori}</span>
+          <span className={`badge-sync status-${objek.statusSinkron}`} style={{ marginLeft: 0 }}>
+            {objek.statusSinkron.toUpperCase()}
+          </span>
+          <span className="dqa-badge">
+            Kualitas {dqa.grade} · {dqa.skor}/100
+          </span>
+        </div>
+        <button type="button" className="btn-icon-close" onClick={onTutup}>
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="inspector-summary-strip">
+        <div className="inspector-summary-item">
+          <span className="inspector-summary-label">Koordinat</span>
+          <strong className="inspector-summary-val">
+            {koordUtama ? `${koordUtama.lat.toFixed(5)}°, ${koordUtama.lng.toFixed(5)}°` : "-"}
+          </strong>
+        </div>
+        <div className="inspector-summary-item">
+          <span className="inspector-summary-label">Geometri & Ukuran</span>
+          <strong className="inspector-summary-val">{infoUkuran}</strong>
         </div>
       </div>
 
-      <div className="inspector-update-box">
-        <h5>
-          <RefreshCw size={14} /> Perbarui Kondisi
-        </h5>
-        <input
-          type="text"
-          className="form-input"
-          placeholder="Kondisi terbaru..."
-          value={kondisiUpdateInput}
-          onChange={(e) => setKondisiUpdateInput(e.target.value)}
-        />
-        <p className="text-xs text-muted" style={{ margin: "6px 0 0" }}>
-          Satu pembaruan per objek setiap {JEDA_PEMBARUAN_JAM} jam.
-        </p>
-        <button
-          type="button"
-          className="btn-primary-sm"
-          style={{ marginTop: "8px", width: "100%" }}
-          onClick={() => {
-            if (!kondisiUpdateInput.trim()) return;
-            const diterima = onTambahPembaruanObjek(objek.id, sanitasiTeksInput(kondisiUpdateInput.trim()), "");
-            if (diterima) {
-              setKondisiUpdateInput("");
-            }
-          }}
-        >
-          + Simpan Pembaruan
-        </button>
+      <div className="inspector-grid">
+        <div className="inspector-main-col">
+          <div className="inspector-desc-box">
+            <p className="inspector-desc">{objek.deskripsi || "Tidak ada catatan deskripsi tambahan."}</p>
+            <div className="inspector-meta-line">
+              <span>{objek.namaKader}</span>
+              <span>•</span>
+              <span>{objek.desaWilayah}</span>
+            </div>
+          </div>
+
+          {koordUtama && (
+            <button
+              type="button"
+              className="btn-primary-sm inspector-goto-btn"
+              onClick={() =>
+                onGoTo({
+                  lat: koordUtama.lat,
+                  lng: koordUtama.lng,
+                  judul: objek.judul
+                })
+              }
+            >
+              <Navigation size={14} /> Navigasi Go-To
+            </button>
+          )}
+        </div>
+
+        <div className="inspector-update-box">
+          <h5>
+            <RefreshCw size={14} /> Perbarui Kondisi
+          </h5>
+          {objek.riwayatPembaruan && objek.riwayatPembaruan.length > 0 && (
+            <div className="update-history-list">
+              {objek.riwayatPembaruan.slice(-2).map((r) => (
+                <div key={r.id} className="update-history-item">
+                  <strong>{r.kondisiTerbaru}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Kondisi terbaru..."
+            value={kondisiUpdateInput}
+            onChange={(e) => setKondisiUpdateInput(e.target.value)}
+          />
+          <p className="text-xs text-muted" style={{ margin: "6px 0 0" }}>
+            Satu pembaruan per objek setiap {JEDA_PEMBARUAN_JAM} jam.
+          </p>
+          <button
+            type="button"
+            className="btn-primary-sm"
+            style={{ marginTop: "8px", width: "100%" }}
+            onClick={() => {
+              if (!kondisiUpdateInput.trim()) return;
+              const diterima = onTambahPembaruanObjek(objek.id, sanitasiTeksInput(kondisiUpdateInput.trim()), "");
+              if (diterima) {
+                setKondisiUpdateInput("");
+              }
+            }}
+          >
+            + Simpan Pembaruan
+          </button>
+        </div>
       </div>
-    </div>
-  </BottomSheet>
-);
+    </BottomSheet>
+  );
+};
