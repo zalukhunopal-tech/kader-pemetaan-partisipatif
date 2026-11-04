@@ -10775,3 +10775,57 @@ html[data-field-theme="matahari"] .section-card h2 {
     white-space: nowrap;
   }
 }
+
+/* =========================================================
+   PENGAMBILAN TITIK (.field-resume-draft): RAMPING & SEJAJAR DI HP
+   Desktop/tablet tetap memakai tata letak aslinya via display: contents.
+   ========================================================= */
+.field-resume-actions {
+  display: contents;
+}
+
+@media (max-width: 640px) {
+  .field-resume-draft {
+    bottom: 22px !important;
+    left: 8px !important;
+    right: 54px !important;
+    max-width: calc(100vw - 62px) !important;
+    padding: 6px 8px !important;
+    gap: 5px !important;
+    border-radius: 12px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .field-resume-coord {
+    font-size: 0.72rem !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .field-resume-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 5px !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+  }
+
+  .field-resume-draft .field-resume-actions button,
+  .field-resume-draft button {
+    min-height: 30px !important;
+    height: 30px !important;
+    min-width: 0 !important;
+    padding: 0 9px !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    border-radius: 99px !important;
+    white-space: nowrap !important;
+    flex: 1 1 auto !important;
+  }
+}
