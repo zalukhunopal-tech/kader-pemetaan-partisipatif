@@ -110,8 +110,10 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
           type="button"
           className={`pustaka-tab-nav-btn ${tabAktif === "lapisan_berkas" ? "active" : ""}`}
           onClick={() => setTabAktif("lapisan_berkas")}
+          title="Lapisan Berkas"
         >
-          Lapisan Berkas
+          <span className="pustaka-tab-label-full">Lapisan Berkas</span>
+          <span className="pustaka-tab-label-short">Lapisan</span>
         </button>
         <button
           type="button"
