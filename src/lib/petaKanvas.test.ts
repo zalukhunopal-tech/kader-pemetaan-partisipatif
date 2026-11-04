@@ -142,7 +142,7 @@ describe("gambarLapisanPeta", () => {
     expect(radiusAkurasi(18, 90).kipas).toBe(true);
   });
 
-  it("rekaman poligon ditutup dan diisi; titik terakhir rekaman ditandai merah", () => {
+  it("rekaman poligon ditutup dan diisi; garis lurus solid tanpa titik-titik berantai", () => {
     const { ctx, panggilan } = kanvasTiruan();
     const titikDraft = [
       { lat: -1, lng: 100 },
@@ -152,8 +152,15 @@ describe("gambarLapisanPeta", () => {
     gambarLapisanPeta(ctx, lapisanDasar({ modeRekam: "polygon", titikDraft }));
     expect(panggilan("closePath")).toHaveLength(1);
     expect(panggilan("=fillStyle").map((c) => c.argumen[0])).toContain("rgba(251, 191, 36, 0.28)");
-    expect(panggilan("arc").filter((c) => c.argumen[2] === 6)).toHaveLength(3);
-    expect(panggilan("=fillStyle").filter((c) => c.argumen[0] === "#ef4444")).toHaveLength(1);
+    // Garis lurus saja, bukan berupa titik-titik pada tiap koordinat
+    expect(panggilan("arc").filter((c) => c.argumen[2] === 6)).toHaveLength(0);
+    expect(panggilan("stroke").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rekaman draft dengan 1 titik menampilkan penanda titik awal", () => {
+    const { ctx, panggilan } = kanvasTiruan();
+    gambarLapisanPeta(ctx, lapisanDasar({ modeRekam: "line", titikDraft: [{ lat: -1, lng: 100 }] }));
+    expect(panggilan("arc").filter((c) => c.argumen[2] === 6)).toHaveLength(1);
   });
 
   it("garis Go-To hanya digambar bila posisi GPS sudah ada", () => {

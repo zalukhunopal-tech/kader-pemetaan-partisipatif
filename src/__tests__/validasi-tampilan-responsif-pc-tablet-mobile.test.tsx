@@ -97,7 +97,7 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     const cssPath = path.resolve(__dirname, "../styles/app.css");
     const css = fs.readFileSync(cssPath, "utf8");
 
-    expect(css).toContain("repeat(auto-fill, minmax(310px, 1fr))");
+    expect(css).toContain("grid-template-columns: minmax(0, 1fr);");
 
     // Render PanelDataUserLevel
     const html = renderToString(
@@ -309,5 +309,21 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
     // Profil wrap dan nama kader terpotong rapi dengan ellipsis jika nama panjang
     expect(css).toContain("text-overflow: ellipsis;");
     expect(css).toContain(".kader-tier-badge {");
+  });
+
+  it("19. PanelDataUserLevel kartu kader memanjang penuh di PC/tablet dan label metrik rapi tanpa ubah mobile", () => {
+    const cssPath = path.resolve(__dirname, "../styles/app.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    // Di PC/tablet kartu kader memanjang penuh (1fr) tidak terpotong sempit di sisi kiri
+    expect(css).toMatch(/@media \(min-width: 680px\) \{[\s\S]*?\.panel-user-cards-grid \{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+    expect(css).toMatch(/@media \(min-width: 1200px\) \{[\s\S]*?\.panel-user-cards-grid \{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+
+    // Di PC/tablet metrik strip 4 kolom lega dan metric-pill memiliki ruang & padding rapi
+    expect(css).toMatch(/@media \(min-width: 640px\) \{[\s\S]*?\.kader-metrics-strip \{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/@media \(min-width: 640px\) \{[\s\S]*?\.metric-pill \{[\s\S]*?padding:\s*8px 12px;/);
+
+    // Di mobile (< 640px) metrik tetap 2 kolom kompak dan tidak terganggu
+    expect(css).toMatch(/@media \(max-width: 640px\) \{[\s\S]*?\.kader-metrics-strip \{[\s\S]*?gap:\s*6px;/);
   });
 });
