@@ -661,14 +661,13 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
         const arsip = await ambilArsipPeta(petaKustomAktif.id);
         if (dibatalkan || !arsip || !arsip.berkas) return;
 
-        const { bacaReferensiGeoPdf } = await import("../lib/geoPdf");
+        const { bacaReferensiGeoPdf, muatPdfJs } = await import("../lib/geoPdf");
         const buffer = await arsip.berkas.arrayBuffer();
         if (dibatalkan) return;
         const ref = await bacaReferensiGeoPdf(buffer);
         if (dibatalkan) return;
 
-        const pdfjs = await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+        const pdfjs = await muatPdfJs();
         const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
         try {
           if (dibatalkan) return;

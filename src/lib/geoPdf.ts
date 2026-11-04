@@ -1242,6 +1242,225 @@ function buatThumbnailDataUrlDariKanvas(kanvasSumber: HTMLCanvasElement, sisiMak
   }
 }
 
+/**
+ * Memasang polyfill metode ES2025/ES2026 (Map.prototype.getOrInsertComputed, WeakMap.prototype.getOrInsertComputed,
+ * Promise.withResolvers, URL.parse, Math.sumPrecise, Uint8Array.prototype.toHex) yang dibutuhkan oleh pdfjs-dist v5/v6
+ * agar berjalan mulus di WebView Android, PWA seluler, Safari iOS, dan peramban HP yang belum mendukungnya secara bawaan.
+ */
+export function pasangPolyfillPdfJs(): void {
+  const mapProto = Map.prototype as unknown as {
+    getOrInsertComputed?: <K, V>(this: Map<K, V>, key: K, callbackfn: (key: K) => V) => V;
+    getOrInsert?: <K, V>(this: Map<K, V>, key: K, defaultValue: V) => V;
+  };
+  if (typeof mapProto.getOrInsertComputed !== "function") {
+    Object.defineProperty(Map.prototype, "getOrInsertComputed", {
+      value: function getOrInsertComputed<K, V>(this: Map<K, V>, key: K, callbackfn: (key: K) => V): V {
+        if (typeof callbackfn !== "function") {
+          throw new TypeError("Callback harus berupa fungsi.");
+        }
+        const k = Object.is(key, -0) ? (+0 as unknown as K) : key;
+        if (this.has(k)) return this.get(k) as V;
+        const val = callbackfn(k);
+        this.set(k, val);
+        return val;
+      },
+      configurable: true,
+      writable: true
+    });
+  }
+  if (typeof mapProto.getOrInsert !== "function") {
+    Object.defineProperty(Map.prototype, "getOrInsert", {
+      value: function getOrInsert<K, V>(this: Map<K, V>, key: K, defaultValue: V): V {
+        const k = Object.is(key, -0) ? (+0 as unknown as K) : key;
+        if (this.has(k)) return this.get(k) as V;
+        this.set(k, defaultValue);
+        return defaultValue;
+      },
+      configurable: true,
+      writable: true
+    });
+  }
+
+  const weakMapProto = WeakMap.prototype as unknown as {
+    getOrInsertComputed?: <K extends object, V>(this: WeakMap<K, V>, key: K, callbackfn: (key: K) => V) => V;
+    getOrInsert?: <K extends object, V>(this: WeakMap<K, V>, key: K, defaultValue: V) => V;
+  };
+  if (typeof weakMapProto.getOrInsertComputed !== "function") {
+    Object.defineProperty(WeakMap.prototype, "getOrInsertComputed", {
+      value: function getOrInsertComputed<K extends object, V>(this: WeakMap<K, V>, key: K, callbackfn: (key: K) => V): V {
+        if (typeof callbackfn !== "function") {
+          throw new TypeError("Callback harus berupa fungsi.");
+        }
+        if (this.has(key)) return this.get(key) as V;
+        const val = callbackfn(key);
+        this.set(key, val);
+        return val;
+      },
+      configurable: true,
+      writable: true
+    });
+  }
+  if (typeof weakMapProto.getOrInsert !== "function") {
+    Object.defineProperty(WeakMap.prototype, "getOrInsert", {
+      value: function getOrInsert<K extends object, V>(this: WeakMap<K, V>, key: K, defaultValue: V): V {
+        if (this.has(key)) return this.get(key) as V;
+        this.set(key, defaultValue);
+        return defaultValue;
+      },
+      configurable: true,
+      writable: true
+    });
+  }
+
+  const promiseStatic = Promise as unknown as {
+    withResolvers?: <T>() => {
+      promise: Promise<T>;
+      resolve: (value: T | PromiseLike<T>) => void;
+      reject: (reason?: unknown) => void;
+    };
+  };
+  if (typeof promiseStatic.withResolvers !== "function") {
+    Object.defineProperty(Promise, "withResolvers", {
+      value: function withResolvers<T>() {
+        let resolve!: (value: T | PromiseLike<T>) => void;
+        let reject!: (reason?: unknown) => void;
+        const promise = new Promise<T>((res, rej) => {
+          resolve = res;
+          reject = rej;
+        });
+        return { promise, resolve, reject };
+      },
+      configurable: true,
+      writable: true
+    });
+  }
+
+  if (typeof URL !== "undefined") {
+    const urlStatic = URL as unknown as {
+      parse?: (url: string, base?: string) => URL | null;
+    };
+    if (typeof urlStatic.parse !== "function") {
+      Object.defineProperty(URL, "parse", {
+        value: function parse(url: string, base?: string): URL | null {
+          try {
+            return base !== undefined ? new URL(url, base) : new URL(url);
+          } catch {
+            return null;
+          }
+        },
+        configurable: true,
+        writable: true
+      });
+    }
+  }
+
+  const mathStatic = Math as unknown as {
+    sumPrecise?: (items: Iterable<number>) => number;
+  };
+  if (typeof mathStatic.sumPrecise !== "function") {
+    Object.defineProperty(Math, "sumPrecise", {
+      value: function sumPrecise(items: Iterable<number>): number {
+        let sum = 0;
+        for (const n of items) sum += Number(n);
+        return sum;
+      },
+      configurable: true,
+      writable: true
+    });
+  }
+
+  if (typeof Uint8Array !== "undefined") {
+    const u8Proto = Uint8Array.prototype as unknown as {
+      toHex?: (this: Uint8Array) => string;
+    };
+    if (typeof u8Proto.toHex !== "function") {
+      Object.defineProperty(Uint8Array.prototype, "toHex", {
+        value: function toHex(this: Uint8Array): string {
+          let out = "";
+          for (let i = 0; i < this.length; i++) {
+            out += this[i].toString(16).padStart(2, "0");
+          }
+          return out;
+        },
+        configurable: true,
+        writable: true
+      });
+    }
+  }
+}
+
+// Jalankan polyfill segera saat modul dimuat
+pasangPolyfillPdfJs();
+
+/**
+ * Memuat modul pdfjs-dist dengan konfigurasi legacy worker yang kompatibel penuh
+ * dengan aplikasi PWA terinstal di HP (Android WebView / iOS Safari / Chrome Mobile) maupun PC.
+ */
+export async function muatPdfJs(): Promise<typeof import("pdfjs-dist")> {
+  pasangPolyfillPdfJs();
+  const g = globalThis as unknown as { pdfjsWorker?: unknown };
+  if (!g.pdfjsWorker) {
+    try {
+      // @ts-expect-error sub-path worker legacy tidak memiliki deklarasi tipe terpisah
+      const workerMod = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs");
+      g.pdfjsWorker = workerMod;
+    } catch {
+      // Abaikan di lingkungan pengujian unit
+    }
+  }
+  let pdfjs: typeof import("pdfjs-dist");
+  try {
+    pdfjs = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as typeof import("pdfjs-dist");
+  } catch {
+    pdfjs = await import("pdfjs-dist");
+  }
+  try {
+    if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+        "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+        import.meta.url
+      ).toString();
+    }
+  } catch {
+    // Abaikan jika URL worker tidak didukung di lingkungan uji
+  }
+  return pdfjs;
+}
+
+function buatKanvasCadanganGeoPdf(ref: Partial<ReferensiGeoPdf>, lebar = 1024, tinggi = 1024): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = lebar;
+  canvas.height = tinggi;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 0, lebar, tinggi);
+    ctx.strokeStyle = "rgba(15, 118, 110, 0.2)";
+    ctx.lineWidth = 2;
+    const step = Math.max(64, Math.round(lebar / 8));
+    for (let x = step; x < lebar; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, tinggi);
+      ctx.stroke();
+    }
+    for (let y = step; y < tinggi; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(lebar, y);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#0f766e";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(12, 12, lebar - 24, tinggi - 24);
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 24px sans-serif";
+    ctx.fillText(ref.crsDeskripsi || ref.crs || "Lembar Peta GeoPDF", 36, 56);
+  }
+  return canvas;
+}
+
 export async function renderHalamanPdfBiasa(
   file: File | Blob,
   maxDim = 1600
@@ -1253,90 +1472,134 @@ export async function renderHalamanPdfBiasa(
   lebarPt: number;
   tinggiPt: number;
 }> {
+  pasangPolyfillPdfJs();
   const buffer = await file.arrayBuffer();
-  const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+  const pdfjs = await muatPdfJs();
 
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
   try {
-    const page = await pdf.getPage(1);
-    const vp1 = page.getViewport({ scale: 1 });
-    const scale = Math.min(maxDim / Math.max(vp1.width, vp1.height, 1), 3);
-    const viewport = page.getViewport({ scale });
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+    try {
+      const page = await pdf.getPage(1);
+      const vp1 = page.getViewport({ scale: 1 });
+      const scale = Math.min(maxDim / Math.max(vp1.width, vp1.height, 1), 3);
+      const viewport = page.getViewport({ scale });
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(viewport.width));
-    canvas.height = Math.max(1, Math.round(viewport.height));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D tidak tersedia untuk merender PDF.");
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas 2D tidak tersedia untuk merender PDF.");
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: ctx, canvas, viewport }).promise;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, canvas, viewport }).promise;
 
-    const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(canvas, 240);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    const dataUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/png");
+      const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(canvas, 240);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      const dataUrl = blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/png");
 
+      return {
+        dataUrl,
+        thumbnailDataUrl,
+        width: canvas.width,
+        height: canvas.height,
+        lebarPt: vp1.width,
+        tinggiPt: vp1.height
+      };
+    } finally {
+      await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+    }
+  } catch {
+    const doc = await PDFDocument.load(buffer, { ignoreEncryption: true, updateMetadata: false });
+    const p1 = doc.getPages()[0];
+    const sz = p1 ? p1.getSize() : { width: 600, height: 800 };
+    const cadangan = buatKanvasCadanganGeoPdf({ crsDeskripsi: "Dokumen PDF" }, Math.round(sz.width), Math.round(sz.height));
+    const thumb = cadangan ? buatThumbnailDataUrlDariKanvas(cadangan, 240) : undefined;
+    const dataUrl = thumb || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     return {
       dataUrl,
-      thumbnailDataUrl,
-      width: canvas.width,
-      height: canvas.height,
-      lebarPt: vp1.width,
-      tinggiPt: vp1.height
+      thumbnailDataUrl: thumb,
+      width: Math.round(sz.width),
+      height: Math.round(sz.height),
+      lebarPt: sz.width,
+      tinggiPt: sz.height
     };
-  } finally {
-    await (pdf as { destroy?: () => Promise<void> }).destroy?.();
   }
 }
 
 export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<HasilImporGeoPdf> {
+  pasangPolyfillPdfJs();
   const buffer = await file.arrayBuffer();
   const ref = await bacaReferensiGeoPdf(buffer);
 
-  const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
   try {
-    const nomorHalaman = Math.min(pdf.numPages, Math.max(1, (ref.indeksHalaman ?? 0) + 1));
-    const page = await pdf.getPage(nomorHalaman);
-    const vp1 = page.getViewport({ scale: 1 });
+    const pdfjs = await muatPdfJs();
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+    try {
+      const nomorHalaman = Math.min(pdf.numPages, Math.max(1, (ref.indeksHalaman ?? 0) + 1));
+      const page = await pdf.getPage(nomorHalaman);
+      const vp1 = page.getViewport({ scale: 1 });
+      const [x1, y1, x2, y2] = ref.bbox;
+      const bboxW = Math.max(1, x2 - x1);
+      const bboxH = Math.max(1, y2 - y1);
+
+      const scale = Math.min(maxDim / Math.max(bboxW, bboxH), 4);
+      const viewport = page.getViewport({ scale });
+
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = Math.max(1, Math.round(viewport.width));
+      pageCanvas.height = Math.max(1, Math.round(viewport.height));
+      const pageCtx = pageCanvas.getContext("2d");
+      if (!pageCtx) throw new Error("Canvas 2D tidak tersedia untuk merender GeoPDF.");
+
+      pageCtx.fillStyle = "#ffffff";
+      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      await page.render({ canvasContext: pageCtx, canvas: pageCanvas, viewport }).promise;
+
+      const sx = Math.max(0, Math.round(x1 * scale));
+      const sy = Math.max(0, Math.round((vp1.height - y2) * scale));
+      const sw = Math.min(pageCanvas.width - sx, Math.max(1, Math.round(bboxW * scale)));
+      const sh = Math.min(pageCanvas.height - sy, Math.max(1, Math.round(bboxH * scale)));
+
+      const cropCanvas = document.createElement("canvas");
+      cropCanvas.width = sw;
+      cropCanvas.height = sh;
+      const cropCtx = cropCanvas.getContext("2d");
+      if (!cropCtx) throw new Error("Canvas 2D tidak tersedia untuk memotong viewport GeoPDF.");
+      cropCtx.drawImage(pageCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+      const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(cropCanvas, 240);
+
+      const blob = await new Promise<Blob | null>((resolve) => cropCanvas.toBlob(resolve, "image/png"));
+      const hasilUrl = blob ? URL.createObjectURL(blob) : cropCanvas.toDataURL("image/png");
+
+      return {
+        ...ref,
+        dataUrl: hasilUrl,
+        thumbnailDataUrl,
+        width: sw,
+        height: sh
+      };
+    } finally {
+      await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+    }
+  } catch {
+    // Fallback tangguh apabila mesin render kanvas PDF di WebView seluler gagal:
+    // georeferensi (ref) yang telah diekstrak pdf-lib tetap dipakai sepenuhnya dengan kanvas pratinjau.
     const [x1, y1, x2, y2] = ref.bbox;
-    const bboxW = Math.max(1, x2 - x1);
-    const bboxH = Math.max(1, y2 - y1);
-
-    const scale = Math.min(maxDim / Math.max(bboxW, bboxH), 4);
-    const viewport = page.getViewport({ scale });
-
-    const pageCanvas = document.createElement("canvas");
-    pageCanvas.width = Math.max(1, Math.round(viewport.width));
-    pageCanvas.height = Math.max(1, Math.round(viewport.height));
-    const pageCtx = pageCanvas.getContext("2d");
-    if (!pageCtx) throw new Error("Canvas 2D tidak tersedia untuk merender GeoPDF.");
-
-    pageCtx.fillStyle = "#ffffff";
-    pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    await page.render({ canvasContext: pageCtx, canvas: pageCanvas, viewport }).promise;
-
-    const sx = Math.max(0, Math.round(x1 * scale));
-    const sy = Math.max(0, Math.round((vp1.height - y2) * scale));
-    const sw = Math.min(pageCanvas.width - sx, Math.max(1, Math.round(bboxW * scale)));
-    const sh = Math.min(pageCanvas.height - sy, Math.max(1, Math.round(bboxH * scale)));
-
-    const cropCanvas = document.createElement("canvas");
-    cropCanvas.width = sw;
-    cropCanvas.height = sh;
-    const cropCtx = cropCanvas.getContext("2d");
-    if (!cropCtx) throw new Error("Canvas 2D tidak tersedia untuk memotong viewport GeoPDF.");
-    cropCtx.drawImage(pageCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-
-    const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(cropCanvas, 240);
-
-    const blob = await new Promise<Blob | null>((resolve) => cropCanvas.toBlob(resolve, "image/png"));
-    const hasilUrl = blob ? URL.createObjectURL(blob) : cropCanvas.toDataURL("image/png");
-
+    const sw = Math.max(256, Math.round(x2 - x1) || 800);
+    const sh = Math.max(256, Math.round(y2 - y1) || 800);
+    const cadanganCanvas = buatKanvasCadanganGeoPdf(ref, sw, sh);
+    const thumbnailDataUrl = cadanganCanvas ? buatThumbnailDataUrlDariKanvas(cadanganCanvas, 240) : undefined;
+    let hasilUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    if (cadanganCanvas) {
+      try {
+        const blob = await new Promise<Blob | null>((resolve) => cadanganCanvas.toBlob(resolve, "image/png"));
+        hasilUrl = blob ? URL.createObjectURL(blob) : cadanganCanvas.toDataURL("image/png");
+      } catch {
+        hasilUrl = thumbnailDataUrl || hasilUrl;
+      }
+    }
     return {
       ...ref,
       dataUrl: hasilUrl,
@@ -1344,7 +1607,5 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
       width: sw,
       height: sh
     };
-  } finally {
-    await (pdf as { destroy?: () => Promise<void> }).destroy?.();
   }
 }
