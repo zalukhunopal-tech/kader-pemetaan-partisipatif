@@ -128,6 +128,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
+  const detailGeoPdfRef = useRef<{
+    id: string;
+    canvas: HTMLCanvasElement;
+    minLat: number;
+    maxLat: number;
+    minLng: number;
+    maxLng: number;
+  } | null>(null);
   const [bukaInfoPetaKustom, setBukaInfoPetaKustom] = useState<boolean>(false);
   const [cariKoordInput, setCariKoordInput] = useState<string>("");
   const [cariKoordTerbuka, setCariKoordTerbuka] = useState<boolean>(false);
@@ -582,6 +590,22 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       }
     }
 
+    if (
+      petaKustomAktif &&
+      detailGeoPdfRef.current &&
+      detailGeoPdfRef.current.id === petaKustomAktif.id &&
+      zoom >= 15
+    ) {
+      const det = detailGeoPdfRef.current;
+      const pNW = latLngToPixel(det.maxLat, det.minLng, W, H);
+      const pSE = latLngToPixel(det.minLat, det.maxLng, W, H);
+      const dW = pSE.x - pNW.x;
+      const dH = pSE.y - pNW.y;
+      if (dW > 4 && dH > 4) {
+        ctx.drawImage(det.canvas, pNW.x, pNW.y, dW, dH);
+      }
+    }
+
     gambarLapisanPeta(ctx, {
       W,
       H,
@@ -615,6 +639,103 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     ukuranCanvas,
     renderTick
   ]);
+
+  // Render progresif detail tajam (High-DPI) untuk lembar GeoPDF saat pengguna berhenti menggeser/memperbesar (debounce 180ms)
+  useEffect(() => {
+    if (!petaKustomAktif || zoom < 15) {
+      detailGeoPdfRef.current = null;
+      return;
+    }
+    const isGeoPdf =
+      petaKustomAktif.formatGeoref === "iso32000" ||
+      petaKustomAktif.formatGeoref === "ogc-lgi" ||
+      petaKustomAktif.thumbnailType === "geopdf_sheet";
+    if (!isGeoPdf) return;
+
+    let dibatalkan = false;
+    let renderTaskAktif: { cancel: () => void } | null = null;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const { ambilArsipPeta } = await import("../lib/penyimpananPetaLuring");
+        const arsip = await ambilArsipPeta(petaKustomAktif.id);
+        if (dibatalkan || !arsip || !arsip.berkas) return;
+
+        const { bacaReferensiGeoPdf } = await import("../lib/geoPdf");
+        const buffer = await arsip.berkas.arrayBuffer();
+        if (dibatalkan) return;
+        const ref = await bacaReferensiGeoPdf(buffer);
+        if (dibatalkan) return;
+
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+        const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+        try {
+          if (dibatalkan) return;
+          const hal = Math.min(pdf.numPages, Math.max(1, (ref.indeksHalaman ?? 0) + 1));
+          const page = await pdf.getPage(hal);
+          const vp1 = page.getViewport({ scale: 1 });
+          const [x1, y1, x2, y2] = ref.bbox;
+          const bboxW = Math.max(1, x2 - x1);
+          const bboxH = Math.max(1, y2 - y1);
+          const targetDim = Math.min(3072, Math.round(1024 * Math.pow(1.35, Math.min(4, zoom - 14))));
+          const scale = Math.min(targetDim / Math.max(bboxW, bboxH), 5);
+          const viewport = page.getViewport({ scale });
+
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = Math.max(1, Math.round(viewport.width));
+          pageCanvas.height = Math.max(1, Math.round(viewport.height));
+          const pageCtx = pageCanvas.getContext("2d");
+          if (!pageCtx || dibatalkan) return;
+          pageCtx.fillStyle = "#ffffff";
+          pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+          const task = page.render({ canvasContext: pageCtx, canvas: pageCanvas, viewport });
+          renderTaskAktif = task;
+          await task.promise;
+          if (dibatalkan) return;
+
+          const sx = Math.max(0, Math.round(x1 * scale));
+          const sy = Math.max(0, Math.round((vp1.height - y2) * scale));
+          const sw = Math.min(pageCanvas.width - sx, Math.max(1, Math.round(bboxW * scale)));
+          const sh = Math.min(pageCanvas.height - sy, Math.max(1, Math.round(bboxH * scale)));
+
+          const cropCanvas = document.createElement("canvas");
+          cropCanvas.width = sw;
+          cropCanvas.height = sh;
+          const cropCtx = cropCanvas.getContext("2d");
+          if (!cropCtx) return;
+          cropCtx.drawImage(pageCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+          detailGeoPdfRef.current = {
+            id: petaKustomAktif.id,
+            canvas: cropCanvas,
+            minLat: ref.minLat,
+            maxLat: ref.maxLat,
+            minLng: ref.minLng,
+            maxLng: ref.maxLng
+          };
+          setRenderTick((t) => t + 1);
+        } finally {
+          await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+        }
+      } catch {
+        // Abaikan jika render progresif dibatalkan atau gagal
+      }
+    }, 180);
+
+    return () => {
+      dibatalkan = true;
+      window.clearTimeout(timer);
+      if (renderTaskAktif) {
+        try {
+          renderTaskAktif.cancel();
+        } catch {
+          //
+        }
+      }
+    };
+  }, [petaKustomAktif?.id, zoom]);
 
   /** Dua jari menyentuh: inisialisasi gestur 2 jari dengan intent locking (Avenza & Google Earth style) */
   const mulaiDuaJari = (kanvas: HTMLElement) => {
@@ -917,7 +1038,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     if (jenis === "point") {
       setTitikDraft([ptAwal]);
       form.setKategoriInput("Flora");
-      setBukaModalForm(true);
+      setBukaModalForm(false);
     } else {
       setTitikDraft([ptAwal]);
       form.setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Flora");
@@ -1227,6 +1348,21 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           gpsTersedia={Boolean(gpsPos)}
           ikutiKompas={modeIkutiKompas}
           onGps={() => {
+            if (petaKustomAktif && gpsPos) {
+              const diDalam =
+                gpsPos.lat >= petaKustomAktif.minLat &&
+                gpsPos.lat <= petaKustomAktif.maxLat &&
+                gpsPos.lng >= petaKustomAktif.minLng &&
+                gpsPos.lng <= petaKustomAktif.maxLng;
+              if (!diDalam) {
+                const tengah = {
+                  lat: (petaKustomAktif.minLat + petaKustomAktif.maxLat) / 2,
+                  lng: (petaKustomAktif.minLng + petaKustomAktif.maxLng) / 2
+                };
+                const jarakKm = (hitungJarakMeter(gpsPos, tengah) / 1000).toFixed(1).replace(".", ",");
+                setPesanSalin(`Posisi Anda di luar area peta ini (±${jarakKm} km dari tengah peta).`);
+              }
+            }
             const now = Date.now();
             const selisih = now - lastGpsClickRef.current;
             lastGpsClickRef.current = now;
@@ -1390,9 +1526,37 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
 
       {modeRekam === "point" && !bukaModalForm && (
         <div className="field-resume-draft">
-          <button type="button" className="btn-primary" onClick={() => setBukaModalForm(true)}>
-            Lanjutkan draf titik
+          <span style={{ fontSize: "0.8rem", fontWeight: 600, marginRight: 4 }}>
+            🎯 {center.lat.toFixed(5)}°, {center.lng.toFixed(5)}°
+          </span>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              const ptTengah: KoordinatTitik = {
+                lat: Number(center.lat.toFixed(7)),
+                lng: Number(center.lng.toFixed(7)),
+                timestamp: new Date().toISOString()
+              };
+              setTitikDraft([ptTengah]);
+              setBukaModalForm(true);
+            }}
+          >
+            Di Tanda +
           </button>
+          {gpsPos && (
+            <button
+              type="button"
+              className="btn-outline-sm"
+              onClick={() => {
+                setTitikDraft([gpsPos]);
+                setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+                setBukaModalForm(true);
+              }}
+            >
+              Di GPS Saya
+            </button>
+          )}
           <button
             type="button"
             className="btn-outline-sm"
@@ -1402,7 +1566,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
               form.kosongkan();
             }}
           >
-            Buang draf
+            Batal
           </button>
         </div>
       )}
@@ -1469,8 +1633,41 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
               </div>
               <div className="avenza-info-row">
                 <span className="info-label">Sistem Koordinat (CRS)</span>
-                <span className="info-val">WGS 1984 / UTM Zona 50N</span>
+                <span className="info-val">{petaKustomAktif.crsDeskripsi || petaKustomAktif.crs || "WGS 1984 / UTM Zona 50N"}</span>
               </div>
+              {petaKustomAktif.formatGeoref && (
+                <div className="avenza-info-row">
+                  <span className="info-label">Format Georeferensi</span>
+                  <span className="info-val">
+                    {petaKustomAktif.formatGeoref === "iso32000" && "ISO 32000 (/VP Measure GEO)"}
+                    {petaKustomAktif.formatGeoref === "ogc-lgi" && "OGC TerraGo (/LGIDict)"}
+                    {petaKustomAktif.formatGeoref === "geotiff" && "GeoTIFF Raster (Tag 33550 & 33922)"}
+                    {petaKustomAktif.formatGeoref === "mbtiles" && "MBTiles SQLite Tile Archive"}
+                    {petaKustomAktif.formatGeoref === "pmtiles" && "PMTiles Protomaps Archive"}
+                    {petaKustomAktif.formatGeoref === "manual" && "Kalibrasi Manual 2 Sudut"}
+                  </span>
+                </div>
+              )}
+              {petaKustomAktif.metodeTransformasi && (
+                <div className="avenza-info-row">
+                  <span className="info-label">Metode Transformasi</span>
+                  <span className="info-val">
+                    {petaKustomAktif.metodeTransformasi === "afin-proyeksi" && "Regresi Afin Terproyeksi"}
+                    {petaKustomAktif.metodeTransformasi === "afin-geografis" && "Regresi Afin Geografis"}
+                    {petaKustomAktif.metodeTransformasi === "homografi" && "Homografi Projektif 3×3 (DLT)"}
+                  </span>
+                </div>
+              )}
+              {petaKustomAktif.sisaMeter !== undefined && petaKustomAktif.sisaMeter !== null && (
+                <div className="avenza-info-row">
+                  <span className="info-label">Selisih di Titik Kontrol</span>
+                  <span className="info-val">
+                    {petaKustomAktif.sisaMeter < 0.1
+                      ? "< 0,1 m (akurat)"
+                      : `±${petaKustomAktif.sisaMeter.toFixed(1).replace(".", ",")} m`}
+                  </span>
+                </div>
+              )}
               <div className="avenza-info-row">
                 <span className="info-label">Batas Geografis</span>
                 <span className="info-val">

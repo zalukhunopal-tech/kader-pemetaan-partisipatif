@@ -122,7 +122,8 @@ function tanganiPosisi(pos: GeolocationPosition) {
     setState({ posisiTerakhir: pt, galat: "Lonjakan GPS diabaikan; menunggu posisi stabil." });
     return;
   }
-  if (akhir && hitungJarakMeter(akhir, pt) < JARAK_MIN_METER) {
+  const jarakMinAdaptif = Math.max(JARAK_MIN_METER, (pt.akurasi ?? 0) / 2);
+  if (akhir && hitungJarakMeter(akhir, pt) < jarakMinAdaptif) {
     setState({ posisiTerakhir: pt, galat: null });
     return;
   }

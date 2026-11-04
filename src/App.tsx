@@ -49,7 +49,7 @@ import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
-import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta } from "./lib/penyimpananPetaLuring";
+import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta, rehidrasiArsipGeoPdf } from "./lib/penyimpananPetaLuring";
 import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import { perekamLatar, usePerekamLatar } from "./lib/perekamLatar";
@@ -214,9 +214,24 @@ export const App: React.FC = () => {
   useEffect(() => simpanKaderAktif(kaderAktifList), [kaderAktifList]);
   useEffect(() => simpanStatusGDrive(statusGDrive), [statusGDrive]);
 
-  // Inisialisasi protokol peta luring (PMTiles & MBTiles) dari penyimpanan IndexedDB
+  // Inisialisasi protokol peta luring (PMTiles & MBTiles) serta rehidrasi GeoPDF dari penyimpanan IndexedDB
   useEffect(() => {
     void muatSemuaArsipPetaKeProtokol();
+    void rehidrasiArsipGeoPdf().then((petaPulih) => {
+      const ids = Object.keys(petaPulih);
+      if (ids.length === 0) return;
+      setAreaOffline((lama) =>
+        lama.map((area) => {
+          const pulih = petaPulih[area.id];
+          if (!pulih) return area;
+          return {
+            ...area,
+            petaKustomDataUrl: pulih.dataUrl,
+            thumbnailDataUrl: area.thumbnailDataUrl || pulih.thumbnailDataUrl
+          };
+        })
+      );
+    });
   }, []);
 
   // Ikuti perubahan koneksi dari browser

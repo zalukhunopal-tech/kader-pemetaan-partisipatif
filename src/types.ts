@@ -224,6 +224,11 @@ export interface AreaPetaOffline {
   /** Templat URL tile saat diunduh (untuk menghapus tile area ini) */
   templateTile?: string;
   jumlahGagal?: number;
+  formatGeoref?: "iso32000" | "ogc-lgi" | "geotiff" | "mbtiles" | "pmtiles" | "manual";
+  metodeTransformasi?: "afin-proyeksi" | "afin-geografis" | "homografi";
+  sisaMeter?: number | null;
+  indeksHalaman?: number;
+  empatSudut?: [number, number][];
 }
 
 export interface LapisanSpasial {

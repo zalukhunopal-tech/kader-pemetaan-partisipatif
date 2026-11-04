@@ -28,6 +28,14 @@ export interface HasilMetadataPeta {
   tinggiPixel?: number;
   resolusiMeter?: number;
   sumberDeteksi: "pmtiles" | "mbtiles" | "geotiff" | "geopdf" | "teks" | "bawaan";
+  zoomMin?: number;
+  zoomMax?: number;
+  thumbnailDataUrl?: string;
+  formatGeoref?: AreaPetaOffline["formatGeoref"];
+  metodeTransformasi?: AreaPetaOffline["metodeTransformasi"];
+  sisaMeter?: number | null;
+  indeksHalaman?: number;
+  empatSudut?: [number, number][];
 }
 
 /** Format angka MB atau km dengan tanda koma (gaya bahasa Indonesia) */
@@ -179,6 +187,10 @@ export async function bacaMetadataBerkasPeta(
   let lebarPixel: number | undefined = undefined;
   let tinggiPixel: number | undefined = undefined;
   let resolusiMeter: number | undefined = undefined;
+  let zoomMin: number | undefined = undefined;
+  let zoomMax: number | undefined = undefined;
+  let thumbnailDataUrl: string | undefined = undefined;
+  let formatGeoref: AreaPetaOffline["formatGeoref"] | undefined = undefined;
   let sumberDeteksi: HasilMetadataPeta["sumberDeteksi"] = "bawaan";
 
   const namaKecil = file.name.toLowerCase();
@@ -219,6 +231,9 @@ export async function bacaMetadataBerkasPeta(
         rentangLng: Number((metaPm.maxLng - metaPm.minLng).toFixed(4)),
         crs: metaPm.crs,
         crsDeskripsi: metaPm.crsDeskripsi,
+        zoomMin: metaPm.minZoom,
+        zoomMax: metaPm.maxZoom,
+        formatGeoref: "pmtiles",
         sumberDeteksi: "pmtiles"
       };
     } catch {
@@ -245,6 +260,7 @@ export async function bacaMetadataBerkasPeta(
         lebarPixel = deteksiTiff.lebarPixel;
         tinggiPixel = deteksiTiff.tinggiPixel;
         resolusiMeter = deteksiTiff.resolusiMeter;
+        formatGeoref = "geotiff";
         sumberDeteksi = "geotiff";
       }
     } catch {
@@ -265,6 +281,10 @@ export async function bacaMetadataBerkasPeta(
       pusatLng = metaMb.pusatLng;
       crs = metaMb.crs;
       crsDeskripsi = metaMb.crsDeskripsi;
+      zoomMin = metaMb.minZoom;
+      zoomMax = metaMb.maxZoom;
+      thumbnailDataUrl = metaMb.thumbnailDataUrl;
+      formatGeoref = "mbtiles";
       sumberDeteksi = "mbtiles";
     } catch {
       try {
@@ -364,6 +384,10 @@ export async function bacaMetadataBerkasPeta(
     lebarPixel,
     tinggiPixel,
     resolusiMeter,
+    zoomMin,
+    zoomMax,
+    thumbnailDataUrl,
+    formatGeoref,
     sumberDeteksi
   };
 }
