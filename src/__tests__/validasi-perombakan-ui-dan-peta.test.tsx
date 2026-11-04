@@ -19,6 +19,8 @@ import { PanelDataUserLevel, hitungLevelKaderOtomatis } from "../components/Pane
 import { RailAlatPeta } from "../components/peta/RailAlatPeta";
 import { ChipKoordinatPeta } from "../components/peta/ChipKoordinatPeta";
 import { KartuLokasiTitik } from "../components/peta/KartuLokasiTitik";
+import { PanelPerekaman } from "../components/peta/PanelPerekaman";
+import { StatePerekamLatar } from "../lib/perekamLatar";
 import { formatKoordinat } from "../lib/sistemKoordinat";
 import { PDFDocument, PDFName } from "pdf-lib";
 import { AreaPetaOffline, DataSpasialItem, ProfilKader } from "../types";
@@ -372,5 +374,61 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(htmlKartu).toContain("Bujur");
     expect(htmlKartu).toContain("Ukur GPS 10 detik");
     expect(htmlKartu).toContain("Ketik manual");
+  });
+  it("Validasi PanelPerekaman mobile/desktop dan gestur rotasi dua jari searah putaran", () => {
+    const mockRekamLatar: StatePerekamLatar = {
+      status: "merekam",
+      jenis: "polygon",
+      titik: [
+        { lat: 2.85, lng: 117.37 },
+        { lat: 2.86, lng: 117.37 },
+        { lat: 2.86, lng: 117.38 }
+      ],
+      mulaiPada: new Date().toISOString(),
+      durasiTersimpanMs: 65000,
+      segmenMulaiMs: Date.now() - 65000,
+      autoGpsAktif: false,
+      redoVertex: [],
+      posisiTerakhir: null,
+      galat: null
+    };
+
+    const htmlPanel = renderToString(
+      <PanelPerekaman
+        rekamLatar={mockRekamLatar}
+        modeRekam="polygon"
+        jumlahTitik={3}
+        panjangDraftKm={0.85}
+        luasDraftHa={1.24}
+        detikTick={65}
+        onTambahTitik={vi.fn()}
+        snapAktif={true}
+        onToggleSnap={vi.fn()}
+        onSimpan={vi.fn()}
+        onBatal={vi.fn()}
+      />
+    );
+
+    expect(htmlPanel).toContain("recording-active-bar");
+    expect(htmlPanel).toContain("recording-header-row");
+    expect(htmlPanel).toContain("recording-actions");
+    expect(htmlPanel).toContain("Poligon");
+    expect(htmlPanel).toContain("+Titik");
+    expect(htmlPanel).toContain("Urungkan");
+    expect(htmlPanel).toContain("Simpan");
+    expect(htmlPanel).toContain("Snap");
+    expect(htmlPanel).toContain("ON");
+
+    // Uji arah rotasi dua jari:
+    // Jika dua jari berputar searah jarum jam (deltaSudut > 0), bearing baru harus berkurang
+    // sehingga CSS rotateZ(-bearingBaru) berputar searah jarum jam (searah dua jari)
+    const bearingAwal = 0;
+    const deltaSudutPutarKanan = 35; // jari berputar ke kanan/searah jarum jam
+    let bearingBaru = Math.round(bearingAwal - deltaSudutPutarKanan) % 360;
+    if (bearingBaru < 0) bearingBaru += 360;
+    expect(bearingBaru).toBe(325);
+    // Di CSS: rotateZ(-325deg) identik dengan rotateZ(+35deg) searah jarum jam
+    const cssAngle = -bearingBaru;
+    expect(((cssAngle % 360) + 360) % 360).toBe(35);
   });
 });

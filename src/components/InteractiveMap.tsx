@@ -815,42 +815,22 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       const absDeltaSudut = Math.abs(deltaSudut);
       const deltaJarak = Math.abs(jarakKini - jarakAwal);
 
-      // Klasifikasi Intent Gestur
-      if (duaJariRef.current.mode === "undecided") {
-        if (absDeltaSudut > 8 && jarakKini > 40) {
-          duaJariRef.current.mode = "rotate_zoom";
-        } else if (deltaJarak > 18) {
-          duaJariRef.current.mode = "zoom_only";
-        }
-      }
-
-      if (duaJariRef.current.mode === "rotate_zoom") {
-        let bearingBaru = Math.round(bearingAwal + deltaSudut) % 360;
+      // Rotasi peta dua jari: orientasi peta berputar searah putaran kedua jari pengguna
+      if (absDeltaSudut >= 2) {
+        let bearingBaru = Math.round(bearingAwal - deltaSudut) % 360;
         if (bearingBaru < 0) bearingBaru += 360;
         setBearing(bearingBaru);
-
-        if (Math.abs(jarakKini / jarakAwal - 1) > 0.04) {
-          const rect = wadahPetaRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
-          const midKini = { x: (p1.clientX + p2.clientX) / 2 - rect.left, y: (p1.clientY + p2.clientY) / 2 - rect.top };
-          const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
-          setZoom(zBaru);
-          setCenter(pusatUntukJangkar(jangkar, zBaru, midKini, rect.width, rect.height));
-        }
-        return;
       }
 
-      if (duaJariRef.current.mode === "zoom_only") {
+      // Perbesar/perkecil (pinch zoom) dan geser posisi jangkar dua jari secara mulus
+      if (jarakKini > 20) {
         const rect = wadahPetaRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
         const midKini = { x: (p1.clientX + p2.clientX) / 2 - rect.left, y: (p1.clientY + p2.clientY) / 2 - rect.top };
         const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
         setZoom(zBaru);
         setCenter(pusatUntukJangkar(jangkar, zBaru, midKini, rect.width, rect.height));
-
-        if (absDeltaSudut > 14) {
-          duaJariRef.current.mode = "rotate_zoom";
-        }
-        return;
       }
+      return;
 
       return;
     }
@@ -1115,7 +1095,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
   const skalaInfo = hitungSkalaPeta(center.lat, zoom);
 
   return (
-    <div className={`map-module-wrapper clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""}`}>
+    <div className={`map-module-wrapper clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""} ${modeRekam && modeRekam !== "point" ? "sedang-merekam" : ""}`}>
       {/* HEADER BAR KHUSUS LEMBAR PETA GEOPDF (AVENZA MAPS STYLE) */}
       {petaKustomAktif && (
         <header className="avenza-map-header-bar">

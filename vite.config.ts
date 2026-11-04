@@ -10,7 +10,13 @@ function polyfillPdfJsMobilePlugin(): Plugin {
   return {
     name: "polyfill-pdfjs-mobile",
     transform(code, id) {
-      if (id.includes("pdfjs-dist") || id.includes("pdf.worker") || code.includes("getOrInsertComputed")) {
+      const cleanId = id.split("?")[0].toLowerCase();
+      // Jangan pernah menyuntikkan teks polyfill ke luar tag script HTML
+      if (cleanId.endsWith(".html")) return null;
+      if (
+        (cleanId.endsWith(".js") || cleanId.endsWith(".mjs") || cleanId.endsWith(".ts")) &&
+        (cleanId.includes("pdfjs-dist") || cleanId.includes("pdf.worker") || cleanId.includes("geopdf"))
+      ) {
         return {
           code: POLYFILL_PRELUDE + code,
           map: null
@@ -19,11 +25,13 @@ function polyfillPdfJsMobilePlugin(): Plugin {
       return null;
     },
     renderChunk(code, chunk) {
-      if (chunk.fileName.includes("pdf") || code.includes("getOrInsertComputed")) {
-        return {
-          code: POLYFILL_PRELUDE + code,
-          map: null
-        };
+      if (chunk.fileName.endsWith(".js") || chunk.fileName.endsWith(".mjs")) {
+        if (chunk.fileName.includes("pdf") && !code.slice(0, 400).includes("Object.defineProperty(Map.prototype")) {
+          return {
+            code: POLYFILL_PRELUDE + code,
+            map: null
+          };
+        }
       }
       return null;
     },

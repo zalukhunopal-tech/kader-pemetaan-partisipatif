@@ -10015,3 +10015,192 @@ html[data-field-theme="matahari"] .section-card h2 {
   max-height: calc(100vh - 240px) !important;
   bottom: 6px !important;
 }
+
+
+/* ==========================================================================
+   RAPINYA PEREKAMAN JALUR & PEMBUATAN POLIGON DI HP/MOBILE
+   (Hanya berlaku pada layar mobile <768px, PC/Tablet tetap 100% utuh)
+   ========================================================================== */
+@media (max-width: 767px) {
+  /* Saat sedang merekam jalur atau membuat poligon di mobile */
+  .temukan-field.sedang-merekam .map-bawah,
+  .temukan-field:has(.recording-active-bar) .map-bawah {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    width: auto !important;
+    max-width: calc(100% - 16px) !important;
+    z-index: 29 !important;
+    pointer-events: none;
+  }
+
+  .temukan-field.sedang-merekam .map-bawah > *,
+  .temukan-field:has(.recording-active-bar) .map-bawah > * {
+    pointer-events: auto;
+  }
+
+  /* Naikkan rail alat zoom & GPS agar mengambang rapi di atas panel rekaman */
+  .temukan-field.sedang-merekam .map-tool-rail,
+  .temukan-field:has(.recording-active-bar) .map-tool-rail {
+    bottom: 125px !important;
+    transition: bottom 0.2s ease-in-out;
+  }
+
+  /* Naikkan batang skala di mobile saat panel rekam aktif */
+  .temukan-field.sedang-merekam .avenza-scale-bar-wrap,
+  .temukan-field:has(.recording-active-bar) .avenza-scale-bar-wrap {
+    bottom: 125px !important;
+  }
+
+  /* Kartu kontrol perekaman aktif mobile: 2 baris rapi dan proporsional */
+  .recording-active-bar {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(13, 115, 68, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.16), 0 1px 4px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 !important;
+  }
+
+  .recording-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .recording-metrics {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .rec-info-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    line-height: 1.2;
+  }
+
+  .rec-status-badge-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #dc2626;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  .rec-timer-chip {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .rec-geom-summary {
+    font-size: 0.76rem;
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100vw - 160px);
+  }
+
+  .recording-top-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .recording-top-controls .btn-tool,
+  .recording-top-controls .btn-danger-sm {
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 8px !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .rec-cancel-btn {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 1px solid #fecaca !important;
+  }
+
+  /* Tombol aksi survei di baris kedua: dapat digulir horizontal mulus jika layar sempit */
+  .recording-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 1px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .recording-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .recording-actions .btn-tool,
+  .recording-actions .btn-primary-sm {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    border-radius: 9px !important;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    box-sizing: border-box;
+  }
+
+  .recording-actions .rec-btn-add {
+    background: #0d7344 !important;
+    color: #ffffff !important;
+    border-color: #0b6139 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(13, 115, 68, 0.28);
+  }
+
+  .recording-actions .rec-btn-save {
+    background: #15803d !important;
+    color: #ffffff !important;
+    border-color: #166534 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(21, 128, 61, 0.28);
+  }
+}
