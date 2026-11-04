@@ -4,54 +4,9 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-const POLYFILL_PRELUDE = `;(function(){try{if(typeof Map!=="undefined"&&typeof Map.prototype.getOrInsertComputed!=="function"){Object.defineProperty(Map.prototype,"getOrInsertComputed",{value:function(k,cb){if(this.has(k))return this.get(k);var v=cb(k);this.set(k,v);return v;},configurable:true,writable:true});}if(typeof Map!=="undefined"&&typeof Map.prototype.getOrInsert!=="function"){Object.defineProperty(Map.prototype,"getOrInsert",{value:function(k,v){if(this.has(k))return this.get(k);this.set(k,v);return v;},configurable:true,writable:true});}if(typeof WeakMap!=="undefined"&&typeof WeakMap.prototype.getOrInsertComputed!=="function"){Object.defineProperty(WeakMap.prototype,"getOrInsertComputed",{value:function(k,cb){if(this.has(k))return this.get(k);var v=cb(k);this.set(k,v);return v;},configurable:true,writable:true});}if(typeof WeakMap!=="undefined"&&typeof WeakMap.prototype.getOrInsert!=="function"){Object.defineProperty(WeakMap.prototype,"getOrInsert",{value:function(k,v){if(this.has(k))return this.get(k);this.set(k,v);return v;},configurable:true,writable:true});}if(typeof Promise!=="undefined"&&typeof Promise.withResolvers!=="function"){Promise.withResolvers=function(){var r,j,p=new Promise(function(res,rej){r=res;j=rej;});return{promise:p,resolve:r,reject:j};};}if(typeof Promise!=="undefined"&&typeof Promise.try!=="function"){Promise.try=function(fn){var a=Array.prototype.slice.call(arguments,1);return new Promise(function(res){res(fn.apply(undefined,a));});};}if(typeof URL!=="undefined"&&typeof URL.parse!=="function"){URL.parse=function(u,b){try{return b!==undefined?new URL(u,b):new URL(u);}catch(_){return null;}};}}catch(_){}})();\n`;
-
-function polyfillPdfJsMobilePlugin(): Plugin {
+function pwaMobileRefreshPlugin(): Plugin {
   return {
-    name: "polyfill-pdfjs-mobile",
-    transform(code, id) {
-      const cleanId = id.split("?")[0].toLowerCase();
-      // Jangan pernah menyuntikkan teks polyfill ke luar tag script HTML
-      if (cleanId.endsWith(".html")) return null;
-      if (
-        (cleanId.endsWith(".js") || cleanId.endsWith(".mjs") || cleanId.endsWith(".ts")) &&
-        (cleanId.includes("pdfjs-dist") || cleanId.includes("pdf.worker") || cleanId.includes("geopdf"))
-      ) {
-        return {
-          code: POLYFILL_PRELUDE + code,
-          map: null
-        };
-      }
-      return null;
-    },
-    renderChunk(code, chunk) {
-      if (chunk.fileName.endsWith(".js") || chunk.fileName.endsWith(".mjs")) {
-        if (chunk.fileName.includes("pdf") && !code.slice(0, 400).includes("Object.defineProperty(Map.prototype")) {
-          return {
-            code: POLYFILL_PRELUDE + code,
-            map: null
-          };
-        }
-      }
-      return null;
-    },
-    writeBundle() {
-      const assetsDir = path.resolve(process.cwd(), "dist", "assets");
-      if (fs.existsSync(assetsDir)) {
-        for (const file of fs.readdirSync(assetsDir)) {
-          if (file.endsWith(".js") || file.endsWith(".mjs")) {
-            const fullPath = path.join(assetsDir, file);
-            const content = fs.readFileSync(fullPath, "utf8");
-            if (
-              content.includes("getOrInsertComputed") &&
-              !content.slice(0, 400).includes("Object.defineProperty(Map.prototype")
-            ) {
-              fs.writeFileSync(fullPath, POLYFILL_PRELUDE + content, "utf8");
-            }
-          }
-        }
-      }
-    },
+    name: "pwa-mobile-refresh",
     closeBundle: {
       order: "post",
       handler() {
@@ -118,7 +73,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
       }
     }),
-    polyfillPdfJsMobilePlugin()
+    pwaMobileRefreshPlugin()
   ],
   server: {
     host: "0.0.0.0",

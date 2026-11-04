@@ -1613,9 +1613,13 @@ export async function renderHalamanPdfBiasa(
   const buffer = await file.arrayBuffer();
 
   try {
+    if (typeof document === "undefined" || typeof document.createElement !== "function") {
+      throw new Error("DOM canvas tidak tersedia.");
+    }
     const pdfjs = await muatPdfJs();
-    const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+    let pdf: any;
     try {
+      pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
       const page = await pdf.getPage(1);
       const vp1 = page.getViewport({ scale: 1 });
       const maxCanvasDim = Math.min(maxDim, 2048);
@@ -1644,9 +1648,16 @@ export async function renderHalamanPdfBiasa(
         tinggiPt: vp1.height
       };
     } finally {
-      await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+      if (pdf) {
+        try {
+          await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+        } catch {
+          // Abaikan jika pembersihan worker pdfjs gagal
+        }
+      }
     }
-  } catch {
+  } catch (errPdfJs) {
+    console.warn("Render halaman PDF dengan pdfjs gagal, menggunakan fallback pdf-lib:", errPdfJs);
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true, updateMetadata: false });
     const p1 = doc.getPages()[0];
     const sz = p1 ? p1.getSize() : { width: 600, height: 800 };
@@ -1670,9 +1681,13 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
   const ref = await bacaReferensiGeoPdf(buffer);
 
   try {
+    if (typeof document === "undefined" || typeof document.createElement !== "function") {
+      throw new Error("DOM canvas tidak tersedia.");
+    }
     const pdfjs = await muatPdfJs();
-    const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+    let pdf: any;
     try {
+      pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
       const nomorHalaman = Math.min(pdf.numPages, Math.max(1, (ref.indeksHalaman ?? 0) + 1));
       const page = await pdf.getPage(nomorHalaman);
       const vp1 = page.getViewport({ scale: 1 });
@@ -1721,9 +1736,16 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
         height: sh
       };
     } finally {
-      await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+      if (pdf) {
+        try {
+          await (pdf as { destroy?: () => Promise<void> }).destroy?.();
+        } catch {
+          // Abaikan jika pembersihan worker pdfjs gagal
+        }
+      }
     }
-  } catch {
+  } catch (errPdfJs) {
+    console.warn("Render kanvas GeoPDF dengan pdfjs gagal, menggunakan fallback geometri:", errPdfJs);
     // Fallback tangguh apabila mesin render kanvas PDF di WebView seluler gagal:
     // georeferensi (ref) yang telah diekstrak pdf-lib tetap dipakai sepenuhnya dengan kanvas pratinjau.
     const [x1, y1, x2, y2] = ref.bbox;

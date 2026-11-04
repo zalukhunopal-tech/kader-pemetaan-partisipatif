@@ -498,4 +498,112 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(htmlChat).toContain("Siap, tim kami akan meluncur ke lokasi");
     expect(htmlChat).toContain("Ditemukan sarang burung enggang");
   });
+
+  // SIMULASI 10: Penguraian Teks Koordinat (uraikanTeksKoordinat)
+  it("Simulasi 10: uraikanTeksKoordinat mengurai format DD biasa dan format kardinal derajat Indonesia/Internasional", async () => {
+    const { uraikanTeksKoordinat } = await import("../components/InteractiveMap");
+
+    // 1. Format DD desimal koma / spasi
+    const dd1 = uraikanTeksKoordinat("-6.1754, 106.8272");
+    expect(dd1).toEqual({ lat: -6.1754, lng: 106.8272 });
+
+    const dd2 = uraikanTeksKoordinat("2.857270 117.377476");
+    expect(dd2).toEqual({ lat: 2.857270, lng: 117.377476 });
+
+    // 2. Format Kardinal Indonesia (LU, LS, BT, BB)
+    const kardinalId = uraikanTeksKoordinat("2.857270° LU, 117.377476° BT");
+    expect(kardinalId?.lat).toBeCloseTo(2.857270, 5);
+    expect(kardinalId?.lng).toBeCloseTo(117.377476, 5);
+
+    const kardinalSelatan = uraikanTeksKoordinat("6.2000° LS, 106.8166° BT");
+    expect(kardinalSelatan?.lat).toBeCloseTo(-6.2, 4);
+    expect(kardinalSelatan?.lng).toBeCloseTo(106.8166, 4);
+
+    // 3. Masukan tidak valid
+    expect(uraikanTeksKoordinat("lokasi tidak dikenal")).toBeNull();
+    expect(uraikanTeksKoordinat("")).toBeNull();
+  });
+
+  // SIMULASI 11: Integrasi Pencarian di ChipKoordinatPeta & Pemulihan ke Live
+  it("Simulasi 11: ChipKoordinatPeta bertransformasi menjadi form input saat modeCari dan menampilkan badge saat koordinatDipilih", async () => {
+    const { ChipKoordinatPeta } = await import("../components/peta/ChipKoordinatPeta");
+
+    // A. Mode Normal
+    const htmlNormal = renderToString(
+      <ChipKoordinatPeta
+        posisi={{ lat: 2.85727, lng: 117.37747, akurasi: 5 }}
+        teksMenunggu="Mencari GPS..."
+        sistem="DD"
+        onGantiSistem={vi.fn()}
+        onSalin={vi.fn()}
+      />
+    );
+    expect(htmlNormal).toContain("GPS ±5 m");
+    expect(htmlNormal).toContain("2.857270°");
+
+    // B. Mode Cari Aktif (Inline Form di tempat yang sama)
+    const htmlCari = renderToString(
+      <ChipKoordinatPeta
+        posisi={{ lat: 2.85727, lng: 117.37747, akurasi: 5 }}
+        teksMenunggu="Mencari GPS..."
+        sistem="DD"
+        modeCari={true}
+        nilaiCariInput="-6.1754, 106.8272"
+        daftarObjekSaran={[{ id: "1", judul: "Pohon Meranti Induk", jenisGeometri: "point" }]}
+        onGantiSistem={vi.fn()}
+        onSalin={vi.fn()}
+      />
+    );
+    expect(htmlCari).toContain("mode-cari");
+    expect(htmlCari).toContain("coord-chip-search-input");
+    expect(htmlCari).toContain("Pohon Meranti Induk");
+
+    // C. Mode Koordinat Dipilih
+    const htmlDipilih = renderToString(
+      <ChipKoordinatPeta
+        posisi={{ lat: 2.85727, lng: 117.37747, akurasi: 5 }}
+        teksMenunggu="Mencari GPS..."
+        sistem="DD"
+        koordinatDipilih={{ lat: -6.1754, lng: 106.8272, label: "Koordinat Dicari" }}
+        onPulihkanKoordinat={vi.fn()}
+        onGantiSistem={vi.fn()}
+        onSalin={vi.fn()}
+      />
+    );
+    expect(htmlDipilih).toContain("Koordinat Dicari");
+    expect(htmlDipilih).toContain("coord-chip-selected-badge");
+  });
+
+  // SIMULASI 12: Tombol GPS Bertahap (Sequential 1x = Posisi Utara, 2x = Arah Kompas HP)
+  it("Simulasi 12: RailAlatPeta mendukung status modeIkutiGps posisi dan kompas", async () => {
+    const { RailAlatPeta } = await import("../components/peta/RailAlatPeta");
+
+    // Mode posisi (1x klik)
+    const htmlPosisi = renderToString(
+      <RailAlatPeta
+        modeRekam={null}
+        gpsTersedia={true}
+        modeIkutiGps="posisi"
+        onGps={vi.fn()}
+        onZoomMasuk={vi.fn()}
+        onZoomKeluar={vi.fn()}
+        onPilihAlat={vi.fn()}
+      />
+    );
+    expect(htmlPosisi).toContain("mode-posisi");
+
+    // Mode kompas (2x klik)
+    const htmlKompas = renderToString(
+      <RailAlatPeta
+        modeRekam={null}
+        gpsTersedia={true}
+        modeIkutiGps="kompas"
+        onGps={vi.fn()}
+        onZoomMasuk={vi.fn()}
+        onZoomKeluar={vi.fn()}
+        onPilihAlat={vi.fn()}
+      />
+    );
+    expect(htmlKompas).toContain("mode-kompas");
+  });
 });

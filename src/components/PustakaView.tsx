@@ -295,49 +295,53 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           setThumbnailDataUrlBaru(hasil.thumbnailDataUrl);
           setRasterGeoreferensi(true);
         } catch (errGeoPdf) {
-          // Fallback: PDF biasa tanpa georeferensi -> render halaman 1 & buka form kalibrasi manual 2 titik (Barat Laut & Tenggara)
-          const hasilBiasa = await renderHalamanPdfBiasa(file);
-          const defLatAtas = Number((posisiRef.lat + 0.015).toFixed(5));
-          const defLngBarat = Number((posisiRef.lng - 0.015).toFixed(5));
-          const defLatBawah = Number((posisiRef.lat - 0.015).toFixed(5));
-          const defLngTimur = Number((posisiRef.lng + 0.015).toFixed(5));
-          setKalibLatAtas(String(defLatAtas));
-          setKalibLngBarat(String(defLngBarat));
-          setKalibLatBawah(String(defLatBawah));
-          setKalibLngTimur(String(defLngTimur));
-          setPerluKalibrasiManual(true);
-          const metaManual: HasilMetadataPeta = {
-            namaArea: file.name,
-            ukuranMb,
-            ukuranMbTeks: formatAngkaKoma(ukuranMb, 1),
-            jarakKm: 0,
-            jarakKmTeks: "0",
-            jenisFile: "GeoPDF / GeoTIFF",
-            thumbnailType: "geopdf_sheet",
-            thumbnailDataUrl: hasilBiasa.thumbnailDataUrl,
-            sumberDeteksi: "bawaan",
-            crs: "EPSG:4326 (Kalibrasi Manual 2 Titik)",
-            crsDeskripsi: errGeoPdf instanceof Error ? errGeoPdf.message : "Kalibrasi manual sudut Barat Laut & Tenggara",
-            minLat: defLatBawah,
-            maxLat: defLatAtas,
-            minLng: defLngBarat,
-            maxLng: defLngTimur,
-            pusatLat: posisiRef.lat,
-            pusatLng: posisiRef.lng,
-            lebarPixel: hasilBiasa.width,
-            tinggiPixel: hasilBiasa.height,
-            formatGeoref: "manual",
-            metodeTransformasi: "afin-geografis",
-            sisaMeter: 0,
-            indeksHalaman: 0
-          };
-          setMetadataPetaBaru(metaManual);
-          setNamaPetaBaru(singkatkanLabelPeta(file.name, 40));
-          setUkuranMbBaru(metaManual.ukuranMbTeks);
-          setJarakKmBaru("0");
-          setPetaKustomDataUrlBaru(hasilBiasa.dataUrl);
-          setThumbnailDataUrlBaru(hasilBiasa.thumbnailDataUrl);
-          setRasterGeoreferensi(true);
+          try {
+            // Fallback: PDF biasa tanpa georeferensi -> render halaman 1 & buka form kalibrasi manual 2 titik (Barat Laut & Tenggara)
+            const hasilBiasa = await renderHalamanPdfBiasa(file);
+            const defLatAtas = Number((posisiRef.lat + 0.015).toFixed(5));
+            const defLngBarat = Number((posisiRef.lng - 0.015).toFixed(5));
+            const defLatBawah = Number((posisiRef.lat - 0.015).toFixed(5));
+            const defLngTimur = Number((posisiRef.lng + 0.015).toFixed(5));
+            setKalibLatAtas(String(defLatAtas));
+            setKalibLngBarat(String(defLngBarat));
+            setKalibLatBawah(String(defLatBawah));
+            setKalibLngTimur(String(defLngTimur));
+            setPerluKalibrasiManual(true);
+            const metaManual: HasilMetadataPeta = {
+              namaArea: file.name,
+              ukuranMb,
+              ukuranMbTeks: formatAngkaKoma(ukuranMb, 1),
+              jarakKm: 0,
+              jarakKmTeks: "0",
+              jenisFile: "GeoPDF / GeoTIFF",
+              thumbnailType: "geopdf_sheet",
+              thumbnailDataUrl: hasilBiasa.thumbnailDataUrl,
+              sumberDeteksi: "bawaan",
+              crs: "EPSG:4326 (Kalibrasi Manual 2 Titik)",
+              crsDeskripsi: errGeoPdf instanceof Error ? errGeoPdf.message : "Kalibrasi manual sudut Barat Laut & Tenggara",
+              minLat: defLatBawah,
+              maxLat: defLatAtas,
+              minLng: defLngBarat,
+              maxLng: defLngTimur,
+              pusatLat: posisiRef.lat,
+              pusatLng: posisiRef.lng,
+              lebarPixel: hasilBiasa.width,
+              tinggiPixel: hasilBiasa.height,
+              formatGeoref: "manual",
+              metodeTransformasi: "afin-geografis",
+              sisaMeter: 0,
+              indeksHalaman: 0
+            };
+            setMetadataPetaBaru(metaManual);
+            setNamaPetaBaru(singkatkanLabelPeta(file.name, 40));
+            setUkuranMbBaru(metaManual.ukuranMbTeks);
+            setJarakKmBaru("0");
+            setPetaKustomDataUrlBaru(hasilBiasa.dataUrl);
+            setThumbnailDataUrlBaru(hasilBiasa.thumbnailDataUrl);
+            setRasterGeoreferensi(true);
+          } catch (errFallback) {
+            throw new Error("Berkas PDF tidak dapat diproses: " + (errFallback instanceof Error ? errFallback.message : "format tidak valid"));
+          }
         }
       } else if (/\.(tif|tiff|geotiff)$/i.test(namaKecil)) {
         const meta = await bacaMetadataBerkasPeta(file);

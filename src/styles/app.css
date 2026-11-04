@@ -6664,8 +6664,8 @@ label {
 }
 
 .map-hud-pod.top-right {
-  top: 14px;
-  right: 14px;
+  top: 8px;
+  right: 8px;
 }
 
 .map-hud-pod.bottom-right {
@@ -9275,8 +9275,8 @@ html[data-field-theme="matahari"] .section-card h2 {
 /* 2. CHIP KOORDINAT SIMPEL & MENARIK (FLOATING TELEMETRI) */
 .coord-chip-wrap {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 8px;
+  left: 8px;
   z-index: 26;
   display: flex;
   flex-direction: column;
@@ -9478,6 +9478,158 @@ html[data-field-theme="matahari"] .section-card h2 {
   font-size: 10px;
   color: #64748b;
   margin-top: 1px;
+}
+
+/* Mode Pencarian Terintegrasi di Chip Koordinat */
+.coord-chip.mode-cari {
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #0f766e;
+  box-shadow: 0 4px 20px rgba(15, 118, 110, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.coord-chip-search-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.coord-chip-search-icon {
+  color: #0f766e;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.coord-chip-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0f172a;
+  padding: 4px 2px;
+  outline: none;
+}
+
+.coord-chip-search-input::placeholder {
+  color: #94a3b8;
+  font-size: 11.5px;
+}
+
+.coord-chip-search-submit {
+  background: #0f766e;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.coord-chip-search-submit:hover {
+  background: #115e59;
+}
+
+.coord-chip-search-close {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  border-radius: 6px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.coord-chip-search-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.coord-chip-galat {
+  font-size: 11px;
+  color: #b91c1c;
+  padding: 2px 8px 4px;
+  font-weight: 600;
+}
+
+/* Badge Koordinat Dipilih (dengan opsi pulihkan ke GPS dinamis) */
+.coord-chip-selected-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.coord-chip-pulihkan-btn {
+  background: transparent;
+  border: none;
+  color: #0f766e;
+  cursor: pointer;
+  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  border-radius: 4px;
+}
+
+.coord-chip-pulihkan-btn:hover {
+  background: rgba(15, 118, 110, 0.2);
+}
+
+/* Dropdown saran objek spasial dari pencarian chip */
+.coord-chip-saran-box {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 45;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.coord-chip-saran-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+  color: #1e293b;
+  transition: background 0.15s ease;
+}
+
+.coord-chip-saran-item:hover {
+  background: #f1f5f9;
+}
+
+.coord-chip-saran-item small {
+  font-size: 10px;
+  color: #64748b;
+  margin-left: auto;
 }
 
 .crs-list {
@@ -9838,30 +9990,25 @@ html[data-field-theme="matahari"] .section-card h2 {
    PETA INTERAKTIF: PERBAIKAN OVERLAP & RESPONSIVE PC / MOBILE
    ========================================================= */
 
-/* Geser semua kontrol atas ke bawah ketika lembar peta kustom GeoPDF / GeoTIFF aktif */
-.temukan-field.avenza-custom-active .coord-chip-wrap,
-.map-module-wrapper.avenza-custom-active .coord-chip-wrap {
-  top: 60px !important;
+/* Geser kontrol atas ke bawah HANYA ketika bilah judul lembar peta kustom (.avenza-map-header-bar) sedang tampil */
+.temukan-field .avenza-map-header-bar ~ .coord-chip-wrap,
+.map-module-wrapper .avenza-map-header-bar ~ .coord-chip-wrap {
+  top: 58px !important;
 }
 
-.temukan-field.avenza-custom-active .map-hud-pod.top-right,
-.map-module-wrapper.avenza-custom-active .map-hud-pod.top-right {
-  top: 60px !important;
+.temukan-field .avenza-map-header-bar ~ .map-hud-pod.top-right,
+.map-module-wrapper .avenza-map-header-bar ~ .map-hud-pod.top-right {
+  top: 58px !important;
 }
 
-.temukan-field.avenza-custom-active .temukan-search-floating,
-.map-module-wrapper.avenza-custom-active .temukan-search-floating {
-  top: 60px !important;
+.temukan-field .avenza-map-header-bar ~ .map-layers-popover,
+.map-module-wrapper .avenza-map-header-bar ~ .map-layers-popover {
+  top: 58px !important;
 }
 
-.temukan-field.avenza-custom-active .map-layers-popover,
-.map-module-wrapper.avenza-custom-active .map-layers-popover {
-  top: 60px !important;
-}
-
-.temukan-field.avenza-custom-active .field-map-message,
-.map-module-wrapper.avenza-custom-active .field-map-message {
-  top: 60px !important;
+.temukan-field .avenza-map-header-bar ~ .field-map-message,
+.map-module-wrapper .avenza-map-header-bar ~ .field-map-message {
+  top: 58px !important;
 }
 
 /* Batang skala ditempatkan rapi di atas atribusi peta */
@@ -9909,10 +10056,10 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 /* Responsivitas rail alat zoom & survei di mobile dan PC */
 @media (max-width: 640px) {
-  /* Pod kontrol atas kanan (Layer, Kompas) di mobile agar kompak dan anti-overlap */
+  /* Pod kontrol atas kanan (Layer, Kompas, Cari) di mobile agar pas dan mepet ke atas */
   .map-hud-pod.top-right {
-    top: 8px !important;
-    right: 8px !important;
+    top: 6px !important;
+    right: 6px !important;
     padding: 3px !important;
     gap: 3px !important;
     border-radius: 12px !important;
@@ -9974,6 +10121,8 @@ html[data-field-theme="matahari"] .section-card h2 {
     margin: 2px auto !important;
   }
   .coord-chip-wrap {
+    top: 6px !important;
+    left: 6px !important;
     max-width: calc(100vw - 110px) !important;
   }
 }
