@@ -111,6 +111,46 @@ function hitungSkalaPeta(lat: number, zoom: number): { label: string; lebarPx: n
   return { label, lebarPx };
 }
 
+/** Uraikan masukan teks menjadi koordinat lat & lng yang valid (DD, kardinal LU/LS/BT/BB/N/S/E/W) */
+export function uraikanTeksKoordinat(teks: string): { lat: number; lng: number } | null {
+  const t = teks.trim();
+  if (!t) return null;
+
+  // Format DD angka biasa: contoh "-6.1754, 106.8272" atau "2.857270 117.377476"
+  const mDD = t.match(/^([+-]?\d+(?:\.\d+)?)[,\s]+([+-]?\d+(?:\.\d+)?)$/);
+  if (mDD) {
+    const a = parseFloat(mDD[1]);
+    const b = parseFloat(mDD[2]);
+    if (Math.abs(a) <= 90 && Math.abs(b) <= 180) {
+      return { lat: a, lng: b };
+    }
+    if (Math.abs(b) <= 90 && Math.abs(a) <= 180) {
+      return { lat: b, lng: a };
+    }
+  }
+
+  // Format kardinal: contoh "2.857270° LU, 117.377476° BT" atau "2.857270N 117.377476E"
+  const polaKardinal = /([+-]?\d+(?:\.\d+)?)\s*°?\s*(LU|LS|BT|BB|N|S|E|W)/gi;
+  const temuan = [...t.matchAll(polaKardinal)];
+  if (temuan.length === 2) {
+    let lat: number | null = null;
+    let lng: number | null = null;
+    for (const item of temuan) {
+      const val = parseFloat(item[1]);
+      const arah = item[2].toUpperCase();
+      if (arah === "LU" || arah === "N") lat = Math.abs(val);
+      else if (arah === "LS" || arah === "S") lat = -Math.abs(val);
+      else if (arah === "BT" || arah === "E") lng = Math.abs(val);
+      else if (arah === "BB" || arah === "W") lng = -Math.abs(val);
+    }
+    if (lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+}
+
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   dataSpasial,
   profil,
@@ -140,15 +180,38 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [cariKoordInput, setCariKoordInput] = useState<string>("");
   const [cariKoordTerbuka, setCariKoordTerbuka] = useState<boolean>(false);
   const [galatPencarian, setGalatPencarian] = useState("");
-  const cariKoordinat = () => {
-    const match = cariKoordInput.trim().match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
-    if (!match || Math.abs(Number(match[1])) > 85 || Math.abs(Number(match[2])) > 180) {
-      setGalatPencarian("Masukkan lintang −85 sampai 85 dan bujur −180 sampai 180, misalnya −6.1754, 106.8272.");
+  const [koordinatDipilih, setKoordinatDipilih] = useState<{ lat: number; lng: number; label?: string } | null>(null);
+
+  const cariKoordinat = (teksKhusus?: string) => {
+    setGalatPencarian("");
+    const masukan = (teksKhusus ?? cariKoordInput).trim();
+    if (!masukan) return;
+
+    // 1. Coba uraikan sebagai format titik koordinat
+    const titik = uraikanTeksKoordinat(masukan);
+    if (titik) {
+      setCenter(titik);
+      setZoom((z) => Math.max(z, 16));
+      setKoordinatDipilih({ lat: titik.lat, lng: titik.lng, label: "Koordinat Dicari" });
+      setCariKoordTerbuka(false);
+      setPesanSalin(`Menuju ke koordinat: ${titik.lat.toFixed(6)}, ${titik.lng.toFixed(6)}`);
       return;
     }
-    setCenter({ lat: Number(match[1]), lng: Number(match[2]) });
-    setCariKoordTerbuka(false);
-    setGalatPencarian("");
+
+    // 2. Coba cocokkan dengan nama objek yang tersimpan
+    const cocok = dataSpasial.find((d) => d.judul.toLowerCase().includes(masukan.toLowerCase()));
+    if (cocok && cocok.koordinat[0]) {
+      const t = cocok.koordinat[0];
+      setCenter(t);
+      setZoom((z) => Math.max(z, 16));
+      setObjekTerpilih(cocok);
+      setKoordinatDipilih({ lat: t.lat, lng: t.lng, label: cocok.judul });
+      setCariKoordTerbuka(false);
+      setPesanSalin(`Menuju ke objek: ${cocok.judul}`);
+      return;
+    }
+
+    setGalatPencarian("Koordinat tidak valid. Contoh: 2.857270, 117.377476 atau nama objek.");
   };
 
   // Peta dibuka di posisi, zoom, dan basemap terakhir (bukan lokasi bawaan)
@@ -420,6 +483,8 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
       posisiRef.current = { ...kini, ...pusatBaru, zoom: zBaru }; // event berikutnya bisa datang sebelum render
       setZoom(zBaru);
       setCenter(pusatBaru);
+      setKoordinatDipilih(null);
+      setModeIkutiGps("mati");
     };
     kanvas.addEventListener("wheel", saatRoda, { passive: false });
     return () => kanvas.removeEventListener("wheel", saatRoda);
@@ -827,6 +892,9 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
         let bearingBaru = Math.round(bearingAwal - deltaSudut) % 360;
         if (bearingBaru < 0) bearingBaru += 360;
         setBearing(bearingBaru);
+        setModeIkutiKompas(false);
+        setModeIkutiGps("mati");
+        setKoordinatDipilih(null);
       }
 
       // Perbesar/perkecil (pinch zoom) dan geser posisi jangkar dua jari secara mulus
@@ -836,9 +904,10 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
         const zBaru = zoomCubit(zoomAwal, jarakAwal, jarakKini);
         setZoom(zBaru);
         setCenter(pusatUntukJangkar(jangkar, zBaru, midKini, rect.width, rect.height));
+        setModeIkutiKompas(false);
+        setModeIkutiGps("mati");
+        setKoordinatDipilih(null);
       }
-      return;
-
       return;
     }
 
@@ -848,6 +917,8 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
       dragRef.current.moved = true;
       setModeIkutiKompas(false); // geser manual menonaktifkan mode kompas otomatis
+      setModeIkutiGps("mati");
+      setKoordinatDipilih(null);
     }
 
     // Rotasi translasi layar ke koordinat peta lokal (2D)
@@ -1206,7 +1277,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
 
         {modeRekam && <div className="bidikan-peta" aria-hidden="true"><Crosshair size={24} /></div>}
 
-        {/* CHIP KOORDINAT SIMPEL & MENARIK (GANTI SISTEM KOORDINAT DD, DDM, DMS, UTM, TM-3) */}
+        {/* CHIP KOORDINAT TERPADU DENGAN PENCARIAN TITIK DI TEMPAT */}
         <ChipKoordinatPeta
           posisi={posisiNyata}
           teksMenunggu={infoGps.teks}
@@ -1224,59 +1295,46 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
             }
           }}
           rekam={rekamLatar.status !== "idle" ? formatDurasi(durasiRekamMs(rekamLatar)) : null}
+          modeCari={cariKoordTerbuka}
+          nilaiCariInput={cariKoordInput}
+          onUbahCariInput={(val) => {
+            setCariKoordInput(val);
+            setGalatPencarian("");
+          }}
+          onSubmitCari={() => cariKoordinat()}
+          onTutupCari={() => {
+            setCariKoordTerbuka(false);
+            setGalatPencarian("");
+          }}
+          galatCari={galatPencarian}
+          koordinatDipilih={koordinatDipilih}
+          onPulihkanKoordinat={() => setKoordinatDipilih(null)}
+          daftarObjekSaran={
+            cariKoordInput.trim()
+              ? dataSpasial
+                  .filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase()))
+                  .slice(0, 5)
+                  .map((d) => ({
+                    id: d.id,
+                    judul: d.judul,
+                    jenisGeometri: d.jenisGeometri,
+                    koordinat: d.koordinat
+                  }))
+              : []
+          }
+          onPilihObjekSaran={(obj) => {
+            if (obj.koordinat && obj.koordinat[0]) {
+              const t = obj.koordinat[0];
+              setCenter(t);
+              setZoom((z) => Math.max(z, 16));
+              setKoordinatDipilih({ lat: t.lat, lng: t.lng, label: obj.judul });
+              const cocok = dataSpasial.find((d) => d.id === obj.id);
+              if (cocok) setObjekTerpilih(cocok);
+              setCariKoordTerbuka(false);
+              setPesanSalin(`Menuju ke objek: ${obj.judul}`);
+            }
+          }}
         />
-
-        {/* PENCARIAN KOORDINAT / OBJEK MENGAPUNG (TIDAK MEMOTONG TINGGI KANVAS) */}
-        {cariKoordTerbuka && (
-          <section className="temukan-search-floating" aria-label="Pencarian peta">
-            <form
-              className="avenza-map-search-bar"
-              onSubmit={(e) => {
-                e.preventDefault();
-                cariKoordinat();
-              }}
-            >
-              <Search size={16} />
-              <input
-                autoFocus
-                aria-label="Koordinat atau nama objek"
-                placeholder="−6.1754, 106.8272 atau nama objek"
-                value={cariKoordInput}
-                onChange={(e) => {
-                  setCariKoordInput(e.target.value);
-                  setGalatPencarian("");
-                }}
-              />
-              <button type="submit">Cari</button>
-              <button type="button" aria-label="Tutup pencarian peta" onClick={() => setCariKoordTerbuka(false)}>
-                <X size={16} />
-              </button>
-            </form>
-            {galatPencarian && <p className="temukan-search-error" role="alert">{galatPencarian}</p>}
-            {cariKoordInput.trim() &&
-              dataSpasial
-                .filter((d) => d.judul.toLocaleLowerCase().includes(cariKoordInput.trim().toLocaleLowerCase()))
-                .slice(0, 6)
-                .map((d) => (
-                  <button
-                    className="temukan-search-result"
-                    type="button"
-                    key={d.id}
-                    onClick={() => {
-                      if (d.koordinat[0]) setCenter(d.koordinat[0]);
-                      setObjekTerpilih(d);
-                      setCariKoordTerbuka(false);
-                    }}
-                  >
-                    <MapPin size={15} />
-                    <span>
-                      {d.judul}
-                      <small>{d.jenisGeometri === "point" ? "Titik" : d.jenisGeometri === "line" ? "Jalur" : "Poligon"}</small>
-                    </span>
-                  </button>
-                ))}
-          </section>
-        )}
 
         {pesanSalin && (
           <span className="field-map-message" role="status">
@@ -1332,6 +1390,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
         <RailAlatPeta
           modeRekam={modeRekam}
           gpsTersedia={Boolean(gpsPos)}
+          modeIkutiGps={modeIkutiGps}
           ikutiKompas={modeIkutiKompas}
           onGps={() => {
             if (petaKustomAktif && gpsPos) {
@@ -1349,27 +1408,23 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
                 setPesanSalin(`Posisi Anda di luar area peta ini (±${jarakKm} km dari tengah peta).`);
               }
             }
-            const now = Date.now();
-            const selisih = now - lastGpsClickRef.current;
-            lastGpsClickRef.current = now;
+            if (koordinatDipilih) setKoordinatDipilih(null);
 
-            if (clickTimeoutRef.current) {
-              window.clearTimeout(clickTimeoutRef.current);
-              clickTimeoutRef.current = null;
-            }
-
-            if (selisih < 350) {
-              void aktifkanKompas();
-              setModeIkutiKompas(true);
+            // Alur Tombol GPS Bertahap (Sequential Toggle):
+            // Klik 1: Jika belum di posisi sekarang -> ke posisi sekarang & hadap Utara tegak (bearing: 0)
+            if (modeIkutiGps !== "posisi") {
+              setModeIkutiGps("posisi");
+              setModeIkutiKompas(false);
+              setBearing(0);
               if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+              setPesanSalin("Posisi sekarang (Menghadap Utara)");
             } else {
-              clickTimeoutRef.current = window.setTimeout(() => {
-                if (modeIkutiKompas) {
-                  setModeIkutiKompas(false);
-                  setBearing(0);
-                }
-                if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-              }, 220);
+              // Klik 2: Jika sudah di posisi sekarang -> arah peta mengikuti kompas sensor HP
+              setModeIkutiGps("kompas");
+              setModeIkutiKompas(true);
+              void aktifkanKompas();
+              if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+              setPesanSalin("Peta mengikuti arah kompas HP");
             }
           }}
           onZoomMasuk={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
