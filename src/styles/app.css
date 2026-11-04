@@ -10649,3 +10649,129 @@ html[data-field-theme="matahari"] .section-card h2 {
   pointer-events: none;
   animation: fadeIn 0.2s ease;
 }
+
+/* =========================================================
+   ADMIN > DATA: MENU AKSI RAPI DI HP (daftar pilihan)
+   Desktop/tablet tetap memakai deretan tombol aslinya.
+   ========================================================= */
+.aksi-data-trigger {
+  display: none;
+}
+
+.aksi-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+.aksi-sheet {
+  width: min(100%, 420px);
+  margin: 0 8px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.25);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: aksi-sheet-naik 0.18s ease-out;
+}
+
+@keyframes aksi-sheet-naik {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.aksi-sheet-judul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.aksi-sheet-judul strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aksi-sheet-judul span {
+  font-size: 0.72rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aksi-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aksi-sheet-item:active:not(:disabled),
+.aksi-sheet-item:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.aksi-sheet-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.aksi-sheet-item.aksi-sheet-sah {
+  color: var(--avenza-green, #166534);
+}
+
+.aksi-sheet-item.aksi-sheet-hapus {
+  color: #dc2626;
+}
+
+.aksi-sheet-batal {
+  margin-top: 4px;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .aksi-data-desktop {
+    display: none !important;
+  }
+
+  .aksi-data-trigger {
+    display: inline-flex;
+    white-space: nowrap;
+  }
+}

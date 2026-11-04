@@ -1536,9 +1536,87 @@ export async function muatPdfJs(): Promise<typeof import("pdfjs-dist")> {
   return pdfjs;
 }
 
-async function buatDataUrlPersistenDariKanvas(canvas: HTMLCanvasElement): Promise<string> {
+/** Gambaran kemampuan perangkat yang dipakai untuk menentukan resolusi render peta. */
+export interface LingkunganPerangkat {
+  seluler: boolean;
+  /** Perkiraan RAM perangkat (GB) dari navigator.deviceMemory, bila tersedia. */
+  memoriGb?: number;
+  jumlahCpu?: number;
+}
+
+/** Anggaran resolusi render peta: tajam bagi mata, tetap ringan bagi memori perangkat. */
+export interface AnggaranResolusi {
+  /** Sisi terpanjang kanvas (px). */
+  sisiMaks: number;
+  /** Total piksel kanvas maksimum (menjaga memori & batas kanvas HP). */
+  pikselMaks: number;
+  /** Kualitas JPEG penyimpanan (0-1). */
+  kualitasJpeg: number;
+}
+
+export function bacaLingkunganPerangkat(): LingkunganPerangkat {
+  if (typeof navigator === "undefined") return { seluler: false };
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  const ua = nav.userAgent || "";
+  let seluler = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua);
+  if (!seluler && /Macintosh/i.test(ua) && (nav.maxTouchPoints ?? 0) > 1) seluler = true; // iPadOS
+  return { seluler, memoriGb: nav.deviceMemory, jumlahCpu: nav.hardwareConcurrency };
+}
+
+/**
+ * Menentukan anggaran resolusi sesuai perangkat:
+ * - HP berspek rendah : 3072 px / 7 juta piksel
+ * - HP / tablet       : 4096 px / 12 juta piksel (di bawah batas kanvas iOS 16,7 juta)
+ * - PC / laptop       : 6144 px / 24 juta piksel
+ * `sisiOverride` (opsional) hanya dapat menurunkan, tidak melampaui anggaran perangkat.
+ */
+export function tentukanAnggaranResolusi(
+  lingkungan: LingkunganPerangkat = bacaLingkunganPerangkat(),
+  sisiOverride?: number
+): AnggaranResolusi {
+  const rendah = lingkungan.seluler && ((lingkungan.memoriGb ?? 4) <= 3 || (lingkungan.jumlahCpu ?? 8) <= 4);
+  let anggaran: AnggaranResolusi;
+  if (rendah) anggaran = { sisiMaks: 3072, pikselMaks: 7_000_000, kualitasJpeg: 0.85 };
+  else if (lingkungan.seluler) anggaran = { sisiMaks: 4096, pikselMaks: 12_000_000, kualitasJpeg: 0.88 };
+  else anggaran = { sisiMaks: 6144, pikselMaks: 24_000_000, kualitasJpeg: 0.9 };
+
+  if (sisiOverride && sisiOverride > 0 && sisiOverride < anggaran.sisiMaks) {
+    anggaran = {
+      ...anggaran,
+      sisiMaks: sisiOverride,
+      pikselMaks: Math.min(anggaran.pikselMaks, sisiOverride * sisiOverride)
+    };
+  }
+  return anggaran;
+}
+
+/** Skala render (px per satuan sumber) yang tajam namun masih dalam anggaran sisi & piksel. */
+export function hitungSkalaRender(
+  lebarSumber: number,
+  tinggiSumber: number,
+  anggaran: AnggaranResolusi,
+  skalaMaks = 8
+): number {
+  const l = Math.max(lebarSumber, 1);
+  const t = Math.max(tinggiSumber, 1);
+  const olehSisi = anggaran.sisiMaks / Math.max(l, t);
+  const olehPiksel = Math.sqrt(anggaran.pikselMaks / (l * t));
+  return Math.max(0.05, Math.min(olehSisi, olehPiksel, skalaMaks));
+}
+
+/** Menurunkan anggaran bila kanvas gagal dibuat (memori perangkat tidak cukup). */
+export function turunkanAnggaranResolusi(anggaran: AnggaranResolusi, faktor: number): AnggaranResolusi {
+  const f = Math.min(1, Math.max(0.2, faktor));
+  return {
+    sisiMaks: Math.max(512, Math.floor(anggaran.sisiMaks * f)),
+    pikselMaks: Math.max(262_144, Math.floor(anggaran.pikselMaks * f * f)),
+    kualitasJpeg: Math.max(0.7, anggaran.kualitasJpeg - (1 - f) * 0.2)
+  };
+}
+
+async function buatDataUrlPersistenDariKanvas(canvas: HTMLCanvasElement, kualitasJpeg = 0.9): Promise<string> {
   try {
-    const jpegUrl = canvas.toDataURL("image/jpeg", 0.9);
+    const jpegUrl = canvas.toDataURL("image/jpeg", kualitasJpeg);
     if (jpegUrl && jpegUrl.startsWith("data:image/") && jpegUrl.length > 64) {
       return jpegUrl;
     }
@@ -1600,7 +1678,7 @@ function buatKanvasCadanganGeoPdf(ref: Partial<ReferensiGeoPdf>, lebar = 1024, t
 
 export async function renderHalamanPdfBiasa(
   file: File | Blob,
-  maxDim = 1600
+  maxDim?: number
 ): Promise<{
   dataUrl: string;
   thumbnailDataUrl?: string;
@@ -1622,31 +1700,45 @@ export async function renderHalamanPdfBiasa(
       pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
       const page = await pdf.getPage(1);
       const vp1 = page.getViewport({ scale: 1 });
-      const maxCanvasDim = Math.min(maxDim, 2048);
-      const scale = Math.min(maxCanvasDim / Math.max(vp1.width, vp1.height, 1), 3);
-      const viewport = page.getViewport({ scale });
+      const anggaranAwal = tentukanAnggaranResolusi(bacaLingkunganPerangkat(), maxDim);
 
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(viewport.width));
-      canvas.height = Math.max(1, Math.round(viewport.height));
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas 2D tidak tersedia untuk merender PDF.");
+      let galatTerakhir: unknown = null;
+      for (let percobaan = 0; percobaan < 4; percobaan++) {
+        const anggaran = turunkanAnggaranResolusi(anggaranAwal, Math.pow(0.7, percobaan));
+        try {
+          const scale = hitungSkalaRender(vp1.width, vp1.height, anggaran);
+          const viewport = page.getViewport({ scale });
 
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, canvas, viewport }).promise;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(viewport.width));
+          canvas.height = Math.max(1, Math.round(viewport.height));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas 2D tidak tersedia untuk merender PDF.");
 
-      const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(canvas, 240);
-      const dataUrl = await buatDataUrlPersistenDariKanvas(canvas);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          await page.render({ canvasContext: ctx, canvas, viewport }).promise;
 
-      return {
-        dataUrl,
-        thumbnailDataUrl,
-        width: canvas.width,
-        height: canvas.height,
-        lebarPt: vp1.width,
-        tinggiPt: vp1.height
-      };
+          const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(canvas, 240);
+          const dataUrl = await buatDataUrlPersistenDariKanvas(canvas, anggaran.kualitasJpeg);
+          if (dataUrl.length < 200) throw new Error("Kanvas terlalu besar untuk diekspor.");
+          const hasil = {
+            dataUrl,
+            thumbnailDataUrl,
+            width: canvas.width,
+            height: canvas.height,
+            lebarPt: vp1.width,
+            tinggiPt: vp1.height
+          };
+          canvas.width = 0;
+          canvas.height = 0;
+          return hasil;
+        } catch (err) {
+          // Kanvas terlalu besar untuk memori perangkat: ulangi dengan resolusi lebih ringan.
+          galatTerakhir = err;
+        }
+      }
+      throw galatTerakhir ?? new Error("Render halaman PDF gagal.");
     } finally {
       if (pdf) {
         try {
@@ -1675,7 +1767,14 @@ export async function renderHalamanPdfBiasa(
   }
 }
 
-export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<HasilImporGeoPdf> {
+/**
+ * Mengimpor GeoPDF menjadi gambar peta yang tajam namun ringan.
+ * Resolusi bersifat adaptif: dihitung dari ukuran area peta di halaman PDF dan dibatasi
+ * anggaran perangkat (HP berbeda dengan PC). Hanya area peta (bbox) yang dirender langsung
+ * pada resolusi penuh, tanpa merender seluruh halaman lalu memotongnya (yang membuat peta blur).
+ * Bila kanvas terlalu besar bagi memori perangkat, resolusi diturunkan bertahap otomatis.
+ */
+export async function imporGeoPdf(file: File | Blob, maxDim?: number): Promise<HasilImporGeoPdf> {
   pasangPolyfillPdfJs();
   const buffer = await file.arrayBuffer();
   const ref = await bacaReferensiGeoPdf(buffer);
@@ -1694,47 +1793,56 @@ export async function imporGeoPdf(file: File | Blob, maxDim = 2048): Promise<Has
       const [x1, y1, x2, y2] = ref.bbox;
       const bboxW = Math.max(1, x2 - x1);
       const bboxH = Math.max(1, y2 - y1);
+      const anggaranAwal = tentukanAnggaranResolusi(bacaLingkunganPerangkat(), maxDim);
 
-      const maxCanvasDim = Math.min(maxDim, 2048);
-      const scale = Math.min(
-        maxCanvasDim / Math.max(bboxW, bboxH, 1),
-        maxCanvasDim / Math.max(vp1.width, vp1.height, 1),
-        4
-      );
-      const viewport = page.getViewport({ scale });
+      let galatTerakhir: unknown = null;
+      for (let percobaan = 0; percobaan < 4; percobaan++) {
+        const anggaran = turunkanAnggaranResolusi(anggaranAwal, Math.pow(0.7, percobaan));
+        try {
+          // Skala ditentukan oleh ukuran area peta (bukan seluruh halaman) agar tajam.
+          const scale = hitungSkalaRender(bboxW, bboxH, anggaran);
+          const viewport = page.getViewport({ scale });
 
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = Math.max(1, Math.round(viewport.width));
-      pageCanvas.height = Math.max(1, Math.round(viewport.height));
-      const pageCtx = pageCanvas.getContext("2d");
-      if (!pageCtx) throw new Error("Canvas 2D tidak tersedia untuk merender GeoPDF.");
+          const sx = Math.max(0, Math.round(x1 * scale));
+          const sy = Math.max(0, Math.round((vp1.height - y2) * scale));
+          const sw = Math.max(1, Math.min(Math.round(viewport.width) - sx, Math.round(bboxW * scale)));
+          const sh = Math.max(1, Math.min(Math.round(viewport.height) - sy, Math.round(bboxH * scale)));
 
-      pageCtx.fillStyle = "#ffffff";
-      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-      await page.render({ canvasContext: pageCtx, canvas: pageCanvas, viewport }).promise;
+          const kanvas = document.createElement("canvas");
+          kanvas.width = sw;
+          kanvas.height = sh;
+          const ctx = kanvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas 2D tidak tersedia untuk merender GeoPDF.");
 
-      const sx = Math.max(0, Math.round(x1 * scale));
-      const sy = Math.max(0, Math.round((vp1.height - y2) * scale));
-      const sw = Math.min(pageCanvas.width - sx, Math.max(1, Math.round(bboxW * scale)));
-      const sh = Math.min(pageCanvas.height - sy, Math.max(1, Math.round(bboxH * scale)));
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, sw, sh);
+          // Geser viewport sehingga hanya area peta yang tergambar, langsung di resolusi penuh.
+          await page.render({
+            canvasContext: ctx,
+            canvas: kanvas,
+            viewport,
+            transform: [1, 0, 0, 1, -sx, -sy]
+          }).promise;
 
-      const cropCanvas = document.createElement("canvas");
-      cropCanvas.width = sw;
-      cropCanvas.height = sh;
-      const cropCtx = cropCanvas.getContext("2d");
-      if (!cropCtx) throw new Error("Canvas 2D tidak tersedia untuk memotong viewport GeoPDF.");
-      cropCtx.drawImage(pageCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+          const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(kanvas, 240);
+          const hasilUrl = await buatDataUrlPersistenDariKanvas(kanvas, anggaran.kualitasJpeg);
+          if (hasilUrl.length < 200) throw new Error("Kanvas terlalu besar untuk diekspor.");
+          kanvas.width = 0;
+          kanvas.height = 0;
 
-      const thumbnailDataUrl = buatThumbnailDataUrlDariKanvas(cropCanvas, 240);
-      const hasilUrl = await buatDataUrlPersistenDariKanvas(cropCanvas);
-
-      return {
-        ...ref,
-        dataUrl: hasilUrl,
-        thumbnailDataUrl,
-        width: sw,
-        height: sh
-      };
+          return {
+            ...ref,
+            dataUrl: hasilUrl,
+            thumbnailDataUrl,
+            width: sw,
+            height: sh
+          };
+        } catch (err) {
+          // Kanvas terlalu besar untuk memori perangkat: ulangi dengan resolusi lebih ringan.
+          galatTerakhir = err;
+        }
+      }
+      throw galatTerakhir ?? new Error("Render GeoPDF gagal.");
     } finally {
       if (pdf) {
         try {
