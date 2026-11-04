@@ -1,5 +1,5 @@
-import React from "react";
-import { Check, Pause, Play, Plus, Radio, Undo2, Redo2, X } from "lucide-react";
+import React, { useState } from "react";
+import { AlertTriangle, Check, Pause, Play, Plus, Radio, Undo2, Redo2, X } from "lucide-react";
 import { JenisGeometri } from "../../types";
 import { hitungLuasPoligonMeter2 } from "../../lib/geoUtils";
 import { StatePerekamLatar, durasiRekamMs, formatDurasi, perekamLatar } from "../../lib/perekamLatar";
@@ -32,55 +32,74 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
   onToggleSnap,
   onSimpan,
   onBatal
-}) => (
-  <div className="recording-active-bar">
-    <div className="recording-header-row">
-      <div className="recording-metrics">
-        <span className={`rec-dot ${rekamLatar.status === "dijeda" ? "paused" : ""}`} />
-        <div className="rec-info-col">
-          <div className="rec-status-badge-inline">
-            <Radio size={12} />
-            <span className="rec-status-label">
-              {rekamLatar.status === "dijeda" ? "REKAMAN DIJEDA" : "SEDANG MEREKAM"}
-            </span>
-            <span className="rec-timer-chip" data-tick={detikTick}>
-              {formatDurasi(durasiRekamMs(rekamLatar))}
-            </span>
+}) => {
+  const [tutupGalat, setTutupGalat] = useState<string | null>(null);
+  const galatTampil = rekamLatar.galat && tutupGalat !== rekamLatar.galat ? rekamLatar.galat : null;
+
+  return (
+    <div className="recording-active-bar">
+      <div className="recording-header-row">
+        <div className="recording-metrics">
+          <span className={`rec-dot ${rekamLatar.status === "dijeda" ? "paused" : ""}`} />
+          <div className="rec-info-col">
+            <div className="rec-status-badge-inline">
+              <Radio size={12} />
+              <span className="rec-status-label">
+                {rekamLatar.status === "dijeda" ? "REKAMAN DIJEDA" : "SEDANG MEREKAM"}
+              </span>
+              <span className="rec-timer-chip" data-tick={detikTick}>
+                {formatDurasi(durasiRekamMs(rekamLatar))}
+              </span>
+            </div>
+            <strong className="rec-geom-summary">
+              {modeRekam === "line"
+                ? `Jalur (${jumlahTitik} titik • ${panjangDraftKm} km)`
+                : `Poligon (${jumlahTitik} sudut • ${luasDraftHa} Ha / ${hitungLuasPoligonMeter2(rekamLatar.titik).toFixed(1)} m²)`}
+            </strong>
           </div>
-          <strong className="rec-geom-summary">
-            {modeRekam === "line"
-              ? `Jalur (${jumlahTitik} titik • ${panjangDraftKm} km)`
-              : `Poligon (${jumlahTitik} sudut • ${luasDraftHa} Ha / ${hitungLuasPoligonMeter2(rekamLatar.titik).toFixed(1)} m²)`}
-          </strong>
+        </div>
+
+        <div className="recording-top-controls">
+          <button
+            type="button"
+            className={`btn-tool rec-pause-btn ${rekamLatar.status === "merekam" ? "active-walk" : ""}`}
+            onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
+            title={rekamLatar.status === "merekam" ? "Jeda rekaman" : "Lanjutkan rekaman"}
+          >
+            {rekamLatar.status === "merekam" ? (
+              <>
+                <Pause size={13} /> <span>Jeda</span>
+              </>
+            ) : (
+              <>
+                <Play size={13} /> <span>Lanjut</span>
+              </>
+            )}
+          </button>
+          <button type="button" className="btn-danger-sm rec-cancel-btn" onClick={onBatal} title="Batalkan perekaman">
+            <X size={15} />
+          </button>
         </div>
       </div>
 
-      <div className="recording-top-controls">
-        <button
-          type="button"
-          className={`btn-tool rec-pause-btn ${rekamLatar.status === "merekam" ? "active-walk" : ""}`}
-          onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
-          title={rekamLatar.status === "merekam" ? "Jeda rekaman" : "Lanjutkan rekaman"}
-        >
-          {rekamLatar.status === "merekam" ? (
-            <>
-              <Pause size={13} /> <span>Jeda</span>
-            </>
-          ) : (
-            <>
-              <Play size={13} /> <span>Lanjut</span>
-            </>
-          )}
-        </button>
-        <button type="button" className="btn-danger-sm rec-cancel-btn" onClick={onBatal} title="Batalkan perekaman">
-          <X size={15} />
-        </button>
-      </div>
-    </div>
+      {galatTampil && (
+        <div className="rec-error-alert" role="alert">
+          <span className="rec-error-text" title={galatTampil}>
+            <AlertTriangle size={12} style={{ flexShrink: 0 }} /> {galatTampil}
+          </span>
+          <button
+            type="button"
+            className="rec-error-dismiss"
+            onClick={() => setTutupGalat(galatTampil)}
+            aria-label="Tutup penanda"
+            title="Tutup penanda"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
-    {rekamLatar.galat && <span className="rec-error-alert" role="alert">{rekamLatar.galat}</span>}
-
-    <div className="recording-actions">
+      <div className="recording-actions">
       <button type="button" className="btn-tool rec-btn-add" onClick={onTambahTitik} title="Tambah titik dari bidikan tengah peta">
         <Plus size={15} /> <span>+Titik</span>
       </button>
@@ -132,4 +151,5 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
       </button>
     </div>
   </div>
-);
+  );
+};

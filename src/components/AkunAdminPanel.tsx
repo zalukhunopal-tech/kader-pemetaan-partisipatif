@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Copy, KeyRound, UserPlus } from "lucide-react";
+import { ChevronDown, Copy, Info, KeyRound, ShieldAlert, Trash2, UserPlus } from "lucide-react";
 import {
   AkunSesi,
   aturUlangAuthenticatorOlehAdmin,
   aturUlangSandiOlehAdmin,
   buatAkunOlehAdmin,
+  hapusAkunOlehAdmin,
   muatSemuaAkun,
   ubahWilayahAkunOlehAdmin
 } from "../lib/auth";
@@ -35,6 +36,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   const [sibuk, setSibuk] = useState(false);
   const [detailEmail, setDetailEmail] = useState<string | null>(null);
   const [ubahWilayah, setUbahWilayah] = useState<{ email: string; nilai: WilayahAdministrasi } | null>(null);
+  const [menuAksiAkun, setMenuAksiAkun] = useState<(typeof akun)[number] | null>(null);
   const akun = muatSemuaAkun(); // dibaca ulang setiap render agar status terbaru tampil
   void versi;
 
@@ -93,6 +95,26 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     const r = aturUlangAuthenticatorOlehAdmin(sesiAdmin, email);
     if (!r.sukses) setGalat(r.pesan);
     else setInfo(r.pesan);
+    setVersi((v) => v + 1);
+  };
+
+  const hapusAkun = (email: string, nama: string) => {
+    if (
+      !window.confirm(
+        `Hapus akun ${nama} (${email}) dari perangkat ini?\n\nAkun ini tidak akan dapat masuk lagi di perangkat ini. Data lapangan yang sudah tersimpan di perangkat tetap aman.`
+      )
+    ) {
+      return;
+    }
+    bersihkan();
+    const r = hapusAkunOlehAdmin(sesiAdmin, email);
+    if (!r.sukses) {
+      setGalat(r.pesan);
+    } else {
+      setInfo(r.pesan);
+      if (detailEmail === email) setDetailEmail(null);
+      if (ubahWilayah?.email === email) setUbahWilayah(null);
+    }
     setVersi((v) => v + 1);
   };
 
@@ -252,40 +274,15 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                       <td>{a.peran === "admin" ? "Admin" : "Kader"}</td>
                       <td className="text-xs">{statusAkun(a)}</td>
                       <td>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            aria-expanded={terbuka}
-                            onClick={() => setDetailEmail(terbuka ? null : a.email)}
-                          >
-                            {terbuka ? "Tutup" : "Detail"}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            disabled={diriSendiri}
-                            title={diriSendiri ? "Ganti sandi Anda sendiri lewat menu Kata sandi" : "Buat sandi sementara"}
-                            onClick={() => void aturUlangSandi(a.email, a.nama)}
-                          >
-                            Atur ulang sandi
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            disabled={diriSendiri || !a.totpRahasia}
-                            title={
-                              diriSendiri
-                                ? "Authenticator Anda hanya bisa diatur ulang oleh admin lain"
-                                : !a.totpRahasia
-                                  ? "Belum ada Authenticator"
-                                  : "Hapus Authenticator agar bisa dipasang ulang"
-                            }
-                            onClick={() => aturUlangAuthenticator(a.email, a.nama)}
-                          >
-                            Reset Authenticator
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          className="btn-outline-sm aksi-data-trigger"
+                          aria-haspopup="menu"
+                          aria-expanded={menuAksiAkun?.email === a.email}
+                          onClick={() => setMenuAksiAkun(a)}
+                        >
+                          Aksi <ChevronDown size={14} />
+                        </button>
                       </td>
                     </tr>
                     {terbuka && (
@@ -376,6 +373,99 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
           </table>
         </div>
       </div>
+
+      {/* MENU AKSI AKUN: MODAL / BOTTOM SHEET RAPI */}
+      {menuAksiAkun && (
+        <div className="aksi-sheet-backdrop" onClick={() => setMenuAksiAkun(null)} role="presentation">
+          <div className="aksi-sheet" role="menu" aria-label="Pilihan tindakan akun" onClick={(e) => e.stopPropagation()}>
+            <div className="aksi-sheet-judul">
+              <strong>{menuAksiAkun.nama}</strong>
+              <span>
+                {menuAksiAkun.email} · {menuAksiAkun.peran === "admin" ? "Administrator" : "Kader"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
+              onClick={() => {
+                const email = menuAksiAkun.email;
+                setDetailEmail((prev) => (prev === email ? null : email));
+                setMenuAksiAkun(null);
+              }}
+            >
+              <Info size={17} /> {detailEmail === menuAksiAkun.email ? "Tutup detail akun" : "Lihat detail akun"}
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
+              disabled={menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()}
+              title={
+                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()
+                  ? "Ganti sandi Anda sendiri lewat menu Kata sandi"
+                  : "Buat sandi sementara"
+              }
+              onClick={() => {
+                const target = menuAksiAkun;
+                setMenuAksiAkun(null);
+                void aturUlangSandi(target.email, target.nama);
+              }}
+            >
+              <KeyRound size={17} /> Atur ulang sandi
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
+              disabled={
+                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase() ||
+                !menuAksiAkun.totpRahasia
+              }
+              title={
+                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()
+                  ? "Authenticator Anda hanya bisa diatur ulang oleh admin lain"
+                  : !menuAksiAkun.totpRahasia
+                    ? "Belum ada Authenticator"
+                    : "Hapus Authenticator agar bisa dipasang ulang"
+              }
+              onClick={() => {
+                const target = menuAksiAkun;
+                setMenuAksiAkun(null);
+                aturUlangAuthenticator(target.email, target.nama);
+              }}
+            >
+              <ShieldAlert size={17} /> Reset Authenticator
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item aksi-sheet-hapus"
+              disabled={menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()}
+              title={
+                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()
+                  ? "Anda tidak dapat menghapus akun Anda sendiri saat sedang masuk"
+                  : "Hapus akun dari perangkat ini"
+              }
+              onClick={() => {
+                const target = menuAksiAkun;
+                setMenuAksiAkun(null);
+                hapusAkun(target.email, target.nama);
+              }}
+            >
+              <Trash2 size={17} /> Hapus akun
+            </button>
+
+            <button type="button" className="aksi-sheet-batal" onClick={() => setMenuAksiAkun(null)}>
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
