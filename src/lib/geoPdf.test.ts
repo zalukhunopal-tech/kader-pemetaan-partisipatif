@@ -8,7 +8,9 @@ import {
   namaCrs,
   diDalamBatas,
   kalibrasiManualDuaTitik,
-  buatTransformasi
+  buatTransformasi,
+  pasangPolyfillPdfJs,
+  imporGeoPdf
 } from "./geoPdf";
 
 const gpts = [-7, 110, -6, 110, -6, 111, -7, 111];
@@ -139,5 +141,53 @@ describe("GeoPDF GEO", () => {
     expect(() => validasiKontrolGeoPdf(Array(8).fill(0), lpts)).toThrow();
     expect(() => validasiKontrolGeoPdf([NaN, ...gpts.slice(1)], lpts)).toThrow();
     expect(() => validasiKontrolGeoPdf([-95, ...gpts.slice(1)], lpts)).toThrow();
+  });
+  it("memasang polyfill Map.getOrInsertComputed & WeakMap.getOrInsertComputed untuk WebView HP / PWA seluler", async () => {
+    const mapProto = Map.prototype as unknown as Record<string, unknown>;
+    const weakMapProto = WeakMap.prototype as unknown as Record<string, unknown>;
+    delete mapProto.getOrInsertComputed;
+    delete mapProto.getOrInsert;
+    delete weakMapProto.getOrInsertComputed;
+    delete weakMapProto.getOrInsert;
+
+    pasangPolyfillPdfJs();
+
+    const m = new Map<string, number[]>();
+    const arr = (m as unknown as { getOrInsertComputed: (k: string, fn: () => number[]) => number[] }).getOrInsertComputed(
+      "kunci",
+      () => [1, 2]
+    );
+    arr.push(3);
+    expect(m.get("kunci")).toEqual([1, 2, 3]);
+
+    const wm = new WeakMap<object, { ok: boolean }>();
+    const obj = {};
+    const v = (
+      wm as unknown as { getOrInsertComputed: (k: object, fn: () => { ok: boolean }) => { ok: boolean } }
+    ).getOrInsertComputed(obj, () => ({ ok: true }));
+    expect(v.ok).toBe(true);
+    expect(wm.get(obj)).toEqual({ ok: true });
+
+    // Pastikan imporGeoPdf berhasil meskipun di lingkungan tanpa Canvas 2D / Web Worker penuh
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 800]);
+    page.node.set(
+      PDFName.of("VP"),
+      doc.context.obj([
+        {
+          Type: "Viewport",
+          BBox: [50, 100, 550, 700],
+          Measure: { Type: "Measure", Subtype: "GEO", GCS: { Type: "GEOGCS", EPSG: 4326 }, GPTS: gpts, LPTS: lpts }
+        }
+      ])
+    );
+    const bytes = await doc.save();
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+    const hasil = await imporGeoPdf(blob);
+    expect(hasil.minLat).toBe(-7);
+    expect(hasil.maxLat).toBe(-6);
+    expect(hasil.minLng).toBe(110);
+    expect(hasil.maxLng).toBe(111);
+    expect(hasil.dataUrl).toBeTruthy();
   });
 });

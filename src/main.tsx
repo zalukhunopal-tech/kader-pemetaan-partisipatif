@@ -4,9 +4,11 @@ import App from "./App";
 import { siapkanAutentikasi } from "./lib/auth";
 import { siapkanStorage } from "./lib/storage";
 import { pasangPendengarInstal } from "./lib/instal";
+import { pasangPolyfillPdfJs } from "./lib/geoPdf";
 import "./styles/app.css";
 
 // Tangkap event pemasangan PWA sedini mungkin agar tombol "Instal" bisa memakainya
+pasangPolyfillPdfJs();
 pasangPendengarInstal();
 
 // Migrasi akun lama (sandi teks polos -> hash) dan pemuatan data dari IndexedDB selesai
