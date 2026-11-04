@@ -143,6 +143,9 @@ export function gambarLembarPetaGeoPdf(
     ctx.fillStyle = "#e5e7eb";
     ctx.fillRect(0, 0, W, H);
     if (img) {
+      // Interpolasi berkualitas tinggi agar peta resolusi tinggi tetap tajam saat diperkecil
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       // Proyeksikan baris WGS84 ke Mercator agar objek GPS tetap sejajar
       // dengan raster, termasuk pada lintang tinggi.
       for (let y = Math.max(0, Math.floor(y0)); y < Math.min(H, Math.ceil(y0 + mapH)); y++) {
@@ -192,6 +195,8 @@ export function gambarLembarPetaGeoPdf(
   if (urlGambar) {
     const img = muatGambarPetaKustom(urlGambar, saatGambarSiap);
     if (img) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, sheetX, sheetY, sheetW, sheetH);
     }
   } else {

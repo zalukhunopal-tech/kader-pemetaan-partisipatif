@@ -542,7 +542,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     // Gunakan ukuran persegi ukuranCanvas agar seluruh sudut tertutup tanpa celah pada sudut apa pun
     const W = ukuranCanvas;
     const H = ukuranCanvas;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.scale(dpr, dpr);

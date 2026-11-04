@@ -20,7 +20,7 @@ import { Users } from "lucide-react";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
-import { Check, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
+import { Check, ChevronDown, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
 
 interface AdminDashboardViewProps {
   dataSpasial: DataSpasialItem[];
@@ -63,6 +63,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "user_level">("kader_aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
+  // Menu aksi data (mobile): satu daftar pilihan yang muncul saat tombol "Aksi" ditekan
+  const [menuAksiData, setMenuAksiData] = useState<DataSpasialItem | null>(null);
+
+  const tinjauPetaData = (d: DataSpasialItem) => {
+    const p = d.koordinat[0];
+    if (p) onFokusKePeta(p.lat, p.lng, d.judul);
+  };
+
+  const mintaRevisiData = (d: DataSpasialItem) => {
+    const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
+    if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
+  };
 
   // Form Tugas Spasial Baru (tanpa data contoh)
   const [judulTugas, setJudulTugas] = useState("");
@@ -317,7 +329,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                         </details>
                       </td>
                       <td>
-                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        <div className="aksi-data-desktop" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                           <button
                             type="button"
                             className="btn-outline-sm"
@@ -354,6 +366,14 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                             <Trash2 size={13} />
                           </button>
                         </div>
+                        <button
+                          type="button"
+                          className="btn-outline-sm aksi-data-trigger"
+                          aria-haspopup="menu"
+                          onClick={() => setMenuAksiData(d)}
+                        >
+                          Aksi <ChevronDown size={14} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -365,6 +385,85 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
               Belum ada data lapangan yang direkam.
             </div>
           )}
+        </div>
+      )}
+
+      {/* MENU AKSI DATA (MOBILE): daftar pilihan tindakan */}
+      {menuAksiData && (
+        <div className="aksi-sheet-backdrop" onClick={() => setMenuAksiData(null)} role="presentation">
+          <div className="aksi-sheet" role="menu" aria-label="Pilihan tindakan data" onClick={(e) => e.stopPropagation()}>
+            <div className="aksi-sheet-judul">
+              <strong>{menuAksiData.judul}</strong>
+              <span>
+                {menuAksiData.namaKader} · {menuAksiData.id}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
+              disabled={!menuAksiData.koordinat[0]}
+              onClick={() => {
+                const d = menuAksiData;
+                setMenuAksiData(null);
+                tinjauPetaData(d);
+              }}
+            >
+              <MapPin size={18} /> Tinjau peta
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
+              onClick={() => {
+                const d = menuAksiData;
+                setMenuAksiData(null);
+                setItemDiedit(d);
+              }}
+            >
+              <Edit3 size={18} /> Edit
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item aksi-sheet-sah"
+              disabled={!hitungSkorKualitasData(menuAksiData).geometriValid}
+              onClick={() => {
+                const d = menuAksiData;
+                setMenuAksiData(null);
+                onVerifikasiData(d.id, "terverifikasi");
+              }}
+            >
+              <Check size={18} /> Sah
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
+              onClick={() => {
+                const d = menuAksiData;
+                setMenuAksiData(null);
+                mintaRevisiData(d);
+              }}
+            >
+              <X size={18} /> Minta revisi
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item aksi-sheet-hapus"
+              onClick={() => {
+                const d = menuAksiData;
+                setMenuAksiData(null);
+                onHapusDataSpasial(d.id);
+              }}
+            >
+              <Trash2 size={18} /> Hapus
+            </button>
+            <button type="button" className="aksi-sheet-batal" onClick={() => setMenuAksiData(null)}>
+              Batal
+            </button>
+          </div>
         </div>
       )}
 
