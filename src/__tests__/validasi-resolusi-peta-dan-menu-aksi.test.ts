@@ -180,3 +180,30 @@ describe("Penyelarasan koordinat sejajar LU/BT, BottomSheet tanpa angka persenta
     expect(sumberLapisan).toContain("pustaka-tab-label-short");
   });
 });
+
+describe("Penyelarasan tool atas kiri (ChipKoordinatPeta) dan atas kanan (Layers/Kompas/Cari & Rail) sejajar dan anti-overlap", () => {
+  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
+
+  it("1. Tool atas kiri dan atas kanan sejajar vertikal (top: 12px pada desktop dan top: 8px pada mobile)", () => {
+    expect(css).toMatch(/\.coord-chip-wrap\s*\{[^}]*top:\s*12px;[^}]*left:\s*14px;/);
+    expect(css).toMatch(/\.map-hud-pod\.top-right\s*\{[^}]*top:\s*12px;[^}]*right:\s*14px;/);
+    expect(css).toMatch(/\.coord-chip-wrap\s*\{[^}]*top:\s*8px\s*!important;[^}]*left:\s*8px\s*!important;/);
+    expect(css).toMatch(/\.map-hud-pod\.top-right\s*\{[^}]*top:\s*8px\s*!important;[^}]*right:\s*8px\s*!important;/);
+  });
+
+  it("2. Tool atas kanan (map-hud-pod) dan rail alat bawah kanan sejajar pada tepi kanan (right: 14px)", () => {
+    expect(css).toMatch(/\.map-hud-pod\.top-right\s*\{[^}]*right:\s*14px;/);
+    expect(css).toMatch(/\.map-tool-rail\s*\{[^}]*right:\s*14px;/);
+    expect(css).toContain("right: 14px !important;");
+  });
+
+  it("3. Chip koordinat memiliki max-width aman agar tidak overlap secara horizontal dengan tool kanan", () => {
+    expect(css).toContain("max-width: calc(100% - 76px);");
+    expect(css).toContain("max-width: calc(100% - 56px) !important;");
+  });
+
+  it("4. Rail alat peta memiliki max-height dan overflow aman agar tidak menabrak tool pod atas kanan dan memberi space", () => {
+    expect(css).toContain("max-height: calc(100% - 170px);");
+    expect(css).toContain("overflow-y: auto;");
+  });
+});
