@@ -1520,12 +1520,12 @@ body {
 
 .map-overlay-top-right {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  z-index: 10;
+  gap: 4px;
+  z-index: 25;
 }
 
 .map-ctrl-btn {
@@ -3080,11 +3080,11 @@ label {
 
 .map-layers-popover {
   position: absolute;
-  top: 10px;
-  right: 54px;
+  top: 12px;
+  right: 62px;
   width: 360px;
-  max-width: calc(100vw - 70px);
-  max-height: calc(100% - 20px);
+  max-width: calc(100vw - 80px);
+  max-height: calc(100% - 24px);
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(12px);
@@ -6723,9 +6723,9 @@ label {
   z-index: 25;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 16px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
   background: var(--glass-bg);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -6734,8 +6734,23 @@ label {
 }
 
 .map-hud-pod.top-right {
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 14px;
+}
+
+.map-hud-pod.top-right .map-hud-btn,
+.map-hud-pod.top-right .map-ctrl-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.map-hud-pod.top-right .map-hud-btn svg,
+.map-hud-pod.top-right .map-ctrl-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .map-hud-pod.bottom-right {
@@ -9342,20 +9357,27 @@ html[data-field-theme="matahari"] .section-card h2 {
 /* 1. RAIL ALAT PETA TERPADU (GPS + ZOOM IN/OUT + TITIK/JALUR/AREA) */
 .map-tool-rail {
   position: absolute;
-  bottom: 24px;
+  bottom: 20px;
   right: 14px;
   z-index: 28;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 18px;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(203, 213, 225, 0.85);
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+  max-height: calc(100% - 170px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.map-tool-rail::-webkit-scrollbar {
+  display: none;
 }
 
 .rail-group {
@@ -9366,11 +9388,11 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 .rail-btn {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
   border: 1px solid rgba(226, 232, 240, 0.9);
   background: #ffffff;
   color: #0f172a;
@@ -9402,11 +9424,11 @@ html[data-field-theme="matahari"] .section-card h2 {
   width: 100%;
 }
 .rail-gps-btn {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
   border: 1px solid rgba(226, 232, 240, 0.9);
   background: #ffffff;
   color: #0f172a;
@@ -9438,12 +9460,12 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 /* Tombol alat survei di dalam rail zoom */
 .rail-tool {
-  height: 52px;
-  padding: 4px 2px;
+  height: 44px;
+  padding: 2px 1px;
 }
 
 .rail-tool-label {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #475569;
@@ -9487,13 +9509,13 @@ html[data-field-theme="matahari"] .section-card h2 {
 /* 2. CHIP KOORDINAT SIMPEL & MENARIK (FLOATING TELEMETRI) */
 .coord-chip-wrap {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 12px;
+  left: 14px;
   z-index: 26;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: min(380px, calc(100vw - 110px));
+  max-width: calc(100% - 76px);
 }
 
 .coord-chip {
@@ -10270,10 +10292,10 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 /* Responsivitas rail alat zoom & survei di mobile dan PC */
 @media (max-width: 640px) {
-  /* Pod kontrol atas kanan (Layer, Kompas, Cari) di mobile agar pas dan mepet ke atas */
+  /* Pod kontrol atas kanan (Layer, Kompas, Cari) di mobile agar pas dan sejajar */
   .map-hud-pod.top-right {
-    top: 6px !important;
-    right: 6px !important;
+    top: 8px !important;
+    right: 8px !important;
     padding: 3px !important;
     gap: 3px !important;
     border-radius: 12px !important;
@@ -10292,7 +10314,7 @@ html[data-field-theme="matahari"] .section-card h2 {
     height: 17px !important;
   }
 
-  /* Rail alat GPS, zoom & survei di mobile dibuat terpadu, proporsional, dan anti-overlap */
+  /* Rail alat GPS, zoom & survei di mobile dibuat terpadu, proporsional, dan anti-overlap sejajar kanan */
   .map-tool-rail {
     bottom: 8px !important;
     right: 8px !important;
@@ -10335,16 +10357,26 @@ html[data-field-theme="matahari"] .section-card h2 {
     margin: 2px auto !important;
   }
   .coord-chip-wrap {
-    top: 6px !important;
-    left: 6px !important;
-    max-width: calc(100vw - 110px) !important;
+    top: 8px !important;
+    left: 8px !important;
+    max-width: calc(100% - 56px) !important;
   }
 }
 
 @media (min-width: 768px) {
   .map-tool-rail {
-    bottom: 28px !important;
-    right: 24px !important;
+    bottom: 20px !important;
+    right: 14px !important;
+    max-height: calc(100% - 170px) !important;
+  }
+  .map-hud-pod.top-right {
+    top: 12px !important;
+    right: 14px !important;
+  }
+  .coord-chip-wrap {
+    top: 12px !important;
+    left: 14px !important;
+    max-width: calc(100% - 76px) !important;
   }
 }
 
