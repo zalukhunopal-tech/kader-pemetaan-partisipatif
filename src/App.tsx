@@ -162,6 +162,46 @@ export const App: React.FC = () => {
   const [pengumumanList, setPengumumanList] = useState<PengumumanBroadcast[]>(() => muatPengumuman());
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [pesanList, setPesanList] = useState<PesanKomunikasi[]>(() => muatPesan());
+  const [pesanDibacaCount, setPesanDibacaCount] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem("geokader_terakhir_baca_pesan_v1");
+      return v !== null ? parseInt(v, 10) : muatPesan().length;
+    } catch {
+      return 0;
+    }
+  });
+
+  const adaPesanBaru = tabAktif !== "komunikasi" && pesanList.length > pesanDibacaCount;
+
+  // Bila pengguna berada di tab komunikasi, tandai semua pesan telah terbaca
+  useEffect(() => {
+    if (tabAktif === "komunikasi") {
+      setPesanDibacaCount(pesanList.length);
+      try {
+        localStorage.setItem("geokader_terakhir_baca_pesan_v1", pesanList.length.toString());
+      } catch {
+        // Abaikan
+      }
+    }
+  }, [tabAktif, pesanList.length]);
+
+  // Sinkronisasi pesan antar tab browser
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "geokader_pesan" || e.key === "geokader_pesan_v5") {
+        const pesanTerbaru = muatPesan();
+        setPesanList(pesanTerbaru);
+        if (tabAktif !== "komunikasi") {
+          const pesanTerakhir = pesanTerbaru[pesanTerbaru.length - 1];
+          if (pesanTerakhir) {
+            tampilkanToast(`💬 Pesan baru dari ${pesanTerakhir.namaPengirim}: "${pesanTerakhir.teks.slice(0, 35)}${pesanTerakhir.teks.length > 35 ? "…" : ""}"`);
+          }
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [tabAktif]);
   const [kaderAktifList] = useState<KaderAktifPresence[]>(() => muatKaderAktif());
   const [statusGDrive, setStatusGDrive] = useState<StatusGDrive>(() => muatStatusGDrive());
 
@@ -633,6 +673,9 @@ export const App: React.FC = () => {
       eskalasiAdmin: kustomPengirim?.eskalasiAdmin
     };
     setPesanList((prev) => [...prev, msgBaru]);
+    if (tabAktif !== "komunikasi") {
+      tampilkanToast(`💬 Pesan baru dari ${msgBaru.namaPengirim}: "${teks.slice(0, 35)}${teks.length > 35 ? "…" : ""}"`);
+    }
   };
 
   const handleHapusPesan = (idPesan: string) => {
@@ -988,6 +1031,7 @@ export const App: React.FC = () => {
         setTabAktif={setTabAktif}
         antreanLokalCount={antreanLokalCount}
         onModeUser={() => gantiPeranAkun("kader")}
+        adaPesanBaru={adaPesanBaru}
       />
     </div>
   );

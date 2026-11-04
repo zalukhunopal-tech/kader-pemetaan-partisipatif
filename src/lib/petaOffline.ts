@@ -15,6 +15,42 @@ export { registrasiProtokolPmtiles, registrasiProtokolMbtiles };
 export const NAMA_CACHE_TILE = "geokader-tiles-v1";
 /** Batas tile per area agar unduhan tidak membebani penyedia tile maupun penyimpanan HP */
 export const BATAS_TILE_PER_AREA = 2500;
+/** Batas kapasitas penyimpanan cache tile otomatis saat browsing peta luring (4.000 tile / ±120 MB) */
+export const BATAS_MAKS_AUTO_TILE_CACHE = 4000;
+
+let pembersihanLruBerjalan = false;
+async function pantauDanPangkasCacheLru(cache: Cache) {
+  if (pembersihanLruBerjalan) return;
+  pembersihanLruBerjalan = true;
+  try {
+    const keys = await cache.keys();
+    if (keys.length > BATAS_MAKS_AUTO_TILE_CACHE) {
+      const pangkas = Math.max(100, Math.floor(keys.length * 0.1));
+      for (let i = 0; i < pangkas && i < keys.length; i++) {
+        await cache.delete(keys[i]);
+      }
+    }
+  } catch {
+    // Abaikan jika browser tidak mendukung inspeksi keys
+  } finally {
+    pembersihanLruBerjalan = false;
+  }
+}
+
+let counterAutoCache = 0;
+async function simpanTileOtomatisKeCache(cache: Cache, url: string, blob: Blob, contentType: string) {
+  try {
+    await cache.put(url, new Response(blob.slice(0), { headers: { "content-type": contentType } }));
+    counterAutoCache++;
+    if (counterAutoCache % 50 === 0) {
+      void pantauDanPangkasCacheLru(cache);
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      void pantauDanPangkasCacheLru(cache);
+    }
+  }
+}
 /** Batas kegagalan: lebih dari ini dianggap unduhan gagal dan dibatalkan */
 const BATAS_GAGAL_PERSEN = 5;
 const PARALEL_UNDUH = 4;
@@ -404,6 +440,34 @@ export async function muatGambarTile(url: string): Promise<HTMLImageElement> {
       // cache tidak terbaca: lanjut ke jaringan
     }
   }
+
+  // AUTO-CACHE TILE CITRA & PETA: jika online dan Cache API tersedia, unduh via fetch CORS lalu simpan otomatis
+  if (penyimpananTileDidukung() && typeof fetch !== "undefined") {
+    try {
+      const resp = await fetch(url, { mode: "cors" });
+      if (resp.ok) {
+        const tipe = resp.headers.get("content-type") ?? "";
+        if (tipe.startsWith("image/")) {
+          const blob = await resp.blob();
+          try {
+            const cache = await bukaCache();
+            void simpanTileOtomatisKeCache(cache, url, blob, tipe);
+          } catch {
+            // lanjut render jika cache gagal
+          }
+          const blobUrl = URL.createObjectURL(blob);
+          try {
+            return await gambarDariUrl(blobUrl, false);
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+          }
+        }
+      }
+    } catch {
+      // jika fetch CORS gagal atau offline, lanjutkan ke pemuat Image standar
+    }
+  }
+
   return gambarDariUrl(url, true);
 }
 

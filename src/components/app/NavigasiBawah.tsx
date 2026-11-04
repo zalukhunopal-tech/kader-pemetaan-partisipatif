@@ -10,13 +10,14 @@ interface NavigasiBawahProps {
   /** Jumlah data yang belum terunggah (sinkronisasi otomatis berjalan di latar belakang) */
   antreanLokalCount: number;
   onModeUser: () => void;
+  adaPesanBaru?: boolean;
 }
 
 /**
  * Bilah navigasi bawah Titik Tapak
  * Bersih, elegan, tanpa menu sinkronisasi manual karena sinkronisasi 100% otomatis di latar belakang.
  */
-export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, setTabAktif, onModeUser }) => {
+export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, setTabAktif, onModeUser, adaPesanBaru = false }) => {
   const roNavRef = useRef<ResizeObserver | null>(null);
   const rafNavRef = useRef<number | null>(null);
   const ukurBilahBawah = useCallback((el: HTMLElement | null) => {
@@ -90,7 +91,10 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
             onClick={() => setTabAktif("komunikasi")}
           >
-            <MessageSquare size={20} />
+            <div className="nav-icon-wrap">
+              <MessageSquare size={20} />
+              {adaPesanBaru && <span className="nav-notif-dot" aria-label="Ada pesan baru" />}
+            </div>
             <span>Diskusi</span>
           </button>
         </>
@@ -120,7 +124,10 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
             onClick={() => setTabAktif("komunikasi")}
           >
-            <MessageSquare size={20} />
+            <div className="nav-icon-wrap">
+              <MessageSquare size={20} />
+              {adaPesanBaru && <span className="nav-notif-dot" aria-label="Ada pesan baru" />}
+            </div>
             <span>Diskusi</span>
           </button>
 
