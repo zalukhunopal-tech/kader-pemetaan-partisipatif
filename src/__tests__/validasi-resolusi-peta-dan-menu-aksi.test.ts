@@ -78,9 +78,12 @@ describe("Hapus badge Posisi sekarang (Menghadap Utara) & pengambilan titik ramp
     expect(sumberMap).toContain("setModeIkutiKompas(true)");
   });
 
-  it("pengambilan titik di HP merampingkan kartu dan menyejajarkan Di Tanda +, Di GPS Saya, dan Batal", () => {
+  it("pengambilan titik di HP dan PC merampingkan kartu dan menyejajarkan Di Tanda +, Di GPS Saya, dan Batal", () => {
     expect(sumberMap).toContain('className="field-resume-actions"');
-    expect(css).toMatch(/\.field-resume-actions\s*\{\s*display:\s*contents;/);
+    // Di PC semua label sejajar 1 baris tanpa membengkak lebar
+    expect(css).toMatch(/\.field-resume-draft\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?flex-wrap:\s*nowrap;/);
+    expect(css).toMatch(/\.field-resume-actions\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?flex-wrap:\s*nowrap;/);
+    // Di HP 2 baris rapi dan tombol aksi tetap sejajar
     expect(css).toMatch(/\.field-resume-actions\s*\{[\s\S]*?flex-direction:\s*row !important;[\s\S]*?flex-wrap:\s*nowrap !important;/);
     expect(css).toMatch(/\.field-resume-draft button\s*\{[\s\S]*?min-height:\s*30px !important;/);
   });
