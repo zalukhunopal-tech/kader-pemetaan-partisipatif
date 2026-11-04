@@ -10281,8 +10281,9 @@ html[data-field-theme="matahari"] .section-card h2 {
   position: absolute;
   bottom: 20px;
   left: 14px;
-  right: 80px;
-  max-width: 380px;
+  right: auto;
+  width: auto;
+  max-width: calc(100% - 90px);
   z-index: 22;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
@@ -11050,11 +11051,57 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 /* =========================================================
-   PENGAMBILAN TITIK (.field-resume-draft): RAMPING & SEJAJAR DI HP
-   Desktop/tablet tetap memakai tata letak aslinya via display: contents.
+   PENGAMBILAN TITIK (.field-resume-draft): RAMPING & SEJAJAR (PC & HP)
+   Label koordinat dan seluruh tombol aksi sejajar 1 baris di PC tanpa membengkak lebar.
    ========================================================= */
+.field-resume-draft {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 9999px;
+  box-sizing: border-box;
+}
+
+.field-resume-coord {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin: 0 2px 0 0;
+}
+
 .field-resume-actions {
-  display: contents;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.field-resume-draft .field-resume-actions button,
+.field-resume-draft button {
+  min-height: 32px;
+  height: 32px;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 640px) {
@@ -11062,6 +11109,7 @@ html[data-field-theme="matahari"] .section-card h2 {
     bottom: 22px !important;
     left: 8px !important;
     right: 54px !important;
+    width: auto !important;
     max-width: calc(100vw - 62px) !important;
     padding: 6px 8px !important;
     gap: 5px !important;
@@ -11077,6 +11125,7 @@ html[data-field-theme="matahari"] .section-card h2 {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    text-align: center !important;
   }
 
   .field-resume-actions {
