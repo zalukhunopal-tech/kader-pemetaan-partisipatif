@@ -25,6 +25,7 @@ import {
   sisaMasaTotp,
   ubahKataSandi,
   ubahWilayahAkunOlehAdmin,
+  hapusAkunOlehAdmin,
   validasiKataSandi,
   wilayahAkun
 } from "./auth";
@@ -617,6 +618,31 @@ describe("ganti dan atur ulang sandi", () => {
     // Authenticator kader tidak ikut terhapus oleh reset sandi
     const masuk = await masukPenuh(kader.email, kader.rahasia, "KataBaruLagi-2029");
     expect(masuk.sukses).toBe(true);
+  });
+
+  it("admin dapat menghapus akun kader; sesi palsu, kader, atau diri sendiri ditolak", async () => {
+    const admin = await siapkanAdmin();
+    const kader = await buatKaderLengkap(admin.sesi);
+    const sesiKader = (await masukPenuh(kader.email, kader.rahasia, kader.sandiBaru)).akun!;
+
+    // Sesi palsu / peran kader ditolak
+    expect(hapusAkunOlehAdmin(sesiKader, kader.email).sukses).toBe(false);
+    expect(hapusAkunOlehAdmin({ ...sesiKader, peran: "admin" }, kader.email).sukses).toBe(false);
+    expect(hapusAkunOlehAdmin(null, kader.email).sukses).toBe(false);
+
+    // Admin menghapus diri sendiri ditolak
+    await bukaGerbang(admin);
+    const hapusDiri = hapusAkunOlehAdmin(admin.sesi, admin.email);
+    expect(hapusDiri.sukses).toBe(false);
+    expect(hapusDiri.pesan).toMatch(/sendiri/);
+
+    // Menghapus akun yang tidak ada ditolak
+    expect(hapusAkunOlehAdmin(admin.sesi, "tidakada@contoh.id").sukses).toBe(false);
+
+    // Admin menghapus akun kader berhasil
+    const hapusKader = hapusAkunOlehAdmin(admin.sesi, kader.email);
+    expect(hapusKader.sukses).toBe(true);
+    expect(muatSemuaAkun().some((a) => a.email === kader.email)).toBe(false);
   });
 });
 

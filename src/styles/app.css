@@ -1618,6 +1618,51 @@ body {
   color: var(--avenza-orange);
 }
 
+.rec-error-alert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rec-error-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.rec-error-dismiss {
+  border: none;
+  background: transparent;
+  color: #991b1b;
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.rec-error-dismiss:hover {
+  background: #fee2e2;
+}
+
 .recording-actions {
   display: flex;
   align-items: center;

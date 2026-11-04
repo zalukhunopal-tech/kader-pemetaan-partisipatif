@@ -131,3 +131,26 @@ describe("Label menu satu baris (anti ke-enter), status level kader sejajar di H
     expect(css).toContain(".workspace-map .field-sheet.field-inspector-sheet");
   });
 });
+
+describe("Menu tindakan akun di Admin > Akun & penanda GPS tidak menutupi perekaman", () => {
+  const sumberAkun = readFileSync(resolve(__dirname, "../components/AkunAdminPanel.tsx"), "utf8");
+  const sumberRekam = readFileSync(resolve(__dirname, "../components/peta/PanelPerekaman.tsx"), "utf8");
+  const sumberLatar = readFileSync(resolve(__dirname, "../lib/perekamLatar.ts"), "utf8");
+  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
+
+  it("tindakan akun tersembunyi dalam tombol Aksi dan menyediakan fitur Hapus akun di menu pilihan", () => {
+    expect(sumberAkun).toContain('className="btn-outline-sm aksi-data-trigger"');
+    expect(sumberAkun).toContain("Hapus akun");
+    expect(sumberAkun).toContain("hapusAkunOlehAdmin");
+    expect(sumberAkun).toContain("aksi-sheet-hapus");
+  });
+
+  it("kalimat penanda izin GPS dipersingkat dan kotak kendali perekaman jalur/poligon tidak tertutupi", () => {
+    expect(sumberLatar).toContain('"GPS belum diizinkan"');
+    expect(sumberLatar).not.toContain("GPS perangkat belum diizinkan. Izinkan akses lokasi di pengaturan browser.");
+    expect(sumberRekam).toContain("rec-error-alert");
+    expect(sumberRekam).toContain("rec-error-dismiss");
+    expect(css).toContain(".rec-error-alert");
+    expect(css).toContain(".rec-error-dismiss");
+  });
+});

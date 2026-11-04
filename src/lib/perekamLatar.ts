@@ -136,8 +136,8 @@ function tanganiGalat(err: GeolocationPositionError) {
   if (!state.autoGpsAktif) {
     const pesan =
       err.code === err.PERMISSION_DENIED
-        ? "GPS perangkat belum diizinkan. Izinkan akses lokasi di pengaturan browser."
-        : "Sinyal GPS belum didapat. Pindah ke tempat terbuka lalu coba lagi.";
+        ? "GPS belum diizinkan"
+        : "Sinyal GPS belum didapat";
     setState({ galat: pesan });
   }
 }

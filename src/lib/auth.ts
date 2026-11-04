@@ -927,6 +927,27 @@ export function ubahWilayahAkunOlehAdmin(
   return { sukses: true, pesan: `Wilayah ${accounts[idx].nama} diperbarui.` };
 }
 
+/** Admin menghapus akun kader/admin lain di perangkat ini. Tidak berlaku untuk akun admin yang sedang aktif. */
+export function hapusAkunOlehAdmin(
+  adminSesi: AkunSesi | null,
+  emailTarget: string
+): { sukses: boolean; pesan: string } {
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator yang dapat menghapus akun." };
+  const emailBersih = emailTarget.trim().toLowerCase();
+  if (emailBersih === akunAdmin.email.toLowerCase()) {
+    return { sukses: false, pesan: "Anda tidak dapat menghapus akun Anda sendiri saat sedang masuk." };
+  }
+  const accounts = muatSemuaAkun();
+  const idx = accounts.findIndex((a) => a.email.toLowerCase() === emailBersih);
+  if (idx === -1) return { sukses: false, pesan: "Akun tidak ditemukan." };
+  const nama = accounts[idx].nama;
+  accounts.splice(idx, 1);
+  simpanSemuaAkun(accounts);
+  hapusGagal(emailBersih);
+  return { sukses: true, pesan: `Akun ${nama} (${emailBersih}) berhasil dihapus dari perangkat ini.` };
+}
+
 /** Wilayah tugas akun di perangkat ini (bisa belum lengkap), untuk menentukan folder Drive datanya */
 export function wilayahAkun(idKader: string): WilayahAdministrasi | undefined {
   return muatSemuaAkun().find((a) => a.idKader === idKader)?.wilayah;
