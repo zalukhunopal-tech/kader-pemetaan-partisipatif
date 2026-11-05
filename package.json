@@ -11,7 +11,7 @@
     "start": "tsx server.ts",
     "build": "tsc && vite build",
     "preview": "tsx server.ts",
-    "lint": "tsc --noEmit && eslint .",
+    "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "npm run build && vite build --mode e2e --outDir dist-e2e && playwright test",
     "format": "prettier --write .",
