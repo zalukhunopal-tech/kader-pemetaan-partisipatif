@@ -85,7 +85,7 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
   };
 
   return (
-    <div className="map-layers-popover avenza-layers-modal">
+    <div className="map-layers-popover avenza-layers-modal" avenza-layer-studio-redesign>
       {/* HEADER POPOVER DENGAN TAB HORIZONTAL LEBAR */}
       <div className="map-popover-head">
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
