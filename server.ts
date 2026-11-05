@@ -9,25 +9,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 function parseArg(flag: string): string | undefined {
-  const idx = process.argv.indexOf(flag);
-  if (idx !== -1 && idx + 1 < process.argv.length) {
-    return process.argv[idx + 1];
+  for (let i = 0; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg === flag && i + 1 < process.argv.length) {
+      return process.argv[i + 1];
+    }
+    if (arg.startsWith(`${flag}=`)) {
+      return arg.slice(flag.length + 1);
+    }
   }
   return undefined;
 }
 
-const cliPort = parseArg("--port");
+const cliPort = parseArg("--port") || parseArg("-p");
 const PORT = cliPort ? Number(cliPort) : (Number(process.env.PORT) || 3000);
-const cliHost = parseArg("--host");
+const cliHost = parseArg("--host") || parseArg("-h");
 const HOST = cliHost || process.env.HOST || "0.0.0.0";
 
 // Nonaktifkan header identifikasi server demi keamanan
 app.disable("x-powered-by");
 
-// Header Keamanan Dasar
+// Header Keamanan Dasar (tidak menyetel X-Frame-Options agar dapat ditampilkan di dalam iframe AI Studio)
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   next();
 });
@@ -275,7 +279,7 @@ async function startServer() {
 
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true, host: HOST, port: PORT, hmr: false },
+      server: { middlewareMode: true, host: HOST, port: PORT, allowedHosts: true, hmr: false },
       appType: "spa"
     });
     app.use(vite.middlewares);
