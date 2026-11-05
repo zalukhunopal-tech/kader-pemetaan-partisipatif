@@ -171,7 +171,7 @@ describe("Penyelarasan koordinat sejajar LU/BT, BottomSheet tanpa angka persenta
   });
 
   it("angka persentase 25% 55% 92% dihapus dari header bottom sheet tanpa menghilangkan fungsi ukuran dan drag", () => {
-    expect(css).toContain(".field-sheet-stops {\r\n  display: none !important;");
+    expect(css.replace(/\r\n/g, "\n")).toContain(".field-sheet-stops {\n  display: none !important;");
     expect(sumberSheet).toContain("setTinggi(tahap");
   });
 
