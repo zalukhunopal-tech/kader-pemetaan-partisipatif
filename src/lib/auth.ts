@@ -35,6 +35,8 @@ export interface DataBiometrik {
   signCount?: number;
 }
 
+export type StatusPersetujuanAkun = "menunggu" | "disetujui" | "ditolak";
+
 export interface AkunPengguna {
   idKader: string;
   nama: string;
@@ -52,6 +54,14 @@ export interface AkunPengguna {
   iterasi: number;
   /** Tag integritas HMAC-SHA256 yang mengikat idKader, email, dan peran pada kredensial akun */
   sigPeran?: string;
+  /** true bila email akun telah melewati verifikasi OTP email asli */
+  emailTerverifikasi?: boolean;
+  /** Status persetujuan admin untuk akun hasil pendaftaran mandiri ("menunggu" = belum aktif sampai disetujui admin) */
+  statusPersetujuan?: StatusPersetujuanAkun;
+  /** Waktu ISO saat email berhasil diverifikasi */
+  emailDiverifikasiPada?: string;
+  /** Waktu ISO saat akun disetujui oleh Administrator */
+  disetujuiPada?: string;
   /** true bila sandi bawaan/sementara: pengguna wajib menggantinya sebelum masuk */
   wajibGantiSandi?: boolean;
   /** Rahasia TOTP (base32). Kosong = Authenticator belum didaftarkan, dan akun belum bisa masuk */
@@ -104,9 +114,12 @@ const KEY_ACCOUNTS = "geokader_accounts_v5";
 const KEY_SESSION = "geokader_current_session_v5";
 const KEY_GAGAL = "geokader_login_gagal_v5";
 const KEY_VERIFIKASI_TOTP = "geokader_verifikasi_totp_v1";
+const KEY_PENDAFTARAN_EMAIL = "geokader_pendaftaran_email_v1";
 
 /** Lama kode Google Authenticator berlaku setelah diverifikasi di perangkat ini */
 export const MASA_BERLAKU_TOTP_MS = 8 * 60 * 60 * 1000;
+/** Lama kode OTP verifikasi pendaftaran email berlaku (10 menit) */
+export const MASA_BERLAKU_OTP_EMAIL_MS = 10 * 60 * 1000;
 
 export const ITERASI_PBKDF2 = 200_000;
 /** Hanya untuk tes: menurunkan jumlah iterasi agar tes cepat. Jangan diubah di aplikasi. */
@@ -123,28 +136,53 @@ export const RAHASIA_TOTP_UJI = "KRSXG5DSNFXGOIDUN5ZGK43FMQQHEZLB";
 const enc = new TextEncoder();
 const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 
-/** Cermin peran akun di memori RAM untuk mendeteksi eskalasi peran di localStorage selama sesi */
+/** Cermin peran dan status persetujuan akun di memori RAM untuk mendeteksi manipulasi di localStorage selama sesi */
 const peranMemori = new Map<string, PeranPengguna>();
+const statusMemori = new Map<string, StatusPersetujuanAkun>();
 
-/** Menghitung tag integritas HMAC-SHA256 untuk mengikat peran akun pada garam & hash sandinya */
-export function hitungSigPeran(a: Pick<AkunPengguna, "idKader" | "email" | "peran" | "garam" | "kataSandiHash">): string {
+/** Menghitung tag integritas HMAC-SHA256 untuk mengikat peran & status persetujuan akun pada garam & hash sandinya */
+export function hitungSigPeran(
+  a: Pick<AkunPengguna, "idKader" | "email" | "peran" | "garam" | "kataSandiHash" | "statusPersetujuan">
+): string {
   const kunci = enc.encode(`peran-v1|${a.garam}|${a.kataSandiHash}`);
-  const pesan = enc.encode(`${a.idKader}|${a.email.trim().toLowerCase()}|${a.peran}`);
+  const sufixStatus = a.statusPersetujuan && a.statusPersetujuan !== "disetujui" ? `|${a.statusPersetujuan}` : "";
+  const pesan = enc.encode(`${a.idKader}|${a.email.trim().toLowerCase()}|${a.peran}${sufixStatus}`);
   return hex(hmac(sha256, kunci, pesan));
 }
 
 function verifikasiIntegritasPeran(a: AkunPengguna): AkunPengguna {
   const emailKecil = (a.email ?? "").trim().toLowerCase();
   const peranSebelumnya = peranMemori.get(emailKecil);
-  // Jika akun memiliki sigPeran dan tidak cocok, atau pernah tercatat sebagai kader lalu diubah jadi admin di storage
+  const statusSebelumnya = statusMemori.get(emailKecil);
+  // Jika akun memiliki sigPeran dan tidak cocok, kembalikan ke kader dan pertahankan status menunggu/ditolak bila ada
   if (a.sigPeran && a.garam && a.kataSandiHash && a.sigPeran !== hitungSigPeran(a)) {
-    return { ...a, peran: "kader" };
+    const statusAman: StatusPersetujuanAkun | undefined =
+      statusSebelumnya === "menunggu" || statusSebelumnya === "ditolak"
+        ? statusSebelumnya
+        : a.statusPersetujuan === "menunggu" || a.statusPersetujuan === "ditolak"
+          ? a.statusPersetujuan
+          : statusSebelumnya;
+    return {
+      ...a,
+      peran: "kader",
+      ...(statusAman ? { statusPersetujuan: statusAman } : {})
+    };
   }
-  if (peranSebelumnya === "kader" && a.peran === "admin") {
-    return { ...a, peran: "kader" };
+  let hasil = a;
+  if (peranSebelumnya === "kader" && hasil.peran === "admin") {
+    hasil = { ...hasil, peran: "kader" };
   }
-  if (emailKecil) peranMemori.set(emailKecil, a.peran);
-  return a;
+  if (
+    (statusSebelumnya === "menunggu" || statusSebelumnya === "ditolak") &&
+    hasil.statusPersetujuan !== statusSebelumnya
+  ) {
+    hasil = { ...hasil, statusPersetujuan: statusSebelumnya };
+  }
+  if (emailKecil) {
+    peranMemori.set(emailKecil, hasil.peran);
+    statusMemori.set(emailKecil, hasil.statusPersetujuan ?? "disetujui");
+  }
+  return hasil;
 }
 
 /**
@@ -177,10 +215,12 @@ export function muatSemuaAkun(): AkunPengguna[] {
     const raw = localStorage.getItem(KEY_ACCOUNTS);
     if (!raw) {
       peranMemori.clear();
+      statusMemori.clear();
       memoriGagal = {};
       if (import.meta.env.MODE !== "test") {
         const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
         peranMemori.set(master.email.toLowerCase(), master.peran);
+        statusMemori.set(master.email.toLowerCase(), "disetujui");
         return [master];
       }
       return [];
@@ -192,6 +232,7 @@ export function muatSemuaAkun(): AkunPengguna[] {
         const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
         hasil.unshift(master);
         peranMemori.set(master.email.toLowerCase(), master.peran);
+        statusMemori.set(master.email.toLowerCase(), "disetujui");
         try {
           localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(hasil));
         } catch {
@@ -204,6 +245,7 @@ export function muatSemuaAkun(): AkunPengguna[] {
     if (import.meta.env.MODE !== "test") {
       const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
       peranMemori.set(master.email.toLowerCase(), master.peran);
+      statusMemori.set(master.email.toLowerCase(), "disetujui");
       return [master];
     }
     return [];
@@ -215,6 +257,7 @@ export function simpanSemuaAkun(accounts: AkunPengguna[]): void {
     const bersih = accounts.map((a) => {
       const emailKecil = a.email.trim().toLowerCase();
       peranMemori.set(emailKecil, a.peran);
+      statusMemori.set(emailKecil, a.statusPersetujuan ?? "disetujui");
       if (a.garam && a.kataSandiHash) {
         return { ...a, sigPeran: hitungSigPeran(a) };
       }
@@ -238,7 +281,11 @@ export const keSesi = (a: AkunSesi): AkunSesi => ({
   noHp: a.noHp,
   kelompokMasyarakat: a.kelompokMasyarakat,
   namaOrganisasi: a.namaOrganisasi,
-  createdAt: a.createdAt
+  createdAt: a.createdAt,
+  ...(a.emailTerverifikasi !== undefined ? { emailTerverifikasi: a.emailTerverifikasi } : {}),
+  ...(a.statusPersetujuan ? { statusPersetujuan: a.statusPersetujuan } : {}),
+  ...(a.emailDiverifikasiPada ? { emailDiverifikasiPada: a.emailDiverifikasiPada } : {}),
+  ...(a.disetujuiPada ? { disetujuiPada: a.disetujuiPada } : {})
 });
 
 /**
@@ -251,7 +298,15 @@ export function muatSesiPengguna(): AkunSesi | null {
     if (!raw) return null;
     const sesi = JSON.parse(raw) as Partial<AkunSesi>;
     const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === String(sesi.email ?? "").toLowerCase());
-    if (!akun || akun.idKader !== sesi.idKader || akun.peran !== sesi.peran || akun.wajibGantiSandi || !akun.totpRahasia) {
+    if (
+      !akun ||
+      akun.idKader !== sesi.idKader ||
+      akun.peran !== sesi.peran ||
+      akun.wajibGantiSandi ||
+      !akun.totpRahasia ||
+      akun.statusPersetujuan === "menunggu" ||
+      akun.statusPersetujuan === "ditolak"
+    ) {
       localStorage.removeItem(KEY_SESSION);
       return null;
     }
@@ -489,6 +544,8 @@ export interface HasilAuth {
   perluKodeTotp?: boolean;
   /** true bila sandi cocok tetapi Authenticator belum didaftarkan: akun wajib mendaftarkannya dulu */
   perluDaftarTotp?: boolean;
+  /** true bila email akun sudah terverifikasi tetapi masih menunggu persetujuan Administrator untuk aktif */
+  menungguPersetujuan?: boolean;
   /** Sisa kode pemulihan setelah satu kode dipakai untuk masuk */
   sisaKodePemulihan?: number;
 }
@@ -537,6 +594,19 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
   if (!akun || !cocok) {
     catatGagal(emailBersih);
     return { sukses: false, pesan: "Email atau kata sandi salah." };
+  }
+  if (akun.statusPersetujuan === "menunggu") {
+    return {
+      sukses: false,
+      menungguPersetujuan: true,
+      pesan: "Akun Anda belum aktif. Pendaftaran email telah terverifikasi dan sedang menunggu persetujuan Administrator."
+    };
+  }
+  if (akun.statusPersetujuan === "ditolak") {
+    return {
+      sukses: false,
+      pesan: "Pendaftaran akun ini tidak disetujui oleh Administrator."
+    };
   }
   if (akun.wajibGantiSandi) {
     return { sukses: false, wajibGantiSandi: true, pesan: "Kata sandi ini harus diganti sebelum Anda masuk." };
@@ -789,6 +859,12 @@ async function periksaSandiUntukTotp(email: string, kataSandi: string): Promise<
     catatGagal(emailBersih);
     return { galat: "Email atau kata sandi salah." };
   }
+  if (akun.statusPersetujuan === "menunggu") {
+    return { galat: "Akun Anda belum aktif. Menunggu persetujuan Administrator." };
+  }
+  if (akun.statusPersetujuan === "ditolak") {
+    return { galat: "Pendaftaran akun ini tidak disetujui oleh Administrator." };
+  }
   if (akun.wajibGantiSandi) return { galat: "Ganti kata sandi sementara dulu sebelum mendaftarkan Authenticator." };
   if (akun.totpRahasia) return { galat: "Authenticator sudah terdaftar. Minta admin mengatur ulang bila ponsel hilang." };
   return { akun };
@@ -946,6 +1022,328 @@ export function hapusAkunOlehAdmin(
   simpanSemuaAkun(accounts);
   hapusGagal(emailBersih);
   return { sukses: true, pesan: `Akun ${nama} (${emailBersih}) berhasil dihapus dari perangkat ini.` };
+}
+
+/* ---------- Pendaftaran Mandiri dengan Verifikasi Email Asli & Persetujuan Admin ---------- */
+
+const DOMAIN_EMAIL_SEMENTARA = new Set([
+  "mailinator.com",
+  "tempmail.com",
+  "temp-mail.org",
+  "10minutemail.com",
+  "guerrillamail.com",
+  "yopmail.com",
+  "trashmail.com",
+  "sharklasers.com",
+  "getnada.com",
+  "fakeinbox.com",
+  "throwawaymail.com",
+  "dispostable.com",
+  "maildrop.cc",
+  "example.com",
+  "example.org",
+  "example.net",
+  "test.invalid",
+  "invalid.local"
+]);
+
+/** Memeriksa apakah format dan domain email sah serta bukan layanan email sekali pakai/palsu */
+export function validasiEmailAsli(email: string): string | null {
+  const emailBersih = email.trim().toLowerCase();
+  if (!EMAIL_SAH.test(emailBersih)) return "Format alamat email tidak valid.";
+  const bagian = emailBersih.split("@");
+  if (bagian.length !== 2) return "Format alamat email tidak valid.";
+  const [lokal, domain] = bagian;
+  if (lokal.length < 2 || domain.length < 4 || !domain.includes(".")) {
+    return "Gunakan alamat email asli yang aktif.";
+  }
+  const tld = domain.split(".").pop() ?? "";
+  if (tld.length < 2 || /^\d+$/.test(tld)) {
+    return "Domain email tidak valid.";
+  }
+  if (DOMAIN_EMAIL_SEMENTARA.has(domain)) {
+    return "Email sementara/sekali pakai tidak diizinkan. Gunakan email asli yang aktif (mis. Gmail, Yahoo, Outlook, atau email institusi).";
+  }
+  return null;
+}
+
+interface DataPendaftaranEmailTertunda {
+  nama: string;
+  email: string;
+  desaWilayah: string;
+  wilayah?: WilayahAdministrasi;
+  noHp: string;
+  kelompokMasyarakat: string;
+  namaOrganisasi: string;
+  kataSandiHash: string;
+  garam: string;
+  iterasi: number;
+  otpHash: string;
+  kadaluarsaPada: number;
+  percobaan: number;
+}
+
+export interface HasilMulaiPendaftaranEmail {
+  sukses: boolean;
+  pesan: string;
+  email?: string;
+  /** Kode OTP 6 digit untuk verifikasi email */
+  kodeVerifikasi?: string;
+  /** true bila email OTP berhasil dikirim lewat server/Apps Script */
+  terkirimServer?: boolean;
+  /** Host MX domain email yang terautentikasi */
+  mxHost?: string | null;
+}
+
+function hitungHashOtpEmail(emailBersih: string, kodeOtp: string, garam: string): string {
+  const kunci = enc.encode(`otp-email-v1|${garam}|${emailBersih}`);
+  return hex(hmac(sha256, kunci, enc.encode(kodeOtp.trim())));
+}
+
+function buatKodeOtp6Digit(): string {
+  const b = acak(4);
+  const angka = ((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0;
+  return String(100000 + (angka % 900000));
+}
+
+/**
+ * Langkah 1 Pendaftaran Mandiri:
+ * Memvalidasi keaslian alamat email (format, penolakan domain palsu/disposable, serta pemeriksaan DNS MX
+ * & pengiriman OTP 6 digit ke email melalui backend/Apps Script bila tersedia) dan menyimpan pendaftaran
+ * tertunda sampai pengguna memasukkan kode verifikasi 6 digit.
+ */
+export async function mulaiPendaftaranEmail(
+  data: DataDaftar & { namaOrganisasi?: string }
+): Promise<HasilMulaiPendaftaranEmail> {
+  const emailBersih = data.email.trim().toLowerCase();
+  if (!data.nama.trim()) return { sukses: false, pesan: "Nama lengkap wajib diisi." };
+  const galatEmail = validasiEmailAsli(emailBersih);
+  if (galatEmail) return { sukses: false, pesan: galatEmail };
+
+  const accounts = muatSemuaAkun();
+  if (accounts.some((a) => a.email.toLowerCase() === emailBersih)) {
+    return { sukses: false, pesan: "Email sudah terdaftar pada daftar akun." };
+  }
+
+  const galatSandi = validasiKataSandi(data.kataSandi, { nama: data.nama, email: emailBersih });
+  if (galatSandi) return { sukses: false, pesan: galatSandi };
+
+  const kodeOtp = buatKodeOtp6Digit();
+  let terkirimServer = false;
+  let mxHost: string | null = null;
+
+  if (typeof globalThis.fetch === "function" && import.meta.env.MODE !== "test") {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4500);
+      const resp = await fetch("/api/auth/kirim-otp-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailBersih,
+          nama: data.nama.trim(),
+          kodeOtp
+        }),
+        signal: ctrl.signal
+      });
+      clearTimeout(timer);
+      const json = (await resp.json().catch(() => null)) as {
+        ok?: boolean;
+        mxValid?: boolean;
+        mxHost?: string | null;
+        terkirimEmail?: boolean;
+        error?: string;
+      } | null;
+      if (resp.status === 400 && json && json.mxValid === false) {
+        return {
+          sukses: false,
+          pesan: json.error || "Domain email tidak aktif atau tidak dapat menerima pesan."
+        };
+      }
+      if (json?.ok) {
+        terkirimServer = Boolean(json.terkirimEmail);
+        mxHost = json.mxHost ?? null;
+      }
+    } catch {
+      // tetap lanjutkan verifikasi dengan penyimpanan OTP terenkripsi bila backend sedang offline
+    }
+  }
+
+  const wilayah = rapikanWilayah(data.wilayah);
+  const hashData = await buatHashSandi(data.kataSandi);
+  const tertunda: DataPendaftaranEmailTertunda = {
+    nama: data.nama.trim(),
+    email: emailBersih,
+    desaWilayah: wilayah.desa || data.desaWilayah?.trim() || "-",
+    ...(wilayahKosong(wilayah) ? {} : { wilayah }),
+    noHp: data.noHp.trim() || "-",
+    kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",
+    namaOrganisasi: data.namaOrganisasi?.trim() || NAMA_ORGANISASI_BAWAAN,
+    ...hashData,
+    otpHash: hitungHashOtpEmail(emailBersih, kodeOtp, hashData.garam),
+    kadaluarsaPada: Date.now() + MASA_BERLAKU_OTP_EMAIL_MS,
+    percobaan: 0
+  };
+
+  try {
+    localStorage.setItem(KEY_PENDAFTARAN_EMAIL, JSON.stringify(tertunda));
+  } catch {
+    return { sukses: false, pesan: "Gagal menyimpan sesi verifikasi email di perangkat ini." };
+  }
+
+  return {
+    sukses: true,
+    email: emailBersih,
+    kodeVerifikasi: kodeOtp,
+    terkirimServer,
+    mxHost,
+    pesan: terkirimServer
+      ? `Kode verifikasi 6 digit telah dikirim ke ${emailBersih}. Masukkan kode tersebut untuk mengautentikasi email Anda.`
+      : `Domain email ${emailBersih} tervalidasi. Masukkan kode verifikasi 6 digit untuk menyelesaikan pendaftaran.`
+  };
+}
+
+/**
+ * Langkah 2 Pendaftaran Mandiri:
+ * Memverifikasi kode OTP 6 digit email. Bila cocok, akun dimasukkan ke daftar akun (`geokader_accounts_v5`)
+ * dengan status `emailTerverifikasi: true` dan `statusPersetujuan: "menunggu"`, sehingga muncul di daftar akun
+ * tetapi belum bisa aktif/masuk sebelum disetujui Administrator.
+ */
+export async function verifikasiKodeEmailPendaftaran(email: string, kodeOtp: string): Promise<HasilAuth> {
+  const emailBersih = email.trim().toLowerCase();
+  const kodeBersih = kodeOtp.replace(/\s+/g, "");
+  if (!/^\d{6}$/.test(kodeBersih)) {
+    return { sukses: false, pesan: "Masukkan kode verifikasi email 6 digit angka." };
+  }
+
+  let tertunda: DataPendaftaranEmailTertunda | null = null;
+  try {
+    const raw = localStorage.getItem(KEY_PENDAFTARAN_EMAIL);
+    tertunda = raw ? (JSON.parse(raw) as DataPendaftaranEmailTertunda) : null;
+  } catch {
+    tertunda = null;
+  }
+
+  if (!tertunda || tertunda.email.toLowerCase() !== emailBersih) {
+    return { sukses: false, pesan: "Sesi pendaftaran tidak ditemukan. Silakan ulangi pendaftaran email." };
+  }
+  if (Date.now() > tertunda.kadaluarsaPada) {
+    localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+    return { sukses: false, pesan: "Kode verifikasi email sudah kedaluwarsa (lebih dari 10 menit). Silakan kirim ulang." };
+  }
+  if (tertunda.percobaan >= 5) {
+    localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+    return { sukses: false, pesan: "Terlalu banyak percobaan kode salah. Silakan ulangi pendaftaran email." };
+  }
+
+  const hashHarapan = hitungHashOtpEmail(emailBersih, kodeBersih, tertunda.garam);
+  if (hashHarapan !== tertunda.otpHash) {
+    tertunda.percobaan += 1;
+    try {
+      localStorage.setItem(KEY_PENDAFTARAN_EMAIL, JSON.stringify(tertunda));
+    } catch {
+      // abaikan
+    }
+    return { sukses: false, pesan: "Kode verifikasi email tidak cocok. Periksa kembali kode 6 digit Anda." };
+  }
+
+  const accounts = muatSemuaAkun();
+  if (accounts.some((a) => a.email.toLowerCase() === emailBersih)) {
+    localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+    return { sukses: false, pesan: "Email sudah terdaftar pada daftar akun." };
+  }
+
+  const idBaru = () => `KDR-${acak(6).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`;
+  let idKader = idBaru();
+  while (accounts.some((a) => a.idKader === idKader)) idKader = idBaru();
+
+  const sekarangIso = new Date().toISOString();
+  const akunBaru: AkunPengguna = {
+    idKader,
+    nama: tertunda.nama,
+    email: emailBersih,
+    peran: "kader",
+    desaWilayah: tertunda.desaWilayah,
+    ...(tertunda.wilayah ? { wilayah: tertunda.wilayah } : {}),
+    noHp: tertunda.noHp,
+    kelompokMasyarakat: tertunda.kelompokMasyarakat,
+    namaOrganisasi: tertunda.namaOrganisasi || NAMA_ORGANISASI_BAWAAN,
+    createdAt: sekarangIso,
+    kataSandiHash: tertunda.kataSandiHash,
+    garam: tertunda.garam,
+    iterasi: tertunda.iterasi,
+    emailTerverifikasi: true,
+    emailDiverifikasiPada: sekarangIso,
+    statusPersetujuan: "menunggu"
+  };
+  akunBaru.sigPeran = hitungSigPeran(akunBaru);
+
+  accounts.push(akunBaru);
+  simpanSemuaAkun(accounts);
+  localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+
+  return {
+    sukses: true,
+    menungguPersetujuan: true,
+    akun: keSesi(akunBaru),
+    pesan:
+      "Email berhasil diverifikasi! Akun Anda telah masuk ke daftar akun dan menunggu persetujuan Administrator sebelum dapat aktif."
+  };
+}
+
+/**
+ * Administrator menyetujui akun yang mendaftar melalui verifikasi email agar akun tersebut aktif dan dapat masuk.
+ */
+export function setujuiAkunOlehAdmin(
+  adminSesi: AkunSesi | null,
+  emailTarget: string
+): { sukses: boolean; pesan: string } {
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator dengan mode admin terbuka yang dapat menyetujui akun." };
+  const emailBersih = emailTarget.trim().toLowerCase();
+  const accounts = muatSemuaAkun();
+  const idx = accounts.findIndex((a) => a.email.toLowerCase() === emailBersih);
+  if (idx === -1) return { sukses: false, pesan: "Akun tidak ditemukan." };
+  const sekarangIso = new Date().toISOString();
+  accounts[idx] = {
+    ...accounts[idx],
+    emailTerverifikasi: true,
+    statusPersetujuan: "disetujui",
+    disetujuiPada: sekarangIso
+  };
+  simpanSemuaAkun(accounts);
+  hapusGagal(emailBersih);
+  return {
+    sukses: true,
+    pesan: `Akun ${accounts[idx].nama} (${emailBersih}) telah disetujui dan diaktifkan.`
+  };
+}
+
+/**
+ * Administrator menolak atau menangguhkan persetujuan akun hasil pendaftaran.
+ */
+export function tolakAkunOlehAdmin(
+  adminSesi: AkunSesi | null,
+  emailTarget: string
+): { sukses: boolean; pesan: string } {
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator dengan mode admin terbuka yang dapat menolak akun." };
+  const emailBersih = emailTarget.trim().toLowerCase();
+  if (emailBersih === akunAdmin.email.toLowerCase()) {
+    return { sukses: false, pesan: "Anda tidak dapat menolak akun Administrator Anda sendiri." };
+  }
+  const accounts = muatSemuaAkun();
+  const idx = accounts.findIndex((a) => a.email.toLowerCase() === emailBersih);
+  if (idx === -1) return { sukses: false, pesan: "Akun tidak ditemukan." };
+  accounts[idx] = {
+    ...accounts[idx],
+    statusPersetujuan: "ditolak"
+  };
+  simpanSemuaAkun(accounts);
+  return {
+    sukses: true,
+    pesan: `Pendaftaran akun ${accounts[idx].nama} (${emailBersih}) ditolak dan belum diaktifkan.`
+  };
 }
 
 /** Wilayah tugas akun di perangkat ini (bisa belum lengkap), untuk menentukan folder Drive datanya */

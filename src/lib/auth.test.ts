@@ -26,6 +26,11 @@ import {
   ubahKataSandi,
   ubahWilayahAkunOlehAdmin,
   hapusAkunOlehAdmin,
+  mulaiPendaftaranEmail,
+  verifikasiKodeEmailPendaftaran,
+  setujuiAkunOlehAdmin,
+  tolakAkunOlehAdmin,
+  validasiEmailAsli,
   validasiKataSandi,
   wilayahAkun
 } from "./auth";
@@ -741,5 +746,96 @@ describe("akun uji (build pengembangan)", () => {
     );
     await siapkanAkunUji();
     expect(muatSemuaAkun().find((a) => a.email === "admin@geokader.id")?.nama).toBe("Admin Asli");
+  });
+});
+
+describe("pendaftaran email & persetujuan admin", () => {
+  it("menolak email palsu/sekali pakai dan memvalidasi email asli", async () => {
+    expect(validasiEmailAsli("bukan-email")).not.toBeNull();
+    expect(validasiEmailAsli("user@mailinator.com")).toMatch(/sementara|sekali pakai/i);
+    expect(validasiEmailAsli("user@tempmail.com")).toMatch(/sementara|sekali pakai/i);
+    expect(validasiEmailAsli("kader.asli@gmail.com")).toBeNull();
+
+    const rPalsu = await mulaiPendaftaranEmail({
+      nama: "Rina Lapangan",
+      email: "rina@mailinator.com",
+      desaWilayah: "Desa Hutan",
+      noHp: "08123456789",
+      kataSandi: SANDI
+    });
+    expect(rPalsu.sukses).toBe(false);
+  });
+
+  it("mendaftarkan akun baru lewat OTP email, tampil di daftar akun sebagai menunggu, dan baru aktif setelah disetujui admin", async () => {
+    const admin = await siapkanAdmin();
+
+    // 1. Mulai pendaftaran dengan email asli
+    const mulai = await mulaiPendaftaranEmail({
+      nama: "Rina Lestari",
+      email: "rina.lestari@gmail.com",
+      desaWilayah: "Desa Long Peso",
+      noHp: "081299887766",
+      kelompokMasyarakat: "KTH Rimba Lestari",
+      kataSandi: SANDI
+    });
+    expect(mulai.sukses).toBe(true);
+    expect(mulai.kodeVerifikasi).toMatch(/^\d{6}$/);
+
+    // Belum masuk ke daftar akun sebelum OTP diverifikasi
+    expect(muatSemuaAkun().find((a) => a.email === "rina.lestari@gmail.com")).toBeUndefined();
+
+    // 2. Kode OTP salah ditolak
+    const salahOtp = await verifikasiKodeEmailPendaftaran("rina.lestari@gmail.com", "000000");
+    expect(salahOtp.sukses).toBe(false);
+
+    // 3. Kode OTP benar -> masuk ke daftar akun dengan status menunggu persetujuan admin
+    const verif = await verifikasiKodeEmailPendaftaran("rina.lestari@gmail.com", mulai.kodeVerifikasi!);
+    expect(verif.sukses).toBe(true);
+    expect(verif.menungguPersetujuan).toBe(true);
+
+    const akunTerdaftar = muatSemuaAkun().find((a) => a.email === "rina.lestari@gmail.com");
+    expect(akunTerdaftar).toBeDefined();
+    expect(akunTerdaftar?.emailTerverifikasi).toBe(true);
+    expect(akunTerdaftar?.statusPersetujuan).toBe("menunggu");
+
+    // 4. Akun yang belum disetujui admin tidak bisa login atau mendaftarkan Authenticator
+    const cobaLogin = await autentikasiLogin("rina.lestari@gmail.com", SANDI);
+    expect(cobaLogin.sukses).toBe(false);
+    expect(cobaLogin.menungguPersetujuan).toBe(true);
+    expect(cobaLogin.pesan).toMatch(/menunggu persetujuan Administrator/i);
+
+    const cobaTotp = await mulaiPendaftaranTotp("rina.lestari@gmail.com", SANDI);
+    expect(cobaTotp.sukses).toBe(false);
+    expect(cobaTotp.pesan).toMatch(/Menunggu persetujuan Administrator/i);
+
+    // Manipulasi statusPersetujuan di localStorage secara langsung tetap ditolak oleh sigPeran & statusMemori
+    const raw = JSON.parse(localStorage.getItem("geokader_accounts_v5")!) as AkunPengguna[];
+    const idx = raw.findIndex((a) => a.email === "rina.lestari@gmail.com");
+    raw[idx].statusPersetujuan = "disetujui";
+    localStorage.setItem("geokader_accounts_v5", JSON.stringify(raw));
+    expect(muatSemuaAkun().find((a) => a.email === "rina.lestari@gmail.com")?.statusPersetujuan).toBe("menunggu");
+
+    // 5. Admin menyetujui akun -> akun menjadi aktif dan dapat melanjutkan pendaftaran Authenticator & login
+    await bukaGerbang(admin);
+    const setuju = setujuiAkunOlehAdmin(admin.sesi, "rina.lestari@gmail.com");
+    expect(setuju.sukses).toBe(true);
+    expect(muatSemuaAkun().find((a) => a.email === "rina.lestari@gmail.com")?.statusPersetujuan).toBe("disetujui");
+
+    const setelahDisetujui = await autentikasiLogin("rina.lestari@gmail.com", SANDI);
+    expect(setelahDisetujui).toMatchObject({ sukses: false, perluDaftarTotp: true });
+
+    const totpRina = await pasangAuthenticator("rina.lestari@gmail.com", SANDI);
+    const masukRina = await masukPenuh("rina.lestari@gmail.com", totpRina.rahasia, SANDI);
+    expect(masukRina.sukses).toBe(true);
+    expect(masukRina.akun?.email).toBe("rina.lestari@gmail.com");
+
+    // 6. Admin juga dapat menolak pendaftaran akun
+    await bukaGerbang(admin);
+    const tolak = tolakAkunOlehAdmin(admin.sesi, "rina.lestari@gmail.com");
+    expect(tolak.sukses).toBe(true);
+    majuDetik(30);
+    const setelahDitolak = await autentikasiLogin("rina.lestari@gmail.com", SANDI, hitungTotp(totpRina.rahasia)!);
+    expect(setelahDitolak.sukses).toBe(false);
+    expect(setelahDitolak.pesan).toMatch(/tidak disetujui/i);
   });
 });
