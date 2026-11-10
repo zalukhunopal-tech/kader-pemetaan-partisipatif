@@ -186,10 +186,10 @@ export function parseGeoJSON(isi: string): HasilParse {
     const kategori = KATEGORI_VALID.find((k) => k === p.kategori);
     fitur.push(
       ...lengkapiBentuk(bentuk, {
-        judul: teks(p.judul) ?? teks(p.name) ?? teks(p.Name) ?? teks(p.title) ?? `Impor #${i + 1}`,
+        judul: teks(p.judul) ?? teks(p.label) ?? teks(p.name) ?? teks(p.Name) ?? teks(p.title) ?? `Impor #${i + 1}`,
         kategori,
         namaLokal: teks(p.namaLokal),
-        deskripsi: teks(p.deskripsi) ?? teks(p.description),
+        deskripsi: teks(p.deskripsi) ?? teks(p.keterangan) ?? teks(p.description),
         simulasi: p.simulasi === true
       })
     );

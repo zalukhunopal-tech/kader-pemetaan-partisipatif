@@ -69,7 +69,7 @@ describe("Kategori D: Input Formulir Survei, Foto & Validasi Data (Skenario 28�
     // Verifikasi GeoJSON valid JSON
     const geojson = eksporKeGeoJSON([item]);
     const parsed = JSON.parse(geojson);
-    expect(parsed.features[0].properties.judul).toContain("🌲⚠️");
+    expect(parsed.features[0].properties.label).toContain("🌲⚠️");
   });
 
   // Skenario 31: Accidental Back-Button / Modal Dismiss During Long Form

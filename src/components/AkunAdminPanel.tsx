@@ -13,6 +13,7 @@ import {
 } from "../lib/auth";
 import { DataSpasialItem, PeranPengguna, SertifikatKader, WilayahAdministrasi } from "../types";
 import { WILAYAH_KOSONG, teksWilayah, wilayahLengkap } from "../lib/wilayah";
+import { migrasiFolderWilayahKeGDrive } from "../lib/gdriveSync";
 import { IsianWilayah } from "./IsianWilayah";
 
 interface AkunAdminPanelProps {
@@ -70,7 +71,10 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   const simpanWilayah = () => {
     if (!ubahWilayah) return;
     bersihkan();
-    const r = ubahWilayahAkunOlehAdmin(sesiAdmin, ubahWilayah.email, ubahWilayah.nilai);
+    const targetAkun = akun.find((x) => x.email.toLowerCase() === ubahWilayah.email.toLowerCase());
+    const wilayahSebelumnya = targetAkun?.wilayah ?? (targetAkun?.desaWilayah ? { desaWilayah: targetAkun.desaWilayah } : undefined);
+    const nilaiBaru = ubahWilayah.nilai;
+    const r = ubahWilayahAkunOlehAdmin(sesiAdmin, ubahWilayah.email, nilaiBaru);
     if (!r.sukses) {
       setGalat(r.pesan);
       return;
@@ -78,6 +82,14 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     setInfo(r.pesan + " Data yang belum terunggah ikut masuk ke folder wilayah baru.");
     setUbahWilayah(null);
     setVersi((v) => v + 1);
+    if (targetAkun) {
+      void migrasiFolderWilayahKeGDrive({
+        idKader: targetAkun.idKader,
+        namaKader: targetAkun.nama,
+        wilayahLama: wilayahSebelumnya,
+        wilayahBaru: nilaiBaru
+      });
+    }
   };
 
   const aturUlangSandi = async (email: string, nama: string) => {

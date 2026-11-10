@@ -200,3 +200,100 @@ describe("luas sferis lapangan", () => {
     expect(hitungLuasPoligonHa(points)).toBeLessThan(25000);
   });
 });
+
+describe("skema tabel atribut PRM-AID (Polygon, Line, Point) & Kode PRM-AID + SNI", () => {
+  it("Polygon memiliki atribut tepat: label | luas_ha | keterangan | url | tepi | warna sesuai Kode PRM-AID.xlsx", () => {
+    const poly: DataSpasialItem = {
+      ...item(
+        [
+          { lat: 0, lng: 100 },
+          { lat: 0, lng: 100.01 },
+          { lat: 0.01, lng: 100.01 },
+          { lat: 0.01, lng: 100 }
+        ],
+        "polygon"
+      ),
+      kategori: "Wilayah Adat / Lahan",
+      judul: "Area Perkebunan Desa",
+      deskripsi: "Lahan pangan masyarakat",
+      luasHa: 123.62,
+      url: "https://walaya.prm.my.id/foto-kebun.jpg"
+    };
+
+    const geo = JSON.parse(eksporKeGeoJSON([poly]));
+    const props = geo.features[0].properties;
+    expect(Object.keys(props)).toEqual(["label", "luas_ha", "keterangan", "url", "tepi", "warna"]);
+    expect(props).toEqual({
+      label: "Area Perkebunan Desa",
+      luas_ha: 123.62,
+      keterangan: "Lahan pangan masyarakat",
+      url: "https://walaya.prm.my.id/foto-kebun.jpg",
+      tepi: "#000000",
+      warna: "#00B050"
+    });
+
+    const csv = eksporKeCSV([poly]).replace(/^\uFEFF/, "");
+    const [header, row] = csv.split(/\r?\n/);
+    expect(header).toBe("label,luas_ha,keterangan,url,tepi,warna");
+    expect(row).toBe("Area Perkebunan Desa,123.62,Lahan pangan masyarakat,https://walaya.prm.my.id/foto-kebun.jpg,#000000,#00B050");
+  });
+
+  it("Line memiliki atribut tepat: label | panjang_m | keterangan | url | warna sesuai Kode PRM-AID.xlsx", () => {
+    const line: DataSpasialItem = {
+      ...item(
+        [
+          { lat: 0, lng: 100 },
+          { lat: 0.01, lng: 100 }
+        ],
+        "line"
+      ),
+      kategori: "Tanda Batas",
+      judul: "Batas RT 01",
+      deskripsi: "Kesepakatan tata batas antar RT",
+      panjangKm: 1.5432,
+      url: "https://walaya.prm.my.id/dokumen-batas.pdf"
+    };
+
+    const geo = JSON.parse(eksporKeGeoJSON([line]));
+    const props = geo.features[0].properties;
+    expect(Object.keys(props)).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
+    expect(props).toEqual({
+      label: "Batas RT 01",
+      panjang_m: 1543.2,
+      keterangan: "Kesepakatan tata batas antar RT",
+      url: "https://walaya.prm.my.id/dokumen-batas.pdf",
+      warna: "#FFCC99"
+    });
+
+    const csv = eksporKeCSV([line]).replace(/^\uFEFF/, "");
+    const [header, row] = csv.split(/\r?\n/);
+    expect(header).toBe("label,panjang_m,keterangan,url,warna");
+    expect(row).toBe("Batas RT 01,1543.2,Kesepakatan tata batas antar RT,https://walaya.prm.my.id/dokumen-batas.pdf,#FFCC99");
+  });
+
+  it("Point memiliki atribut tepat: label | kategori | keterangan | url | simbol sesuai aset ikon PRM-AID & SNI", () => {
+    const pt: DataSpasialItem = {
+      ...item([{ lat: 2.8573, lng: 117.3775 }], "point"),
+      kategori: "Mata Air",
+      judul: "Air Terjun Keramat",
+      deskripsi: "Sumber air bersih warga",
+      url: "https://walaya.prm.my.id/air-terjun.jpg"
+    };
+
+    const geo = JSON.parse(eksporKeGeoJSON([pt]));
+    const props = geo.features[0].properties;
+    expect(Object.keys(props)).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
+    expect(props).toEqual({
+      label: "Air Terjun Keramat",
+      kategori: "Mata Air",
+      keterangan: "Sumber air bersih warga",
+      url: "https://walaya.prm.my.id/air-terjun.jpg",
+      simbol: "waterfall.png"
+    });
+
+    const csv = eksporKeCSV([pt]).replace(/^\uFEFF/, "");
+    const [header, row] = csv.split(/\r?\n/);
+    expect(header).toBe("label,kategori,keterangan,url,simbol");
+    expect(row).toBe("Air Terjun Keramat,Mata Air,Sumber air bersih warga,https://walaya.prm.my.id/air-terjun.jpg,waterfall.png");
+  });
+});

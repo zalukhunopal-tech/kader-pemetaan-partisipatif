@@ -180,6 +180,11 @@ export interface DataSpasialItem {
   revisiServer?: string;
   konflikSinkron?: KonflikSinkron;
   driveFileUrl?: string;
+  /** Atribut simbologi & tautan standar WebGIS PRM-AID + SNI */
+  url?: string;
+  tepi?: string;
+  warna?: string;
+  simbol?: string;
   statusSinkron: StatusSinkron;
   diimpor?: boolean; // true = berasal dari berkas luar, bukan rekaman lapangan kader
   catatanAdmin?: string;
