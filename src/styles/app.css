@@ -11397,3 +11397,221 @@ html[data-field-theme="matahari"] .section-card h2 {
   padding: 10px 12px;
   border-radius: 12px;
 }
+
+/* =========================================================
+   TEMA MASKOT TAKA & LAYAR PEMBUKA VIDEO RESPONSIF (MOBILE & PC)
+   ========================================================= */
+.taka-splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 35%, #194d38 0%, #123b2d 55%, #061411 100%);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  opacity: 1;
+}
+
+.taka-splash-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.taka-splash-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taka-splash-video-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b241c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taka-splash-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Penyesuaian khusus PC / Tablet / Landscape agar video landscape proporsional & tajam */
+@media (min-width: 768px), (orientation: landscape) {
+  .taka-splash-stage {
+    padding: clamp(16px, 3vw, 36px);
+    box-sizing: border-box;
+  }
+
+  .taka-splash-video-frame {
+    max-width: 1060px;
+    max-height: 86vh;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    border-radius: 24px;
+    border: 2px solid rgba(143, 206, 67, 0.38);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+}
+
+.taka-splash-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #123b2d 0%, #1e563f 55%, #0d2b20 100%);
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.taka-splash-fallback-img {
+  max-width: min(320px, 72vw);
+  max-height: 62vh;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
+}
+
+.taka-splash-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(6, 20, 17, 0.92) 0%,
+    rgba(18, 59, 45, 0.45) 32%,
+    rgba(0, 0, 0, 0.05) 65%
+  );
+  pointer-events: none;
+}
+
+.taka-splash-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: clamp(16px, 3vw, 26px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  z-index: 2;
+}
+
+.taka-splash-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.taka-splash-avatar {
+  width: clamp(48px, 6vw, 62px);
+  height: clamp(48px, 6vw, 62px);
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+}
+
+.taka-splash-text {
+  min-width: 0;
+  color: #ffffff;
+}
+
+.taka-splash-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #123b2d;
+  background: linear-gradient(90deg, #8fce43, #f5d7a1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 4px;
+}
+
+.taka-splash-text h2 {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.taka-splash-text p {
+  margin: 2px 0 0;
+  font-size: clamp(0.74rem, 1.4vw, 0.86rem);
+  color: #e7f4de;
+  opacity: 0.95;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.taka-splash-skip-btn {
+  flex-shrink: 0;
+  border: 1.5px solid rgba(143, 206, 67, 0.75);
+  background: rgba(18, 59, 45, 0.85);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.taka-splash-skip-btn:hover {
+  background: #408a32;
+  transform: translateY(-1px);
+}
+
+/* Aksen Maskot Taka di Topbar, Sidebar, dan Auth (tanpa mengubah tata letak) */
+.taka-topbar-mascot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.taka-sidebar-mascot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.taka-auth-mascot-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(18, 59, 45, 0.65);
+  border: 1px solid rgba(143, 206, 67, 0.32);
+  backdrop-filter: blur(6px);
+}
+
+.taka-auth-mascot-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+

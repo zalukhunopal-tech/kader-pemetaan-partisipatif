@@ -20,6 +20,7 @@ import { AlertCircle, CheckCircle2, Copy, Eye, EyeOff, KeyRound, Lock, Mail, Shi
 
 interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
+  onBukaSplashTaka?: () => void;
 }
 
 type Mode =
@@ -83,7 +84,7 @@ const gayaIkonKiri: React.CSSProperties = {
   pointerEvents: "none"
 };
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplashTaka }) => {
   // Wallpaper harian otomatis dari Google Drive yang berganti tiap hari
   const { urlGambar } = useWallpaperLoginHarian();
 
@@ -404,6 +405,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
                   <p>Pemetaan Partisipatif</p>
                 </div>
               </div>
+              <div
+                className="taka-auth-mascot-card"
+                onClick={() => onBukaSplashTaka?.()}
+                style={{ cursor: onBukaSplashTaka ? "pointer" : "default" }}
+                title="Maskot Resmi Taka — Ketuk untuk memutar layar pembuka"
+              >
+                <img src="./taka/taka_master.png" alt="Maskot Taka" className="taka-auth-mascot-img" />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 800, color: "#8fce43", letterSpacing: "0.02em" }}>
+                    Bersama TAKA • Penjelajah Lapangan
+                  </div>
+                  <div style={{ fontSize: "0.73rem", color: "#e7f4de", lineHeight: 1.35, marginTop: 2 }}>
+                    “Setiap titik punya cerita, setiap tapak punya makna.”
+                  </div>
+                </div>
+              </div>
               <div className="auth-feature-list">
                 <div className="auth-feature-item">
                   <div className="auth-feature-title">🌿 Survei Keanekaragaman Hayati</div>
@@ -445,7 +462,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses }) => {
               backgroundPosition: "center"
             }}
           >
-            <img src="./icon.svg" alt="" width={52} height={52} />
+            <div
+              style={{ display: "inline-flex", alignItems: "center", gap: 10, cursor: onBukaSplashTaka ? "pointer" : "default" }}
+              onClick={() => onBukaSplashTaka?.()}
+              title="Maskot Taka — Ketuk untuk memutar layar pembuka"
+            >
+              <img src="./icon.svg" alt="" width={48} height={48} />
+              <img
+                src="./taka/taka_avatar_256.png"
+                alt="Maskot Taka"
+                width={48}
+                height={48}
+                style={{ borderRadius: "50%", objectFit: "contain" }}
+              />
+            </div>
             <h2>Titik Tapak</h2>
             <p>Pemetaan Partisipatif Masyarakat</p>
           </div>

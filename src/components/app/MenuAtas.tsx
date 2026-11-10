@@ -48,6 +48,7 @@ interface MenuAtasProps {
   onBukaGantiSandi: () => void;
   onKeluar: () => void;
   autoSync?: StateAutoSync;
+  onBukaSplashTaka?: () => void;
 }
 
 /** Bilah atas: judul halaman dan tombol Menu yang membuka toolbar (koneksi, peran, dan semua aksi akun) */
@@ -70,10 +71,18 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
   onBukaKeamanan,
   onBukaGantiSandi,
   onKeluar,
-  autoSync
+  autoSync,
+  onBukaSplashTaka
 }) => (
   <header className="avenza-topbar">
     <div className="avenza-topbar-left">
+      <img
+        src="./taka/taka_avatar_256.png"
+        alt="Maskot Taka"
+        className="taka-topbar-mascot"
+        onClick={() => onBukaSplashTaka?.()}
+        title="Maskot Taka — Ketuk untuk melihat layar pembuka"
+      />
       <h1 className="avenza-topbar-title" onClick={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}>
         {JUDUL_TAB[tabAktif]}
       </h1>

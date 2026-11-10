@@ -72,9 +72,11 @@ import { BannerInstal } from "./components/InstalAplikasi";
 import { MenuAtas } from "./components/app/MenuAtas";
 import { BannerModeAdmin, BannerPenyimpanan, BannerPerekaman } from "./components/app/BannerAplikasi";
 import { NavigasiBawah } from "./components/app/NavigasiBawah";
+import { LayarPembukaTaka, sudahTampilSplashTakaSesiIni } from "./components/LayarPembukaTaka";
 
 export const App: React.FC = () => {
   const desktop = useDesktop();
+  const [tampilSplashTaka, setTampilSplashTaka] = useState<boolean>(() => !sudahTampilSplashTakaSesiIni());
   // Sesi Pengguna Login
   const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() => muatSesiPengguna());
 
@@ -705,7 +707,12 @@ export const App: React.FC = () => {
 
   // JIKA PENGGUNA BELUM LOGIN, TAMPILKAN PORTAL LOGIN & DAFTAR LENGKAP
   if (!sesiPengguna) {
-    return <AuthModal onLoginSukses={handleLoginSukses} />;
+    return (
+      <>
+        {tampilSplashTaka && <LayarPembukaTaka onSelesai={() => setTampilSplashTaka(false)} />}
+        <AuthModal onLoginSukses={handleLoginSukses} onBukaSplashTaka={() => setTampilSplashTaka(true)} />
+      </>
+    );
   }
 
   const lapisKunci = layarKunci && (
@@ -723,6 +730,7 @@ export const App: React.FC = () => {
   );
   const denganKunci = (isi: React.ReactNode) => (
     <>
+      {tampilSplashTaka && <LayarPembukaTaka onSelesai={() => setTampilSplashTaka(false)} />}
       <div ref={bungkusRef} className="bungkus-terkunci" aria-hidden={layarKunci ? true : undefined}>
         {isi}
       </div>
@@ -781,6 +789,7 @@ export const App: React.FC = () => {
         onBukaGantiSandi={() => setBukaGantiSandi(true)}
         onKeluar={handleLogout}
         autoSync={autoSync}
+        onBukaSplashTaka={() => setTampilSplashTaka(true)}
       />
       {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
       {aksesAdmin && (

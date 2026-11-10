@@ -7,6 +7,7 @@ import path from "path";
 import { KomunikasiView } from "../components/KomunikasiView";
 import { PanelDataUserLevel } from "../components/PanelDataUserLevel";
 import { RewardView } from "../components/RewardView";
+import { LayarPembukaTaka } from "../components/LayarPembukaTaka";
 import { ProfilKader, DataSpasialItem } from "../types";
 
 const mockProfil: ProfilKader = {
@@ -325,5 +326,50 @@ describe("Validasi Tata Letak Responsif: PC, Tablet & Mobile (Anti Empty Space &
 
     // Di mobile (< 640px) metrik tetap 2 kolom kompak dan tidak terganggu
     expect(css).toMatch(/@media \(max-width: 640px\) \{[\s\S]*?\.kader-metrics-strip \{[\s\S]*?gap:\s*6px;/);
+  });
+
+  it("20. Layar Pembuka & Tema Maskot Taka: memilih video portrait di mobile dan video landscape di PC serta berkas aset tersedia", () => {
+    const publicTakaDir = path.resolve(__dirname, "../../public/taka");
+    expect(fs.existsSync(path.join(publicTakaDir, "taka_splash_portrait.mp4"))).toBe(true);
+    expect(fs.existsSync(path.join(publicTakaDir, "taka_splash_landscape.mp4"))).toBe(true);
+    expect(fs.existsSync(path.join(publicTakaDir, "taka_avatar_256.png"))).toBe(true);
+    expect(fs.existsSync(path.join(publicTakaDir, "taka_master.png"))).toBe(true);
+
+    const origMatchMedia = window.matchMedia;
+    try {
+      // Simulasi Mobile (Portrait < 768px)
+      window.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false
+      })) as typeof window.matchMedia;
+
+      const htmlMobile = renderToString(<LayarPembukaTaka onSelesai={() => {}} />);
+      expect(htmlMobile).toContain("taka_splash_portrait.mp4");
+      expect(htmlMobile).toContain("mode-mobile");
+
+      // Simulasi PC / Tablet (Landscape >= 768px)
+      window.matchMedia = ((query: string) => ({
+        matches: query.includes("min-width: 768px"),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false
+      })) as typeof window.matchMedia;
+
+      const htmlPc = renderToString(<LayarPembukaTaka onSelesai={() => {}} />);
+      expect(htmlPc).toContain("taka_splash_landscape.mp4");
+      expect(htmlPc).toContain("mode-pc");
+    } finally {
+      window.matchMedia = origMatchMedia;
+    }
   });
 });
