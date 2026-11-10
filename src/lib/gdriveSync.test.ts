@@ -129,11 +129,12 @@ describe("sinkronkanDataKeGDrive", () => {
     await sinkronkanDataKeGDrive([{ ...item("a"), namaKader: "Budi", judul: "Sebaran Anggrek" }], konfig());
     const body = JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
     expect(body.records[0]).toMatchObject({ wilayah: JAMBI, namaBerkas: "budi_sebaran_anggrek_november_2026" });
-    expect(JSON.parse(body.geojsonBundle).features[0].properties).toMatchObject({
-      provinsi: "Jambi",
-      kabupatenKota: "Kabupaten Merangin",
-      kecamatan: "Bangko",
-      kelurahanDesa: "Rantau Panjang"
+    expect(JSON.parse(body.geojsonBundle).features[0].properties).toEqual({
+      label: "Sebaran Anggrek",
+      kategori: "Flora",
+      keterangan: "Flora",
+      url: "",
+      simbol: "garden.png"
     });
   });
 

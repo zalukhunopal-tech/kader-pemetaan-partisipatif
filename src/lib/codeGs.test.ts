@@ -65,8 +65,11 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
     getName = () => this.nama;
     getUrl = () => "https://drive.test/folder/" + this.id;
     isTrashed = () => this.trashed;
-    getFoldersByName = (n: string) => iter(this.anak.filter((f) => f.nama === n));
-    getFolders = () => iter([...this.anak]);
+    setTrashed = (v: boolean) => {
+      this.trashed = v;
+    };
+    getFoldersByName = (n: string) => iter(this.anak.filter((f) => f.nama === n && !f.trashed));
+    getFolders = () => iter(this.anak.filter((f) => !f.trashed));
     createFolder = (n: string) => {
       const f = new Folder(n);
       this.anak.push(f);
@@ -358,7 +361,7 @@ describe("Code.gs: penyimpanan idempoten dan pengamanan (hardening)", () => {
     expect(L.tabData().baris).toHaveLength(3);
     expect(L.tabData().baris[1][kepala.indexOf("Status_Verifikasi")]).toBe("Terverifikasi_Admin");
     const isi = L.isiGeojson(desaJambi(L), "budi_sebaran_anggrek_november_2026.geojson");
-    expect(isi?.features.map((f) => [f.id, f.properties.judul])).toEqual([
+    expect(isi?.features.map((f) => [f.id, f.properties.label])).toEqual([
       ["a", "Sebaran Anggrek (diperbarui)"],
       ["b", "Sebaran Anggrek"]
     ]);
@@ -566,5 +569,161 @@ describe("protokol 3: integrasi browser dan Apps Script", () => {
     L.kirim(payload([rec("overflow", { wkt: "LINESTRING(" + "102.1 -2.1,".repeat(5000) + "102.1 -2.1)" })]));
     const [kolom, row] = L.tabData().baris;
     expect(row[kolom.indexOf("Koordinat_WKT")]).toMatch(/^GEOMETRI_DI_GEOJSON: https:/);
+  });
+});
+
+describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () => {
+  it("menyimpan berkas GeoJSON dengan tabel atribut PRM-AID murni (Polygon, Line, Point) dan mengisi url foto Drive", () => {
+    const L = buatLingkungan();
+    const rPoint = rec("pt-1", {
+      jenisGeometri: "point",
+      kategori: "Sarana Desa",
+      judul: "Gereja Santo Petrus",
+      deskripsi: "Gereja pusat desa",
+      fotoBase64: FOTO
+    });
+    const rLine = rec("ln-1", {
+      jenisGeometri: "line",
+      kategori: "Sarana Desa",
+      judul: "Jembatan Gantung Sungai",
+      deskripsi: "Jembatan penghubung dusun",
+      panjangKm: 0.125,
+      namaBerkas: "budi_jembatan_november_2026"
+    });
+    const rPoly = rec("pg-1", {
+      jenisGeometri: "polygon",
+      kategori: "Wilayah Adat / Lahan",
+      judul: "Hutan Lindung Adat",
+      deskripsi: "Kawasan lindung desa",
+      luasHa: 48.75,
+      namaBerkas: "budi_hutan_lindung_november_2026"
+    });
+
+    const h = L.kirim({
+      token: "rahasia",
+      records: [rPoint, rLine, rPoly],
+      geojsonBundle: JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          { type: "Feature", id: "pt-1", geometry: { type: "Point", coordinates: [102.1, -2.1] }, properties: {} },
+          {
+            type: "Feature",
+            id: "ln-1",
+            geometry: { type: "LineString", coordinates: [[102.1, -2.1], [102.11, -2.11]] },
+            properties: {}
+          },
+          {
+            type: "Feature",
+            id: "pg-1",
+            geometry: {
+              type: "Polygon",
+              coordinates: [[[102.1, -2.1], [102.12, -2.1], [102.12, -2.12], [102.1, -2.12], [102.1, -2.1]]]
+            },
+            properties: {}
+          }
+        ]
+      })
+    });
+    expect(h.sukses).toBe(true);
+
+    const desa = desaJambi(L);
+    const geoPt = L.isiGeojson(desa, "budi_sebaran_anggrek_november_2026.geojson")!.features[0].properties;
+    expect(Object.keys(geoPt)).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
+    expect(geoPt).toMatchObject({
+      label: "Gereja Santo Petrus",
+      kategori: "Agama",
+      keterangan: "Gereja pusat desa",
+      simbol: "church.png"
+    });
+    expect(String(geoPt.url)).toMatch(/^https:\/\/drive\.test\//);
+
+    const geoLn = L.isiGeojson(desa, "budi_jembatan_november_2026.geojson")!.features[0].properties;
+    expect(Object.keys(geoLn)).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
+    expect(geoLn).toEqual({
+      label: "Jembatan Gantung Sungai",
+      panjang_m: 125,
+      keterangan: "Jembatan penghubung dusun",
+      url: "",
+      warna: "#00BFFF"
+    });
+
+    const geoPg = L.isiGeojson(desa, "budi_hutan_lindung_november_2026.geojson")!.features[0].properties;
+    expect(Object.keys(geoPg)).toEqual(["label", "luas_ha", "keterangan", "url", "tepi", "warna"]);
+    expect(geoPg).toEqual({
+      label: "Hutan Lindung Adat",
+      luas_ha: 48.75,
+      keterangan: "Kawasan lindung desa",
+      url: "",
+      tepi: "Transparent",
+      warna: "#02AD00"
+    });
+  });
+
+  it("otomatis memindahkan berkas lama dari Wilayah_Belum_Diisi ketika kader mengirim data dengan wilayah lengkap", () => {
+    const L = buatLingkungan();
+    // 1. Rekaman awal tanpa wilayah lengkap -> masuk Wilayah_Belum_Diisi
+    L.kirim(payload([rec("lama-1", { wilayah: undefined, desaWilayah: "Indonesia", fotoBase64: FOTO })]));
+    const folderBelumDiisi = L.induk().cari(
+      "Wilayah_Belum_Diisi",
+      "Wilayah_Belum_Diisi",
+      "Wilayah_Belum_Diisi",
+      "Indonesia"
+    );
+    expect(folderBelumDiisi?.berkasAktif()).toHaveLength(2); // 1 geojson + 1 foto
+
+    // 2. Rekaman berikutnya dari kader yang sama dengan wilayah lengkap -> otomatis migrasi
+    L.kirim(payload([rec("baru-2", { wilayah: JAMBI, namaBerkas: "budi_data_baru_november_2026" })]));
+
+    expect(folderBelumDiisi?.berkasAktif()).toHaveLength(0);
+    expect(folderBelumDiisi?.isTrashed()).toBe(true);
+    const desaBaru = desaJambi(L);
+    expect(desaBaru?.berkasAktif().map((b) => b.nama).sort()).toEqual([
+      "budi_data_baru_november_2026.geojson",
+      "budi_sebaran_anggrek_november_2026.geojson",
+      "budi_sebaran_anggrek_november_2026_foto_1.jpg"
+    ]);
+
+    const [kepala, baris1] = L.tabData().baris;
+    expect([
+      baris1[kepala.indexOf("Provinsi")],
+      baris1[kepala.indexOf("Kabupaten_Kota")],
+      baris1[kepala.indexOf("Kecamatan")],
+      baris1[kepala.indexOf("Kelurahan_Desa")]
+    ]).toEqual(["Jambi", "Kabupaten Merangin", "Bangko", "Rantau Panjang"]);
+  });
+
+  it("mendukung aksi eksplisit rename_wilayah_folder untuk mengubah nama folder wilayah di server Google Drive", () => {
+    const L = buatLingkungan();
+    L.kirim(payload([rec("m-1", { wilayah: undefined, desaWilayah: "Kantor Balai Spasial", fotoBase64: FOTO })]));
+
+    const KALTARA = {
+      provinsi: "Kalimantan Utara",
+      kabupaten: "Kabupaten Bulungan",
+      kecamatan: "Tanjung Selor",
+      desa: "Tanjung Selor Hilir"
+    };
+    const hasil = L.kirim({
+      token: "rahasia",
+      action: "rename_wilayah_folder",
+      idKader: "KDR-1",
+      wilayahLama: { desaWilayah: "Kantor Balai Spasial" },
+      wilayahBaru: KALTARA
+    });
+
+    expect(hasil).toMatchObject({
+      sukses: true,
+      berkasDipindahkan: 2,
+      barisDiperbarui: 1
+    });
+    const folderTujuan = L.induk().cari(
+      "Kalimantan Utara",
+      "Kabupaten Bulungan",
+      "Tanjung Selor",
+      "Tanjung Selor Hilir"
+    );
+    expect(folderTujuan?.berkasAktif().map((b) => b.nama).sort()).toEqual([
+      "budi_sebaran_anggrek_november_2026.geojson",
+      "budi_sebaran_anggrek_november_2026_foto_1.jpg"
+    ]);
   });
 });

@@ -1,4 +1,12 @@
 import { DataSpasialItem, FormatKoordinat, KoordinatTitik } from "../types";
+import {
+  KOLOM_TABEL_LINE_PRM_AID,
+  KOLOM_TABEL_POINT_PRM_AID,
+  KOLOM_TABEL_POLYGON_PRM_AID,
+  susunAtributLinePrmAid,
+  susunAtributPointPrmAid,
+  susunAtributPolygonPrmAid
+} from "./atributPrmAid";
 
 const EARTH_RADIUS_M = 6371008.8;
 
@@ -324,22 +332,30 @@ const posisiKML = (p: KoordinatTitik): string => (p.elevasi !== undefined ? `${p
 const eleGPX = (p: KoordinatTitik, awalan = ""): string => (p.elevasi !== undefined ? `${awalan}<ele>${p.elevasi}</ele>\n` : "");
 
 /**
- * Ekspor daftar DataSpasialItem menjadi string GeoJSON FeatureCollection standar QGIS/ArcGIS
+ * Ekspor daftar DataSpasialItem menjadi string GeoJSON FeatureCollection standar WebGIS PRM-AID / QGIS / ArcGIS.
+ * Struktur atribut tabel (`properties`) menyesuaikan jenis geometri:
+ * - Polygon : | label | luas_ha | keterangan | url | tepi | warna |
+ * - Line    : | label | panjang_m | keterangan | url | warna |
+ * - Point   : | label | kategori | keterangan | url | simbol |
  */
 export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
   const features = daftar.map((item) => {
     let geometry: Record<string, unknown>;
+    let atributPrmAid: Record<string, unknown>;
     if (item.jenisGeometri === "point") {
       const p = item.koordinat[0] || { lat: 0, lng: 0 };
       geometry = {
         type: "Point",
         coordinates: posisiGeoJSON(p)
       };
+      atributPrmAid = { ...susunAtributPointPrmAid(item) };
     } else if (item.jenisGeometri === "line") {
       geometry = {
         type: "LineString",
         coordinates: item.koordinat.map(posisiGeoJSON)
       };
+      const panjangKm = item.panjangKm || hitungPanjangGarisKm(item.koordinat);
+      atributPrmAid = { ...susunAtributLinePrmAid({ ...item, panjangKm }) };
     } else {
       const ring = item.koordinat.map(posisiGeoJSON);
       if (ring.length > 0) ring.push([...ring[0]]);
@@ -347,53 +363,19 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
         type: "Polygon",
         coordinates: [ring]
       };
+      const luasHa = item.luasHa || hitungLuasPoligonHa(item.koordinat);
+      atributPrmAid = { ...susunAtributPolygonPrmAid({ ...item, luasHa }) };
     }
+    const sim = adalahDataSimulasi(item);
+    const imp = adalahDataImpor(item);
     return {
       type: "Feature",
       id: item.id,
       geometry,
       properties: {
-        id: item.id,
-        idKader: item.idKader,
-        namaKader: item.namaKader,
-        desaWilayah: item.desaWilayah,
-        ...(item.wilayah
-          ? {
-              provinsi: item.wilayah.provinsi,
-              kabupatenKota: item.wilayah.kabupaten,
-              kecamatan: item.wilayah.kecamatan,
-              kelurahanDesa: item.wilayah.desa
-            }
-          : {}),
-        jenisGeometri: item.jenisGeometri,
-        kategori: item.kategori,
-        judul: item.judul,
-        namaLokal: item.namaLokal || "",
-        namaIlmiah: item.namaIlmiah || "",
-        jumlahIndividu: item.jumlahIndividu ?? null,
-        manfaatMasyarakat: item.manfaatMasyarakat || "",
-        kondisiAncaman: item.kondisiAncaman || "",
-        deskripsi: item.deskripsi,
-        panjangKm: item.panjangKm,
-        luasHa: item.luasHa,
-        statusSinkron: item.statusSinkron,
-        simulasi: adalahDataSimulasi(item),
-        diimpor: adalahDataImpor(item),
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        jumlahPembaruan: item.riwayatPembaruan.length,
-        kesepakatanBatas: item.kesepakatanBatas,
-        gpsAveraging: item.gpsAveraging,
-        buktiFoto: item.buktiFoto,
-        kualitasData: item.kualitasData,
-        memoSuara: item.memoSuara?.map(({ id, mimeType, durasiDetik, ukuranByte, direkamPada, sha256 }) => ({
-          id,
-          mimeType,
-          durasiDetik,
-          ukuranByte,
-          direkamPada,
-          sha256
-        }))
+        ...atributPrmAid,
+        ...(sim ? { simulasi: true } : {}),
+        ...(imp ? { diimpor: true } : {})
       }
     };
   });
@@ -512,26 +494,13 @@ export function sanitasiFormulaCsv(str: string): string {
 }
 
 /**
- * Ekspor ke CSV Master Tabel (Format Google Sheets Database)
+ * Ekspor ke CSV Tabel Atribut standar WebGIS PRM-AID:
+ * - Bila seluruh daftar berupa Polygon : | label | luas_ha | keterangan | url | tepi | warna |
+ * - Bila seluruh daftar berupa Line    : | label | panjang_m | keterangan | url | warna |
+ * - Bila seluruh daftar berupa Point   : | label | kategori | keterangan | url | simbol |
+ * - Bila campuran berbagai geometri    : menggabungkan kolom PRM-AID + jenis_geometri + koordinat_wkt
  */
 export function eksporKeCSV(daftar: DataSpasialItem[]): string {
-  const header = [
-    "ID_Data",
-    "ID_Kader",
-    "Nama_Kader",
-    "Desa_Wilayah",
-    "Jenis_Geometri",
-    "Kategori",
-    "Judul_Objek",
-    "Nama_Lokal",
-    "Nama_Ilmiah",
-    "Jumlah_Individu",
-    "Panjang_Km",
-    "Luas_Ha",
-    "Koordinat_WKT",
-    "Status_Sinkron",
-    "Waktu_Rekam"
-  ];
   const escCsv = (val: unknown) => {
     const str = sanitasiFormulaCsv(String(val ?? ""));
     if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
@@ -539,27 +508,73 @@ export function eksporKeCSV(daftar: DataSpasialItem[]): string {
     }
     return str;
   };
-  const rows = daftar.map((d) =>
-    [
-      d.id,
-      d.idKader,
-      d.namaKader,
-      d.desaWilayah,
-      d.jenisGeometri,
-      d.kategori,
-      d.judul,
-      d.namaLokal || "",
-      d.namaIlmiah || "",
-      d.jumlahIndividu ?? "",
-      d.panjangKm,
-      d.luasHa,
-      keWKT(d),
-      d.statusSinkron,
-      d.createdAt
-    ]
+
+  const semuaPolygon = daftar.length > 0 && daftar.every((d) => d.jenisGeometri === "polygon");
+  const semuaLine = daftar.length > 0 && daftar.every((d) => d.jenisGeometri === "line");
+  const semuaPoint = daftar.length > 0 && daftar.every((d) => d.jenisGeometri === "point");
+
+  if (semuaPolygon) {
+    const header = [...KOLOM_TABEL_POLYGON_PRM_AID];
+    const rows = daftar.map((d) => {
+      const luasHa = d.luasHa || hitungLuasPoligonHa(d.koordinat);
+      const a = susunAtributPolygonPrmAid({ ...d, luasHa });
+      return [a.label, a.luas_ha, a.keterangan, a.url, a.tepi, a.warna].map(escCsv).join(",");
+    });
+    return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
+  }
+
+  if (semuaLine) {
+    const header = [...KOLOM_TABEL_LINE_PRM_AID];
+    const rows = daftar.map((d) => {
+      const panjangKm = d.panjangKm || hitungPanjangGarisKm(d.koordinat);
+      const a = susunAtributLinePrmAid({ ...d, panjangKm });
+      return [a.label, a.panjang_m, a.keterangan, a.url, a.warna].map(escCsv).join(",");
+    });
+    return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
+  }
+
+  if (semuaPoint) {
+    const header = [...KOLOM_TABEL_POINT_PRM_AID];
+    const rows = daftar.map((d) => {
+      const a = susunAtributPointPrmAid(d);
+      return [a.label, a.kategori, a.keterangan, a.url, a.simbol].map(escCsv).join(",");
+    });
+    return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
+  }
+
+  const header = [
+    "label",
+    "jenis_geometri",
+    "luas_ha",
+    "panjang_m",
+    "kategori",
+    "keterangan",
+    "url",
+    "tepi",
+    "warna",
+    "simbol",
+    "koordinat_wkt"
+  ];
+  const rows = daftar.map((d) => {
+    if (d.jenisGeometri === "polygon") {
+      const luasHa = d.luasHa || hitungLuasPoligonHa(d.koordinat);
+      const a = susunAtributPolygonPrmAid({ ...d, luasHa });
+      return [a.label, "polygon", a.luas_ha, "", d.kategori, a.keterangan, a.url, a.tepi, a.warna, "", keWKT(d)]
+        .map(escCsv)
+        .join(",");
+    }
+    if (d.jenisGeometri === "line") {
+      const panjangKm = d.panjangKm || hitungPanjangGarisKm(d.koordinat);
+      const a = susunAtributLinePrmAid({ ...d, panjangKm });
+      return [a.label, "line", "", a.panjang_m, d.kategori, a.keterangan, a.url, "", a.warna, "", keWKT(d)]
+        .map(escCsv)
+        .join(",");
+    }
+    const a = susunAtributPointPrmAid(d);
+    return [a.label, "point", "", "", a.kategori, a.keterangan, a.url, "", "", a.simbol, keWKT(d)]
       .map(escCsv)
-      .join(",")
-  );
+      .join(",");
+  });
   return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
 }
 

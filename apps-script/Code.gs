@@ -164,6 +164,10 @@ function doPost(e) {
     }
 
     var konteks = { induk: induk, sheet: sheet, barisAda: barisAda, folder: {}, waktu: new Date().toISOString() };
+    if (body.action === "rename_wilayah_folder" || body.action === "migrasi_wilayah") {
+      return balas_(migrasiFolderWilayah_(body, konteks));
+    }
+
     var records = body.records || [];
     var diterima = [];
     var gagal = [];
@@ -217,7 +221,8 @@ function simpanRekaman_(r, fitur, konteks) {
     fotoUrl = (fotoAda || folderDesa.createFile(Utilities.newBlob(bytes, "image/jpeg", namaFoto))).getUrl();
   }
 
-  var berkas = simpanFitur_(folderDesa, nama + ".geojson", id, fitur || fiturCadangan_(r));
+  var fiturSiap = siapkanFiturRekaman_(r, fitur, fotoUrl);
+  var berkas = simpanFitur_(folderDesa, nama + ".geojson", id, fiturSiap);
   var idBerkasLama = lama ? String(lama[K.ID_Berkas] || "") : "";
   if (idBerkasLama && idBerkasLama !== berkas.getId()) hapusFiturLama_(idBerkasLama, id);
 
@@ -255,6 +260,11 @@ function simpanRekaman_(r, fitur, konteks) {
   } else {
     konteks.sheet.appendRow(nilai);
     konteks.barisAda[id] = konteks.sheet.getLastRow();
+  }
+
+  // Automasi migrasi folder: bila wilayah kader kini sudah lengkap, pindahkan rekaman lama kader ini yang masih di Wilayah_Belum_Diisi
+  if (r.idKader && wilayahLengkapGs_(w)) {
+    migrasiDataKaderKeWilayahBaru_(String(r.idKader), w, folderDesa, konteks, true);
   }
 }
 
@@ -356,7 +366,504 @@ function hapusFiturLama_(idBerkas, id) {
 }
 
 function fiturCadangan_(r) {
-  return { type: "Feature", id: r.id, geometry: null, properties: { id: r.id, judul: r.judul, wkt: r.wkt } };
+  var geom = geometriDariWktGs_(r.wkt, r.jenisGeometri);
+  return { type: "Feature", id: r.id, geometry: geom, properties: susunAtributPrmAidGs_(r, null, "") };
+}
+
+function geometriDariWktGs_(wkt, jenis) {
+  var s = String(wkt || "").trim();
+  var m = s.match(/^POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)(?:\s+([-\d.]+))?\s*\)$/i);
+  if (m) {
+    var pt = [Number(m[1]), Number(m[2])];
+    if (m[3] !== undefined) pt.push(Number(m[3]));
+    return { type: "Point", coordinates: pt };
+  }
+  var ml = s.match(/^LINESTRING\s*\((.+)\)$/i);
+  if (ml) {
+    var coords = ml[1].split(",").map(function(pair) {
+      var p = pair.trim().split(/\s+/).map(Number);
+      return p;
+    });
+    return { type: "LineString", coordinates: coords };
+  }
+  var mp = s.match(/^POLYGON\s*\(\((.+)\)\)$/i);
+  if (mp) {
+    var ring = mp[1].split(",").map(function(pair) {
+      var p = pair.trim().split(/\s+/).map(Number);
+      return p;
+    });
+    return { type: "Polygon", coordinates: [ring] };
+  }
+  void jenis;
+  return null;
+}
+
+/**
+ * Menyusun tabel atribut standar WebGIS PRM-AID + SNI 6502:
+ * - Polygon : { label, luas_ha, keterangan, url, tepi, warna }
+ * - Line    : { label, panjang_m, keterangan, url, warna }
+ * - Point   : { label, kategori, keterangan, url, simbol }
+ */
+var ATURAN_POLYGON_GS_ = [
+  { nama: "Area Penggunaan Lain", k: ["area penggunaan lain", "areal penggunaan lain", "apl"], tepi: "Transparent", warna: "#FFFFFF" },
+  { nama: "Hutan Produksi Konversi", k: ["hutan produksi konversi", "hpk"], tepi: "Transparent", warna: "#FF5EFF" },
+  { nama: "Hutan Produksi Terbatas", k: ["hutan produksi terbatas", "hpt"], tepi: "Transparent", warna: "#8AF200" },
+  { nama: "Hutan Produksi", k: ["hutan produksi"], tepi: "Transparent", warna: "#FFFF00" },
+  { nama: "Hutan Lindung", k: ["hutan lindung"], tepi: "Transparent", warna: "#02AD00" },
+  { nama: "Hutan Konservasi", k: ["hutan konservasi", "kawasan konservasi"], tepi: "Transparent", warna: "#AD3FFF" },
+  { nama: "Zona Religi, Sejarah & Budaya", k: ["zona religi", "sejarah & budaya", "sejarah dan budaya", "zona budaya"], tepi: "Transparent", warna: "#6600CC" },
+  { nama: "Zona Khusus", k: ["zona khusus"], tepi: "Transparent", warna: "#969696" },
+  { nama: "Zona Rehabilitasi", k: ["zona rehabilitasi"], tepi: "Transparent", warna: "#00FFFF" },
+  { nama: "Zona Tradisional", k: ["zona tradisional"], tepi: "Transparent", warna: "#993300" },
+  { nama: "Zonasi Pemanfaatan", k: ["zonasi pemanfaatan", "zona pemanfaatan"], tepi: "Transparent", warna: "#94C800" },
+  { nama: "Zona Rimba", k: ["zona rimba"], tepi: "Transparent", warna: "#E7E200" },
+  { nama: "Zona Inti", k: ["zona inti"], tepi: "Transparent", warna: "#FF0000" },
+  { nama: "Ruang Lindung", k: ["ruang lindung"], tepi: "Transparent", warna: "#D32F2F" },
+  { nama: "Ruang Pemanfaatan", k: ["ruang pemanfaatan"], tepi: "Transparent", warna: "#00C8FF" },
+  { nama: "Hutan Adat", k: ["hutan adat"], tepi: "#4E4E4E", warna: "#4e4e4e" },
+  { nama: "Hutan Desa", k: ["hutan desa"], tepi: "#00C8FF", warna: "Transparent" },
+  { nama: "Hutan Kemasyarakatan", k: ["hutan kemasyarakatan", "hkm"], tepi: "#004DA8", warna: "Transparent" },
+  { nama: "Hutan Tanaman Rakyat", k: ["hutan tanaman rakyat", "htr"], tepi: "#FF3264", warna: "Transparent" },
+  { nama: "Kemitraan Kehutanan", k: ["kemitraan kehutanan"], tepi: "#A80000", warna: "Transparent" },
+  { nama: "Wilayah MHA", k: ["wilayah mha", "masyarakat hukum adat", "wilayah adat"], tepi: "#8d4513", warna: "#C68642" },
+  { nama: "PBPH", k: ["pbph", "perizinan berusaha pemanfaatan hutan", "hph", "hti"], tepi: "#F4A460", warna: "#F4A460" },
+  { nama: "Area Perladangan", k: ["area perladangan", "perladangan", "ladang"], tepi: "#000000", warna: "#98E600" },
+  { nama: "Area Perkebunan", k: ["area perkebunan", "perkebunan", "kebun"], tepi: "#000000", warna: "#00B050" },
+  { nama: "Area Persawahan", k: ["area persawahan", "persawahan", "sawah"], tepi: "#000000", warna: "#FFFF00" },
+  { nama: "Provinsi", k: ["provinsi", "batas provinsi"], tepi: "#000000", warna: "Transparent" },
+  { nama: "Kabupaten", k: ["kabupaten", "batas kabupaten", "kota"], tepi: "#000000", warna: "Transparent" },
+  { nama: "Kecamatan", k: ["kecamatan", "batas kecamatan"], tepi: "#000000", warna: "Transparent" },
+  { nama: "Klaster/Lanskap", k: ["klaster", "lanskap"], tepi: "#000000", warna: "Transparent" },
+  { nama: "Desa", k: ["batas desa", "wilayah desa", "desa"], tepi: "#000000", warna: "#F5F5DC" },
+  { nama: "Mangrove / Rawa", k: ["mangrove", "bakau", "rawa", "gambut"], tepi: "#004D00", warna: "#02AD00" },
+  { nama: "Badan Air / Danau", k: ["danau", "waduk", "embung", "kolam", "tambak", "perairan"], tepi: "#004DA8", warna: "#00BFFF" }
+];
+
+var FALLBACK_POLYGON_GS_ = {
+  "Wilayah Adat / Lahan": { tepi: "#8d4513", warna: "#C68642" },
+  "Flora": { tepi: "#004D00", warna: "#02AD00" },
+  "Fauna": { tepi: "#6600CC", warna: "#AD3FFF" },
+  "Mata Air": { tepi: "#004DA8", warna: "#00BFFF" },
+  "Tanda Batas": { tepi: "#000000", warna: "Transparent" },
+  "Ancaman / Temuan": { tepi: "#A80000", warna: "#FF0000" },
+  "Sarana Desa": { tepi: "#000000", warna: "#F5F5DC" },
+  "Situs Budaya": { tepi: "#4A0099", warna: "#6600CC" }
+};
+
+var ATURAN_POINT_GS_ = [
+  { kat: "Kuburan", k: ["kuburan", "makam", "tpu", "pemakaman", "pekuburan"], s: "cross.png" },
+  { kat: "Sanitasi", k: ["sampah", "tps", "tpa", "limbah", "daur ulang"], s: "trash.png" },
+  { kat: "Sanitasi", k: ["sanitasi", "mck", "toilet", "jamban", "wc", "kamar mandi"], s: "toilets.png" },
+  { kat: "Sanitasi", k: ["bak air bersih", "air bersih", "pdam", "sumur bor", "pipa air"], s: "water.png" },
+  { kat: "Komunikasi", k: ["wifi", "internet", "hotspot", "starlink"], s: "wifi.png" },
+  { kat: "Komunikasi", k: ["telepon", "telkom", "wartel"], s: "telephone.png" },
+  { kat: "Komunikasi", k: ["komunikasi", "tower", "bts", "pemancar", "antena", "sinyal", "radio"], s: "tower.png" },
+  { kat: "Transportasi", k: ["bandara", "bandar udara", "lapangan terbang", "airstrip", "helipad"], s: "airport.png" },
+  { kat: "Transportasi", k: ["pelabuhan", "dermaga", "tambatan perahu", "ketinting", "longboat", "ferry"], s: "port.png" },
+  { kat: "Transportasi", k: ["terminal", "halte", "bus", "angkot", "damri"], s: "bus.png" },
+  { kat: "Transportasi", k: ["parkir", "garasi"], s: "parking.png" },
+  { kat: "Transportasi", k: ["transportasi", "jembatan", "gantung", "gorong-gorong", "simpang"], s: "bridge.png" },
+  { kat: "Pendidikan", k: ["perpustakaan", "taman baca", "rumah baca"], s: "library.png" },
+  { kat: "Pendidikan", k: ["universitas", "kampus", "akademi", "sekolah tinggi"], s: "university.png" },
+  { kat: "Pendidikan", k: ["pendidikan", "sekolah", "sd", "sdn", "smp", "smpn", "sma", "sman", "smk", "paud", "tk", "madrasah", "pesantren"], s: "school.png" },
+  { kat: "Kesehatan", k: ["posyandu", "polindes", "poskesdes", "bidan", "dokter", "klinik", "apotek"], s: "doctor.png" },
+  { kat: "Kesehatan", k: ["kesehatan", "puskesmas", "pustu", "rumah sakit", "rsud", "balai pengobatan"], s: "hospital.png" },
+  { kat: "Agama", k: ["masjid", "mushola", "musala", "surau", "langgar", "islamic"], s: "mosque.png" },
+  { kat: "Agama", k: ["pura", "vihara", "klenteng", "pagoda"], s: "pagoda.png" },
+  { kat: "Agama", k: ["kapel"], s: "chapel.png" },
+  { kat: "Agama", k: ["agama", "gereja", "gkii", "gpib", "gmim", "hkbp", "katolik", "protestan", "rumah ibadah", "tempat ibadah"], s: "church.png" },
+  { kat: "Tempat Pertemuan", k: ["kantor desa", "kantor kepala desa", "kantor camat", "kantor adat", "kantor", "rumah dinas", "sekretariat"], s: "home.png" },
+  { kat: "Tempat Pertemuan", k: ["tempat pertemuan", "balai pertemuan", "bpu", "balai desa", "balai adat", "aula", "gedung pertemuan", "pendopo"], s: "conference.png" },
+  { kat: "Situs Budaya", k: ["museum", "rumah adat", "lamin", "uma dado"], s: "museum.png" },
+  { kat: "Situs Budaya", k: ["patung", "arca", "ukiran"], s: "statue.png" },
+  { kat: "Situs Budaya", k: ["situs budaya", "cagar budaya", "situs", "budaya", "sejarah", "batu adat", "tugu", "monumen", "keramat", "leluhur"], s: "monument.png" },
+  { kat: "Mata Air", k: ["air terjun", "curug", "rueb", "riam", "jeram"], s: "waterfall.png" },
+  { kat: "Mata Air", k: ["dam", "bendungan", "pintu air", "irigasi", "embung"], s: "dam.png" },
+  { kat: "Mata Air", k: ["danau", "telaga", "kolam"], s: "lake.png" },
+  { kat: "Mata Air", k: ["mata air", "sumber air", "sumur", "pancuran"], s: "water.png" },
+  { kat: "Flora", k: ["sawah", "ladang", "kebun", "pertanian", "padi"], s: "agriculture.png" },
+  { kat: "Flora", k: ["anggrek", "bunga", "tanaman obat", "herbal", "taman"], s: "garden.png" },
+  { kat: "Flora", k: ["pohon", "kayu", "meranti", "bengkirai", "ulin", "hutan", "mangrove", "bambu", "rotan", "flora"], s: "forest.png" },
+  { kat: "Fauna", k: ["satwa", "hewan", "harimau", "orangutan", "burung", "rangkong", "ikan", "jejak", "sarang", "fauna"], s: "animals.png" },
+  { kat: "Ancaman / Temuan", k: ["banjir", "genangan", "abrasi"], s: "flood.png" },
+  { kat: "Ancaman / Temuan", k: ["tambang", "galian", "emas", "batubara", "kuari"], s: "mine.png" },
+  { kat: "Ancaman / Temuan", k: ["kebakaran", "api", "titik panas", "hotspot", "pembalakan", "illegal logging", "longsor", "ancaman", "kerusakan"], s: "fire.png" },
+  { kat: "Sarana Desa", k: ["bumdes", "koperasi", "bank", "pasar", "warung", "toko", "ekonomi"], s: "bank.png" },
+  { kat: "Sarana Desa", k: ["lapangan", "olahraga", "bola", "voli", "stadion"], s: "soccer.png" },
+  { kat: "Sarana Desa", k: ["poskamling", "pos keamanan", "polisi", "polsek", "koramil", "babinsa"], s: "police.png" },
+  { kat: "Toponimi", k: ["gua", "liang"], s: "cave.png" },
+  { kat: "Toponimi", k: ["bukit", "gunung", "buduk", "puncak", "tanjung", "pulau", "toponimi"], s: "default.png" },
+  { kat: "Tanda Batas", k: ["tanda batas", "patok", "pilar", "batas desa", "batas wilayah", "batas adat", "batas"], s: "default-icon.png" }
+];
+
+var FALLBACK_POINT_GS_ = {
+  "Kuburan": "cross.png",
+  "Sanitasi": "toilets.png",
+  "Komunikasi": "tower.png",
+  "Transportasi": "bridge.png",
+  "Pendidikan": "school.png",
+  "Kesehatan": "hospital.png",
+  "Agama": "church.png",
+  "Tempat Pertemuan": "conference.png",
+  "Situs Budaya": "monument.png",
+  "Flora": "forest.png",
+  "Fauna": "animals.png",
+  "Mata Air": "water.png",
+  "Tanda Batas": "default-icon.png",
+  "Ancaman / Temuan": "fire.png",
+  "Wilayah Adat / Lahan": "agriculture.png",
+  "Sarana Desa": "default-icon.png"
+};
+
+function gayaPolygonPrmAidGs_(label, kategori, keterangan, tepiAwal, warnaAwal) {
+  var tepi = String(tepiAwal || "").trim();
+  var warna = String(warnaAwal || "").trim();
+  if (tepi && warna) return { tepi: tepi, warna: warna };
+  var teksUtama = [label, keterangan].join(" ").toLowerCase();
+  for (var i = 0; i < ATURAN_POLYGON_GS_.length; i++) {
+    var a = ATURAN_POLYGON_GS_[i];
+    for (var j = 0; j < a.k.length; j++) {
+      if (teksUtama.indexOf(a.k[j]) !== -1) {
+        return { tepi: tepi || a.tepi, warna: warna || a.warna };
+      }
+    }
+  }
+  var teksKat = String(kategori || "").toLowerCase();
+  for (var m = 0; m < ATURAN_POLYGON_GS_.length; m++) {
+    var ak = ATURAN_POLYGON_GS_[m];
+    for (var n = 0; n < ak.k.length; n++) {
+      if (teksKat.indexOf(ak.k[n]) !== -1) {
+        return { tepi: tepi || ak.tepi, warna: warna || ak.warna };
+      }
+    }
+  }
+  var fb = FALLBACK_POLYGON_GS_[String(kategori || "")] || FALLBACK_POLYGON_GS_["Wilayah Adat / Lahan"];
+  return { tepi: tepi || fb.tepi, warna: warna || fb.warna };
+}
+
+function warnaLinePrmAidGs_(label, kategori, keterangan, warnaAwal) {
+  var warna = String(warnaAwal || "").trim();
+  if (warna) return warna;
+  var gabungan = [label, keterangan, kategori].join(" ").toLowerCase();
+  var sungai = ["sungai", "pa ", "pa'", "aliran", "kali", "parit", "irigasi", "saluran", "air"];
+  for (var i = 0; i < sungai.length; i++) if (gabungan.indexOf(sungai[i]) !== -1) return "#00BFFF";
+  var jalan = ["jalan", "jalur", "jembatan", "gang", "akses", "setapak", "poros", "trans"];
+  for (var j = 0; j < jalan.length; j++) if (gabungan.indexOf(jalan[j]) !== -1) return "#FF0000";
+  var batas = ["batas rt", "batas rw", "batas dusun", "batas lingkungan", "batas desa", "batas kecamatan", "batas kabupaten", "batas provinsi", "batas wilayah", "batas adat"];
+  for (var b = 0; b < batas.length; b++) if (gabungan.indexOf(batas[b]) !== -1) return "#FFCC99";
+  var fbLine = {
+    "Mata Air": "#00BFFF",
+    "Sarana Desa": "#FF0000",
+    "Tanda Batas": "#FFCC99",
+    "Flora": "#02AD00",
+    "Fauna": "#AD3FFF",
+    "Ancaman / Temuan": "#FF0000",
+    "Wilayah Adat / Lahan": "#8d4513",
+    "Situs Budaya": "#6600CC"
+  };
+  return fbLine[String(kategori || "")] || "#FF0000";
+}
+
+function simbolPointPrmAidGs_(label, kategori, keterangan, simbolAwal) {
+  var katAsli = String(kategori || "").trim();
+  var simbol = String(simbolAwal || "").trim();
+  var gabungan = [label, keterangan, katAsli].join(" ").toLowerCase();
+  if (katAsli && FALLBACK_POINT_GS_[katAsli] && katAsli !== "Sarana Desa") {
+    for (var i = 0; i < ATURAN_POINT_GS_.length; i++) {
+      var a = ATURAN_POINT_GS_[i];
+      if (a.kat === katAsli) {
+        for (var j = 0; j < a.k.length; j++) {
+          if (gabungan.indexOf(a.k[j]) !== -1) return { kategori: katAsli, simbol: simbol || a.s };
+        }
+      }
+    }
+    return { kategori: katAsli, simbol: simbol || FALLBACK_POINT_GS_[katAsli] };
+  }
+  for (var m = 0; m < ATURAN_POINT_GS_.length; m++) {
+    var at = ATURAN_POINT_GS_[m];
+    for (var n = 0; n < at.k.length; n++) {
+      if (gabungan.indexOf(at.k[n]) !== -1) {
+        var katHasil = !katAsli || katAsli === "Sarana Desa" ? at.kat : katAsli;
+        return { kategori: katHasil, simbol: simbol || at.s };
+      }
+    }
+  }
+  if (katAsli && FALLBACK_POINT_GS_[katAsli]) {
+    return { kategori: katAsli, simbol: simbol || FALLBACK_POINT_GS_[katAsli] };
+  }
+  return { kategori: katAsli || "Fasilitas Umum", simbol: simbol || "default-icon.png" };
+}
+
+function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
+  var pLama = (fitur && fitur.properties) || {};
+  var label = String(r.judul || r.label || pLama.label || pLama.judul || "").trim();
+  var ket = String(r.deskripsi || r.keterangan || pLama.keterangan || pLama.deskripsi || "").trim();
+  if (!ket) {
+    var bagian = [];
+    if (r.namaLokal && String(r.namaLokal).trim()) bagian.push(String(r.namaLokal).trim());
+    if (r.namaIlmiah && String(r.namaIlmiah).trim()) bagian.push("(" + String(r.namaIlmiah).trim() + ")");
+    ket = bagian.length > 0 ? bagian.join(" ") : String(r.kategori || pLama.kategori || "").trim();
+  }
+  var url = String(fotoUrl || r.url || r.driveFileUrl || pLama.url || "").trim();
+  var jenis = String(r.jenisGeometri || "").toLowerCase();
+  var hasil;
+  if (jenis === "polygon") {
+    var luas = Number(r.luasHa !== undefined ? r.luasHa : pLama.luas_ha !== undefined ? pLama.luas_ha : 0);
+    var luas_ha = isFinite(luas) ? Number(luas.toFixed(7)) : 0;
+    var gaya = gayaPolygonPrmAidGs_(label, r.kategori, ket, r.tepi || pLama.tepi, r.warna || pLama.warna);
+    hasil = { label: label, luas_ha: luas_ha, keterangan: ket, url: url, tepi: gaya.tepi, warna: gaya.warna };
+  } else if (jenis === "line") {
+    var pjgMeter = r.panjang_m !== undefined ? Number(r.panjang_m) : pLama.panjang_m !== undefined ? Number(pLama.panjang_m) : Number(r.panjangKm || 0) * 1000;
+    var panjang_m = isFinite(pjgMeter) ? Number(pjgMeter.toFixed(2)) : 0;
+    var warnaLine = warnaLinePrmAidGs_(label, r.kategori, ket, r.warna || pLama.warna);
+    hasil = { label: label, panjang_m: panjang_m, keterangan: ket, url: url, warna: warnaLine };
+  } else {
+    var pt = simbolPointPrmAidGs_(label, r.kategori || pLama.kategori, ket, r.simbol || pLama.simbol);
+    hasil = { label: label, kategori: pt.kategori, keterangan: ket, url: url, simbol: pt.simbol };
+  }
+  if (pLama.judul !== undefined && pLama.label === undefined) {
+    hasil.judul = label;
+  }
+  return hasil;
+}
+
+function siapkanFiturRekaman_(r, fitur, fotoUrl) {
+  var dasar = fitur || fiturCadangan_(r);
+  var salinan = {
+    type: "Feature",
+    id: dasar.id || r.id,
+    geometry: dasar.geometry !== undefined ? dasar.geometry : geometriDariWktGs_(r.wkt, r.jenisGeometri),
+    properties: susunAtributPrmAidGs_(r, dasar, fotoUrl)
+  };
+  if (dasar.snapshotSurvei) salinan.snapshotSurvei = dasar.snapshotSurvei;
+  if (dasar.properties && dasar.properties.snapshotSurvei) salinan.snapshotSurvei = dasar.properties.snapshotSurvei;
+  return salinan;
+}
+
+function wilayahLengkapGs_(w) {
+  return Boolean(
+    w &&
+      w.provinsi && w.provinsi !== BELUM_DIISI &&
+      w.kabupaten && w.kabupaten !== BELUM_DIISI &&
+      w.kecamatan && w.kecamatan !== BELUM_DIISI &&
+      w.desa && w.desa !== BELUM_DIISI
+  );
+}
+
+/**
+ * Automasi pemindahan/perubahan nama folder wilayah pada server base Google Drive:
+ * Memindahkan berkas GeoJSON beserta foto/memo suara dari folder wilayah lama (mis. Wilayah_Belum_Diisi)
+ * ke folder wilayah baru (<Provinsi>/<Kabupaten>/<Kecamatan>/<Desa>), memperbarui baris di Master_Data_Titik_Tapak,
+ * dan membersihkan folder lama yang menjadi kosong.
+ */
+function migrasiDataKaderKeWilayahBaru_(idKader, wBaru, folderBaru, konteks, hanyaBelumDiisi) {
+  var jmlBaris = konteks.sheet.getLastRow();
+  if (jmlBaris <= 1) return 0;
+  var semuaBaris = konteks.sheet.getRange(2, 1, jmlBaris - 1, KOLOM.length).getValues();
+  var dipindahkan = 0;
+  var folderLamaDikunjungi = [];
+
+  for (var i = 0; i < semuaBaris.length; i++) {
+    var b = semuaBaris[i];
+    var noBaris = i + 2;
+    if (idKader && String(b[K.ID_Kader] || "") !== String(idKader)) continue;
+    var provLama = String(b[K.Provinsi] || "");
+    var kabLama = String(b[K.Kabupaten_Kota] || "");
+    var kecLama = String(b[K.Kecamatan] || "");
+    var desaLama = String(b[K.Kelurahan_Desa] || "");
+    var samaWilayah =
+      provLama.toLowerCase() === wBaru.provinsi.toLowerCase() &&
+      kabLama.toLowerCase() === wBaru.kabupaten.toLowerCase() &&
+      kecLama.toLowerCase() === wBaru.kecamatan.toLowerCase() &&
+      desaLama.toLowerCase() === wBaru.desa.toLowerCase();
+    if (samaWilayah) continue;
+    if (hanyaBelumDiisi) {
+      var adaBelumDiisi =
+        provLama === BELUM_DIISI || kabLama === BELUM_DIISI || kecLama === BELUM_DIISI || desaLama === BELUM_DIISI;
+      if (!adaBelumDiisi) continue;
+    }
+
+    var idData = String(b[K.ID_Data] || "");
+    var idBerkasLama = String(b[K.ID_Berkas] || "");
+    var namaBerkas = String(b[K.Nama_Berkas] || "");
+    var berkasBaru = null;
+
+    if (idBerkasLama) {
+      try {
+        var fileLama = DriveApp.getFileById(idBerkasLama);
+        var koleksiLama = JSON.parse(fileLama.getBlob().getDataAsString());
+        if (koleksiLama && Array.isArray(koleksiLama.features)) {
+          var fiturTarget = null;
+          for (var f = 0; f < koleksiLama.features.length; f++) {
+            if (String(koleksiLama.features[f].id) === idData) {
+              fiturTarget = koleksiLama.features[f];
+              break;
+            }
+          }
+          if (fiturTarget) {
+            berkasBaru = simpanFitur_(folderBaru, (namaBerkas || "data") + ".geojson", idData, fiturTarget);
+            if (berkasBaru.getId() !== idBerkasLama) {
+              hapusFiturLama_(idBerkasLama, idData);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    var folderDesaLama = cariFolderJalur_(konteks.induk, [provLama, kabLama, kecLama, desaLama]);
+    if (folderDesaLama && folderDesaLama.getId() !== folderBaru.getId()) {
+      pindahkanLampiranBerkas_(folderDesaLama, folderBaru, namaBerkas);
+      folderLamaDikunjungi.push([provLama, kabLama, kecLama, desaLama]);
+    }
+
+    b[K.Provinsi] = sanitasiSel_(wBaru.provinsi);
+    b[K.Kabupaten_Kota] = sanitasiSel_(wBaru.kabupaten);
+    b[K.Kecamatan] = sanitasiSel_(wBaru.kecamatan);
+    b[K.Kelurahan_Desa] = sanitasiSel_(wBaru.desa);
+    if (berkasBaru) {
+      b[K.Tautan_Berkas] = berkasBaru.getUrl();
+      b[K.ID_Berkas] = berkasBaru.getId();
+    }
+    b[K.Waktu_Sinkron] = konteks.waktu;
+    konteks.sheet.getRange(noBaris, 1, 1, KOLOM.length).setValues([b]);
+    dipindahkan++;
+  }
+
+  for (var k = 0; k < folderLamaDikunjungi.length; k++) {
+    bersihkanJalurFolderKosong_(konteks.induk, folderLamaDikunjungi[k]);
+  }
+  return dipindahkan;
+}
+
+function cariFolderAnak_(induk, nama) {
+  if (!induk || !nama) return null;
+  var persis = berkasAktif_(induk.getFoldersByName(nama));
+  if (persis) return persis;
+  var kecil = String(nama).toLowerCase();
+  var semua = induk.getFolders();
+  while (semua.hasNext()) {
+    var f = semua.next();
+    if (!f.isTrashed() && f.getName().toLowerCase() === kecil) return f;
+  }
+  return null;
+}
+
+function cariFolderJalur_(induk, tingkat) {
+  var saatIni = induk;
+  for (var i = 0; i < tingkat.length; i++) {
+    saatIni = cariFolderAnak_(saatIni, tingkat[i]);
+    if (!saatIni) return null;
+  }
+  return saatIni;
+}
+
+function pindahkanLampiranBerkas_(folderAsal, folderTujuan, namaDasar) {
+  if (!folderAsal || !folderTujuan || !namaDasar) return;
+  var awalanFoto = namaDasar + "_foto_";
+  var awalanSuara = namaDasar + "_suara_";
+  var files = folderAsal.getFiles();
+  while (files.hasNext()) {
+    var f = files.next();
+    if (f.isTrashed()) continue;
+    var n = f.getName();
+    if (n.indexOf(awalanFoto) === 0 || n.indexOf(awalanSuara) === 0) {
+      try {
+        f.moveTo(folderTujuan);
+      } catch (e) {}
+    }
+  }
+}
+
+function folderKosongGs_(folder) {
+  if (!folder) return false;
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    if (!files.next().isTrashed()) return false;
+  }
+  var subs = folder.getFolders();
+  while (subs.hasNext()) {
+    if (!subs.next().isTrashed()) return false;
+  }
+  return true;
+}
+
+function bersihkanJalurFolderKosong_(induk, tingkat) {
+  var rantai = [];
+  var saatIni = induk;
+  for (var i = 0; i < tingkat.length; i++) {
+    saatIni = cariFolderAnak_(saatIni, tingkat[i]);
+    if (!saatIni) break;
+    rantai.push(saatIni);
+  }
+  for (var j = rantai.length - 1; j >= 0; j--) {
+    var f = rantai[j];
+    if (folderKosongGs_(f)) {
+      try {
+        if (typeof f.setTrashed === "function") f.setTrashed(true);
+      } catch (e) {}
+    } else {
+      break;
+    }
+  }
+}
+
+function migrasiFolderWilayah_(body, konteks) {
+  var wilayahMasukan = body.wilayahBaru || body.wilayah || {};
+  var wBaru = wilayahRekaman_({
+    wilayah: wilayahMasukan,
+    desaWilayah: body.desaWilayah || wilayahMasukan.desa || wilayahMasukan.desaWilayah
+  });
+  if (!wilayahLengkapGs_(wBaru)) {
+    return { sukses: false, pesan: "Wilayah tujuan harus lengkap (provinsi, kabupaten, kecamatan, desa)." };
+  }
+  var folderBaru = folderWilayah_(konteks, wBaru);
+  var idKader = body.idKader ? String(body.idKader).trim() : "";
+  var barisDiperbarui = 0;
+
+  if (idKader) {
+    barisDiperbarui += migrasiDataKaderKeWilayahBaru_(idKader, wBaru, folderBaru, konteks, false);
+  }
+
+  var tambahanBerkas = 0;
+  if (body.wilayahLama) {
+    var wLama = wilayahRekaman_({
+      wilayah: body.wilayahLama,
+      desaWilayah: body.wilayahLama.desa || body.wilayahLama.desaWilayah
+    });
+    var jalurLama = [wLama.provinsi, wLama.kabupaten, wLama.kecamatan, wLama.desa];
+    var folderLama = cariFolderJalur_(konteks.induk, jalurLama);
+    if (folderLama && folderLama.getId() !== folderBaru.getId()) {
+      var files = folderLama.getFiles();
+      while (files.hasNext()) {
+        var f = files.next();
+        if (!f.isTrashed()) {
+          try {
+            f.moveTo(folderBaru);
+            tambahanBerkas++;
+          } catch (e) {}
+        }
+      }
+      bersihkanJalurFolderKosong_(konteks.induk, jalurLama);
+    }
+  }
+
+  var totalDipindahkan = folderBaru.getFiles ? (function() {
+    var c = 0;
+    var it = folderBaru.getFiles();
+    while (it.hasNext()) {
+      if (!it.next().isTrashed()) c++;
+    }
+    return c;
+  })() : barisDiperbarui + tambahanBerkas;
+
+  return {
+    sukses: true,
+    dipindahkan: totalDipindahkan,
+    berkasDipindahkan: totalDipindahkan,
+    barisDiperbarui: barisDiperbarui,
+    folderUrl: folderBaru.getUrl(),
+    wilayah: wBaru
+  };
 }
 
 function nomorFotoBerikut_(folder, nama) {
@@ -467,7 +974,7 @@ function snapshotV3_(baris) {
   var koleksi = JSON.parse(DriveApp.getFileById(String(baris[K.ID_Berkas])).getBlob().getDataAsString());
   var f = koleksi.features.filter(function(x) { return String(x.id) === String(baris[K.ID_Data]); })[0];
   if (!f) throw new Error("Snapshot server tidak ditemukan; data tidak ditimpa.");
-  var p = f.properties || {}, d = p.snapshotSurvei;
+  var p = f.properties || {}, d = f.snapshotSurvei || p.snapshotSurvei;
   if (!d) {
     var coords = f.geometry ? f.geometry.coordinates : [], jenis = String(baris[K.Jenis_Geometri]);
     if (jenis === "point") coords = [coords];
@@ -475,7 +982,7 @@ function snapshotV3_(baris) {
     d = { id: String(baris[K.ID_Data]), idKader: String(baris[K.ID_Kader]), namaKader: String(baris[K.Nama_Kader]),
       desaWilayah: String(baris[K.Kelurahan_Desa]), jenisGeometri: jenis, kategori: String(baris[K.Kategori]),
       judul: String(baris[K.Judul]), namaLokal: String(baris[K.Nama_Lokal]), namaIlmiah: String(baris[K.Nama_Ilmiah]),
-      deskripsi: p.deskripsi || "", koordinat: coords.map(function(c) { return { lat: c[1], lng: c[0], elevasi: c[2] }; }),
+      deskripsi: p.deskripsi || p.keterangan || "", koordinat: coords.map(function(c) { return { lat: c[1], lng: c[0], elevasi: c[2] }; }),
       panjangKm: Number(baris[K.Panjang_Km]) || 0, luasHa: Number(baris[K.Luas_Ha]) || 0,
       createdAt: String(baris[K.Waktu_Rekam]), updatedAt: String(baris[K.Waktu_Sinkron]), riwayatPembaruan: [] };
   }
@@ -562,8 +1069,8 @@ function sinkronV3_(body) {
   var data = JSON.parse(Utilities.newBlob(lengkap).getDataAsString("UTF-8")), r = data.record;
   if (!r || String(r.id) !== String(manifest.metadata.id) || String(r.idKader) !== String(manifest.metadata.idKader) || !data.feature || String(data.feature.id) !== String(r.id)) throw new Error("Identitas payload tidak cocok.");
   data.feature.properties = data.feature.properties || {};
-  // Snapshot mempertahankan atribut partisipatif untuk unduhan/resolusi konflik.
-  data.feature.properties.snapshotSurvei = r;
+  // Snapshot disimpan di tingkat Feature (bukan di dalam properties) agar tabel atribut GeoJSON tetap bersih sesuai standar PRM-AID.
+  data.feature.snapshotSurvei = r;
   validasiPayloadV3_(r, data.feature);
   // Audio dibatasi dan formatnya diperiksa; nama deterministik mencegah duplikasi saat retry.
   var memo = r.memoSuara || [], desa = folderWilayah_(ctx, wilayahRekaman_(r));

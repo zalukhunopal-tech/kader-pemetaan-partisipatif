@@ -265,6 +265,82 @@ export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], opsi: 
 
 export type StatusAutoSync = "tersinkron" | "menyinkronkan" | "offline" | "antrean" | "galat";
 
+export interface OpsiMigrasiFolderWilayah {
+  idKader?: string;
+  namaKader?: string;
+  wilayahLama?: Partial<WilayahAdministrasi> | { desaWilayah?: string };
+  wilayahBaru: WilayahAdministrasi;
+  hapusFolderLamaJikaKosong?: boolean;
+  koneksi?: KoneksiGDrive;
+}
+
+export interface HasilMigrasiFolderWilayah {
+  sukses: boolean;
+  pesan: string;
+  berkasDipindahkan: number;
+  barisDiperbarui: number;
+  folderLamaDibersihkan: number;
+}
+
+/**
+ * Automasi perubahan nama & pemindahan struktur folder wilayah pada server base Google Drive
+ * melalui Web App Google Apps Script (`action: "rename_wilayah_folder"`).
+ * Memindahkan berkas `.geojson`, foto, audio, serta memperbarui kolom Provinsi/Kabupaten/Kecamatan/Desa
+ * pada `Master_Data_Titik_Tapak` tanpa merusak struktur data.
+ */
+export async function migrasiFolderWilayahKeGDrive(
+  opsi: OpsiMigrasiFolderWilayah
+): Promise<HasilMigrasiFolderWilayah> {
+  const koneksi = opsi.koneksi ?? KONEKSI_GDRIVE;
+  if (!gdriveTerpasang(koneksi)) {
+    return {
+      sukses: false,
+      pesan: "Koneksi Google Drive belum diatur pada build ini.",
+      berkasDipindahkan: 0,
+      barisDiperbarui: 0,
+      folderLamaDibersihkan: 0
+    };
+  }
+
+  const pengendali = new AbortController();
+  const pewaktu = setTimeout(() => pengendali.abort(), WAKTU_TUNGGU_MS);
+  try {
+    const resp = await fetch(koneksi.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "rename_wilayah_folder",
+        token: koneksi.token,
+        idKader: opsi.idKader ?? "",
+        namaKader: opsi.namaKader ?? "",
+        wilayahLama: opsi.wilayahLama,
+        wilayahBaru: opsi.wilayahBaru,
+        hapusFolderLamaJikaKosong: opsi.hapusFolderLamaJikaKosong !== false
+      }),
+      signal: pengendali.signal
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = (await resp.json()) as Partial<HasilMigrasiFolderWilayah>;
+    return {
+      sukses: Boolean(json.sukses),
+      pesan: String(json.pesan ?? (json.sukses ? "Folder wilayah berhasil dimigrasikan." : "Migrasi folder gagal.")),
+      berkasDipindahkan: Number(json.berkasDipindahkan ?? 0),
+      barisDiperbarui: Number(json.barisDiperbarui ?? 0),
+      folderLamaDibersihkan: Number(json.folderLamaDibersihkan ?? 0)
+    };
+  } catch (err) {
+    return {
+      sukses: false,
+      pesan: pesanGalat(err),
+      berkasDipindahkan: 0,
+      barisDiperbarui: 0,
+      folderLamaDibersihkan: 0
+    };
+  } finally {
+    clearTimeout(pewaktu);
+  }
+}
+
 export interface StateAutoSync {
   status: StatusAutoSync;
   antreanCount: number;
