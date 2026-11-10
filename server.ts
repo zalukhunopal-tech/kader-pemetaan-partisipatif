@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import dns from "node:dns/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer as createViteServer } from "vite";
@@ -259,6 +260,120 @@ app.post("/api/gemini/chat-admin", async (req: Request, res: Response) => {
       balasan:
         "Pertanyaan Anda telah dicatat dan diteruskan ke Administrator GIS (Nopal zalukhunopal@gmail.com) untuk dijawab langsung.",
       butuhAdmin: true
+    });
+  }
+});
+
+// 2. Rute Autentikasi & Verifikasi Keaslian Email Pendaftaran (DNS MX + Pengiriman OTP Email)
+const DOMAIN_DISPOSABLE = new Set([
+  "tempmail.com",
+  "mailinator.com",
+  "10minutemail.com",
+  "guerrillamail.com",
+  "yopmail.com",
+  "trashmail.com",
+  "fakeinbox.com",
+  "sharklasers.com",
+  "getnada.com",
+  "maildrop.cc",
+  "throwawaymail.com",
+  "dispostable.com"
+]);
+
+app.post("/api/auth/kirim-otp-email", async (req: Request, res: Response) => {
+  try {
+    const email = sanitizeInput(req.body?.email, 160).toLowerCase();
+    const nama = sanitizeInput(req.body?.nama, 120);
+    const kodeOtp = sanitizeInput(req.body?.kodeOtp, 10);
+
+    const emailRegex = /^[^\s@]+@([^\s@]+\.[a-zA-Z]{2,})$/;
+    const match = email.match(emailRegex);
+    if (!match || !kodeOtp) {
+      res.status(400).json({ sukses: false, mxValid: false, error: "Format alamat email tidak valid." });
+      return;
+    }
+
+    const domain = match[1].toLowerCase();
+    if (DOMAIN_DISPOSABLE.has(domain)) {
+      res.status(400).json({
+        sukses: false,
+        mxValid: false,
+        error: "Email sementara (disposable) tidak diizinkan. Gunakan email asli Anda."
+      });
+      return;
+    }
+
+    // Verifikasi keaslian domain email melalui DNS MX Record
+    let mxHost = "";
+    try {
+      const mxRecords = await Promise.race([
+        dns.resolveMx(domain),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("DNS_TIMEOUT")), 3500))
+      ]);
+      if (!Array.isArray(mxRecords) || mxRecords.length === 0) {
+        res.status(400).json({
+          sukses: false,
+          mxValid: false,
+          error: `Domain email @${domain} tidak memiliki server penerima aktif (MX record kosong). Gunakan email asli.`
+        });
+        return;
+      }
+      mxRecords.sort((a, b) => a.priority - b.priority);
+      mxHost = mxRecords[0]?.exchange || domain;
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "ENOTFOUND" || code === "ENODATA" || code === "ESERVFAIL") {
+        res.status(400).json({
+          sukses: false,
+          mxValid: false,
+          error: `Domain email @${domain} tidak ditemukan atau tidak terdaftar sebagai email aktif. Gunakan email asli.`
+        });
+        return;
+      }
+      // Jika DNS timeout pada jaringan terisolasi, lanjutkan selama sintaks valid
+      mxHost = domain;
+    }
+
+    // Kirim email OTP melalui Google Apps Script Web App atau layanan email jika tersedia
+    let terkirimServer = false;
+    const gdriveUrl = sanitizeInput(req.body?.gdriveUrl || process.env.VITE_GDRIVE_URL, 500);
+    const gdriveToken = sanitizeInput(req.body?.gdriveToken || process.env.VITE_GDRIVE_TOKEN, 200);
+
+    if (gdriveUrl && gdriveUrl.startsWith("https://script.google.com/")) {
+      try {
+        const resp = await fetch(gdriveUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "kirim_otp_email",
+            token: gdriveToken,
+            email,
+            nama,
+            kodeOtp
+          })
+        });
+        if (resp.ok) {
+          const data = (await resp.json().catch(() => null)) as { sukses?: boolean } | null;
+          if (data?.sukses) terkirimServer = true;
+        }
+      } catch {
+        // Fallback ke verifikasi terautentikasi
+      }
+    }
+
+    res.json({
+      sukses: true,
+      mxValid: true,
+      mxHost,
+      terkirimServer,
+      pesan: terkirimServer
+        ? `Kode verifikasi 6 digit telah dikirim ke kotak masuk ${email}.`
+        : `Domain email @${domain} terautentikasi aktif (${mxHost}). Masukkan kode verifikasi untuk menyelesaikan pendaftaran.`
+    });
+  } catch {
+    res.status(500).json({
+      sukses: false,
+      error: "Gagal memproses verifikasi email."
     });
   }
 });

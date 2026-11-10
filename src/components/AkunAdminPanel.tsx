@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, Copy, Info, KeyRound, ShieldAlert, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, ChevronDown, Copy, Info, KeyRound, ShieldAlert, Trash2, UserPlus, XCircle } from "lucide-react";
 import {
   AkunSesi,
   aturUlangAuthenticatorOlehAdmin,
@@ -7,6 +7,8 @@ import {
   buatAkunOlehAdmin,
   hapusAkunOlehAdmin,
   muatSemuaAkun,
+  setujuiAkunOlehAdmin,
+  tolakAkunOlehAdmin,
   ubahWilayahAkunOlehAdmin
 } from "../lib/auth";
 import { DataSpasialItem, PeranPengguna, SertifikatKader, WilayahAdministrasi } from "../types";
@@ -118,6 +120,23 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     setVersi((v) => v + 1);
   };
 
+  const setujuiAkun = (email: string) => {
+    bersihkan();
+    const r = setujuiAkunOlehAdmin(sesiAdmin, email);
+    if (!r.sukses) setGalat(r.pesan);
+    else setInfo(r.pesan);
+    setVersi((v) => v + 1);
+  };
+
+  const tolakAkun = (email: string, nama: string) => {
+    if (!window.confirm(`Tolak pendaftaran akun ${nama} (${email})? Akun ini tidak akan bisa aktif sampai disetujui.`)) return;
+    bersihkan();
+    const r = tolakAkunOlehAdmin(sesiAdmin, email);
+    if (!r.sukses) setGalat(r.pesan);
+    else setInfo(r.pesan);
+    setVersi((v) => v + 1);
+  };
+
   const salin = async () => {
     if (!hasil) return;
     try {
@@ -128,8 +147,19 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     }
   };
 
-  const statusAkun = (a: (typeof akun)[number]) =>
-    a.wajibGantiSandi ? "Wajib ganti sandi" : a.totpRahasia ? "Aktif, Authenticator terpasang" : "Belum memasang Authenticator";
+  const statusAkun = (a: (typeof akun)[number]) => {
+    if (a.statusPersetujuan === "menunggu") {
+      return "Menunggu persetujuan Admin (Email terverifikasi)";
+    }
+    if (a.statusPersetujuan === "ditolak") {
+      return "Ditolak Admin (Belum aktif)";
+    }
+    return a.wajibGantiSandi
+      ? "Wajib ganti sandi"
+      : a.totpRahasia
+        ? "Aktif, Authenticator terpasang"
+        : "Belum memasang Authenticator";
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -274,15 +304,27 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                       <td>{a.peran === "admin" ? "Admin" : "Kader"}</td>
                       <td className="text-xs">{statusAkun(a)}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn-outline-sm aksi-data-trigger"
-                          aria-haspopup="menu"
-                          aria-expanded={menuAksiAkun?.email === a.email}
-                          onClick={() => setMenuAksiAkun(a)}
-                        >
-                          Aksi <ChevronDown size={14} />
-                        </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          {a.statusPersetujuan === "menunggu" && (
+                            <button
+                              type="button"
+                              className="btn-primary-sm"
+                              onClick={() => setujuiAkun(a.email)}
+                              title="Setujui pendaftaran email ini agar akun aktif"
+                            >
+                              Setujui
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-outline-sm aksi-data-trigger"
+                            aria-haspopup="menu"
+                            aria-expanded={menuAksiAkun?.email === a.email}
+                            onClick={() => setMenuAksiAkun(a)}
+                          >
+                            Aksi <ChevronDown size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     {terbuka && (
@@ -292,6 +334,17 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                             <div>
                               <dt>ID</dt>
                               <dd>{a.idKader}</dd>
+                            </div>
+                            <div>
+                              <dt>Verifikasi Email</dt>
+                              <dd>
+                                {a.emailTerverifikasi ? "Email asli terverifikasi" : "Dibuat oleh Admin"} ·{" "}
+                                {a.statusPersetujuan === "menunggu"
+                                  ? "Menunggu persetujuan Admin"
+                                  : a.statusPersetujuan === "ditolak"
+                                    ? "Ditolak Admin"
+                                    : "Disetujui & Aktif"}
+                              </dd>
                             </div>
                             <div>
                               <dt>Wilayah tugas</dt>
@@ -397,6 +450,36 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
             >
               <Info size={17} /> {detailEmail === menuAksiAkun.email ? "Tutup detail akun" : "Lihat detail akun"}
             </button>
+
+            {(menuAksiAkun.statusPersetujuan === "menunggu" || menuAksiAkun.statusPersetujuan === "ditolak") && (
+              <button
+                type="button"
+                role="menuitem"
+                className="aksi-sheet-item"
+                onClick={() => {
+                  const target = menuAksiAkun;
+                  setMenuAksiAkun(null);
+                  setujuiAkun(target.email);
+                }}
+              >
+                <CheckCircle2 size={17} color="#0d7344" /> Setujui & aktifkan akun
+              </button>
+            )}
+
+            {menuAksiAkun.statusPersetujuan === "menunggu" && (
+              <button
+                type="button"
+                role="menuitem"
+                className="aksi-sheet-item"
+                onClick={() => {
+                  const target = menuAksiAkun;
+                  setMenuAksiAkun(null);
+                  tolakAkun(target.email, target.nama);
+                }}
+              >
+                <XCircle size={17} color="#dc2626" /> Tolak pendaftaran
+              </button>
+            )}
 
             <button
               type="button"

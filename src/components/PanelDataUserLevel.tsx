@@ -143,10 +143,17 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
           const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
           const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
           const lvl = hitungLevelKaderOtomatis(jmlTitik, jmlKm, jmlHa);
+          const desaDasar = a.desaWilayah || (a.wilayah ? a.wilayah.desa : "Desa Binaan");
+          const labelDesa =
+            a.statusPersetujuan === "menunggu"
+              ? `${desaDasar} • Menunggu Persetujuan Admin`
+              : a.statusPersetujuan === "ditolak"
+                ? `${desaDasar} • Pendaftaran Ditolak`
+                : desaDasar;
           petaKader.set(id, {
             idKader: a.idKader || id,
             nama: a.nama,
-            desaWilayah: a.desaWilayah || (a.wilayah ? a.wilayah.desa : "Desa Binaan"),
+            desaWilayah: labelDesa,
             kelompok: a.kelompokMasyarakat || (a.peran === "admin" ? "Administrator GIS" : "Kader Lapangan"),
             totalTitik: jmlTitik,
             totalJalurKm: Number(jmlKm.toFixed(2)),
@@ -155,7 +162,12 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
             level: lvl.level,
             tierNama: lvl.tierNama,
             tierBadgeColor: lvl.tierBadgeColor,
-            terakhirAktif: dataDia.length > 0 ? "Aktif survei" : "Terdaftar"
+            terakhirAktif:
+              a.statusPersetujuan === "menunggu"
+                ? "Menunggu Persetujuan Admin"
+                : dataDia.length > 0
+                  ? "Aktif survei"
+                  : "Terdaftar"
           });
         }
       });
