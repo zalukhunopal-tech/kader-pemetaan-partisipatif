@@ -47,9 +47,12 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
   return (
     <nav className="avenza-bottom-nav" ref={ukurBilahBawah} aria-label="Navigasi utama">
       <div className="desktop-nav-brand">
-        <strong>
-          Titik Tapak<span>●</span>
-        </strong>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 2 }}>
+          <img src="./taka/taka_avatar_256.png" alt="Maskot Taka" className="taka-sidebar-mascot" />
+          <strong>
+            Titik Tapak<span>●</span>
+          </strong>
+        </div>
         <small>JEJAK BAIK UNTUK BUMI</small>
       </div>
       {peran === "kader" ? (
