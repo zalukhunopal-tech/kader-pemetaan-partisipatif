@@ -66,7 +66,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
           </strong>
         </div>
         <div className="inspector-summary-item">
-          <span className="inspector-summary-label">Geometri & Ukuran</span>
+          <span className="inspector-summary-label">Ukuran</span>
           <strong className="inspector-summary-val">{infoUkuran}</strong>
         </div>
       </div>

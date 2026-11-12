@@ -284,7 +284,7 @@ export function ChipKoordinatPeta({
         <div className="coord-crs-popover" role="dialog" aria-label="Pilih sistem koordinat">
           <div className="coord-crs-popover-head">
             <strong>Sistem Koordinat</strong>
-            <small>Berlaku untuk tampilan peta & form titik</small>
+            <small>Dipakai di peta dan form titik</small>
           </div>
           <PemilihSistemKoordinat
             varian="daftar"

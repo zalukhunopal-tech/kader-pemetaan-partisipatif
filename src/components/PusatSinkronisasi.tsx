@@ -96,7 +96,7 @@ export function PusatSinkronisasi({
             <ListOrdered />
             <strong>{lokal.length}</strong>
             <span>Antrean prioritas</span>
-            <small>Teks → foto & suara</small>
+            <small>Teks, foto, lalu suara</small>
           </li>
           <li>
             <Cloud />
@@ -240,7 +240,7 @@ export function PusatSinkronisasi({
           <fieldset>
             <legend>Gabungkan secara eksplisit</legend>
             <label>
-              Atribut & media
+              Isi survei
               <select className="form-input" value={atribut} onChange={(e) => setAtribut(e.target.value as "lokal" | "admin")}>
                 <option value="lokal">Pakai versi lokal</option>
                 <option value="admin">Pakai versi admin</option>

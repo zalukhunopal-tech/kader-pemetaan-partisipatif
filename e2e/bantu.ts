@@ -219,3 +219,89 @@ export const posisiPeta = (p: Page) =>
         basemap: string;
       } | null
   );
+
+/**
+ * Masuk dengan akun admin yang disemai langsung ke penyimpanan (alur layar masuk saat ini: layar pembuka,
+ * email + sandi, kode Authenticator, lalu PIN). Data spasial dan posisi peta opsional ikut disemai.
+ */
+export async function masukAkunSemai(
+  browser: Browser,
+  opsi: BrowserContextOptions = {},
+  semai: { data?: unknown[]; posisi?: unknown; area?: unknown[] } = {},
+  url = URL_APP
+): Promise<Halaman> {
+  const h = await halamanBaru(browser, opsi);
+  const { p } = h;
+  const rahasia = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
+  const sandi = "Sungai-Batang-2026";
+  const akun = [akunSemai({ idKader: "ADM-1", nama: "Siti Rahmawati", email: "admin@contoh.id", peran: "admin", sandi, totpRahasia: rahasia })];
+  await p.context().addInitScript(
+    (s) => {
+      if (localStorage.getItem("__disemai")) return;
+      localStorage.setItem("__disemai", "1");
+      localStorage.setItem("geokader_accounts_v5", JSON.stringify(s.akun));
+      if (s.data) localStorage.setItem("geokader_data_spasial_v5", JSON.stringify(s.data));
+      if (s.posisi) localStorage.setItem("geokader_posisi_peta_v1", JSON.stringify(s.posisi));
+      if (s.area) localStorage.setItem("geokader_offline_maps_v5", JSON.stringify(s.area));
+    },
+    { akun, ...semai }
+  );
+  await p.goto(url);
+  await p.waitForTimeout(3000);
+  // Layar pembuka maskot bisa menutupi form; lewati bila masih tampil
+  await p.evaluate(() => (document.querySelector("#lewati-splash-taka") as HTMLButtonElement | null)?.click());
+  await sampai(async () => (await p.locator("#lewati-splash-taka").count()) === 0, 8000);
+  await p.getByPlaceholder("Masukkan alamat email").fill("admin@contoh.id");
+  await p.getByPlaceholder("Masukkan kata sandi").fill(sandi);
+  await p.getByRole("button", { name: "Lanjut ke Titik Tapak" }).click();
+  expect(await sampai(async () => (await p.locator("#kode-totp").count()) === 1)).toBe(true);
+  await p.locator("#kode-totp").fill(await kodeBerikutnya(p, rahasia));
+  await p.locator("#form-kode-totp button[type=submit]").click();
+  for (let i = 0; i < 15; i++) {
+    await p.waitForTimeout(1000);
+    if (await p.locator("#form-siapkan-pin").count()) {
+      await buatPin(p);
+      continue;
+    }
+    const kunci = p.getByPlaceholder("123 456");
+    if (await kunci.count()) {
+      await kunci.fill(await kodeBerikutnya(p, rahasia));
+      await p.getByRole("button", { name: "Verifikasi" }).click();
+      continue;
+    }
+    if ((await p.locator(".avenza-nav-item").count()) > 0 && !(await terkunci(p))) break;
+  }
+  await p.waitForTimeout(1500);
+  return h;
+}
+
+/** Pasangan kontrol yang kotaknya saling bertumpuk (bagian yang tergulir keluar area tidak dihitung) */
+export async function kontrolBertumpuk(p: Page, selektor: string[]): Promise<string[]> {
+  return p.evaluate((sel) => {
+    const kotak = sel
+      .map((s) => {
+        const e = document.querySelector(s);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return null;
+        let t = r.top;
+        let b = r.bottom;
+        const gulir = e.closest(".avz-hud-bawah, .avz-hud-tengah");
+        if (gulir) {
+          const q = gulir.getBoundingClientRect();
+          t = Math.max(t, q.top);
+          b = Math.min(b, q.bottom);
+        }
+        return b > t ? { s, t, b, l: r.left, r: r.right } : null;
+      })
+      .filter((k): k is { s: string; t: number; b: number; l: number; r: number } => k !== null);
+    const hasil: string[] = [];
+    for (let i = 0; i < kotak.length; i++)
+      for (let j = i + 1; j < kotak.length; j++) {
+        const a = kotak[i];
+        const c = kotak[j];
+        if (a.l < c.r - 1 && c.l < a.r - 1 && a.t < c.b - 1 && c.t < a.b - 1) hasil.push(`${a.s} × ${c.s}`);
+      }
+    return hasil;
+  }, selektor);
+}

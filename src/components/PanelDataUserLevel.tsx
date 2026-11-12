@@ -205,7 +205,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
           </div>
           <div>
             <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#1e293b" }}>
-              Data User & Level Kader
+              Level Kader
             </h3>
             <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "#64748b" }}>
               Direktori kader terdaftar dan klasifikasi tingkatan otomatis (Level 1–20).

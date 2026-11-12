@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { MIN_PANJANG_SANDI, ubahKataSandi } from "../lib/auth";
+import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface GantiSandiModalProps {
   email: string;
@@ -9,6 +10,7 @@ interface GantiSandiModalProps {
 }
 
 export const GantiSandiModal: React.FC<GantiSandiModalProps> = ({ email, onTutup, onSukses }) => {
+  useTombolEsc(true, onTutup);
   const [lama, setLama] = useState("");
   const [baru, setBaru] = useState("");
   const [ulang, setUlang] = useState("");

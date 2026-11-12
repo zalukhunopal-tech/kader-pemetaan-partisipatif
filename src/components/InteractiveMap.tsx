@@ -11,7 +11,7 @@ import {
   snapKeVertex,
   validasiGeometri
 } from "../lib/geoUtils";
-import { durasiRekamMs, formatDurasi, perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
+import { perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta, ZOOM_MAKS_PETA, ZOOM_MIN_PETA } from "../lib/posisiPeta";
 import { PecahanDunia, jepitZoom, langkahZoomRoda, pecahanDiLayar, pusatUntukJangkar, zoomCubit } from "../lib/zoomPeta";
 import {
@@ -1198,6 +1198,53 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
   const infoKompas = teksStatusKompas(perangkat);
   const skalaInfo = hitungSkalaPeta(center.lat, zoom);
 
+  // Props bilah alat dan zoom; keduanya dirender di dua sel grid HUD yang berbeda
+  const propsRail = {
+    modeRekam: modeRekam,
+    gpsTersedia: Boolean(gpsPos),
+    modeIkutiGps: modeIkutiGps,
+    ikutiKompas: modeIkutiKompas,
+    onGps: () => {
+      if (petaKustomAktif && gpsPos) {
+        const diDalam =
+          gpsPos.lat >= petaKustomAktif.minLat &&
+          gpsPos.lat <= petaKustomAktif.maxLat &&
+          gpsPos.lng >= petaKustomAktif.minLng &&
+          gpsPos.lng <= petaKustomAktif.maxLng;
+        if (!diDalam) {
+          const tengah = {
+            lat: (petaKustomAktif.minLat + petaKustomAktif.maxLat) / 2,
+            lng: (petaKustomAktif.minLng + petaKustomAktif.maxLng) / 2
+          };
+          const jarakKm = (hitungJarakMeter(gpsPos, tengah) / 1000).toFixed(1).replace(".", ",");
+          setPesanSalin(`Posisi Anda di luar area peta ini (±${jarakKm} km dari tengah peta).`);
+        }
+      }
+      if (koordinatDipilih) setKoordinatDipilih(null);
+
+      // Alur Tombol GPS Bertahap (Sequential Toggle):
+      // Klik 1: Jika belum di posisi sekarang -> ke posisi sekarang & hadap Utara tegak (bearing: 0)
+      // (setModeIkutiKompas(false) tidak dipanggil di sini: ia menimpa "posisi" menjadi "mati")
+      if (modeIkutiGps !== "posisi") {
+        setModeIkutiGps("posisi");
+        setBearing(0);
+        if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+      } else {
+        // Klik 2: Jika sudah di posisi sekarang -> arah peta mengikuti kompas sensor HP
+        setModeIkutiGps("kompas");
+        setModeIkutiKompas(true);
+        void aktifkanKompas();
+        if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+      }
+    },
+    onZoomMasuk: () => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1)),
+    onZoomKeluar: () => setZoom((z) => Math.max(ZOOM_MIN_PETA, Math.ceil(z - 0.01) - 1)),
+    onPilihAlat: (jenis: JenisGeometri) => mulaiModeRekam(jenis),
+    onAlatAktif: (jenis: JenisGeometri) => {
+      if (jenis === "point") setBukaModalForm(true);
+    }
+  };
+
   return (
     <div className={`map-module-wrapper avz-peta clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""} ${modeRekam && modeRekam !== "point" ? "sedang-merekam" : ""}`}>
       {/* BILAH JUDUL PETA (GAYA AVENZA MAPS): nama peta aktif, lalu Cari dan Lapisan di kanan.
@@ -1262,8 +1309,8 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
               setCariKoordTerbuka(false);
               setBukaMenuPeta((v) => !v);
             }}
-            title="Peta Dasar & Lapisan"
-            aria-label="Peta Dasar & Lapisan"
+            title="Lapisan peta"
+            aria-label="Lapisan peta"
           >
             <Layers size={20} />
           </button>
@@ -1336,151 +1383,258 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           <span className="avz-bidikan-titik" />
         </div>
 
-        {/* CHIP KOORDINAT TERPADU DENGAN PENCARIAN TITIK DI TEMPAT */}
-        <ChipKoordinatPeta
-          posisi={posisiNyata}
-          teksMenunggu={infoGps.teks}
-          sistem={sistemKoord}
-          onGantiSistem={(s) => {
-            setSistemKoord(s);
-            simpanSistemKoordinat(s);
-          }}
-          onSalin={(teks) => {
-            if (navigator.clipboard) {
-              void navigator.clipboard
-                .writeText(teks)
-                .then(() => setPesanSalin("Koordinat disalin: " + teks))
-                .catch(() => setPesanSalin("Gagal menyalin koordinat"));
-            }
-          }}
-          rekam={rekamLatar.status !== "idle" ? formatDurasi(durasiRekamMs(rekamLatar)) : null}
-          modeCari={cariKoordTerbuka}
-          nilaiCariInput={cariKoordInput}
-          onUbahCariInput={(val) => {
-            setCariKoordInput(val);
-            setGalatPencarian("");
-          }}
-          onSubmitCari={() => cariKoordinat()}
-          onTutupCari={() => {
-            setCariKoordTerbuka(false);
-            setGalatPencarian("");
-          }}
-          galatCari={galatPencarian}
-          koordinatDipilih={koordinatDipilih}
-          onPulihkanKoordinat={() => setKoordinatDipilih(null)}
-          daftarObjekSaran={
-            cariKoordInput.trim()
-              ? dataSpasial
-                  .filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase()))
-                  .slice(0, 5)
-                  .map((d) => ({
-                    id: d.id,
-                    judul: d.judul,
-                    jenisGeometri: d.jenisGeometri,
-                    koordinat: d.koordinat
-                  }))
-              : []
-          }
-          onPilihObjekSaran={(obj) => {
-            if (obj.koordinat && obj.koordinat[0]) {
-              const t = obj.koordinat[0];
-              setCenter(t);
-              setZoom((z) => Math.max(z, 16));
-              setKoordinatDipilih({ lat: t.lat, lng: t.lng, label: obj.judul });
-              const cocok = dataSpasial.find((d) => d.id === obj.id);
-              if (cocok) setObjekTerpilih(cocok);
-              setCariKoordTerbuka(false);
-              setPesanSalin(`Menuju ke objek: ${obj.judul}`);
-            }
-          }}
-        />
-
-        {pesanSalin && (
-          <span className="field-map-message" role="status">
-            {pesanSalin}
-          </span>
-        )}
-        {/* KOMPAS BULAT (GAYA AVENZA): ketuk untuk tegak ke utara atau ikuti sensor arah HP */}
-        <div className="map-hud-pod top-right map-overlay-top-right avz-kompas-pod">
-          <button
-            type="button"
-            aria-label={infoKompas.teks}
-            className={`map-hud-btn map-ctrl-btn avz-kompas ${bearingAktif !== 0 ? "active" : ""} ${modeIkutiKompas ? "ikuti" : ""}`}
-            onClick={() => {
-              if (bearingAktif !== 0) {
-                setBearing(0);
-                setModeIkutiKompas(false);
-              } else {
-                void aktifkanKompas();
-                setModeIkutiKompas(true);
+        {/* HUD PETA: satu grid (atas · tengah · bawah · bilah alat) sehingga kontrol tidak pernah bertumpuk.
+            Bila tinggi peta kurang, baris tengah menyusut dulu lalu area bawah bisa digulir. */}
+        <div className="avz-hud">
+          <div className="avz-hud-atas">
+            {/* KOTAK LOKASI: koordinat GPS dan pencarian titik di tempat */}
+    <ChipKoordinatPeta
+              posisi={posisiNyata}
+              teksMenunggu={infoGps.teks}
+              sistem={sistemKoord}
+              onGantiSistem={(s) => {
+                setSistemKoord(s);
+                simpanSistemKoordinat(s);
+              }}
+              onSalin={(teks) => {
+                if (navigator.clipboard) {
+                  void navigator.clipboard
+                    .writeText(teks)
+                    .then(() => setPesanSalin("Koordinat disalin: " + teks))
+                    .catch(() => setPesanSalin("Gagal menyalin koordinat"));
+                }
+              }}
+              rekam={null /* waktu rekam sudah tampil di panel rekam */}
+              modeCari={cariKoordTerbuka}
+              nilaiCariInput={cariKoordInput}
+              onUbahCariInput={(val) => {
+                setCariKoordInput(val);
+                setGalatPencarian("");
+              }}
+              onSubmitCari={() => cariKoordinat()}
+              onTutupCari={() => {
+                setCariKoordTerbuka(false);
+                setGalatPencarian("");
+              }}
+              galatCari={galatPencarian}
+              koordinatDipilih={koordinatDipilih}
+              onPulihkanKoordinat={() => setKoordinatDipilih(null)}
+              daftarObjekSaran={
+                cariKoordInput.trim()
+                  ? dataSpasial
+                      .filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase()))
+                      .slice(0, 5)
+                      .map((d) => ({
+                        id: d.id,
+                        judul: d.judul,
+                        jenisGeometri: d.jenisGeometri,
+                        koordinat: d.koordinat
+                      }))
+                  : []
               }
-            }}
-            title={bearingAktif !== 0 ? "Ketuk untuk reset peta tegak ke Utara (0°)" : "Aktifkan kompas sensor"}
-          >
-            <svg
-              className="avz-kompas-jarum"
-              viewBox="0 0 40 40"
-              width="34"
-              height="34"
-              aria-hidden="true"
-              style={{ transform: `rotate(${-bearingAktif}deg)`, transition: "transform 0.15s ease-out" }}
-            >
-              <polygon points="20,9 24.5,20 15.5,20" fill="#e53935" />
-              <polygon points="20,31 24.5,20 15.5,20" fill="#9aa4ab" />
-              <circle cx="20" cy="20" r="2.4" fill="#ffffff" stroke="#37474f" strokeWidth="1" />
-            </svg>
-            <span className="avz-kompas-u" aria-hidden="true" style={{ transform: `rotate(${-bearingAktif}deg) translateY(-15px)` }}>
-              U
-            </span>
-          </button>
+              onPilihObjekSaran={(obj) => {
+                if (obj.koordinat && obj.koordinat[0]) {
+                  const t = obj.koordinat[0];
+                  setCenter(t);
+                  setZoom((z) => Math.max(z, 16));
+                  setKoordinatDipilih({ lat: t.lat, lng: t.lng, label: obj.judul });
+                  const cocok = dataSpasial.find((d) => d.id === obj.id);
+                  if (cocok) setObjekTerpilih(cocok);
+                  setCariKoordTerbuka(false);
+                  setPesanSalin(`Menuju ke objek: ${obj.judul}`);
+                }
+              }}
+            />
+            <div className="avz-hud-kanan">
+              <div className="map-hud-pod top-right map-overlay-top-right avz-kompas-pod">
+                <button
+                  type="button"
+                  aria-label={infoKompas.teks}
+                  className={`map-hud-btn map-ctrl-btn avz-kompas ${bearingAktif !== 0 ? "active" : ""} ${modeIkutiKompas ? "ikuti" : ""}`}
+                  onClick={() => {
+                    if (bearingAktif !== 0) {
+                      setBearing(0);
+                      setModeIkutiKompas(false);
+                    } else {
+                      void aktifkanKompas();
+                      setModeIkutiKompas(true);
+                    }
+                  }}
+                  title={bearingAktif !== 0 ? "Ketuk untuk reset peta tegak ke Utara (0°)" : "Aktifkan kompas sensor"}
+                >
+                  <svg
+                    className="avz-kompas-jarum"
+                    viewBox="0 0 40 40"
+                    width="34"
+                    height="34"
+                    aria-hidden="true"
+                    style={{ transform: `rotate(${-bearingAktif}deg)`, transition: "transform 0.15s ease-out" }}
+                  >
+                    <polygon points="20,9 24.5,20 15.5,20" fill="#e53935" />
+                    <polygon points="20,31 24.5,20 15.5,20" fill="#9aa4ab" />
+                    <circle cx="20" cy="20" r="2.4" fill="#ffffff" stroke="#37474f" strokeWidth="1" />
+                  </svg>
+                  <span className="avz-kompas-u" aria-hidden="true" style={{ transform: `rotate(${-bearingAktif}deg) translateY(-15px)` }}>
+                    U
+                  </span>
+                </button>
+              </div>
+              <RailAlatPeta bagian="zoom" {...propsRail} />
+            </div>
+          </div>
+
+          <div className="avz-hud-tengah">
+            {pesanSalin && (
+              <span className="field-map-message" role="status">
+                {pesanSalin}
+              </span>
+            )}
+          </div>
+
+          <div className="avz-hud-bawah">
+            {/* DAFTAR OBJEK (HANYA MUNCUL JIKA DIAKTIFKAN DARI MENU LAYERS) */}
+            {tampilDaftarObjek && dataSpasial.length > 0 && (
+              <div className="map-feature-strip">
+                {dataSpasial.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`strip-chip ${objekTerpilih?.id === d.id ? "active" : ""}`}
+                    onClick={() => {
+                      setObjekTerpilih(d);
+                      if (d.koordinat[0]) {
+                        setCenter({ lat: d.koordinat[0].lat, lng: d.koordinat[0].lng });
+                      }
+                    }}
+                  >
+                    {d.jenisGeometri === "point" ? "📍" : d.jenisGeometri === "line" ? "〰️" : "⬢"} {d.judul.slice(0, 20)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {modeRekam === "point" && !bukaModalForm && (
+              <div className="field-resume-draft">
+                <span className="field-resume-coord" title="Koordinat bidikan tengah peta">
+                  {center.lat.toFixed(5)}°, {center.lng.toFixed(5)}°
+                </span>
+                <div className="field-resume-actions">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => {
+                      const ptTengah: KoordinatTitik = {
+                        lat: Number(center.lat.toFixed(7)),
+                        lng: Number(center.lng.toFixed(7)),
+                        timestamp: new Date().toISOString()
+                      };
+                      setTitikDraft([ptTengah]);
+                      setBukaModalForm(true);
+                    }}
+                  >
+                    Di bidikan
+                  </button>
+                  {gpsPos && (
+                    <button
+                      type="button"
+                      className="btn-outline-sm"
+                      onClick={() => {
+                        setTitikDraft([gpsPos]);
+                        setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
+                        setBukaModalForm(true);
+                      }}
+                    >
+                      Di GPS saya
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-outline-sm"
+                    onClick={() => {
+                      setModeRekam(null);
+                      setTitikDraft([]);
+                      form.kosongkan();
+                    }}
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON (LATAR BELAKANG) */}
+            {modeRekam && modeRekam !== "point" && (
+              <PanelPerekaman
+                rekamLatar={rekamLatar}
+                modeRekam={modeRekam}
+                jumlahTitik={titikDraft.length}
+                panjangDraftKm={panjangDraftKm}
+                luasDraftHa={luasDraftHa}
+                detikTick={detikTick}
+                snapAktif={snapAktif}
+                onToggleSnap={() => setSnapAktif((v) => !v)}
+                onTambahTitik={tambahTitikBidikan}
+                onSimpan={() => setBukaModalForm(true)}
+                onBatal={() => {
+                  perekamLatar.batal();
+                  setModeRekam(null);
+                  setTitikDraft([]);
+                }}
+              />
+            )}
+            {/* SKALA DAN ATRIBUSI (wajib menurut lisensi penyedia peta) */}
+            <div className="map-bawah">
+              {/* BATANG SKALA DINAMIS */}
+              <div className="avenza-scale-bar-wrap">
+                <div className="avenza-scale-bar-text">{skalaInfo.label}</div>
+                <div className="avenza-scale-bar-ruler" style={{ width: `${skalaInfo.lebarPx}px` }}>
+                  <div className="avenza-scale-tick-left" />
+                  <div className="avenza-scale-line" />
+                  <div className="avenza-scale-tick-right" />
+                </div>
+              </div>
+              {/* Atribusi sumber peta: jika lembar peta kustom terisolasi, sembunyikan atribusi tile online */}
+              {petaKustomAktif ? (
+                <div id="atribusi-peta" className="map-atribusi map-atribusi-custom">
+                  <span>Lembar Peta: {formatJudulAvenza(petaKustomAktif.namaArea, 26)} • WGS 84</span>
+                </div>
+              ) : basemap === "google" ? (
+                // Ketentuan Google: logo Google tidak boleh tertutup dan teks hak cipta dari Google wajib tampil
+                <div id="atribusi-peta" className="map-atribusi map-atribusi-google">
+                  {logoGoogleGagal ? (
+                    <strong className="map-logo-google-teks">Google</strong>
+                  ) : (
+                    <img
+                      className="map-logo-google"
+                      src={LOGO_GOOGLE}
+                      alt="Google"
+                      height={18}
+                      draggable={false}
+                      onError={() => setLogoGoogleGagal(true)}
+                    />
+                  )}
+                  <a href={SUMBER_TILE.google.tautanLisensi} target="_blank" rel="noopener noreferrer" title={SUMBER_TILE.google.lisensi}>
+                    {atribusiGoogle ?? "Citra © Google"}
+                  </a>
+                </div>
+              ) : (
+                basemap !== "taktis" && (
+                  <a
+                    id="atribusi-peta"
+                    className="map-atribusi"
+                    href={SUMBER_TILE[basemap].tautanLisensi || undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={SUMBER_TILE[basemap].lisensi}
+                  >
+                    {SUMBER_TILE[basemap].atribusi}
+                  </a>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* BILAH ALAT: Lokasi · Titik · Jalur · Area */}
+          <RailAlatPeta bagian="alat" {...propsRail} />
         </div>
-
-        {/* INTEGRASI TOOL PENGAMBILAN TITIK, JALUR, DAN POLIGON KE DALAM KONTROL ZOOM (RAIL ALAT PETA) */}
-        <RailAlatPeta
-          modeRekam={modeRekam}
-          gpsTersedia={Boolean(gpsPos)}
-          modeIkutiGps={modeIkutiGps}
-          ikutiKompas={modeIkutiKompas}
-          onGps={() => {
-            if (petaKustomAktif && gpsPos) {
-              const diDalam =
-                gpsPos.lat >= petaKustomAktif.minLat &&
-                gpsPos.lat <= petaKustomAktif.maxLat &&
-                gpsPos.lng >= petaKustomAktif.minLng &&
-                gpsPos.lng <= petaKustomAktif.maxLng;
-              if (!diDalam) {
-                const tengah = {
-                  lat: (petaKustomAktif.minLat + petaKustomAktif.maxLat) / 2,
-                  lng: (petaKustomAktif.minLng + petaKustomAktif.maxLng) / 2
-                };
-                const jarakKm = (hitungJarakMeter(gpsPos, tengah) / 1000).toFixed(1).replace(".", ",");
-                setPesanSalin(`Posisi Anda di luar area peta ini (±${jarakKm} km dari tengah peta).`);
-              }
-            }
-            if (koordinatDipilih) setKoordinatDipilih(null);
-
-            // Alur Tombol GPS Bertahap (Sequential Toggle):
-            // Klik 1: Jika belum di posisi sekarang -> ke posisi sekarang & hadap Utara tegak (bearing: 0)
-            // (setModeIkutiKompas(false) tidak dipanggil di sini: ia menimpa "posisi" menjadi "mati")
-            if (modeIkutiGps !== "posisi") {
-              setModeIkutiGps("posisi");
-              setBearing(0);
-              if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-            } else {
-              // Klik 2: Jika sudah di posisi sekarang -> arah peta mengikuti kompas sensor HP
-              setModeIkutiGps("kompas");
-              setModeIkutiKompas(true);
-              void aktifkanKompas();
-              if (gpsPos) setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-            }
-          }}
-          onZoomMasuk={() => setZoom((z) => Math.min(ZOOM_MAKS_PETA, Math.floor(z + 0.01) + 1))}
-          onZoomKeluar={() => setZoom((z) => Math.max(ZOOM_MIN_PETA, Math.ceil(z - 0.01) - 1))}
-          onPilihAlat={(jenis) => mulaiModeRekam(jenis)}
-          onAlatAktif={(jenis) => {
-            if (jenis === "point") setBukaModalForm(true);
-          }}
-        />
 
         {/* POPOVER LAPISAN & ALAT PETA (HANYA TAMPIL SAAT TOMBOL LAYERS DIKETUK) */}
         {bukaMenuPeta && (
@@ -1501,82 +1655,6 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
             center={center}
           />
         )}
-
-        {/* BARIS BAWAH PETA: atribusi (wajib menurut lisensi) di kiri bawah, tombol rekam/panel rekam di kanan.
-            Bila tidak muat dalam satu baris (layar sempit, huruf besar, panel rekam), tombol naik ke atas
-            atribusi sehingga tidak pernah saling menutupi. */}
-        <div className="map-bawah">
-          {/* Atribusi sumber peta: jika lembar peta kustom terisolasi, sembunyikan atribusi tile online */}
-          {petaKustomAktif ? (
-            <div id="atribusi-peta" className="map-atribusi map-atribusi-custom">
-              <span>Lembar Peta: {formatJudulAvenza(petaKustomAktif.namaArea, 26)} • WGS 84</span>
-            </div>
-          ) : basemap === "google" ? (
-            // Ketentuan Google: logo Google tidak boleh tertutup dan teks hak cipta dari Google wajib tampil
-            <div id="atribusi-peta" className="map-atribusi map-atribusi-google">
-              {logoGoogleGagal ? (
-                <strong className="map-logo-google-teks">Google</strong>
-              ) : (
-                <img
-                  className="map-logo-google"
-                  src={LOGO_GOOGLE}
-                  alt="Google"
-                  height={18}
-                  draggable={false}
-                  onError={() => setLogoGoogleGagal(true)}
-                />
-              )}
-              <a href={SUMBER_TILE.google.tautanLisensi} target="_blank" rel="noopener noreferrer" title={SUMBER_TILE.google.lisensi}>
-                {atribusiGoogle ?? "Citra © Google"}
-              </a>
-            </div>
-          ) : (
-            basemap !== "taktis" && (
-              <a
-                id="atribusi-peta"
-                className="map-atribusi"
-                href={SUMBER_TILE[basemap].tautanLisensi || undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={SUMBER_TILE[basemap].lisensi}
-              >
-                {SUMBER_TILE[basemap].atribusi}
-              </a>
-            )
-          )}
-          {/* PANEL KONTROL SAAT SEDANG MEREKAM GARIS TRACKING ATAU POLIGON (LATAR BELAKANG) */}
-          {modeRekam && modeRekam !== "point" && (
-            <PanelPerekaman
-              rekamLatar={rekamLatar}
-              modeRekam={modeRekam}
-              jumlahTitik={titikDraft.length}
-              panjangDraftKm={panjangDraftKm}
-              luasDraftHa={luasDraftHa}
-              detikTick={detikTick}
-              snapAktif={snapAktif}
-              onToggleSnap={() => setSnapAktif((v) => !v)}
-              onTambahTitik={tambahTitikBidikan}
-              onSimpan={() => setBukaModalForm(true)}
-              onBatal={() => {
-                perekamLatar.batal();
-                setModeRekam(null);
-                setTitikDraft([]);
-              }}
-            />
-          )}
-        </div>
-
-        {/* BATANG SKALA DINAMIS (AVENZA MAPS STYLE) */}
-        <div className="avenza-scale-bar-wrap">
-          <div className="avenza-scale-bar-text">{skalaInfo.label}</div>
-          <div className="avenza-scale-bar-ruler" style={{ width: `${skalaInfo.lebarPx}px` }}>
-            <div className="avenza-scale-tick-left" />
-            <div className="avenza-scale-line" />
-            <div className="avenza-scale-tick-right" />
-          </div>
-        </div>
-
-
       </div>
 
       {/* PANEL DETAIL OBJEK EXISTING KETIKA DIKLIK DI PETA */}
@@ -1591,75 +1669,6 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
         />
       )}
 
-      {/* DAFTAR OBJEK (HANYA MUNCUL JIKA DIAKTIFKAN DARI MENU LAYERS) */}
-      {tampilDaftarObjek && dataSpasial.length > 0 && (
-        <div className="map-feature-strip">
-          {dataSpasial.map((d) => (
-            <button
-              key={d.id}
-              type="button"
-              className={`strip-chip ${objekTerpilih?.id === d.id ? "active" : ""}`}
-              onClick={() => {
-                setObjekTerpilih(d);
-                if (d.koordinat[0]) {
-                  setCenter({ lat: d.koordinat[0].lat, lng: d.koordinat[0].lng });
-                }
-              }}
-            >
-              {d.jenisGeometri === "point" ? "📍" : d.jenisGeometri === "line" ? "〰️" : "⬢"} {d.judul.slice(0, 20)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {modeRekam === "point" && !bukaModalForm && (
-        <div className="field-resume-draft">
-          <span className="field-resume-coord" style={{ fontSize: "0.8rem", fontWeight: 600, marginRight: 4 }}>
-            🎯 {center.lat.toFixed(5)}°, {center.lng.toFixed(5)}°
-          </span>
-          <div className="field-resume-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                const ptTengah: KoordinatTitik = {
-                  lat: Number(center.lat.toFixed(7)),
-                  lng: Number(center.lng.toFixed(7)),
-                  timestamp: new Date().toISOString()
-                };
-                setTitikDraft([ptTengah]);
-                setBukaModalForm(true);
-              }}
-            >
-              Di Tanda +
-            </button>
-            {gpsPos && (
-              <button
-                type="button"
-                className="btn-outline-sm"
-                onClick={() => {
-                  setTitikDraft([gpsPos]);
-                  setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
-                  setBukaModalForm(true);
-                }}
-              >
-                Di GPS Saya
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() => {
-                setModeRekam(null);
-                setTitikDraft([]);
-                form.kosongkan();
-              }}
-            >
-              Batal
-            </button>
-          </div>
-        </div>
-      )}
       {/* MODAL FORM PENYIMPANAN ATRIBUT SURVEI LAPANGAN */}
       {bukaModalForm && (
         <FormSurveiModal
@@ -1731,7 +1740,7 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
                   <span className="info-val">
                     {petaKustomAktif.formatGeoref === "iso32000" && "ISO 32000 (/VP Measure GEO)"}
                     {petaKustomAktif.formatGeoref === "ogc-lgi" && "OGC TerraGo (/LGIDict)"}
-                    {petaKustomAktif.formatGeoref === "geotiff" && "GeoTIFF Raster (Tag 33550 & 33922)"}
+                    {petaKustomAktif.formatGeoref === "geotiff" && "GeoTIFF Raster (tag 33550, 33922)"}
                     {petaKustomAktif.formatGeoref === "mbtiles" && "MBTiles SQLite Tile Archive"}
                     {petaKustomAktif.formatGeoref === "pmtiles" && "PMTiles Protomaps Archive"}
                     {petaKustomAktif.formatGeoref === "manual" && "Kalibrasi Manual 2 Sudut"}

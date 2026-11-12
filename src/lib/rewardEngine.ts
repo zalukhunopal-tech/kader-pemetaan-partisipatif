@@ -170,7 +170,7 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
   },
   {
     level: 4,
-    namaLevel: "Pengamat Flora & Fauna",
+    namaLevel: "Pengamat Hayati",
     kategoriTier: "Tier 1 • Kader Dasar (Lv 1–5)",
     ikon: "🌿",
     minSkor: 150,
@@ -274,11 +274,11 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
   },
   {
     level: 17,
-    namaLevel: "Pakar Biodiversitas & Lahan",
+    namaLevel: "Pakar Biodiversitas",
     kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
     ikon: "🌳",
     minSkor: 2420,
-    deskripsiSingkat: "Memiliki rekam jejak kaya dalam inventarisasi flora, fauna, hidrologi & lahan."
+    deskripsiSingkat: "Memiliki rekam jejak kaya dalam inventarisasi flora, fauna, hidrologi, dan lahan."
   },
   {
     level: 18,
@@ -294,7 +294,7 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
     kategoriTier: "Tier 4 • Master GIS (Lv 16–20)",
     ikon: "🏛️",
     minSkor: 3120,
-    deskripsiSingkat: "Menyusun data spasial komprehensif untuk perlindungan wilayah adat & desa."
+    deskripsiSingkat: "Menyusun data spasial komprehensif untuk perlindungan wilayah adat dan desa."
   },
   {
     level: 20,

@@ -20,8 +20,8 @@ export interface InfoSistemKoordinat {
 }
 
 export const DAFTAR_SISTEM_KOORDINAT: InfoSistemKoordinat[] = [
-  { id: "DD", nama: "Derajat Desimal", singkat: "DD", contoh: "2.857472°, 117.377476°", keterangan: "WGS 84 · Google Maps & GPS HP" },
-  { id: "DMS", nama: "Derajat Menit Detik", singkat: "DMS", contoh: "2°51'26.9\" LU", keterangan: "WGS 84 · peta cetak & dokumen" },
+  { id: "DD", nama: "Derajat Desimal", singkat: "DD", contoh: "2.857472°, 117.377476°", keterangan: "WGS 84 · Google Maps, GPS HP" },
+  { id: "DMS", nama: "Derajat Menit Detik", singkat: "DMS", contoh: "2°51'26.9\" LU", keterangan: "WGS 84 · peta cetak" },
   { id: "DDM", nama: "Derajat Menit Desimal", singkat: "DDM", contoh: "2°51.448' LU", keterangan: "WGS 84 · GPS Garmin" },
   { id: "UTM", nama: "UTM", singkat: "UTM", contoh: "50N 541 932 mE", keterangan: "WGS 84 · zona 6°, satuan meter" },
   { id: "TM3", nama: "TM-3 Indonesia", singkat: "TM-3", contoh: "50.1 · X 381 245", keterangan: "SRGI2013 · zona 3°, standar BPN" }

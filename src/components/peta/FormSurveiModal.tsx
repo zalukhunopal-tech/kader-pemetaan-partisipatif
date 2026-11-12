@@ -24,13 +24,13 @@ import { bacaSistemKoordinat, simpanSistemKoordinat, SistemKoordinat } from "../
 
 export const KATEGORI_VISUAL: { kategori: KategoriSurvei; judul: string; contoh: string; Ikon: typeof Leaf }[] = [
   { kategori: "Tanda Batas", judul: "Batas desa / adat", contoh: "Patok, batas alam", Ikon: Flag },
-  { kategori: "Wilayah Adat / Lahan", judul: "Wilayah & lahan", contoh: "Hutan, kebun, ulayat", Ikon: Trees },
-  { kategori: "Flora", judul: "Flora & tumbuhan", contoh: "Pohon, anggrek", Ikon: Leaf },
-  { kategori: "Fauna", judul: "Satwa & jejak", contoh: "Satwa, sarang, tapak", Ikon: PawPrint },
-  { kategori: "Mata Air", judul: "Air & sungai", contoh: "Mata air, aliran", Ikon: Droplets },
+  { kategori: "Wilayah Adat / Lahan", judul: "Lahan", contoh: "Hutan, kebun, ulayat", Ikon: Trees },
+  { kategori: "Flora", judul: "Tumbuhan", contoh: "Pohon, anggrek", Ikon: Leaf },
+  { kategori: "Fauna", judul: "Satwa", contoh: "Satwa, sarang, tapak", Ikon: PawPrint },
+  { kategori: "Mata Air", judul: "Sumber air", contoh: "Mata air, aliran", Ikon: Droplets },
   { kategori: "Ancaman / Temuan", judul: "Ancaman", contoh: "Kebakaran, pembalakan", Ikon: Flame },
   { kategori: "Sarana Desa", judul: "Sarana desa", contoh: "Jalan, bangunan", Ikon: House },
-  { kategori: "Situs Budaya", judul: "Situs & tempat sakral", contoh: "Sejarah, toponimi", Ikon: Landmark }
+  { kategori: "Situs Budaya", judul: "Situs budaya", contoh: "Sejarah, toponimi", Ikon: Landmark }
 ];
 
 /** Draf per akun di IndexedDB. Tidak memuat akun, sandi atau token. */

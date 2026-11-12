@@ -73,7 +73,7 @@ describe("UI lapangan", () => {
     expect(el.textContent).toContain("Saksi Lapangan / Tokoh Desa");
     expect(bacaDraftSurvei("A").kategori).toBe("Tanda Batas");
     act(() => button("Ganti kategori").click());
-    act(() => button("Flora & tumbuhan").click());
+    act(() => button("Tumbuhan").click());
     expect(el.textContent).not.toContain("Saksi Lapangan / Tokoh Desa");
   });
   it("memulihkan draf tiap akun dan tidak mencampur foto/saksi/geometri", () => {

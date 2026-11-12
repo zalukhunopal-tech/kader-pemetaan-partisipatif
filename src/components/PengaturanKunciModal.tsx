@@ -3,6 +3,7 @@ import { Fingerprint, KeyRound, Lock, ShieldCheck, X } from "lucide-react";
 import { AkunSesi, sisaMasaTotp, waktuHabisTotp } from "../lib/auth";
 import { PANJANG_PIN, aturPin, daftarkanBiometrik, gantiPin, hapusBiometrik, metodeKunciCepat } from "../lib/kunciCepat";
 import { biometrikDidukung } from "../lib/webauthn";
+import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface PengaturanKunciModalProps {
   sesi: AkunSesi;
@@ -15,6 +16,7 @@ const angka = (v: string) => v.replace(/\D/g, "").slice(0, PANJANG_PIN);
 
 /** Menu Keamanan: masa berlaku Authenticator, PIN, sidik jari / wajah, dan kunci sekarang */
 export const PengaturanKunciModal: React.FC<PengaturanKunciModalProps> = ({ sesi, onTutup, onPesan, onKunciSekarang }) => {
+  useTombolEsc(true, onTutup);
   const [versi, setVersi] = useState(0);
   const metode = metodeKunciCepat(sesi.email);
   const sisa = sisaMasaTotp(sesi.email);

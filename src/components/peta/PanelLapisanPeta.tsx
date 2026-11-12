@@ -26,7 +26,7 @@ export function namaBasemap(id: BasemapType): string {
 function keteranganBasemap(id: BasemapType): string {
   switch (id) {
     case "esri":
-      return "Resolusi tinggi Maxar, tajam & detail";
+      return "Citra Maxar resolusi tinggi";
     case "google":
       return "Citra satelit hybrid + label jalan";
     case "satelit":

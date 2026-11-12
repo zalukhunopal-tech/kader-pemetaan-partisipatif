@@ -249,7 +249,7 @@ export async function sinkronkanDataKeGDrive(itemList: DataSpasialItem[], opsi: 
   if (jumlahGagal === 0) {
     return {
       sukses: true,
-      pesan: `${total} data dan foto berhasil diunggah dan dikonfirmasi oleh Google Drive & Spreadsheet.`,
+      pesan: `${total} data dan foto berhasil diunggah dan dikonfirmasi oleh Google Drive.`,
       idTersinkron,
       jumlahGagal: 0
     };

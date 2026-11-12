@@ -146,7 +146,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               }}
             >
               <FileCode size={14} />
-              Lihat & Salin File Code.gs
+              Salin Skrip Code.gs
             </button>
           </div>
         )}
@@ -435,8 +435,8 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>ID & Waktu</th>
-                  <th>Kategori & Geometri</th>
+                  <th>Rekaman</th>
+                  <th>Jenis</th>
                   <th>Judul Objek</th>
                   <th>Foto</th>
                   <th>Status</th>

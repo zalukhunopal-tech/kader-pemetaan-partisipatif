@@ -70,7 +70,7 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
   });
 
   await test.step("menu Keamanan, kunci sekarang, dan 5 PIN salah menonaktifkan PIN", async () => {
-    await pilihMenu(p, "PIN & sidik jari");
+    await pilihMenu(p, "Kunci aplikasi");
     expect(await sampai(async () => /berlaku sampai pukul/.test(await p.locator("#pengaturan-kunci").innerText()))).toBe(true);
     await p.locator("#pengaturan-kunci").getByRole("button", { name: "Kunci aplikasi sekarang" }).click();
     expect(await sampai(() => terkunci(p))).toBe(true);
@@ -87,7 +87,7 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
   });
 
   await test.step("keluar dari layar kunci; masuk lagi tetap meminta kode Authenticator", async () => {
-    await pilihMenu(p, "PIN & sidik jari");
+    await pilihMenu(p, "Kunci aplikasi");
     await p.locator("#pengaturan-kunci").getByRole("button", { name: "Kunci aplikasi sekarang" }).click();
     expect(await sampai(() => terkunci(p))).toBe(true);
     await p.locator(".layar-kunci-keluar").click();
@@ -150,7 +150,7 @@ test("sidik jari / pengenalan wajah (autentikator virtual Chrome)", async ({ bro
   });
 
   await test.step("menu Keamanan: sidik jari bisa dimatikan, PIN tetap ada", async () => {
-    await pilihMenu(p, "PIN & sidik jari");
+    await pilihMenu(p, "Kunci aplikasi");
     await p
       .locator("#pengaturan-kunci")
       .getByRole("button", { name: /Matikan sidik jari/ })

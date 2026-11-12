@@ -1,6 +1,7 @@
 import { useDesktop } from "./lib/tampilanLapangan";
 import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -136,7 +137,7 @@ export const App: React.FC = () => {
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   // id naik setiap toast baru, sehingga efek di bawah memulai ulang hitung mundurnya
-  const [notifToast, setNotifToast] = useState<{ pesan: string; id: number } | null>(null);
+  const [notifToast, setNotifToast] = useState<{ pesan: string; id: number; urungkan?: () => void } | null>(null);
   const statusPenyimpanan = useStatusPenyimpanan();
   const [ruangPenyimpanan, setRuangPenyimpanan] = useState<PerkiraanPenyimpanan | null>(null);
 
@@ -302,11 +303,12 @@ export const App: React.FC = () => {
   const autoSync = useAutoSyncGDrive(dataSpasial, handleTandaiTersinkron);
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
-  const tampilkanToast = (pesan: string) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1 }));
+  /** Toast singkat; dengan `urungkan`, toast memuat tombol Urungkan dan tampil lebih lama */
+  const tampilkanToast = (pesan: string, urungkan?: () => void) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1, urungkan }));
   // Toast hilang 3,2 detik setelah toast TERAKHIR (toast baru membatalkan hitung mundur yang lama)
   useEffect(() => {
     if (!notifToast) return;
-    const t = window.setTimeout(() => setNotifToast(null), 3200);
+    const t = window.setTimeout(() => setNotifToast(null), notifToast.urungkan ? 6000 : 3200);
     return () => window.clearTimeout(t);
   }, [notifToast]);
 
@@ -455,7 +457,7 @@ export const App: React.FC = () => {
     tampilkanToast(
       adalahDataSimulasi(item)
         ? `✓ "${item.judul}" disimpan sebagai data simulasi (tidak dihitung ke capaian).`
-        : `✓ "${item.judul}" disimpan ke Lapisan & memori HP.`
+        : `✓ "${item.judul}" disimpan di HP.`
     );
   };
 
@@ -486,14 +488,37 @@ export const App: React.FC = () => {
   };
 
   // Hapus area peta offline; tile yang tersimpan ikut dihapus (kecuali yang dipakai area lain)
+  // Berkas peta dan tile baru dibersihkan setelah waktu Urungkan habis (atau saat halaman ditutup)
+  const hapusPetaTertunda = useRef(new Map<string, { timer: number; jalankan: () => void }>());
+  useEffect(() => {
+    const jalankanSemua = () => {
+      hapusPetaTertunda.current.forEach((h) => {
+        window.clearTimeout(h.timer);
+        h.jalankan();
+      });
+      hapusPetaTertunda.current.clear();
+    };
+    window.addEventListener("pagehide", jalankanSemua);
+    return () => window.removeEventListener("pagehide", jalankanSemua);
+  }, []);
   const handleHapusAreaOffline = (id: string) => {
-    const area = areaOffline.find((a) => a.id === id);
+    const indeks = areaOffline.findIndex((a) => a.id === id);
+    const area = areaOffline[indeks];
     if (!area) return;
+    const daftarSebelum = areaOffline;
     setAreaOffline((prev) => prev.filter((a) => a.id !== id));
-    void hapusArsipPeta(id);
-    if (area.unduhanNyata) {
-      void hapusTileArea(area, areaOffline).then((n) => tampilkanToast(`✓ Peta "${area.namaArea}" dihapus (${n} tile dibersihkan).`));
-    }
+    const jalankan = () => {
+      hapusPetaTertunda.current.delete(id);
+      void hapusArsipPeta(id);
+      if (area.unduhanNyata) void hapusTileArea(area, daftarSebelum);
+    };
+    hapusPetaTertunda.current.set(id, { timer: window.setTimeout(jalankan, 6500), jalankan });
+    tampilkanToast(`Peta "${area.namaArea}" dihapus.`, () => {
+      const tertunda = hapusPetaTertunda.current.get(id);
+      if (tertunda) window.clearTimeout(tertunda.timer);
+      hapusPetaTertunda.current.delete(id);
+      setAreaOffline((prev) => (prev.some((a) => a.id === id) ? prev : [...prev.slice(0, indeks), area, ...prev.slice(indeks)]));
+    });
   };
 
   // Handler Update Kondisi pada Objek Existing
@@ -549,8 +574,13 @@ export const App: React.FC = () => {
 
   // Handler Hapus Data Spasial oleh Admin (Admin Feature)
   const handleHapusDataSpasial = (id: string) => {
+    const indeks = dataSpasial.findIndex((d) => d.id === id);
+    const item = dataSpasial[indeks];
     setDataSpasial((prev) => prev.filter((d) => d.id !== id));
-    tampilkanToast("✓ Data spasial berhasil dihapus.");
+    if (!item) return;
+    tampilkanToast(`Data "${item.judul}" dihapus.`, () =>
+      setDataSpasial((prev) => (prev.some((d) => d.id === id) ? prev : [...prev.slice(0, indeks), item, ...prev.slice(indeks)]))
+    );
   };
 
   // Handler Tambah Tugas Baru oleh Admin (Admin Feature)
@@ -561,8 +591,13 @@ export const App: React.FC = () => {
 
   // Handler Hapus Tugas
   const handleHapusTugas = (id: string) => {
+    const indeks = tugasList.findIndex((t) => t.id === id);
+    const tugas = tugasList[indeks];
     setTugasList((prev) => prev.filter((t) => t.id !== id));
-    tampilkanToast("✓ Tugas pemetaan dihapus.");
+    if (!tugas) return;
+    tampilkanToast(`Tugas "${tugas.judul}" dihapus.`, () =>
+      setTugasList((prev) => (prev.some((t) => t.id === id) ? prev : [...prev.slice(0, indeks), tugas, ...prev.slice(indeks)]))
+    );
   };
 
   // Handler Klaim / Verifikasi Penyelesaian Tugas (Kader mengajukan -> Admin mengesahkan untuk +60 poin)
@@ -801,12 +836,12 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (MUNCUL DI SEMUA TAB) */}
-      {rekamLatar.status !== "idle" && (
+      {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (di tab lain; di peta, panel rekam sudah memuat waktu dan tombol Jeda) */}
+      {rekamLatar.status !== "idle" && tabAktif !== "peta" && (
         <BannerPerekaman
           rekamLatar={rekamLatar}
           detikRekamTick={detikRekamTick}
-          petaTerbuka={tabAktif === "peta"}
+          petaTerbuka={false}
           onBukaPeta={() => setTabAktif("peta")}
         />
       )}
@@ -817,7 +852,29 @@ export const App: React.FC = () => {
       <BannerPenyimpanan statusPenyimpanan={statusPenyimpanan} ruangPenyimpanan={ruangPenyimpanan} />
 
       {/* TOAST FEEDBACK */}
-      {notifToast && <div className="avenza-toast">{notifToast.pesan}</div>}
+      {/* Di tab peta, toast tinggal di sel tengah grid HUD peta agar tidak menutupi kontrol peta (CLAUDE.md, Aturan UI) */}
+      {notifToast &&
+        (() => {
+          const toast = (
+            <div className={`avenza-toast ${tabAktif === "peta" ? "di-peta" : ""} ${notifToast.urungkan ? "ada-aksi" : ""}`} role="status">
+              <span>{notifToast.pesan}</span>
+              {notifToast.urungkan && (
+                <button
+                  type="button"
+                  className="toast-urungkan"
+                  onClick={() => {
+                    notifToast.urungkan?.();
+                    setNotifToast(null);
+                  }}
+                >
+                  Urungkan
+                </button>
+              )}
+            </div>
+          );
+          const wadahPeta = tabAktif === "peta" ? document.querySelector(".avz-hud-tengah") : null;
+          return wadahPeta ? createPortal(toast, wadahPeta) : toast;
+        })()}
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
