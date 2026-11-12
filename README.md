@@ -53,6 +53,20 @@ Semua sumber gratis, boleh dipakai di aplikasi dengan atribusi yang tampil di po
 | OpenStreetMap | tile.openstreetmap.org | Data ODbL; kebijakan tile OSMF | Tidak: kebijakan tile OSM melarang unduhan massal/offline |
 | Topografi | OpenTopoMap | CC-BY-SA | Tidak dijamin: pemakaian besar perlu menghubungi OpenTopoMap |
 
+### Ketentuan Pratinjau Gambar Label Peta Dasar (Wajib Dipertahankan Saat Redesign)
+
+Semua pilihan pada menu pemilihan peta dasar (*Lapisan Peta -> Peta Dasar*) **wajib selalu menampilkan pratinjau visual nyata (real preview image crop)** dari masing-masing peta yang akan dipilih, **bukan ikon abstrak, bentuk geometris polos, atau emoji**.
+
+Aset pratinjau disimpan secara luring di folder `public/assets/basemaps/`:
+- `preview-esri.jpg`: Potongan nyata citra satelit resolusi tinggi Maxar (Esri World Imagery).
+- `preview-google.jpg`: Potongan nyata citra satelit hybrid Google lengkap dengan garis & nama jalan.
+- `preview-satelit.jpg`: Potongan nyata citra satelit Sentinel-2 cloudless 10 m natural color.
+- `preview-osm.png`: Potongan nyata peta jalan standar OpenStreetMap (jalan, ruang hijau, bangunan).
+- `preview-topo.png`: Potongan nyata peta topografi OpenTopoMap dengan hillshading dan garis kontur elevasi.
+- `preview-taktis.svg`: Tampilan taktis gelap dengan kontur isoline elevasi & grid koordinat.
+
+Ketentuan dan pengaturan visual ini **harus tetap dipertahankan pada setiap redesign antarmuka di masa depan**. Lihat rincian lengkapnya di [`docs/PANDUAN_DESAIN_PREVIEW_PETA_DASAR.md`](file:///docs/PANDUAN_DESAIN_PREVIEW_PETA_DASAR.md).
+
 **Google dan Bing.** Alamat tile Google tak resmi (`mt*.google.com`, `khms*`) melanggar ketentuan Google dan tidak dipakai; aplikasi hanya memakai Map Tiles API (token sesi lewat `createSession`, hak cipta dari endpoint `viewport`). Kunci API Google dipakai di peramban, jadi **batasi kuncinya** di Google Cloud Console ke domain aplikasi dan ke Map Tiles API saja, dan pasang batas kuota harian agar tidak ada tagihan tak terduga. Untuk menghemat kuota, peta hanya meminta tile yang tampil. Bing Maps tidak dipasang: Microsoft menutup kunci Bing Maps gratis/Basic sejak 30 Juni 2025 (layanan Enterprise berakhir 30 Juni 2028); penggantinya Azure Maps hanya memberi ±15.000 tile citra gratis per bulan dan memakai kunci berbagi yang tidak aman ditaruh di aplikasi tanpa server. Untuk citra setajam Bing, pakai Satelit Esri (sebagian besar bersumber dari Maxar/Vantor yang sama) atau Satelit Google.
 
 Server Esri tanpa kunci (`server.arcgisonline.com`) tidak lagi dipakai karena ketentuan Esri mensyaratkan akun. Citra Sentinel-2 tahun 2018 ke atas dari EOX berlisensi CC BY-NC-SA 4.0 (non-komersial) dan tidak dipasang bawaan.

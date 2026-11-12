@@ -1261,48 +1261,35 @@
   box-shadow: inset 0 0 0 2px var(--c-lokasi) !important;
 }
 
+/* 
+ * ATURAN PREVIEW PETA DASAR (WAJIB DIPERTAHANKAN PADA SETIAP REDESIGN):
+ * Setiap thumbnail menampilkan potongan visual citra/peta nyata dari public/assets/basemaps/
+ */
 .avz-peta .avz-basemap-thumb {
   flex: none;
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(23, 43, 58, 0.12);
-  background-color: #cfd8dc;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(23, 43, 58, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  background-color: #0f172a;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.avz-peta .avz-basemap-thumb.thumb-esri,
-.avz-peta .avz-basemap-thumb.thumb-satelit {
-  background:
-    radial-gradient(circle at 25% 30%, #5f7d3a 0 18%, transparent 19%), radial-gradient(circle at 70% 65%, #3e5b2a 0 24%, transparent 25%),
-    radial-gradient(circle at 80% 20%, #8a7a52 0 12%, transparent 13%),
-    linear-gradient(115deg, transparent 0 46%, #6b9bb8 46% 52%, transparent 52%), linear-gradient(160deg, #4b6a33, #2f4a22);
+.avz-peta .avz-basemap-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 12px;
+  transition: transform 0.2s ease;
 }
 
-.avz-peta .avz-basemap-thumb.thumb-google {
-  background:
-    linear-gradient(90deg, transparent 0 48%, #f4d36b 48% 54%, transparent 54%),
-    radial-gradient(circle at 25% 30%, #5f7d3a 0 18%, transparent 19%), radial-gradient(circle at 70% 65%, #3e5b2a 0 24%, transparent 25%),
-    linear-gradient(160deg, #4b6a33, #2f4a22);
-}
-
-.avz-peta .avz-basemap-thumb.thumb-osm {
-  background:
-    linear-gradient(30deg, transparent 0 45%, #ffffff 45% 52%, transparent 52%),
-    linear-gradient(120deg, transparent 0 60%, #f6c879 60% 66%, transparent 66%),
-    radial-gradient(circle at 75% 25%, #b8dba0 0 20%, transparent 21%),
-    linear-gradient(0deg, transparent 0 20%, #aad3df 20% 30%, transparent 30%), #f2efe9;
-}
-
-.avz-peta .avz-basemap-thumb.thumb-topo {
-  background:
-    repeating-radial-gradient(circle at 40% 55%, transparent 0 4px, rgba(140, 98, 57, 0.55) 4px 5px),
-    linear-gradient(160deg, #e8efd8, #d6e2c0);
-}
-
-.avz-peta .avz-basemap-thumb.thumb-taktis {
-  background:
-    repeating-linear-gradient(0deg, transparent 0 9px, rgba(120, 190, 255, 0.25) 9px 10px),
-    repeating-linear-gradient(90deg, transparent 0 9px, rgba(120, 190, 255, 0.25) 9px 10px), linear-gradient(160deg, #10263a, #0a1724);
+.avz-peta .avz-basemap-baris:hover .avz-basemap-thumb-img {
+  transform: scale(1.08);
 }
 
 .avz-peta .avz-basemap-teks {
