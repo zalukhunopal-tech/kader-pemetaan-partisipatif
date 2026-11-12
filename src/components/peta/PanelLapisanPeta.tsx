@@ -40,6 +40,31 @@ function keteranganBasemap(id: BasemapType): string {
   }
 }
 
+/**
+ * ATURAN BAKU PREVIEW PETA DASAR (WAJIB DIPERTAHANKAN PADA SETIAP REDESIGN):
+ * Setiap pilihan peta dasar wajib menggunakan thumbnail potongan visual peta nyata
+ * dari folder 'public/assets/basemaps/', BUKAN ikon grafis gradien abstrak atau emoji.
+ */
+export function pratinjauBasemap(id: BasemapType): string {
+  const base = import.meta.env.BASE_URL;
+  switch (id) {
+    case "esri":
+      return `${base}assets/basemaps/preview-esri.jpg`;
+    case "google":
+      return `${base}assets/basemaps/preview-google.jpg`;
+    case "satelit":
+      return `${base}assets/basemaps/preview-satelit.jpg`;
+    case "osm":
+      return `${base}assets/basemaps/preview-osm.png`;
+    case "topo":
+      return `${base}assets/basemaps/preview-topo.png`;
+    case "taktis":
+      return `${base}assets/basemaps/preview-taktis.svg`;
+    default:
+      return `${base}assets/basemaps/preview-esri.jpg`;
+  }
+}
+
 interface PanelLapisanPetaProps {
   basemap: BasemapType;
   jumlahObjek: number;
@@ -144,7 +169,15 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
                     onPilihBasemap(id);
                   }}
                 >
-                  <span className={`avz-basemap-thumb thumb-${id}`} aria-hidden="true" />
+                  <span className={`avz-basemap-thumb thumb-${id}`} aria-hidden="true">
+                    <img
+                      src={pratinjauBasemap(id)}
+                      alt=""
+                      className="avz-basemap-thumb-img"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </span>
                   <span className="avz-basemap-teks">
                     <strong>{namaBasemap(id)}</strong>
                     <small>{keteranganBasemap(id)}</small>
