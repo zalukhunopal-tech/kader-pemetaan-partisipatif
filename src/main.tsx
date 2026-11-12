@@ -7,6 +7,7 @@ import { siapkanStorage } from "./lib/storage";
 import { pasangPendengarInstal } from "./lib/instal";
 import { pasangPolyfillPdfJs } from "./lib/geoPdf";
 import "./styles/app.css";
+import "./styles/petaAvenza.css";
 
 // Tangkap event pemasangan PWA sedini mungkin agar tombol "Instal" bisa memakainya
 pasangPolyfillPdfJs();

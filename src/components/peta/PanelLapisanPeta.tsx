@@ -1,7 +1,44 @@
 import React, { useState } from "react";
-import { Download, Eye, FileUp, Layers, X, MapPin, Trash2, Check, Focus } from "lucide-react";
+import { Download, Eye, FileUp, Layers, X, MapPin, Trash2, Check } from "lucide-react";
 import { AreaPetaOffline, BasemapType } from "../../types";
 import { URUTAN_BASEMAP, basemapTersedia } from "../../lib/petaOffline";
+
+/** Nama peta dasar yang tampil di bilah judul peta dan daftar Lapisan */
+export function namaBasemap(id: BasemapType): string {
+  switch (id) {
+    case "esri":
+      return "Satelit Esri HD";
+    case "google":
+      return "Google Satelit HD";
+    case "satelit":
+      return "Citra Satelit";
+    case "osm":
+      return "Peta Jalan (OSM)";
+    case "topo":
+      return "Topografi";
+    case "taktis":
+      return "Kontur Taktis";
+    default:
+      return id;
+  }
+}
+
+function keteranganBasemap(id: BasemapType): string {
+  switch (id) {
+    case "esri":
+      return "Resolusi tinggi Maxar, tajam & detail";
+    case "google":
+      return "Citra satelit hybrid + label jalan";
+    case "satelit":
+      return "Sentinel-2 cloudless, 10 m";
+    case "osm":
+      return "Peta jalan terbuka global";
+    case "topo":
+      return "Kontur elevasi dan medan";
+    default:
+      return "Gaya kontur offline";
+  }
+}
 
 interface PanelLapisanPetaProps {
   basemap: BasemapType;
@@ -38,42 +75,6 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
 }) => {
   const [tabAktif, setTabAktif] = useState<"peta_dasar" | "lapisan_berkas" | "pustaka">("peta_dasar");
 
-  const getBasemapBadge = (id: BasemapType) => {
-    switch (id) {
-      case "esri":
-        return "Satelit Esri HD";
-      case "google":
-        return "Google Satelit HD";
-      case "satelit":
-        return "Citra Satelit";
-      case "osm":
-        return "Peta Jalan (OSM)";
-      case "topo":
-        return "Topografi";
-      case "taktis":
-        return "Kontur Taktis";
-      default:
-        return id;
-    }
-  };
-
-  const getBasemapIcon = (id: BasemapType) => {
-    switch (id) {
-      case "esri":
-      case "google":
-      case "satelit":
-        return "🛰️";
-      case "topo":
-        return "⛰️";
-      case "osm":
-        return "🗺️";
-      case "taktis":
-        return "🧭";
-      default:
-        return "📍";
-    }
-  };
-
   const apakahDiDalamPeta = (area: AreaPetaOffline): boolean => {
     if (!center) return false;
     return (
@@ -88,9 +89,9 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
     <div className="map-layers-popover avenza-layers-modal avenza-layer-studio-redesign">
       {/* HEADER POPOVER DENGAN TAB HORIZONTAL LEBAR */}
       <div className="map-popover-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
-          <Layers size={17} className="text-emerald" />
-          <span>Menu Peta & Lapisan</span>
+        <div className="avz-lapisan-kepala">
+          <Layers size={18} aria-hidden="true" />
+          <span>Lapisan Peta</span>
         </div>
         <button type="button" className="btn-icon-close" onClick={onTutup} aria-label="Tutup Panel">
           <X size={16} />
@@ -127,45 +128,30 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
       {/* KONTEN TAB 1: PETA DASAR */}
       {tabAktif === "peta_dasar" && (
         <div className="pustaka-tab-content-panel">
-          <div className="map-basemap-grid" style={{ gridTemplateColumns: "1fr", gap: 8, margin: "6px 0" }}>
+          <p className="avz-lapisan-judul-seksi">Peta dasar online</p>
+          <div className="map-basemap-grid avz-daftar-basemap" role="radiogroup" aria-label="Peta dasar">
             {URUTAN_BASEMAP.filter(basemapTersedia).map((id) => {
               const aktif = basemap === id && !petaKustomAktif;
               return (
                 <button
                   key={id}
                   type="button"
-                  className={`map-basemap-Option ${aktif ? "active" : ""}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    textAlign: "left"
-                  }}
+                  role="radio"
+                  aria-checked={aktif}
+                  className={`map-basemap-Option avz-basemap-baris ${aktif ? "active" : ""}`}
                   onClick={() => {
                     onTutupPetaKustom?.();
                     onPilihBasemap(id);
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: "1.1rem" }}>{getBasemapIcon(id)}</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "0.82rem", whiteSpace: "nowrap" }}>{getBasemapBadge(id)}</div>
-                      <small style={{ opacity: 0.8, fontSize: "0.7rem", display: "block" }}>
-                        {id === "esri"
-                          ? "Resolusi tinggi Maxar, tajam & detail"
-                          : id === "google"
-                            ? "Citra satelit hybrid + label jalan"
-                            : id === "osm"
-                              ? "Peta jalan terbuka global"
-                              : id === "topo"
-                                ? "Kontur elevasi dan medan"
-                                : "Gaya kontur offline"}
-                      </small>
-                    </div>
-                  </div>
-                  {aktif && <span style={{ color: "#10b981", fontWeight: 800, fontSize: "0.85rem" }}>✓</span>}
+                  <span className={`avz-basemap-thumb thumb-${id}`} aria-hidden="true" />
+                  <span className="avz-basemap-teks">
+                    <strong>{namaBasemap(id)}</strong>
+                    <small>{keteranganBasemap(id)}</small>
+                  </span>
+                  <span className={`avz-radio ${aktif ? "aktif" : ""}`} aria-hidden="true">
+                    {aktif && <Check size={14} strokeWidth={3} />}
+                  </span>
                 </button>
               );
             })}
