@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PengumumanBroadcast, TugasPemetaan } from "../types";
 import { ArrowLeft, Bell, Calendar, CheckCircle2, MapPin } from "lucide-react";
+import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface PemberitahuanViewProps {
   pengumumanList: PengumumanBroadcast[];
@@ -17,6 +18,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
   onBukaTargetDiPeta,
   onTandaiTugasSelesai
 }) => {
+  useTombolEsc(true, onTutup);
   const [lihatRiwayat, setLihatRiwayat] = useState(false);
 
   return (

@@ -640,7 +640,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
               onClick={() => setBukaAturSertifikat((v) => !v)}
               title="Atur Logo, Tanda Tangan, dan Tema Sertifikat (Khusus Admin)"
             >
-              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Logo & TTD"}
+              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Sertifikat"}
             </button>
           )}
         </div>
@@ -889,11 +889,11 @@ export const RewardView: React.FC<RewardViewProps> = ({
                         />
                       </div>
                       <div>
-                        <label>Nama & Gelar</label>
+                        <label>Nama bergelar</label>
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="Nama lengkap & gelar"
+                          placeholder="Nama lengkap beserta gelar"
                           value={sig.nama}
                           onChange={(e) =>
                             handleUbahPenandatanganItem(sig.id, {

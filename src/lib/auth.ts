@@ -1421,7 +1421,7 @@ export async function siapkanAkunUji(): Promise<void> {
       peran: "admin" as const,
       desaWilayah: "Kantor Balai Spasial",
       noHp: "081987654321",
-      kelompokMasyarakat: "Tim Verifikasi & Data Spasial"
+      kelompokMasyarakat: "Tim Verifikasi Data Spasial"
     }
   ];
   const accounts = muatSemuaAkun();

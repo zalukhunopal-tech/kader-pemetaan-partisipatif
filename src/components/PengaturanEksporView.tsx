@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { DataSpasialItem } from "../types";
 import { eksporKeCSV, eksporKeGeoJSON, eksporKeGPX, eksporKeKML } from "../lib/geoUtils";
 import { ArrowLeft, ChevronDown, FileText, Image as ImageIcon, Info, Layers, MapPin, Share } from "lucide-react";
+import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface PengaturanEksporViewProps {
   dataSpasial: DataSpasialItem[];
@@ -21,6 +22,7 @@ function unduhBerkas(namaFile: string, isi: string, mimeType: string) {
 }
 
 export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ dataSpasial, onTutup }) => {
+  useTombolEsc(true, onTutup);
   const [namaFile, setNamaFile] = useState("Ekspor AM 2");
   const [jenisData, setJenisData] = useState("Hanya lapisan");
   const [formatFile, setFormatFile] = useState<".kml" | ".geojson" | ".gpx" | ".csv">(".kml");
@@ -151,13 +153,13 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
             </button>
           </div>
 
-          {/* 203 features */}
+          {/* jumlah objek */}
           <div className="avenza-export-item">
             <div className="avenza-export-icon">
               <MapPin size={22} />
             </div>
             <div className="avenza-export-text">
-              <div className="avenza-export-main">{hanyaSkema ? "0 features" : `${jumlahFitur} features`}</div>
+              <div className="avenza-export-main">{hanyaSkema ? "0 objek" : `${jumlahFitur} objek`}</div>
               <div className="avenza-export-sub">Semua data yang dipilih akan diekspor</div>
             </div>
           </div>
@@ -182,7 +184,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
       </div>
 
       {/* FLOATING ACTION BUTTON EKSPOR ORANYE DI POJOK KANAN BAWAH */}
-      <button type="button" className="avenza-fab-orange export-fab" onClick={handleEksporSekarang} title="Ekspor & Unduh File Sekarang">
+      <button type="button" className="avenza-fab-orange export-fab" onClick={handleEksporSekarang} title="Ekspor sekarang">
         <Share size={24} />
       </button>
     </div>

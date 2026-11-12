@@ -355,7 +355,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                                   ? "Menunggu persetujuan Admin"
                                   : a.statusPersetujuan === "ditolak"
                                     ? "Ditolak Admin"
-                                    : "Disetujui & Aktif"}
+                                    : "Aktif"}
                               </dd>
                             </div>
                             <div>
@@ -474,7 +474,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                   setujuiAkun(target.email);
                 }}
               >
-                <CheckCircle2 size={17} color="#0d7344" /> Setujui & aktifkan akun
+                <CheckCircle2 size={17} color="#0d7344" /> Aktifkan akun
               </button>
             )}
 

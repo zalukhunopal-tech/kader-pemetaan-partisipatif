@@ -114,7 +114,7 @@ export function PerekamMemoSuara({
   };
   return (
     <section className="field-audio">
-      <h4>Penuturan & sejarah tempat</h4>
+      <h4>Cerita tempat</h4>
       <p className="field-help">Rekam suara hingga 30 detik. Tersimpan bersama survei di perangkat.</p>
       <button
         type="button"

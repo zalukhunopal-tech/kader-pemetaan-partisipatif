@@ -1189,7 +1189,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                 <ShieldAlert size={18} className="text-sky" />
                 <div className="wa-forward-btn-text">
                   <strong>Saluran Admin GIS</strong>
-                  <span>Konsultasi & laporan ke Administrator</span>
+                  <span>Tanya Administrator</span>
                 </div>
               </button>
             </div>

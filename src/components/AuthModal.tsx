@@ -429,7 +429,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   </div>
                 </div>
                 <div className="auth-feature-item">
-                  <div className="auth-feature-title">📡 Offline-First & GPS Akurat</div>
+                  <div className="auth-feature-title">📡 Tetap jalan tanpa sinyal</div>
                   <div className="auth-feature-desc">
                     Bekerja tanpa sinyal seluler di hutan pedalaman dengan sinkronisasi otomatis Google Drive.
                   </div>
@@ -437,7 +437,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 <div className="auth-feature-item">
                   <div className="auth-feature-title">🔒 Keamanan Terverifikasi</div>
                   <div className="auth-feature-desc">
-                    Verifikasi dua langkah (Google Authenticator) & PIN proteksi data spasial desa.
+                    Verifikasi dua langkah dengan Google Authenticator, ditambah PIN untuk melindungi data desa.
                   </div>
                 </div>
               </div>
@@ -486,7 +486,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
               {mode === "setup_admin"
                 ? "Inisialisasi Sistem"
                 : mode === "daftar_akun"
-                  ? "Pendaftaran & Verifikasi Email"
+                  ? "Daftar Akun Baru"
                   : mode === "verifikasi_email"
                     ? "Autentikasi Email Pendaftaran"
                     : "Masuk ke Titik Tapak"}
@@ -615,7 +615,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 />
               )}
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
-                {sedangProses ? "Menyiapkan…" : "Buat Administrator & Lanjut"}
+                {sedangProses ? "Menyiapkan…" : "Buat Administrator"}
               </button>
             </form>
           )}
@@ -691,11 +691,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 onClick={() => pindah("daftar_akun")}
                 style={{ ...gayaTautan, color: "#0d7344", textAlign: "center", padding: "2px 0" }}
               >
-                Belum punya akun? Daftar & Verifikasi Email
+                Belum punya akun? Daftar di sini
               </button>
 
               <p style={{ margin: 0, fontSize: "0.74rem", color: "#64748b", textAlign: "center", lineHeight: 1.45 }}>
-                Akses aman dengan verifikasi 2 langkah (Google Authenticator) untuk Administrator & Kader Lapangan.
+                Akses aman dengan verifikasi 2 langkah (Google Authenticator) untuk admin dan kader lapangan.
               </p>
             </form>
           )}
@@ -705,7 +705,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
             <form id="form-daftar-akun" onSubmit={handleMulaiDaftarEmail} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ textAlign: "center", marginBottom: 2 }}>
                 <UserPlus size={26} color="#0d7344" />
-                <h4 style={{ margin: "4px 0 2px", fontSize: "0.98rem" }}>Pendaftaran & Verifikasi Email</h4>
+                <h4 style={{ margin: "4px 0 2px", fontSize: "0.98rem" }}>Daftar Akun Baru</h4>
                 <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b", lineHeight: 1.4 }}>
                   Gunakan email asli yang aktif. Setelah email terverifikasi, akun akan masuk ke daftar akun dan menunggu persetujuan Administrator sebelum aktif.
                 </p>
@@ -856,7 +856,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 style={{ ...gayaInput, height: 48, textAlign: "center", fontSize: "1.2rem", letterSpacing: "0.18em", fontWeight: 700 }}
               />
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
-                {sedangProses ? "Memverifikasi…" : "Verifikasi Email & Daftarkan Akun"}
+                {sedangProses ? "Memverifikasi…" : "Daftarkan Akun"}
               </button>
               <p style={{ margin: 0, fontSize: "0.73rem", color: "#64748b", textAlign: "center", lineHeight: 1.45 }}>
                 Catatan: Akun yang sudah diverifikasi akan tampil di daftar akun, namun <strong>belum bisa aktif</strong> sebelum disetujui Administrator.

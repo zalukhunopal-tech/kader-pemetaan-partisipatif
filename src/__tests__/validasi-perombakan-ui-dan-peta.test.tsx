@@ -309,7 +309,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
       />
     );
 
-    expect(html).toContain("Data User &amp; Level Kader");
+    expect(html).toContain("Level Kader");
     expect(html).not.toContain("Penetapan Alokasi HOK");
     expect(html).toContain("Rian Hidayat");
     expect(html).toContain("Tanjung Selor Hilir");

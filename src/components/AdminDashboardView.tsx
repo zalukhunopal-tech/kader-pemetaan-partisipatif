@@ -21,6 +21,7 @@ import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
 import { Check, ChevronDown, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
+import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface AdminDashboardViewProps {
   dataSpasial: DataSpasialItem[];
@@ -65,6 +66,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
   // Menu aksi data (mobile): satu daftar pilihan yang muncul saat tombol "Aksi" ditekan
   const [menuAksiData, setMenuAksiData] = useState<DataSpasialItem | null>(null);
+  useTombolEsc(menuAksiData !== null, () => setMenuAksiData(null));
 
   const tinjauPetaData = (d: DataSpasialItem) => {
     const p = d.koordinat[0];
@@ -195,7 +197,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
           {(
             [
               { id: "kader_aktif", label: "Monitor", Ikon: Radio },
-              { id: "user_level", label: "User & Level", Ikon: Users },
+              { id: "user_level", label: "Kader", Ikon: Users },
               { id: "kelola_data", label: `Data (${dataSpasial.length})`, Ikon: Edit3 },
               { id: "tugas_survei", label: `Tugas (${tugasList.length})`, Ikon: PlusCircle },
 { id: "sertifikat", label: "Sertifikat", Ikon: LogoSertifikatResmiSvg },

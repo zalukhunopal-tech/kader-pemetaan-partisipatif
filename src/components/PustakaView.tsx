@@ -27,6 +27,7 @@ import { simpanArsipPeta } from "../lib/penyimpananPetaLuring";
 import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
 import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
 import { singkatkanLabelPeta } from "../lib/labelPeta";
+import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -187,8 +188,11 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [kalibLngTimur, setKalibLngTimur] = useState("");
 
   const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
+  useTombolEsc(bukaModalPetaBaru, () => setBukaModalPetaBaru(false));
+  useTombolEsc(bukaModalLapisanBaru, () => setBukaModalLapisanBaru(false));
   const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
   const [petaPratinjauAktif, setPetaPratinjauAktif] = useState<AreaPetaOffline | null>(null);
+  useTombolEsc(petaPratinjauAktif !== null, () => setPetaPratinjauAktif(null));
 
   const hitungObjekLapisan = (lapisan: LapisanSpasial): number => {
     return dataSpasial.filter((d) => d.kategori === lapisan.kategoriDefault).length;
@@ -319,7 +323,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               thumbnailDataUrl: hasilBiasa.thumbnailDataUrl,
               sumberDeteksi: "bawaan",
               crs: "EPSG:4326 (Kalibrasi Manual 2 Titik)",
-              crsDeskripsi: errGeoPdf instanceof Error ? errGeoPdf.message : "Kalibrasi manual sudut Barat Laut & Tenggara",
+              crsDeskripsi: errGeoPdf instanceof Error ? errGeoPdf.message : "Kalibrasi manual sudut Barat Laut dan Tenggara",
               minLat: defLatBawah,
               maxLat: defLatAtas,
               minLng: defLngBarat,
@@ -1006,7 +1010,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </label>
                 {sedangMemprosesBerkas && (
                   <div className="peta-upload-status loading">
-                    <span>Mendeteksi sistem koordinat (CRS) & menghitung bounding box otomatis…</span>
+                    <span>Mendeteksi sistem koordinat dan batas peta…</span>
                   </div>
                 )}
                 {!sedangMemprosesBerkas && metadataPetaBaru && (
@@ -1056,7 +1060,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               {metadataPetaBaru && (
                 <div className="avenza-spatial-meta-card">
                   <div className="avenza-spatial-header">
-                    <span className="avenza-spatial-title">🌐 Sistem Koordinat (CRS) & Bounding Box</span>
+                    <span className="avenza-spatial-title">🌐 Georeferensi</span>
                     <span className="avenza-spatial-badge">
                       <Check size={12} /> Terisi Otomatis
                     </span>
@@ -1091,7 +1095,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                       <span className="spatial-label">Metode Deteksi Otomatis:</span>
                       <span className="spatial-value text-emerald font-semibold">
                         {metadataPetaBaru.sumberDeteksi === "pmtiles" && "PMTiles Header Vektor/Raster"}
-                        {metadataPetaBaru.sumberDeteksi === "geotiff" && "Header Biner GeoTIFF (Tag 33550 & 33922)"}
+                        {metadataPetaBaru.sumberDeteksi === "geotiff" && "Header Biner GeoTIFF (tag 33550, 33922)"}
                         {metadataPetaBaru.sumberDeteksi === "mbtiles" && "SQLite MBTiles Metadata (EPSG:3857/4326)"}
                         {metadataPetaBaru.sumberDeteksi === "geopdf" && "Struktur Vektor GeoPDF /GPTS"}
                         {metadataPetaBaru.sumberDeteksi === "teks" && "Ekstraksi Metadata String"}

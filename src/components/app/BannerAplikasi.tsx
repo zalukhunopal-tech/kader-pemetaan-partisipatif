@@ -30,7 +30,7 @@ export const BannerPerekaman: React.FC<BannerPerekamanProps> = ({ rekamLatar, de
       <span className="global-rec-pulse-dot" />
       <Radio size={15} />
       <div className="global-rec-text">
-        <strong>{rekamLatar.status === "merekam" ? "SEDANG MEREKAM DI LATAR BELAKANG" : "PEREKAMAN LATAR DIJEDA"}</strong>
+        <strong>{rekamLatar.status === "merekam" ? "Sedang merekam" : "Rekaman dijeda"}</strong>
         <span>
           {formatDurasi(durasiRekamMs(rekamLatar))} • {ringkasanRekam(rekamLatar)}
         </span>

@@ -222,7 +222,7 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
               onBukaKeamanan();
             }}
           >
-            <Fingerprint size={16} /> PIN & sidik jari
+            <Fingerprint size={16} /> Kunci aplikasi
           </button>
 
           <button
