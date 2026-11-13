@@ -3,7 +3,16 @@ export type PeranPengguna = "kader" | "admin";
 export type JenisGeometri = "point" | "line" | "polygon";
 
 export type KategoriSurvei =
-  "Flora" | "Fauna" | "Mata Air" | "Tanda Batas" | "Ancaman / Temuan" | "Wilayah Adat / Lahan" | "Sarana Desa" | "Situs Budaya";
+  | "Biodiversitas"
+  | "Flora"
+  | "Fauna"
+  | "Mata Air"
+  | "Tanda Batas"
+  | "Ancaman / Temuan"
+  | "Wilayah Adat / Lahan"
+  | "Sarana Desa"
+  | "Situs Budaya"
+  | "Lainnya";
 
 export type StatusSinkron =
   | "lokal" // Tersimpan di HP (Belum Sinkron)

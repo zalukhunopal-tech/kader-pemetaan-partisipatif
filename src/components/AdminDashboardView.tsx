@@ -852,7 +852,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                                 ? "Sertifikat sudah diterbitkan"
                                 : k.capaian.berhakSertifikat
                                   ? "Terbitkan sertifikat untuk kader ini"
-                                  : "Belum memenuhi satu paket capaian terverifikasi"
+                                  : "Belum memenuhi syarat sertifikasi (50 titik, 5 km jalur, dan 5 Ha poligon terverifikasi)"
                             }
                             onClick={() => {
                               const hasil = siapkanSertifikat(k, nomorSertBaru, sertifikatList, {

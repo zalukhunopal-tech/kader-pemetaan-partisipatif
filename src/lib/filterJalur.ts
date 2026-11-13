@@ -11,6 +11,7 @@ export function titikJalurDapatDiterima(terakhir: KoordinatTitik | undefined, ba
   if (!Number.isFinite(a) || !Number.isFinite(b)) return true;
   if (b < a) return false;
   const jarak = hitungJarakMeter(terakhir, baru),
-    noise = (terakhir.akurasi ?? 0) + (baru.akurasi ?? 0);
-  return jarak <= noise + Math.max(0, (b - a) / 1000) * kecepatanMaksMps;
+    noise = (terakhir.akurasi ?? 0) + (baru.akurasi ?? 0),
+    selisihDetik = Math.max(1, (b - a) / 1000);
+  return jarak <= noise + selisihDetik * kecepatanMaksMps;
 }

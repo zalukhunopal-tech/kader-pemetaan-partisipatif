@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Leaf, PawPrint, Droplets, Flag, Flame, Trees, Landmark, House, MapPin } from "lucide-react";
+import { Camera, Leaf, PawPrint, Droplets, Flag, Flame, Trees, Landmark, House, MapPin, MoreHorizontal } from "lucide-react";
 import {
   BuktiFotoLapangan,
   DataSpasialItem,
@@ -28,14 +28,14 @@ import { KartuLokasiTitik } from "./KartuLokasiTitik";
 import { bacaSistemKoordinat, simpanSistemKoordinat, SistemKoordinat } from "../../lib/sistemKoordinat";
 
 export const KATEGORI_VISUAL: { kategori: KategoriSurvei; judul: string; contoh: string; Ikon: typeof Leaf }[] = [
-  { kategori: "Tanda Batas", judul: "Batas desa / adat", contoh: "Patok, batas alam", Ikon: Flag },
+  { kategori: "Tanda Batas", judul: "Batas", contoh: "Patok, sempadan alam", Ikon: Flag },
   { kategori: "Wilayah Adat / Lahan", judul: "Lahan", contoh: "Hutan, kebun, ulayat", Ikon: Trees },
-  { kategori: "Flora", judul: "Tumbuhan", contoh: "Pohon, anggrek", Ikon: Leaf },
-  { kategori: "Fauna", judul: "Satwa", contoh: "Satwa, sarang, tapak", Ikon: PawPrint },
-  { kategori: "Mata Air", judul: "Sumber air", contoh: "Mata air, aliran", Ikon: Droplets },
-  { kategori: "Ancaman / Temuan", judul: "Ancaman", contoh: "Kebakaran, pembalakan", Ikon: Flame },
-  { kategori: "Sarana Desa", judul: "Sarana desa", contoh: "Jalan, bangunan", Ikon: House },
-  { kategori: "Situs Budaya", judul: "Situs budaya", contoh: "Sejarah, toponimi", Ikon: Landmark }
+  { kategori: "Biodiversitas", judul: "Biodiversitas", contoh: "Satwa, flora, fauna, tumbuhan", Ikon: Leaf },
+  { kategori: "Mata Air", judul: "Air", contoh: "Mata air, aliran", Ikon: Droplets },
+  { kategori: "Ancaman / Temuan", judul: "Ancaman", contoh: "Kebakaran, perambahan", Ikon: Flame },
+  { kategori: "Sarana Desa", judul: "Sarana", contoh: "Jalan, bangunan desa", Ikon: House },
+  { kategori: "Situs Budaya", judul: "Budaya", contoh: "Sejarah, toponimi", Ikon: Landmark },
+  { kategori: "Lainnya", judul: "Lainnya", contoh: "Objek dan data lainnya", Ikon: MoreHorizontal }
 ];
 
 /** Draf per akun di IndexedDB. Tidak memuat akun, sandi atau token. */

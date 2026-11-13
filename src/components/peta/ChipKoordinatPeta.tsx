@@ -233,9 +233,10 @@ export function ChipKoordinatPeta({
               {f && <span className="coord-chip-meta">{f.keterangan}</span>}
             </span>
             {f ? (
-              <span className="coord-chip-values field-telemetry-coordinate">
-                <span className="coord-val-part">{f.baris[0].nilai}</span>
-                <span className="coord-val-part">{f.baris[1].nilai}</span>
+              <span className="coord-chip-values field-telemetry-coordinate" title={`${f.baris[0].nilai}, ${f.baris[1].nilai}`}>
+                <span className="coord-val-part coord-val-x">{f.baris[0].nilai}</span>
+                <span className="coord-val-sep" aria-hidden="true">·</span>
+                <span className="coord-val-part coord-val-y">{f.baris[1].nilai}</span>
               </span>
             ) : (
               <span className="coord-chip-values coord-chip-waiting">

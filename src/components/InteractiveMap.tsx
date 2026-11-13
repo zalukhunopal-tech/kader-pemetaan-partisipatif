@@ -1120,11 +1120,11 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     const ptAwal = titikDariBidikan(center, posisiNyata);
     if (jenis === "point") {
       setTitikDraft([ptAwal]);
-      form.setKategoriInput("Flora");
+      form.setKategoriInput("Biodiversitas");
       setBukaModalForm(false);
     } else {
       setTitikDraft([ptAwal]);
-      form.setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Flora");
+      form.setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Biodiversitas");
       // Mulai perekaman di latar belakang agar tetap merekam walaupun pindah tab
       perekamLatar.mulai(jenis, [ptAwal]);
     }
