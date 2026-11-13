@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  hitungSkalaRender,
-  tentukanAnggaranResolusi,
-  turunkanAnggaranResolusi
-} from "../lib/geoPdf";
+import { hitungSkalaRender, tentukanAnggaranResolusi, turunkanAnggaranResolusi } from "../lib/geoPdf";
 
 describe("Resolusi peta adaptif (tajam namun ringan)", () => {
   const pc = tentukanAnggaranResolusi({ seluler: false, memoriGb: 8, jumlahCpu: 16 });
@@ -68,7 +64,6 @@ describe("Menu aksi data admin di PC/Tablet & HP", () => {
 
 describe("Hapus badge Posisi sekarang (Menghadap Utara) & pengambilan titik ramping sejajar di HP", () => {
   const sumberMap = readFileSync(resolve(__dirname, "../components/InteractiveMap.tsx"), "utf8");
-  const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
 
   it("tidak memunculkan tanda 'Posisi sekarang (Menghadap Utara)' namun fitur GPS bertahap tetap dipertahankan", () => {
     expect(sumberMap).not.toContain("Posisi sekarang (Menghadap Utara)");
@@ -78,14 +73,11 @@ describe("Hapus badge Posisi sekarang (Menghadap Utara) & pengambilan titik ramp
     expect(sumberMap).toContain("setModeIkutiKompas(true)");
   });
 
-  it("pengambilan titik di HP dan PC merampingkan kartu dan menyejajarkan Di Tanda +, Di GPS Saya, dan Batal", () => {
-    expect(sumberMap).toContain('className="field-resume-actions"');
-    // Di PC semua label sejajar 1 baris tanpa membengkak lebar
-    expect(css).toMatch(/\.field-resume-draft\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?flex-wrap:\s*nowrap;/);
-    expect(css).toMatch(/\.field-resume-actions\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?flex-wrap:\s*nowrap;/);
-    // Di HP 2 baris rapi dan tombol aksi tetap sejajar
-    expect(css).toMatch(/\.field-resume-actions\s*\{[\s\S]*?flex-direction:\s*row !important;[\s\S]*?flex-wrap:\s*nowrap !important;/);
-    expect(css).toMatch(/\.field-resume-draft button\s*\{[\s\S]*?min-height:\s*30px !important;/);
+  it("pengambilan titik memakai tombol pin besar ala Avenza dan langsung membuka halaman Pin dijatuhkan", () => {
+    expect(sumberMap).toContain('className="avz-fab-pin"');
+    expect(sumberMap).toContain("jatuhkanPin");
+    const form = readFileSync(resolve(__dirname, "../components/peta/FormSurveiModal.tsx"), "utf8");
+    expect(form).toContain("Pin dijatuhkan");
   });
 });
 
@@ -126,12 +118,12 @@ describe("Label menu satu baris (anti ke-enter), status level kader sejajar di H
     expect(css).toMatch(/text-overflow:\s*ellipsis;/);
   });
 
-  it("menata ulang kotak dialog InspektorObjek untuk titik, jalur, dan poligon baik di PC/tablet maupun HP", () => {
-    expect(sumberInspektor).toContain("awal={55}");
-    expect(sumberInspektor).toContain("inspector-summary-strip");
-    expect(sumberInspektor).toContain("inspector-badges-row");
-    expect(css).toContain(".field-sheet.field-inspector-sheet");
-    expect(css).toContain(".workspace-map .field-sheet.field-inspector-sheet");
+  it("detail objek (titik, jalur, poligon) tampil sebagai halaman penuh ala Avenza di PC/tablet maupun HP", () => {
+    expect(sumberInspektor).toContain("avz-halaman avz-detail-objek field-inspector-sheet");
+    expect(sumberInspektor).toContain("useTombolEsc(true, onTutup)");
+    expect(sumberInspektor).toContain("inspector-goto-btn");
+    const cssPeta = readFileSync(resolve(__dirname, "../styles/petaAvenza.css"), "utf8");
+    expect(cssPeta).toMatch(/\.avz-peta \.avz-halaman \{[^}]*position: fixed !important/);
   });
 });
 

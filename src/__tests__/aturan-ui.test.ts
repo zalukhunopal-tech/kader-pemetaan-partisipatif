@@ -67,29 +67,29 @@ describe("Aturan UI", () => {
     expect(pelanggaran).toEqual([]);
   });
 
-  it("kontrol di atas peta berada di grid HUD (kotak lokasi, kompas, zoom, panel, skala, bilah alat)", () => {
+  it("kontrol di atas peta berada di grid HUD (peta dasar, lokasi, kompas, panel, skala, pin, bilah bawah)", () => {
     const peta = readFileSync(resolve(AKAR, "components/InteractiveMap.tsx"), "utf8");
     const awalHud = peta.indexOf('<div className="avz-hud">');
-    const akhirHud = peta.indexOf("{/* POPOVER LAPISAN");
+    const akhirHud = peta.indexOf("{/* MENU ALAT");
     expect(awalHud).toBeGreaterThan(-1);
     expect(akhirHud).toBeGreaterThan(awalHud);
     const hud = peta.slice(awalHud, akhirHud);
     for (const bagian of [
-      "<ChipKoordinatPeta",
+      "avz-quick-basemap-btn",
+      "avz-nav-arrow-btn",
       "avz-kompas-pod",
-      '<RailAlatPeta bagian="zoom"',
+      "field-map-message",
       "<PanelPerekaman",
-      "field-resume-draft",
-      "map-feature-strip",
       "avenza-scale-bar-wrap",
       'id="atribusi-peta"',
-      '<RailAlatPeta bagian="alat"'
+      "avz-fab-pin",
+      "avz-bottom-pill-bar"
     ]) {
       expect(hud, `${bagian} harus berada di dalam .avz-hud`).toContain(bagian);
     }
-    // Di luar grid hanya boleh ada satu salinan tiap kontrol (tidak ada versi kedua yang mengapung sendiri)
-    expect(peta.split("<RailAlatPeta").length - 1).toBe(2);
+    // Tiap kontrol hanya punya satu salinan (tidak ada versi kedua yang mengapung sendiri)
     expect(peta.split("<PanelPerekaman").length - 1).toBe(1);
+    expect(peta.split('className="avz-fab-pin"').length - 1).toBe(1);
 
     const css = readFileSync(resolve(AKAR, "styles/petaAvenza.css"), "utf8");
     expect(css).toMatch(/\.avz-hud\s*\{[^}]*display:\s*grid/);
@@ -100,7 +100,7 @@ describe("Aturan UI", () => {
     const rewardView = readFileSync(resolve(AKAR, "components/RewardView.tsx"), "utf8");
     // Tombol Atur Penandatangan harus berada dalam blok kondisi peran === "admin"
     expect(rewardView).toContain('peran === "admin" && (');
-    expect(rewardView).toContain('bukaAturSertifikat && (');
+    expect(rewardView).toContain("bukaAturSertifikat && (");
     // Guard peran di dalam handler mutasi penandatangan
     expect(rewardView).toContain('if (peran !== "admin") return;');
   });

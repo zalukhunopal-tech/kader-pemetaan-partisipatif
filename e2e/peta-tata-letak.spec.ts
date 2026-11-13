@@ -6,16 +6,17 @@ import { JPEG, RUTE_TILE_PUBLIK, kontrolBertumpuk, masukAkunSemai } from "./bant
  * dan PC, saat diam maupun saat merekam jalur tanpa GPS (panel rekam paling tinggi karena ada peringatan GPS).
  */
 const KONTROL = [
-  ".coord-chip-wrap",
+  ".avz-quick-basemap-btn",
+  ".avz-nav-arrow-btn",
   ".avz-kompas",
-  ".avz-zoom-pod",
   ".field-map-message",
-  ".map-feature-strip",
-  ".field-resume-draft",
   ".recording-active-bar",
   ".avenza-scale-bar-wrap",
   "#atribusi-peta",
-  ".avz-toolbar-baris",
+  ".avz-fab-pin",
+  ".avz-pegangan",
+  ".avz-pill-btn",
+  ".avz-pill-koordinat",
   ".avenza-toast"
 ];
 
@@ -36,24 +37,22 @@ for (const u of UKURAN) {
     await p.waitForTimeout(1200);
     expect(await kontrolBertumpuk(p, KONTROL), "diam").toEqual([]);
 
-    await p.locator(".rail-tool-point").click();
-    await p.waitForTimeout(600);
-    expect(await kontrolBertumpuk(p, KONTROL), "draf titik").toEqual([]);
-    // Simpan titik: toast "disimpan" tidak boleh menutupi bilah alat
-    await p.locator(".field-resume-actions .btn-primary").click();
-    await p.getByRole("button", { name: "Tumbuhan" }).click();
+    // Jatuhkan pin lalu simpan: toast "disimpan" tidak boleh menutupi bilah bawah
+    await p.locator(".avz-fab-pin").click();
+    await p.getByRole("button", { name: /^Biodiversitas/ }).click();
     await p.getByPlaceholder("Masukkan nama objek").fill("Pohon uji tata letak");
     await p.locator(".modal-form button[type=submit]").click();
     await p.waitForTimeout(500);
     expect(await p.locator(".avenza-toast").count()).toBe(1);
     expect(await kontrolBertumpuk(p, KONTROL), "toast setelah simpan").toEqual([]);
 
-    await p.locator(".rail-tool-line").click();
+    await p.getByRole("button", { name: "Alat peta" }).click();
+    await p.getByRole("menuitem", { name: "Rekam Jalur GPS" }).click();
     await p.waitForTimeout(2500);
     expect(await kontrolBertumpuk(p, KONTROL), "rekam jalur tanpa GPS").toEqual([]);
 
-    // Bilah alat selalu utuh di dalam peta dan di atas bilah navigasi
-    const alat = await p.locator(".avz-toolbar-baris").boundingBox();
+    // Bilah bawah selalu utuh di dalam peta
+    const alat = await p.locator(".avz-bottom-pill-bar").boundingBox();
     const peta = await p.locator(".map-canvas-container").boundingBox();
     expect(alat!.y + alat!.height).toBeLessThanOrEqual(peta!.y + peta!.height + 0.5);
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
