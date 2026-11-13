@@ -198,9 +198,9 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
             [
               { id: "kader_aktif", label: "Monitor", Ikon: Radio },
               { id: "user_level", label: "Kader", Ikon: Users },
-              { id: "kelola_data", label: `Data (${dataSpasial.length})`, Ikon: Edit3 },
-              { id: "tugas_survei", label: `Tugas (${tugasList.length})`, Ikon: PlusCircle },
-{ id: "sertifikat", label: "Sertifikat", Ikon: LogoSertifikatResmiSvg },
+              { id: "kelola_data", label: "Data", Ikon: Edit3 },
+              { id: "tugas_survei", label: "Tugas", Ikon: PlusCircle },
+              { id: "sertifikat", label: "Sertifikat", Ikon: LogoSertifikatResmiSvg },
               { id: "akun", label: "Akun", Ikon: UserCog }
             ] as const
           ).map(({ id, label, Ikon }) => (
@@ -291,7 +291,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
 
           {dataSpasial.length > 0 ? (
             <div className="table-responsive">
-              <table className="data-table">
+              <table className="data-table data-table-admin-spasial">
                 <thead>
                   <tr>
                     <th>Kader</th>
@@ -304,21 +304,21 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                 <tbody>
                   {dataSpasial.map((d) => (
                     <tr key={d.id}>
-                      <td>
+                      <td className="col-admin-kader">
                         <strong>{d.namaKader}</strong>
                         <div className="text-xs text-muted">{d.id}</div>
                       </td>
-                      <td>
+                      <td className="col-admin-objek">
                         <span className="badge-kategori">{d.kategori}</span>{" "}
                         {adalahDataImpor(d) && <span className="badge-kategori">IMPOR</span>}{" "}
                         {adalahDataSimulasi(d) && <span className="badge-kategori">SIMULASI</span>} <strong>{d.judul}</strong>
                       </td>
-                      <td>
+                      <td className="col-admin-status">
                         <span className={`badge-sync status-${d.statusSinkron}`} style={{ marginLeft: 0 }}>
                           {d.statusSinkron.toUpperCase()}
                         </span>
                       </td>
-                      <td>
+                      <td className="col-admin-kualitas">
                         <details className="dqa-details">
                           <summary className="dqa-badge">
                             {hitungSkorKualitasData(d).grade} · {hitungSkorKualitasData(d).skor}/100
@@ -330,20 +330,21 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                           </ul>
                         </details>
                       </td>
-                      <td>
-                        <div className="aksi-data-desktop" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      <td className="col-admin-tindakan">
+                        <div className="aksi-data-desktop" style={{ display: "flex", gap: "6px", flexWrap: "nowrap" }}>
                           <button
                             type="button"
                             className="btn-outline-sm"
                             disabled={!d.koordinat[0]}
+                            title="Tinjau lokasi objek pada peta"
                             onClick={() => {
                               const p = d.koordinat[0];
                               if (p) onFokusKePeta(p.lat, p.lng, d.judul);
                             }}
                           >
-                            <MapPin size={14} /> Tinjau peta
+                            <MapPin size={14} /> Peta
                           </button>
-                          <button type="button" className="btn-outline-sm" onClick={() => setItemDiedit(d)}>
+                          <button type="button" className="btn-outline-sm" onClick={() => setItemDiedit(d)} title="Edit data objek">
                             <Edit3 size={13} /> Edit
                           </button>
                           <button
@@ -351,20 +352,22 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                             className="btn-primary-sm"
                             disabled={!hitungSkorKualitasData(d).geometriValid}
                             onClick={() => onVerifikasiData(d.id, "terverifikasi")}
+                            title="Sahkan data valid"
                           >
                             <Check size={13} /> Sah
                           </button>
                           <button
                             type="button"
                             className="btn-outline-sm"
+                            title="Minta revisi data kepada kader"
                             onClick={() => {
                               const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
                               if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
                             }}
                           >
-                            Minta revisi
+                            <X size={13} /> Revisi
                           </button>
-                          <button type="button" className="btn-danger-sm" onClick={() => onHapusDataSpasial(d.id)}>
+                          <button type="button" className="btn-danger-sm" onClick={() => onHapusDataSpasial(d.id)} title="Hapus data">
                             <Trash2 size={13} />
                           </button>
                         </div>
@@ -411,7 +414,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                 tinjauPetaData(d);
               }}
             >
-              <MapPin size={18} /> Tinjau peta
+              <MapPin size={18} /> Peta
             </button>
             <button
               type="button"
@@ -448,7 +451,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                 mintaRevisiData(d);
               }}
             >
-              <X size={18} /> Minta revisi
+              <X size={18} /> Revisi
             </button>
             <button
               type="button"
@@ -639,8 +642,8 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
               />
             </div>
 
-            <button type="submit" className="btn-primary" style={{ marginTop: 12, width: "100%" }}>
-              <PlusCircle size={16} /> Publikasikan Tugas
+            <button type="submit" className="btn-primary" style={{ marginTop: 12, width: "100%" }} title="Publikasikan penugasan survei">
+              <PlusCircle size={16} /> Publikasikan
             </button>
           </form>
 
@@ -727,8 +730,8 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                 onChange={(e) => setIsiAnn(e.target.value)}
               />
             </div>
-            <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }}>
-              Simpan Pengumuman
+            <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }} title="Umumkan pesan kepada seluruh kader">
+              Umumkan
             </button>
           </form>
         </div>
@@ -783,8 +786,9 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                 className="btn-outline"
                 style={{ flex: "1 1 200px" }}
                 onClick={() => onUbahPenandatanganSertifikat?.(penandatangan, jabatanPenandatangan)}
+                title="Simpan penandatangan sertifikat"
               >
-                ✍️ Simpan Penandatangan
+                ✍️ Simpan
               </button>
             </div>
 

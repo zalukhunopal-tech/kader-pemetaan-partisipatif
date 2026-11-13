@@ -257,8 +257,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
     onUbahProfil({ ...profil, logoSertifikatList: baru });
   };
 
-  // Handler Kelola Penandatangan Sertifikat
+  // Handler Kelola Penandatangan Sertifikat (Khusus Administrator)
   const handleTambahPenandatangan = () => {
+    if (peran !== "admin") return;
     const itemBaru: PenandatanganSertifikatItem = {
       id: `sign-${Date.now()}`,
       jabatan: "Koordinator Lapangan",
@@ -273,6 +274,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handleUbahPenandatanganItem = (id: string, patch: Partial<PenandatanganSertifikatItem>) => {
+    if (peran !== "admin") return;
     const baru = penandatanganListAktif.map((p) => (p.id === id ? { ...p, ...patch } : p));
     onUbahProfil({
       ...profil,
@@ -286,7 +288,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handleUnggahGambarTtd = async (id: string, file?: File) => {
-    if (!file) return;
+    if (peran !== "admin" || !file) return;
     try {
       const dataUrl = await kompresFotoKeDataUrl(file, 360);
       handleUbahPenandatanganItem(id, { tandaTanganBase64: dataUrl });
@@ -296,7 +298,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handleHapusPenandatangan = (id: string) => {
-    if (penandatanganListAktif.length <= 1) return;
+    if (peran !== "admin" || penandatanganListAktif.length <= 1) return;
     const baru = penandatanganListAktif.filter((p) => p.id !== id);
     onUbahProfil({
       ...profil,
@@ -305,6 +307,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handleResetPenandatanganKkiWarsi = () => {
+    if (peran !== "admin") return;
     onUbahProfil({
       ...profil,
       penandatanganList: DEFAULT_PENANDATANGAN_SERTIFIKAT,
@@ -318,6 +321,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handlePindahUrutanPenandatangan = (index: number, arah: "atas" | "bawah") => {
+    if (peran !== "admin") return;
     const targetIndex = arah === "atas" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= penandatanganListAktif.length) return;
     const baru = [...penandatanganListAktif];
@@ -675,14 +679,16 @@ export const RewardView: React.FC<RewardViewProps> = ({
             <LogoSertifikatResmiSvg size={22} variant="zamrud" />
             <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat</h3>
           </div>
-          <button
-            type="button"
-            className="btn-outline-sm cert-admin-btn"
-            onClick={() => setBukaAturSertifikat((v) => !v)}
-            title="Atur Nama Penandatangan, Posisi, Logo, dan Tampilan Sertifikat"
-          >
-            <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Penandatangan"}
-          </button>
+          {peran === "admin" && (
+            <button
+              type="button"
+              className="btn-outline-sm cert-admin-btn"
+              onClick={() => setBukaAturSertifikat((v) => !v)}
+              title="Atur Nama Penandatangan, Posisi, Logo, dan Tampilan Sertifikat"
+            >
+              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup" : "Atur"}
+            </button>
+          )}
         </div>
 
         {/* Aksi sertifikat: baris tombol berukuran sama (ikon di atas label), lalu Unduh selebar kartu */}
@@ -695,7 +701,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
               title="Foto untuk sertifikat"
             >
               <Camera size={18} aria-hidden="true" />
-              <span>{fotoSertifikatBase64 ? "Ganti Foto" : "Tambah Foto"}</span>
+              <span>Foto</span>
             </button>
             {fotoSertifikatBase64 && (
               <button
@@ -705,7 +711,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 title="Hapus foto dari sertifikat"
               >
                 <Trash2 size={18} aria-hidden="true" />
-                <span>Hapus Foto</span>
+                <span>Hapus</span>
               </button>
             )}
             <button
@@ -726,7 +732,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
             disabled={!sertifikatSaya}
             title={sertifikatSaya ? "Unduh sertifikat (PNG)" : "Tersedia setelah admin menerbitkan sertifikat"}
           >
-            <Download size={16} aria-hidden="true" /> Unduh Sertifikat
+            <Download size={16} aria-hidden="true" /> Unduh
           </button>
         </div>
 
@@ -742,8 +748,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
           <canvas ref={certCanvasRef} className="certificate-wysiwyg-canvas" aria-label={`Sertifikat ${sertifikatTampil.namaKader}`} />
         </div>
 
-        {/* PANEL ATUR & TAMBAH LOGO, TTD, SERTA TEMA SERTIFIKAT */}
-        {bukaAturSertifikat && (
+        {/* PANEL ATUR & TAMBAH LOGO, TTD, SERTA TEMA SERTIFIKAT (KHUSUS ADMINISTRATOR) */}
+        {peran === "admin" && bukaAturSertifikat && (
           <div className="cert-customizer-panel">
             {peran === "admin" && (
               <div className="cert-admin-banner-info">

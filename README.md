@@ -67,6 +67,21 @@ Aset pratinjau disimpan secara luring di folder `public/assets/basemaps/`:
 
 Ketentuan dan pengaturan visual ini **harus tetap dipertahankan pada setiap redesign antarmuka di masa depan**. Lihat rincian lengkapnya di [`docs/PANDUAN_DESAIN_PREVIEW_PETA_DASAR.md`](file:///docs/PANDUAN_DESAIN_PREVIEW_PETA_DASAR.md).
 
+### Ketentuan Baku Hak Akses Sertifikat & Label Pilihan Antarmuka
+
+1. **Hak Akses Penandatangan Sertifikat (Admin-Only)**:
+   - Pengaturan siapa yang menandatangani sertifikat (nama pejabat, posisi, logo, tanda tangan) **hanya boleh diakses oleh Administrator**.
+   - Pengguna biasa (kader) tidak dapat mengakses fitur ini; tombol dan formulir input nama penandatangan sertifikat dihapus dari sisi user biasa. Kader hanya berhak mengunggah foto profil, mencetak, dan mengunduh sertifikat resmi.
+2. **Pengetengahan Input PIN**:
+   - Kotak masukan PIN pada layar kunci dan gerbang admin wajib terpusat presisi di tengah layar secara vertikal dan horizontal.
+   - Karakter titik masking (`•`) dipusatkan dengan meniadakan padding vertikal (`padding: 0 0 0 0.5em`) dan `line-height: normal`.
+3. **Label Pilihan Wajib Satu Kata & Anti Ke-Enter**:
+   - Semua label pilihan (menu, sub-nav, tab filter, tombol aksi tindakan) wajib berupa **SATU KATA SAJA** (mis. `Peta`, `Revisi`, `Sah`, `Edit`, `Hapus`, `Monitor`, `Kader`, `Data`, `Tugas`, `Sertifikat`, `Akun`, `Dasar`, `Berkas`, `Pustaka`).
+   - Dilarang keras menggunakan karakter `&`.
+   - Dilarang terpotong / berpindah baris ke bawah (*white-space: nowrap*); tata letak dibuat adaptif.
+   - Aturan satu kata ini **hanya berlaku untuk label pilihan**; kalimat keterangan/deskripsi tetap ditulis wajar.
+   - Rincian lengkap tersedia di [`docs/ATURAN_DESAIN_DAN_HAK_AKSES.md`](file:///docs/ATURAN_DESAIN_DAN_HAK_AKSES.md).
+
 **Google dan Bing.** Alamat tile Google tak resmi (`mt*.google.com`, `khms*`) melanggar ketentuan Google dan tidak dipakai; aplikasi hanya memakai Map Tiles API (token sesi lewat `createSession`, hak cipta dari endpoint `viewport`). Kunci API Google dipakai di peramban, jadi **batasi kuncinya** di Google Cloud Console ke domain aplikasi dan ke Map Tiles API saja, dan pasang batas kuota harian agar tidak ada tagihan tak terduga. Untuk menghemat kuota, peta hanya meminta tile yang tampil. Bing Maps tidak dipasang: Microsoft menutup kunci Bing Maps gratis/Basic sejak 30 Juni 2025 (layanan Enterprise berakhir 30 Juni 2028); penggantinya Azure Maps hanya memberi ±15.000 tile citra gratis per bulan dan memakai kunci berbagi yang tidak aman ditaruh di aplikasi tanpa server. Untuk citra setajam Bing, pakai Satelit Esri (sebagian besar bersumber dari Maxar/Vantor yang sama) atau Satelit Google.
 
 Server Esri tanpa kunci (`server.arcgisonline.com`) tidak lagi dipakai karena ketentuan Esri mensyaratkan akun. Citra Sentinel-2 tahun 2018 ke atas dari EOX berlisensi CC BY-NC-SA 4.0 (non-komersial) dan tidak dipasang bawaan.

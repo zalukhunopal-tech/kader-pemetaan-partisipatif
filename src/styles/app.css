@@ -1940,7 +1940,33 @@ body {
   color: #475569;
   font-weight: 700;
   background: #f8faf9;
-  white-space: nowrap;
+  white-space: nowrap !important;
+}
+
+/* Tabel Data Spasial Admin: Adaptif, tanpa ke-enter ke baris baru */
+.data-table-admin-spasial {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.data-table-admin-spasial th {
+  white-space: nowrap !important;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.data-table-admin-spasial td {
+  white-space: nowrap !important;
+  vertical-align: middle;
+}
+
+.data-table-admin-spasial .col-admin-objek {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
 }
 
 .wkt-preview {
@@ -4532,13 +4558,25 @@ label {
   flex-shrink: 0;
 }
 
-/* Layar kunci mode admin */
+/* Layar kunci mode admin: dipusatkan vertikal dan horizontal di tengah viewport */
+.gerbang-admin-container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: calc(100dvh - 120px) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 .gerbang-admin {
   max-width: 420px;
-  margin: 24px auto;
+  width: 100%;
+  margin: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   text-align: center;
 }
 
@@ -5000,19 +5038,22 @@ label {
 }
 
 .pin-input {
+  display: block;
   width: 100%;
   max-width: 280px;
   height: 52px;
-  margin: 6px auto;
+  line-height: normal;
+  margin: 10px auto;
   border: 1.5px solid #cbd5e1;
   border-radius: 12px;
   text-align: center;
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 0.5em;
-  padding-left: 0.5em; /* imbangi letter-spacing agar titik tetap di tengah */
+  padding: 0 0 0 0.5em; /* imbangi letter-spacing 0.5em dan nolkan vertical padding agar titik presisi di tengah vertikal */
   color: #0f172a;
   box-sizing: border-box;
+  vertical-align: middle;
 }
 
 .pin-input:focus,
@@ -5023,11 +5064,17 @@ label {
 }
 
 .pin-input-kecil {
+  display: block;
   height: 44px;
+  line-height: normal;
   font-size: 1.1rem;
   letter-spacing: 0.3em;
+  padding: 0 0 0 0.3em;
   max-width: 260px;
-  margin: 4px auto;
+  margin: 6px auto;
+  text-align: center;
+  box-sizing: border-box;
+  vertical-align: middle;
 }
 
 .pin-input-kecil::placeholder {
@@ -8509,12 +8556,15 @@ progress {
   gap: 12px;
 }
 .dqa-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap !important;
   border: 1px solid var(--field-line);
   border-radius: 8px;
   background: var(--field-canvas);
   color: var(--field-accent);
-  padding: 8px;
+  padding: 6px 10px;
   font-size: 12px;
   font-weight: 700;
 }
