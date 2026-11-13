@@ -89,18 +89,21 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
   }
   class Sheet {
     baris: Baris[] = [];
+    catatan: string[][] = [];
     nama = "Sheet1";
     setName(n: string) {
       this.nama = n;
     }
     appendRow(r: Baris) {
       this.baris.push([...r]);
+      this.catatan.push(new Array(r.length).fill(""));
     }
     getLastRow() {
       return this.baris.length;
     }
     getRange(r: number, c: number, nr = 1, nc = 1) {
       const baris = this.baris;
+      const catatan = this.catatan;
       return {
         getValues: () =>
           Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => (baris[r - 1 + i] || [])[c - 1 + j] ?? "")),
@@ -108,6 +111,12 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
           v.forEach((row, i) => {
             baris[r - 1 + i] = [...row];
           });
+        },
+        getNotes: () =>
+          Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => (catatan[r - 1 + i] || [])[c - 1 + j] ?? "")),
+        setNote: (note: string) => {
+          if (!catatan[r - 1]) catatan[r - 1] = [];
+          catatan[r - 1][c - 1] = note;
         }
       };
     }
@@ -725,5 +734,54 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
       "budi_sebaran_anggrek_november_2026.geojson",
       "budi_sebaran_anggrek_november_2026_foto_1.jpg"
     ]);
+  });
+
+  it("menyiapkan dan mengisi tab Polygon, Line, dan Point di spreadsheet induk sesuai standar atribut tabel PRM-AID", () => {
+    const L = buatLingkungan();
+    const poly = rec("pg-1", {
+      jenisGeometri: "polygon",
+      kategori: "Wilayah Adat / Lahan",
+      judul: "Area Perkebunan Desa",
+      deskripsi: "Kebun pangan",
+      luasHa: 12.5,
+      wkt: "POLYGON ((102.1 -2.1, 102.2 -2.1, 102.2 -2.2, 102.1 -2.1))"
+    });
+    const line = rec("ln-1", {
+      jenisGeometri: "line",
+      kategori: "Sarana Desa",
+      judul: "Jalan Utama",
+      deskripsi: "Akses jalan warga",
+      panjangKm: 1.25,
+      wkt: "LINESTRING (102.1 -2.1, 102.2 -2.2)"
+    });
+    const pt = rec("pt-1", {
+      jenisGeometri: "point",
+      kategori: "Agama",
+      judul: "Masjid Raya",
+      deskripsi: "Tempat ibadah",
+      wkt: "POINT (102.1 -2.1)"
+    });
+
+    const hasil = L.kirim(payload([poly, line, pt]));
+    expect(hasil.sukses).toBe(true);
+
+    const ss = [...L.spreadsheet.values()][0];
+    const tabPolygon = ss.getSheetByName("Polygon");
+    const tabLine = ss.getSheetByName("Line");
+    const tabPoint = ss.getSheetByName("Point");
+
+    expect(tabPolygon).toBeTruthy();
+    expect(tabLine).toBeTruthy();
+    expect(tabPoint).toBeTruthy();
+
+    // Verifikasi header tabel atribut
+    expect(tabPolygon?.baris[0]).toEqual(["label", "luas_ha", "keterangan", "url", "tepi", "warna"]);
+    expect(tabLine?.baris[0]).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
+    expect(tabPoint?.baris[0]).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
+
+    // Verifikasi baris data yang dihasilkan
+    expect(tabPolygon?.baris[1]).toEqual(["Area Perkebunan Desa", 12.5, "Kebun pangan", "", "#000000", "#00B050"]);
+    expect(tabLine?.baris[1]).toEqual(["Jalan Utama", 1250, "Akses jalan warga", "", "#FF0000"]);
+    expect(tabPoint?.baris[1]).toEqual(["Masjid Raya", "Agama", "Tempat ibadah", "", "mosque.png"]);
   });
 });

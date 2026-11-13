@@ -17,6 +17,11 @@ import { kompresFoto, perkiraBytesDataUrl, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } fr
 import { bacaDraftSurvei, DraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "../../lib/draftSurvei";
 import { ambilRataRataGps } from "../../lib/posisiPerangkat";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
+import {
+  susunAtributPolygonPrmAid,
+  susunAtributLinePrmAid,
+  susunAtributPointPrmAid
+} from "../../lib/atributPrmAid";
 import { BottomSheet } from "./BottomSheet";
 import { PerekamMemoSuara } from "./PerekamMemoSuara";
 import { KartuLokasiTitik } from "./KartuLokasiTitik";
@@ -107,6 +112,47 @@ export function useFormSurvei(idKader: string) {
       riwayatPembaruan: []
     };
     item.kualitasData = hitungSkorKualitasData(item);
+
+    // Tetapkan atribut terstruktur PRM-AID (Polygon: label, luas_ha, keterangan, url, tepi, warna | Line: label, panjang_m, keterangan, url, warna | Point: label, kategori, keterangan, url, simbol)
+    if (jenis === "polygon") {
+      const atribut = susunAtributPolygonPrmAid({
+        jenisGeometri: "polygon",
+        judul: isian.judul,
+        kategori: isian.kategori,
+        deskripsi: isian.deskripsi,
+        luasHa: item.luasHa,
+        url: isian.url,
+        tepi: isian.tepi,
+        warna: isian.warna
+      });
+      item.tepi = atribut.tepi;
+      item.warna = atribut.warna;
+      item.url = atribut.url || undefined;
+    } else if (jenis === "line") {
+      const atribut = susunAtributLinePrmAid({
+        jenisGeometri: "line",
+        judul: isian.judul,
+        kategori: isian.kategori,
+        deskripsi: isian.deskripsi,
+        panjangKm: item.panjangKm,
+        url: isian.url,
+        warna: isian.warna
+      });
+      item.warna = atribut.warna;
+      item.url = atribut.url || undefined;
+    } else {
+      const atribut = susunAtributPointPrmAid({
+        jenisGeometri: "point",
+        judul: isian.judul,
+        kategori: isian.kategori,
+        deskripsi: isian.deskripsi,
+        url: isian.url,
+        simbol: isian.simbol
+      });
+      item.simbol = atribut.simbol;
+      item.url = atribut.url || undefined;
+    }
+
     return item;
   };
   return {
@@ -324,6 +370,17 @@ export function FormSurveiModal({
               />
             </label>
           )}
+          <label>
+            Tautan atau URL Informasi (Opsional)
+            <input
+              type="url"
+              className="form-input"
+              maxLength={500}
+              placeholder="https://walaya.prm.my.id/… atau tautan berkas"
+              value={isian.url || ""}
+              onChange={(e) => ubah("url", e.target.value)}
+            />
+          </label>
           <div className="form-photo-box">
             <label className="btn-upload-photo">
               <Camera size={18} /> Lampirkan Foto

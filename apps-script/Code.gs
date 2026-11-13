@@ -28,6 +28,13 @@
 var NAMA_FOLDER_INDUK = "Titik_Tapak_Database";
 var NAMA_SPREADSHEET = "Master_Data_Titik_Tapak";
 var NAMA_TAB = "Data_Spasial";
+var TAB_POLYGON = "Polygon";
+var TAB_LINE = "Line";
+var TAB_POINT = "Point";
+
+var KOLOM_POLYGON = ["label", "luas_ha", "keterangan", "url", "tepi", "warna"];
+var KOLOM_LINE = ["label", "panjang_m", "keterangan", "url", "warna"];
+var KOLOM_POINT = ["label", "kategori", "keterangan", "url", "simbol"];
 var BELUM_DIISI = "Wilayah_Belum_Diisi";
 var BATAS_FOTO_BYTE = 2 * 1024 * 1024;
 var NAMA_BULAN = [
@@ -260,6 +267,14 @@ function simpanRekaman_(r, fitur, konteks) {
   } else {
     konteks.sheet.appendRow(nilai);
     konteks.barisAda[id] = konteks.sheet.getLastRow();
+  }
+
+  // Sinkronkan data ke tabel atribut terstruktur Google Spreadsheet (Polygon, Line, Point) sesuai standar PRM-AID
+  try {
+    var ssUtama = spreadsheetInduk_(konteks.induk);
+    simpanKeTabGeometriPrmAid_(ssUtama, r, fiturSiap.properties);
+  } catch (errTab) {
+    Logger.log("Peringatan sinkron tab geometri: " + errTab);
   }
 
   // Automasi migrasi folder: bila wilayah kader kini sudah lengkap, pindahkan rekaman lama kader ini yang masih di Wilayah_Belum_Diisi
@@ -594,6 +609,15 @@ function simbolPointPrmAidGs_(label, kategori, keterangan, simbolAwal) {
   return { kategori: katAsli || "Fasilitas Umum", simbol: simbol || "default-icon.png" };
 }
 
+function sanitasiUrlGs_(urlMentah) {
+  var s = String(urlMentah || "").trim();
+  if (!s) return "";
+  if (/^(?:https?:\/\/|\/|\.\/)/i.test(s)) {
+    return s.replace(/[\r\n\t]/g, "").trim();
+  }
+  return "";
+}
+
 function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
   var pLama = (fitur && fitur.properties) || {};
   var label = String(r.judul || r.label || pLama.label || pLama.judul || "").trim();
@@ -604,7 +628,7 @@ function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
     if (r.namaIlmiah && String(r.namaIlmiah).trim()) bagian.push("(" + String(r.namaIlmiah).trim() + ")");
     ket = bagian.length > 0 ? bagian.join(" ") : String(r.kategori || pLama.kategori || "").trim();
   }
-  var url = String(fotoUrl || r.url || r.driveFileUrl || pLama.url || "").trim();
+  var url = sanitasiUrlGs_(fotoUrl || r.url || r.driveFileUrl || pLama.url);
   var jenis = String(r.jenisGeometri || "").toLowerCase();
   var hasil;
   if (jenis === "polygon") {
@@ -620,9 +644,6 @@ function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
   } else {
     var pt = simbolPointPrmAidGs_(label, r.kategori || pLama.kategori, ket, r.simbol || pLama.simbol);
     hasil = { label: label, kategori: pt.kategori, keterangan: ket, url: url, simbol: pt.simbol };
-  }
-  if (pLama.judul !== undefined && pLama.label === undefined) {
-    hasil.judul = label;
   }
   return hasil;
 }
@@ -915,6 +936,7 @@ function spreadsheetInduk_(induk) {
     tabAwal.appendRow(KOLOM);
   }
   props.setProperty("TITIK_TAPAK_SPREADSHEET_ID", ss.getId());
+  inisialisasiTabGeometriPrmAid_(ss);
   return ss;
 }
 
@@ -927,6 +949,96 @@ function tabData_(ss) {
   // Migrasi menambah kolom di kanan tanpa menggeser data lama.
   tab.getRange(1, 1, 1, KOLOM.length).setValues([KOLOM]);
   return tab;
+}
+
+/** Menyiapkan tab khusus per jenis geometri sesuai standar atribut PRM-AID (Polygon, Line, Point) */
+function inisialisasiTabGeometriPrmAid_(ss) {
+  var konfigurasi = [
+    { nama: TAB_POLYGON, kolom: KOLOM_POLYGON },
+    { nama: TAB_LINE, kolom: KOLOM_LINE },
+    { nama: TAB_POINT, kolom: KOLOM_POINT }
+  ];
+  for (var i = 0; i < konfigurasi.length; i++) {
+    var k = konfigurasi[i];
+    var tab = ss.getSheetByName(k.nama);
+    if (!tab) {
+      tab = ss.insertSheet(k.nama);
+      tab.appendRow(k.kolom);
+    } else {
+      tab.getRange(1, 1, 1, k.kolom.length).setValues([k.kolom]);
+    }
+  }
+}
+
+/** Menyimpan atau memperbarui baris rekaman pada tab geometri PRM-AID yang bersangkutan */
+function simpanKeTabGeometriPrmAid_(ss, r, atribut) {
+  if (!ss || !r || !atribut) return;
+  var jenis = String(r.jenisGeometri || "").toLowerCase();
+  var id = String(r.id || "");
+  var namaTab = jenis === "polygon" ? TAB_POLYGON : jenis === "line" ? TAB_LINE : TAB_POINT;
+  var kolom = jenis === "polygon" ? KOLOM_POLYGON : jenis === "line" ? KOLOM_LINE : KOLOM_POINT;
+
+  var tab = ss.getSheetByName(namaTab);
+  if (!tab) {
+    tab = ss.insertSheet(namaTab);
+    tab.appendRow(kolom);
+  }
+
+  var barisData;
+  if (jenis === "polygon") {
+    barisData = [
+      sanitasiSel_(atribut.label),
+      Number(atribut.luas_ha) || 0,
+      sanitasiSel_(atribut.keterangan),
+      sanitasiSel_(atribut.url),
+      sanitasiSel_(atribut.tepi),
+      sanitasiSel_(atribut.warna)
+    ];
+  } else if (jenis === "line") {
+    barisData = [
+      sanitasiSel_(atribut.label),
+      Number(atribut.panjang_m) || 0,
+      sanitasiSel_(atribut.keterangan),
+      sanitasiSel_(atribut.url),
+      sanitasiSel_(atribut.warna)
+    ];
+  } else {
+    barisData = [
+      sanitasiSel_(atribut.label),
+      sanitasiSel_(atribut.kategori),
+      sanitasiSel_(atribut.keterangan),
+      sanitasiSel_(atribut.url),
+      sanitasiSel_(atribut.simbol)
+    ];
+  }
+
+  var barisTarget = 0;
+  var jml = tab.getLastRow();
+  var tagId = "id:" + id;
+
+  if (jml > 1) {
+    var rentangPertama = tab.getRange(2, 1, jml - 1, 1);
+    if (typeof rentangPertama.getNotes === "function") {
+      var notes = rentangPertama.getNotes();
+      for (var n = 0; n < notes.length; n++) {
+        if (notes[n] && notes[n][0] === tagId) {
+          barisTarget = n + 2;
+          break;
+        }
+      }
+    }
+  }
+
+  if (barisTarget > 0) {
+    tab.getRange(barisTarget, 1, 1, barisData.length).setValues([barisData]);
+    var sel = tab.getRange(barisTarget, 1);
+    if (typeof sel.setNote === "function") sel.setNote(tagId);
+  } else {
+    tab.appendRow(barisData);
+    var baru = tab.getLastRow();
+    var selBaru = tab.getRange(baru, 1);
+    if (typeof selBaru.setNote === "function") selBaru.setNote(tagId);
+  }
 }
 
 function berkasAktif_(iter) {

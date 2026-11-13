@@ -4830,24 +4830,26 @@ label {
 
 .layar-kunci-kartu {
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   margin: auto;
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .layar-kunci-kepala {
   background: linear-gradient(135deg, #064e3b, #0d7344);
   color: #ffffff;
   text-align: center;
-  padding: 18px 16px 16px;
+  padding: 14px 16px 12px;
 }
 
 .layar-kunci-logo {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   margin: 0 auto 6px;
 }
 
@@ -4871,7 +4873,11 @@ label {
 }
 
 .layar-kunci-isi {
-  padding: 18px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .layar-kunci-rekam {
@@ -4902,32 +4908,44 @@ label {
 .verifikasi-identitas {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  text-align: left;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  gap: 12px;
 }
 
 .verifikasi-identitas form {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 8px;
 }
 
 .verifikasi-label {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #334155;
+  text-align: center;
+  display: block;
+  width: 100%;
 }
 
 .verifikasi-teks {
-  margin: 0;
+  margin: 0 auto;
   font-size: 0.82rem;
   line-height: 1.5;
   color: #334155;
+  text-align: center;
 }
 
 .pin-input {
   width: 100%;
+  max-width: 280px;
   height: 52px;
+  margin: 6px auto;
   border: 1.5px solid #cbd5e1;
   border-radius: 12px;
   text-align: center;
@@ -4936,6 +4954,7 @@ label {
   letter-spacing: 0.5em;
   padding-left: 0.5em; /* imbangi letter-spacing agar titik tetap di tengah */
   color: #0f172a;
+  box-sizing: border-box;
 }
 
 .pin-input:focus,
@@ -4949,6 +4968,8 @@ label {
   height: 44px;
   font-size: 1.1rem;
   letter-spacing: 0.3em;
+  max-width: 260px;
+  margin: 4px auto;
 }
 
 .pin-input-kecil::placeholder {
@@ -4958,11 +4979,15 @@ label {
 }
 
 .kode-verifikasi-input {
+  width: 100%;
+  max-width: 280px;
   height: 48px;
+  margin: 6px auto;
   text-align: center;
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.18em;
+  box-sizing: border-box;
 }
 
 .btn-biometrik {
@@ -4970,6 +4995,9 @@ label {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  width: 100%;
+  max-width: 280px;
+  margin: 4px auto;
   min-height: 52px;
   border-radius: 12px;
   border: 1.5px solid var(--avenza-green);
@@ -5037,7 +5065,9 @@ label {
 }
 
 .gerbang-admin .verifikasi-identitas {
-  text-align: left;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Menu Keamanan */
