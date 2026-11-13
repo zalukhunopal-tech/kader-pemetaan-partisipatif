@@ -199,8 +199,24 @@ function mulaiTungguKompas() {
   }, BATAS_TUNGGU_KOMPAS_MS);
 }
 
+/**
+ * Mengunci orientasi layar perangkat ke mode portrait (tegak) jika didukung.
+ * Menghindari aplikasi memutar viewport secara otomatis saat HP ditaruh rebah
+ * untuk membaca kompas lapangan di telapak tangan.
+ */
+export function kunciOrientasiLayar(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const sO = (window.screen as any)?.orientation;
+    if (sO && typeof sO.lock === "function") {
+      sO.lock("portrait").catch(() => {});
+    }
+  } catch {}
+}
+
 function pasangKompas() {
   if (typeof window === "undefined") return;
+  kunciOrientasiLayar();
   if (!kompasTerpasang) {
     kompasTerpasang = true;
     window.addEventListener("deviceorientationabsolute", tanganiOrientasi, true);
@@ -232,6 +248,7 @@ function hentikanKompas() {
 
 /** Dipanggil dari ketukan pengguna (wajib di iOS) untuk menyalakan kompas */
 export async function aktifkanKompas(): Promise<void> {
+  kunciOrientasiLayar();
   if (typeof DeviceOrientationEvent === "undefined") {
     setState({ statusKompas: "tidak_tersedia" });
     return;

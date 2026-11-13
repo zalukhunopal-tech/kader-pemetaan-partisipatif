@@ -182,7 +182,7 @@ export interface KoordinatTerformat {
   salin: string;
 }
 
-const ribuan = (v: number) => Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+export const ribuan = (v: number) => Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
 function dms(val: number, pos: string, neg: string, menitDesimal: boolean): string {
   const arah = val >= 0 ? pos : neg;

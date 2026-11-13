@@ -43,7 +43,7 @@ export default defineConfig({
         background_color: "#061411",
         display: "standalone",
         display_override: ["standalone", "minimal-ui"],
-        orientation: "any",
+        orientation: "portrait",
         start_url: "./",
         scope: "./",
         categories: ["productivity", "utilities", "education"],

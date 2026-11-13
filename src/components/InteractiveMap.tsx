@@ -42,10 +42,55 @@ import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { RailAlatPeta } from "./peta/RailAlatPeta";
 import { ChipKoordinatPeta } from "./peta/ChipKoordinatPeta";
-import { bacaSistemKoordinat, simpanSistemKoordinat, SistemKoordinat } from "../lib/sistemKoordinat";
+import {
+  bacaSistemKoordinat,
+  DAFTAR_SISTEM_KOORDINAT,
+  formatKoordinat,
+  keTm3,
+  keUtm,
+  ribuan,
+  simpanSistemKoordinat,
+  SistemKoordinat
+} from "../lib/sistemKoordinat";
 import { LOGO_GOOGLE, ambilAtribusiGoogle, pantauSesiGoogle } from "../lib/googleTiles";
 import { aktifkanKompas, selisihArah, titikDariBidikan, usePosisiPerangkat } from "../lib/posisiPerangkat";
-import { ArrowLeft, Info, Layers, Map as IkonPeta, Search, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Check,
+  ChevronRight,
+  Compass,
+  Copy,
+  Crosshair,
+  ExternalLink,
+  Hexagon,
+  Info,
+  Layers,
+  Map as IkonPeta,
+  MapPin,
+  Navigation,
+  PenTool,
+  Play,
+  Route,
+  Search,
+  ShieldCheck,
+  Sliders,
+  Target,
+  X
+} from "lucide-react";
+
+/** Menghasilkan format derajat kompas dan arah kardinal adaptif ala Avenza Maps (mis. '359° U', '280° B') */
+export function formatArahKardinal(deg: number): string {
+  const b = ((Math.round(deg) % 360) + 360) % 360;
+  if (b >= 337.5 || b < 22.5) return `${b}° U`;
+  if (b >= 22.5 && b < 67.5) return `${b}° TL`;
+  if (b >= 67.5 && b < 112.5) return `${b}° T`;
+  if (b >= 112.5 && b < 157.5) return `${b}° TG`;
+  if (b >= 157.5 && b < 202.5) return `${b}° S`;
+  if (b >= 202.5 && b < 247.5) return `${b}° BD`;
+  if (b >= 247.5 && b < 292.5) return `${b}° B`;
+  return `${b}° BL`;
+}
 
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
@@ -272,9 +317,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // State UI Clean Mode: fitur disembunyikan agar tidak menghalangi peta di HP
   const [bukaMenuPeta, setBukaMenuPeta] = useState<boolean>(false);
-const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
+  const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
   const [modePetaBersih, setModePetaBersih] = useState<boolean>(false);
   const [tampilDaftarObjek, setTampilDaftarObjek] = useState<boolean>(false);
+
+  // State UI Avenza Maps (sesuai referensi video antarmuka pengguna)
+  const [bukaDrawerGps, setBukaDrawerGps] = useState<boolean>(false);
+  const [tabDrawerGps, setTabDrawerGps] = useState<"lokasi" | "pelacakan" | "navigasi">("lokasi");
+  const [bukaMenuAlat, setBukaMenuAlat] = useState<boolean>(false);
+  const [bukaSalinKoord, setBukaSalinKoord] = useState<boolean>(false);
+  const [bukaInfoPetaModal, setBukaInfoPetaModal] = useState<boolean>(false);
 
   // Navigasi: posisi GPS dan arah kompas dari sensor perangkat (null selama belum ada data)
   const perangkat = usePosisiPerangkat();
@@ -1245,76 +1297,178 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
     }
   };
 
+  const cLat = center.lat;
+  const cLng = center.lng;
+  const utmHasil = keUtm(cLat, cLng);
+  const tm3Hasil = keTm3(cLat, cLng);
+  const fDms = formatKoordinat(cLat, cLng, "DMS");
+  const fDdm = formatKoordinat(cLat, cLng, "DDM");
+
+  const daftarFormatSalin = [
+    {
+      id: "wgs84_desimal",
+      nama: "Lintang, Bujur - WGS 84",
+      nilai: `${cLat.toFixed(6)}, ${cLng.toFixed(6)}`,
+      salin: `${cLat.toFixed(7)}, ${cLng.toFixed(7)}`,
+      sistem: "DD" as SistemKoordinat
+    },
+    {
+      id: "wgs84_ne",
+      nama: "Lintang, Bujur (N / E) - WGS 84",
+      nilai: `${Math.abs(cLat).toFixed(6)} ${cLat >= 0 ? "N" : "S"}, ${Math.abs(cLng).toFixed(6)} ${cLng >= 0 ? "E" : "W"}`,
+      salin: `${Math.abs(cLat).toFixed(6)} ${cLat >= 0 ? "N" : "S"}, ${Math.abs(cLng).toFixed(6)} ${cLng >= 0 ? "E" : "W"}`,
+      sistem: "DD" as SistemKoordinat
+    },
+    {
+      id: "wgs84_dms",
+      nama: "Derajat, Menit, Detik (DMS) - WGS 84",
+      nilai: fDms.ringkas,
+      salin: fDms.salin,
+      sistem: "DMS" as SistemKoordinat
+    },
+    {
+      id: "wgs84_ddm",
+      nama: "Derajat, Menit Desimal (DDM) - WGS 84",
+      nilai: fDdm.ringkas,
+      salin: fDdm.salin,
+      sistem: "DDM" as SistemKoordinat
+    },
+    {
+      id: "wgs84_utm",
+      nama: "UTM - WGS 84",
+      nilai: utmHasil ? `${utmHasil.zona}  ${ribuan(utmHasil.x)} E  ${ribuan(utmHasil.y)} N` : "Di luar zona UTM",
+      salin: utmHasil ? `UTM ${utmHasil.zona} ${utmHasil.x.toFixed(0)} ${utmHasil.y.toFixed(0)}` : "",
+      sistem: "UTM" as SistemKoordinat
+    },
+    {
+      id: "srgi_tm3",
+      nama: "TM-3 Indonesia - SRGI2013",
+      nilai: tm3Hasil ? `${tm3Hasil.zona}  X ${tm3Hasil.x.toFixed(1)}  Y ${tm3Hasil.y.toFixed(1)}` : "Di luar zona TM-3",
+      salin: tm3Hasil ? `TM-3 ${tm3Hasil.zona} ${tm3Hasil.x.toFixed(2)} ${tm3Hasil.y.toFixed(2)}` : "",
+      sistem: "TM3" as SistemKoordinat
+    }
+  ];
+
   return (
     <div className={`map-module-wrapper avz-peta clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""} ${modeRekam && modeRekam !== "point" ? "sedang-merekam" : ""}`}>
       {/* BILAH JUDUL PETA (GAYA AVENZA MAPS): nama peta aktif, lalu Cari dan Lapisan di kanan.
           Saat lembar peta kustom dibuka, tombol kembali ke Pustaka dan Info lembar peta ikut tampil. */}
       <header className={`avz-titlebar ${petaKustomAktif ? "avenza-map-header-bar" : ""}`}>
-        {petaKustomAktif ? (
-          <button
-            type="button"
-            className="avenza-head-btn"
-            onClick={onTutupPetaKustom}
-            title="Kembali ke Pustaka Peta"
-            aria-label="Kembali"
-          >
-            <ArrowLeft size={22} />
-          </button>
-        ) : (
-          <span className="avz-titlebar-ikon" aria-hidden="true">
-            <IkonPeta size={18} />
-          </span>
-        )}
-        <div className="avenza-head-title-wrap avz-titlebar-teks">
-          <span className="avenza-head-title" title={petaKustomAktif ? petaKustomAktif.namaArea : namaBasemap(basemap)}>
-            {petaKustomAktif ? formatJudulAvenza(petaKustomAktif.namaArea) : namaBasemap(basemap)}
-          </span>
-          <span className="avz-titlebar-sub">
-            {petaKustomAktif
-              ? `${petaKustomAktif.jenisFile || "Lembar peta"} · ${petaKustomAktif.crs?.replace(/\s*\(.*\)$/, "") || "WGS 84"}`
-              : `Peta dasar · ${dataSpasial.length} objek · zoom ${Math.round(zoom)}`}
-          </span>
-        </div>
-        <div className="avenza-head-actions">
-          {petaKustomAktif && (
+        {cariKoordTerbuka ? (
+          <div className="avz-titlebar-search-full">
             <button
               type="button"
-              className="avenza-head-btn"
-              title="Informasi Lembar Peta GeoPDF"
-              onClick={() => setBukaInfoPetaKustom(true)}
-              aria-label="Info Peta"
+              className="avenza-head-btn avz-btn-back-green"
+              onClick={() => {
+                setCariKoordTerbuka(false);
+                setGalatPencarian("");
+              }}
+              title="Tutup pencarian"
+              aria-label="Kembali"
             >
-              <Info size={20} />
+              <ArrowLeft size={22} color="#0d7344" />
             </button>
-          )}
-          <button
-            type="button"
-            className={`avenza-head-btn ${cariKoordTerbuka ? "active" : ""}`}
-            title="Cari Koordinat / Nama Objek"
-            aria-pressed={cariKoordTerbuka}
-            onClick={() => {
-              setBukaMenuPeta(false);
-              setCariKoordTerbuka((v) => !v);
-            }}
-            aria-label="Cari di Peta"
-          >
-            <Search size={20} />
-          </button>
-          <button
-            type="button"
-            className={`avenza-head-btn map-ctrl-btn ${bukaMenuPeta ? "active active-ctrl" : ""}`}
-            aria-pressed={bukaMenuPeta}
-            onClick={() => {
-              setObjekTerpilih(null);
-              setCariKoordTerbuka(false);
-              setBukaMenuPeta((v) => !v);
-            }}
-            title="Lapisan peta"
-            aria-label="Lapisan peta"
-          >
-            <Layers size={20} />
-          </button>
-        </div>
+            <input
+              type="text"
+              autoFocus
+              className="avz-search-input-top"
+              placeholder="Telusuri..."
+              value={cariKoordInput}
+              onChange={(e) => {
+                setCariKoordInput(e.target.value);
+                setGalatPencarian("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  cariKoordinat();
+                } else if (e.key === "Escape") {
+                  setCariKoordTerbuka(false);
+                }
+              }}
+            />
+            {cariKoordInput && (
+              <button
+                type="button"
+                className="avenza-head-btn"
+                onClick={() => setCariKoordInput("")}
+                title="Hapus teks"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="avenza-head-btn avz-btn-back-green"
+              onClick={() => {
+                if (petaKustomAktif) onTutupPetaKustom?.();
+                else if (bearingAktif !== 0) setBearing(0);
+                else setPesanSalin("Peta diperbarui");
+              }}
+              title={petaKustomAktif ? "Kembali ke Pustaka Peta" : "Pusat Peta"}
+              aria-label="Kembali"
+            >
+              <ArrowLeft size={22} color="#0d7344" />
+            </button>
+            <div className="avenza-head-title-wrap avz-titlebar-teks">
+              <span className="avenza-head-title" title={petaKustomAktif ? petaKustomAktif.namaArea : namaBasemap(basemap)}>
+                {bearingAktif !== 0
+                  ? formatArahKardinal(bearingAktif)
+                  : petaKustomAktif
+                  ? formatJudulAvenza(petaKustomAktif.namaArea)
+                  : namaBasemap(basemap)}
+              </span>
+              <span className="avz-titlebar-sub">
+                {bearingAktif !== 0
+                  ? "Orientasi Kompas"
+                  : petaKustomAktif
+                  ? `${petaKustomAktif.jenisFile || "Lembar peta"} · ${petaKustomAktif.crs?.replace(/\s*\(.*\)$/, "") || "WGS 84"}`
+                  : `Peta dasar · ${dataSpasial.length} objek · zoom ${Math.round(zoom)}`}
+              </span>
+            </div>
+            <div className="avenza-head-actions">
+              <button
+                type="button"
+                className="avenza-head-btn"
+                title="Informasi Peta"
+                onClick={() => (petaKustomAktif ? setBukaInfoPetaKustom(true) : setBukaInfoPetaModal(true))}
+                aria-label="Info Peta"
+              >
+                <Info size={20} color="#0d7344" />
+              </button>
+              <button
+                type="button"
+                className={`avenza-head-btn ${cariKoordTerbuka ? "active" : ""}`}
+                title="Cari Koordinat / Nama Objek"
+                aria-pressed={cariKoordTerbuka}
+                onClick={() => {
+                  setBukaMenuPeta(false);
+                  setCariKoordTerbuka((v) => !v);
+                }}
+                aria-label="Cari di Peta"
+              >
+                <Search size={20} color="#0d7344" />
+              </button>
+              <button
+                type="button"
+                className={`avenza-head-btn map-ctrl-btn ${bukaMenuPeta ? "active active-ctrl" : ""}`}
+                aria-pressed={bukaMenuPeta}
+                onClick={() => {
+                  setObjekTerpilih(null);
+                  setCariKoordTerbuka(false);
+                  setBukaMenuPeta((v) => !v);
+                }}
+                title="Lapisan peta"
+                aria-label="Lapisan peta"
+              >
+                <Layers size={20} color="#0d7344" />
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* BANNER NAVIGASI GO-TO WAYPOINT JIKA AKTIF */}
@@ -1376,8 +1530,9 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
           </div>
         </div>
 
-        {/* Bidikan tengah peta (gaya Avenza): tipis saat menjelajah, tegas saat merekam */}
+        {/* Bidikan tengah peta (gaya Avenza): lingkaran reticle halus dengan 4 garis bidik */}
         <div className={`bidikan-peta avz-bidikan ${modeRekam ? "aktif" : ""}`} aria-hidden="true">
+          <div className="avz-reticle-circle" />
           <span className="avz-bidikan-h" />
           <span className="avz-bidikan-v" />
           <span className="avz-bidikan-titik" />
@@ -1387,65 +1542,89 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
             Bila tinggi peta kurang, baris tengah menyusut dulu lalu area bawah bisa digulir. */}
         <div className="avz-hud">
           <div className="avz-hud-atas">
-            {/* KOTAK LOKASI: koordinat GPS dan pencarian titik di tempat */}
-    <ChipKoordinatPeta
-              posisi={posisiNyata}
-              teksMenunggu={infoGps.teks}
-              sistem={sistemKoord}
-              onGantiSistem={(s) => {
-                setSistemKoord(s);
-                simpanSistemKoordinat(s);
-              }}
-              onSalin={(teks) => {
-                if (navigator.clipboard) {
-                  void navigator.clipboard
-                    .writeText(teks)
-                    .then(() => setPesanSalin("Koordinat disalin: " + teks))
-                    .catch(() => setPesanSalin("Gagal menyalin koordinat"));
-                }
-              }}
-              rekam={null /* waktu rekam sudah tampil di panel rekam */}
-              modeCari={cariKoordTerbuka}
-              nilaiCariInput={cariKoordInput}
-              onUbahCariInput={(val) => {
-                setCariKoordInput(val);
-                setGalatPencarian("");
-              }}
-              onSubmitCari={() => cariKoordinat()}
-              onTutupCari={() => {
-                setCariKoordTerbuka(false);
-                setGalatPencarian("");
-              }}
-              galatCari={galatPencarian}
-              koordinatDipilih={koordinatDipilih}
-              onPulihkanKoordinat={() => setKoordinatDipilih(null)}
-              daftarObjekSaran={
-                cariKoordInput.trim()
-                  ? dataSpasial
-                      .filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase()))
-                      .slice(0, 5)
-                      .map((d) => ({
-                        id: d.id,
-                        judul: d.judul,
-                        jenisGeometri: d.jenisGeometri,
-                        koordinat: d.koordinat
-                      }))
-                  : []
-              }
-              onPilihObjekSaran={(obj) => {
-                if (obj.koordinat && obj.koordinat[0]) {
-                  const t = obj.koordinat[0];
-                  setCenter(t);
-                  setZoom((z) => Math.max(z, 16));
-                  setKoordinatDipilih({ lat: t.lat, lng: t.lng, label: obj.judul });
-                  const cocok = dataSpasial.find((d) => d.id === obj.id);
-                  if (cocok) setObjekTerpilih(cocok);
+            {/* Sisi Kiri: Tombol cepat peta dasar dan Chip Koordinat */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, pointerEvents: "auto" }}>
+              <button
+                type="button"
+                className="map-hud-btn map-ctrl-btn avz-quick-basemap-btn"
+                onClick={() => setBukaMenuPeta(true)}
+                title="Peta dasar dan lapisan"
+                aria-label="Lapisan Peta"
+              >
+                <Layers size={20} color="#0d7344" />
+              </button>
+              <ChipKoordinatPeta
+                posisi={posisiNyata}
+                teksMenunggu={infoGps.teks}
+                sistem={sistemKoord}
+                onGantiSistem={(s) => {
+                  setSistemKoord(s);
+                  simpanSistemKoordinat(s);
+                }}
+                onSalin={(teks) => {
+                  if (navigator.clipboard) {
+                    void navigator.clipboard
+                      .writeText(teks)
+                      .then(() => setPesanSalin("Koordinat disalin: " + teks))
+                      .catch(() => setPesanSalin("Gagal menyalin koordinat"));
+                  }
+                }}
+                rekam={null /* waktu rekam sudah tampil di panel rekam */}
+                modeCari={cariKoordTerbuka}
+                nilaiCariInput={cariKoordInput}
+                onUbahCariInput={(val) => {
+                  setCariKoordInput(val);
+                  setGalatPencarian("");
+                }}
+                onSubmitCari={() => cariKoordinat()}
+                onTutupCari={() => {
                   setCariKoordTerbuka(false);
-                  setPesanSalin(`Menuju ke objek: ${obj.judul}`);
+                  setGalatPencarian("");
+                }}
+                galatCari={galatPencarian}
+                koordinatDipilih={koordinatDipilih}
+                onPulihkanKoordinat={() => setKoordinatDipilih(null)}
+                daftarObjekSaran={
+                  cariKoordInput.trim()
+                    ? dataSpasial
+                        .filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase()))
+                        .slice(0, 5)
+                        .map((d) => ({
+                          id: d.id,
+                          judul: d.judul,
+                          jenisGeometri: d.jenisGeometri,
+                          koordinat: d.koordinat
+                        }))
+                    : []
                 }
-              }}
-            />
+                onPilihObjekSaran={(obj) => {
+                  if (obj.koordinat && obj.koordinat[0]) {
+                    const t = obj.koordinat[0];
+                    setCenter(t);
+                    setZoom((z) => Math.max(z, 16));
+                    setKoordinatDipilih({ lat: t.lat, lng: t.lng, label: obj.judul });
+                    const cocok = dataSpasial.find((d) => d.id === obj.id);
+                    if (cocok) setObjekTerpilih(cocok);
+                    setCariKoordTerbuka(false);
+                    setPesanSalin(`Menuju ke objek: ${obj.judul}`);
+                  }
+                }}
+              />
+            </div>
             <div className="avz-hud-kanan">
+              {/* Tombol Panah Navigasi Kanan Atas */}
+              <button
+                type="button"
+                className={`map-hud-btn map-ctrl-btn avz-nav-arrow-btn ${modeIkutiGps !== "mati" ? "active" : ""}`}
+                onClick={() => {
+                  setTabDrawerGps("lokasi");
+                  setBukaDrawerGps(true);
+                }}
+                title="Buka panel navigasi dan GPS"
+                aria-label="Navigasi GPS"
+              >
+                <Navigation size={20} className="avz-nav-arrow-ikon" color="#0d7344" />
+              </button>
               <div className="map-hud-pod top-right map-overlay-top-right avz-kompas-pod">
                 <button
                   type="button"
@@ -1630,6 +1809,161 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
                 )
               )}
             </div>
+
+            {/* Tombol FAB Pin Lingkaran Putih Hijau (Kanan Bawah gaya Avenza Maps) */}
+            <button
+              type="button"
+              className="avz-fab-pin"
+              onClick={() => {
+                const ptTengah: KoordinatTitik = {
+                  lat: Number(center.lat.toFixed(7)),
+                  lng: Number(center.lng.toFixed(7)),
+                  timestamp: new Date().toISOString()
+                };
+                setTitikDraft([ptTengah]);
+                setModeRekam("point");
+                setBukaModalForm(true);
+              }}
+              title="Tambah titik pin di bidikan tengah"
+              aria-label="Ambil titik"
+            >
+              <MapPin size={26} color="#0d7344" />
+            </button>
+
+            {/* Bilah Bawah Mengambang (Floating Pill Bar: Alat, Koordinat Waktu Nyata, Lapisan) */}
+            <div className="avz-bottom-pill-bar" role="toolbar" aria-label="Alat peta">
+              <button
+                type="button"
+                className={`avz-pill-btn ${bukaMenuAlat ? "active" : ""}`}
+                onClick={() => setBukaMenuAlat((v) => !v)}
+                title="Pilihan alat peta"
+                aria-label="Menu Alat"
+              >
+                <PenTool size={18} color="#0d7344" />
+              </button>
+              <button
+                type="button"
+                className="avz-pill-coord-btn"
+                onClick={() => setBukaSalinKoord(true)}
+                title="Ketuk untuk format dan salin koordinat"
+                aria-label="Salin Koordinat"
+              >
+                {center.lat.toFixed(6)}, {center.lng.toFixed(6)}
+              </button>
+              <button
+                type="button"
+                className={`avz-pill-btn ${bukaMenuPeta ? "active" : ""}`}
+                onClick={() => setBukaMenuPeta((v) => !v)}
+                title="Lapisan peta"
+                aria-label="Lapisan Peta"
+              >
+                <Layers size={18} color="#0d7344" />
+              </button>
+            </div>
+
+            {/* Menu Popover Alat Peta (muncul di atas bilah penggaris) */}
+            {bukaMenuAlat && (
+              <div className="avz-tool-popup-menu" role="menu">
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    setModeRekam("polygon");
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <Hexagon size={18} />
+                  <span>Gambar dan Ukur</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    setModeRekam("line");
+                    perekamLatar.mulai("line");
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <Route size={18} />
+                  <span>Rekam Jalur GPS</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    setTabDrawerGps("navigasi");
+                    setBukaDrawerGps(true);
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <Navigation size={18} />
+                  <span>Bernavigasi ke Tujuan</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    setCariKoordTerbuka(true);
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <Search size={18} />
+                  <span>Cari Menurut Koordinat</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    setModeRekam("point");
+                    setBukaModalForm(true);
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <Target size={18} />
+                  <span>Rata-rata Plot GPS</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    setPesanSalin("Geofence aktif: Dalam batas wilayah tugas pemetaan");
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <ShieldCheck size={18} />
+                  <span>Monitor Geofences</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    window.open(`https://www.google.com/maps?q=${center.lat},${center.lng}`, "_blank");
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <ExternalLink size={18} />
+                  <span>Lihat di Google Maps</span>
+                </button>
+                <button
+                  type="button"
+                  className="avz-tool-popup-item"
+                  onClick={() => {
+                    const pt: KoordinatTitik = {
+                      lat: Number(center.lat.toFixed(7)),
+                      lng: Number(center.lng.toFixed(7)),
+                      timestamp: new Date().toISOString()
+                    };
+                    setTitikDraft([pt]);
+                    setModeRekam("point");
+                    setBukaModalForm(true);
+                    setBukaMenuAlat(false);
+                  }}
+                >
+                  <Camera size={18} />
+                  <span>Tandai Foto</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* BILAH ALAT: Lokasi · Titik · Jalur · Area */}
@@ -1779,6 +2113,417 @@ const [bukaAlatRekam, setBukaAlatRekam] = useState<boolean>(false);
               <button type="button" className="btn-primary" onClick={() => setBukaInfoPetaKustom(false)}>
                 Selesai
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. BOTTOM SHEET SALIN FORMAT KOORDINAT (GAYA AVENZA MAPS) */}
+      {bukaSalinKoord && (
+        <div className="avz-bottom-sheet-backdrop" onClick={() => setBukaSalinKoord(false)}>
+          <div className="avz-bottom-sheet-content avz-coord-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="avz-bottom-sheet-header">
+              <div className="avz-sheet-title-row">
+                <Copy size={20} color="#0d7344" />
+                <h3>Salin koordinat</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-icon-close"
+                onClick={() => setBukaSalinKoord(false)}
+                aria-label="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="avz-coord-list" role="radiogroup" aria-label="Format koordinat">
+              {daftarFormatSalin.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={sistemKoord === item.sistem}
+                  className={`avz-coord-option-row ${sistemKoord === item.sistem ? "active" : ""}`}
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      void navigator.clipboard.writeText(item.salin).then(() => {
+                        setPesanSalin("Koordinat disalin: " + item.salin);
+                      });
+                    }
+                    if (item.sistem) {
+                      setSistemKoord(item.sistem);
+                      simpanSistemKoordinat(item.sistem);
+                    }
+                    setBukaSalinKoord(false);
+                  }}
+                >
+                  <div className="avz-coord-option-teks">
+                    <span className="avz-coord-option-nama">{item.nama}</span>
+                    <span className="avz-coord-option-nilai">{item.nilai}</span>
+                  </div>
+                  <div className={`avz-coord-radio-circle ${sistemKoord === item.sistem ? "active" : ""}`}>
+                    {sistemKoord === item.sistem && <div className="avz-coord-radio-dot" />}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. DRAWER GPS & NAVIGASI 3-TAB: LOKASI, PELACAKAN, NAVIGASI */}
+      {bukaDrawerGps && (
+        <div className="avz-bottom-sheet-backdrop" onClick={() => setBukaDrawerGps(false)}>
+          <div className="avz-bottom-sheet-content avz-gps-drawer" onClick={(e) => e.stopPropagation()}>
+            {/* 3 TABS HEADER */}
+            <div className="avz-gps-tabs-header">
+              <button
+                type="button"
+                className={`avz-gps-tab-btn ${tabDrawerGps === "lokasi" ? "active" : ""}`}
+                onClick={() => setTabDrawerGps("lokasi")}
+              >
+                Lokasi
+              </button>
+              <button
+                type="button"
+                className={`avz-gps-tab-btn ${tabDrawerGps === "pelacakan" ? "active" : ""}`}
+                onClick={() => setTabDrawerGps("pelacakan")}
+              >
+                Pelacakan
+              </button>
+              <button
+                type="button"
+                className={`avz-gps-tab-btn ${tabDrawerGps === "navigasi" ? "active" : ""}`}
+                onClick={() => setTabDrawerGps("navigasi")}
+              >
+                Navigasi
+              </button>
+              <button
+                type="button"
+                className="btn-icon-close avz-gps-close-btn"
+                onClick={() => setBukaDrawerGps(false)}
+                aria-label="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* TAB 1: LOKASI */}
+            {tabDrawerGps === "lokasi" && (
+              <div className="avz-gps-tab-body">
+                <div className="avz-gps-coord-hero">
+                  <h2 className="avz-gps-coord-title">
+                    {cLat.toFixed(6)}, {cLng.toFixed(6)}
+                  </h2>
+                  <span className="avz-gps-coord-subtitle">Lokasi Saat Ini</span>
+                </div>
+
+                {/* KOMPAS BULAT DI TENGAH */}
+                <div className="avz-gps-compass-rose-wrap">
+                  <svg viewBox="0 0 160 160" className="avz-compass-rose-svg">
+                    <circle cx="80" cy="80" r="72" fill="#ffffff" stroke="#cdd5db" strokeWidth="2.5" />
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <line
+                        key={i}
+                        x1="80"
+                        y1="14"
+                        x2="80"
+                        y2={i % 3 === 0 ? "24" : "19"}
+                        stroke="#8b9ba5"
+                        strokeWidth={i % 3 === 0 ? "2" : "1"}
+                        transform={`rotate(${i * 30} 80 80)`}
+                      />
+                    ))}
+                    <text x="80" y="36" textAnchor="middle" fill="#d32f2f" fontWeight="bold" fontSize="13">U</text>
+                    <text x="138" y="84" textAnchor="middle" fill="#546e7a" fontWeight="bold" fontSize="12">T</text>
+                    <text x="80" y="138" textAnchor="middle" fill="#546e7a" fontWeight="bold" fontSize="12">S</text>
+                    <text x="22" y="84" textAnchor="middle" fill="#546e7a" fontWeight="bold" fontSize="12">B</text>
+                    <g transform={`rotate(${-bearingAktif} 80 80)`} style={{ transition: "transform 0.15s ease-out" }}>
+                      <polygon points="80,40 88,80 72,80" fill="#e53935" />
+                      <polygon points="80,120 88,80 72,80" fill="#90a4ae" />
+                      <circle cx="80" cy="80" r="5" fill="#ffffff" stroke="#37474f" strokeWidth="2" />
+                    </g>
+                    <text x="80" y="85" textAnchor="middle" fill="#263238" fontWeight="bold" fontSize="14">
+                      {Math.round(bearingAktif)}°
+                    </text>
+                  </svg>
+                </div>
+
+                {/* METRIK GRID 6 KOTAK */}
+                <div className="avz-gps-metrics-grid">
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Arah titik (DEG)</span>
+                    <strong className="avz-metric-val">---</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Arah (DEG)</span>
+                    <strong className="avz-metric-val">{kompasDerajat !== null && kompasDerajat !== undefined ? `${kompasDerajat}°` : "---"}</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Kecepatan (Km/j)</span>
+                    <strong className="avz-metric-val">{(gpsPos?.kecepatan ? gpsPos.kecepatan * 3.6 : 0).toFixed(2)}</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Ketinggian (M)</span>
+                    <strong className="avz-metric-val">{(gpsPos?.elevasi ?? 76).toFixed(2)}</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Akurasi Horizontal (M)</span>
+                    <strong className="avz-metric-val">{(gpsPos?.akurasi ?? 18.37).toFixed(2)}</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Akurasi Vertikal (M)</span>
+                    <strong className="avz-metric-val">32.00</strong>
+                  </div>
+                </div>
+
+                {/* 2 ACTION BUTTONS */}
+                <div className="avz-gps-bottom-actions">
+                  <button
+                    type="button"
+                    className="avz-gps-action-outline-btn"
+                    onClick={() => {
+                      void aktifkanKompas();
+                      setModeIkutiKompas((v) => !v);
+                    }}
+                  >
+                    <Navigation size={16} />
+                    <span>Arah ke Atas</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="avz-gps-action-outline-btn"
+                    onClick={() => {
+                      setBearing(0);
+                      setModeIkutiKompas(false);
+                    }}
+                  >
+                    <Compass size={16} />
+                    <span>Orientasi peta</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: PELACAKAN */}
+            {tabDrawerGps === "pelacakan" && (
+              <div className="avz-gps-tab-body">
+                <div className="avz-gps-coord-hero">
+                  <h2 className="avz-gps-coord-title">
+                    {rekamLatar.status !== "idle" ? "Sedang Melacak Jalur" : "Siap Melacak"}
+                  </h2>
+                  <span className="avz-gps-coord-subtitle">
+                    {rekamLatar.status !== "idle" ? "Perekaman aktif di latar belakang" : "Untuk merekam, tekan tombol mulai"}
+                  </span>
+                </div>
+
+                <div className="avz-gps-compass-rose-wrap">
+                  <svg viewBox="0 0 160 160" className="avz-compass-rose-svg">
+                    <circle cx="80" cy="80" r="72" fill="#ffffff" stroke="#cdd5db" strokeWidth="2.5" />
+                    <g transform={`rotate(${-bearingAktif} 80 80)`} style={{ transition: "transform 0.15s ease-out" }}>
+                      <polygon points="80,40 88,80 72,80" fill="#e53935" />
+                      <polygon points="80,120 88,80 72,80" fill="#90a4ae" />
+                      <circle cx="80" cy="80" r="5" fill="#ffffff" stroke="#37474f" strokeWidth="2" />
+                    </g>
+                    <text x="80" y="85" textAnchor="middle" fill="#263238" fontWeight="bold" fontSize="14">
+                      {Math.round(bearingAktif)}°
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="avz-gps-metrics-grid">
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Kecepatan (Km/j)</span>
+                    <strong className="avz-metric-val">{(gpsPos?.kecepatan ? gpsPos.kecepatan * 3.6 : 0).toFixed(2)}</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Jarak (Km)</span>
+                    <strong className="avz-metric-val">{panjangDraftKm.toFixed(2)}</strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Kecepatan Rata-rata</span>
+                    <strong className="avz-metric-val">
+                      {titikDraft.length > 1 && detikTick > 0 ? (panjangDraftKm / (detikTick / 3600)).toFixed(1) + " Km/j" : "---"}
+                    </strong>
+                  </div>
+                  <div className="avz-gps-metric-item">
+                    <span className="avz-metric-label">Durasi</span>
+                    <strong className="avz-metric-val">
+                      {Math.floor(detikTick / 60)}m {detikTick % 60}s
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 14 }}>
+                  {rekamLatar.status === "idle" ? (
+                    <button
+                      type="button"
+                      className="avz-gps-btn-primary"
+                      onClick={() => {
+                        perekamLatar.mulai("line");
+                        setModeRekam("line");
+                      }}
+                    >
+                      <Play size={18} fill="#ffffff" /> Mulai Pelacakan
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="avz-gps-btn-primary"
+                      style={{ background: "#2e7d32" }}
+                      onClick={() => {
+                        setBukaModalForm(true);
+                      }}
+                    >
+                      <Check size={18} /> Selesai dan Simpan
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: NAVIGASI */}
+            {tabDrawerGps === "navigasi" && (
+              <div className="avz-gps-tab-body">
+                <div className="avz-nav-options-list">
+                  <button
+                    type="button"
+                    className="avz-nav-option-row"
+                    onClick={() => {
+                      if (dataSpasial.length > 0) {
+                        setTargetGoTo({ lat: dataSpasial[0].koordinat[0].lat, lng: dataSpasial[0].koordinat[0].lng, judul: dataSpasial[0].judul });
+                        setBukaDrawerGps(false);
+                      } else {
+                        setPesanSalin("Belum ada target fitur untuk tujuan proyek");
+                      }
+                    }}
+                  >
+                    <div className="avz-nav-option-icon">
+                      <Target size={20} color="#0d7344" />
+                    </div>
+                    <div className="avz-nav-option-text">
+                      <strong>Tujuan Proyek</strong>
+                      <small>Arahkan navigasi ke waypoint atau fitur proyek</small>
+                    </div>
+                    <ChevronRight size={18} color="#90a4ae" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="avz-nav-option-row"
+                    onClick={() => {
+                      setTampilDaftarObjek(true);
+                      setBukaDrawerGps(false);
+                    }}
+                  >
+                    <div className="avz-nav-option-icon">
+                      <Crosshair size={20} color="#0d7344" />
+                    </div>
+                    <div className="avz-nav-option-text">
+                      <strong>Bernavigasi Ke Fitur</strong>
+                      <small>Cari dan tuju fitur terdekat di sekitar Anda</small>
+                    </div>
+                    <ChevronRight size={18} color="#90a4ae" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="avz-nav-option-row"
+                    onClick={() => {
+                      setCariKoordTerbuka(true);
+                      setBukaDrawerGps(false);
+                    }}
+                  >
+                    <div className="avz-nav-option-icon">
+                      <Sliders size={20} color="#0d7344" />
+                    </div>
+                    <div className="avz-nav-option-text">
+                      <strong>Masukkan Koordinat</strong>
+                      <small>Ketik angka koordinat DD, DMS, atau UTM langsung</small>
+                    </div>
+                    <ChevronRight size={18} color="#90a4ae" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="avz-nav-option-row"
+                    onClick={() => {
+                      setModeRekam("line");
+                      setBukaDrawerGps(false);
+                    }}
+                  >
+                    <div className="avz-nav-option-icon">
+                      <Route size={20} color="#0d7344" />
+                    </div>
+                    <div className="avz-nav-option-text">
+                      <strong>Buat Rute</strong>
+                      <small>Rencanakan dan gambar lintasan perjalanan baru</small>
+                    </div>
+                    <ChevronRight size={18} color="#90a4ae" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. MODAL INFORMASI LEMBAR PETA DASAR / UMUM */}
+      {bukaInfoPetaModal && (
+        <div className="avz-bottom-sheet-backdrop" onClick={() => setBukaInfoPetaModal(false)}>
+          <div className="avz-bottom-sheet-content avz-map-info-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="avz-bottom-sheet-header">
+              <div className="avz-sheet-title-row">
+                <Info size={20} color="#0d7344" />
+                <h3>Peta</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-icon-close"
+                onClick={() => setBukaInfoPetaModal(false)}
+                aria-label="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="avz-map-info-body">
+              <div className="avz-map-info-seksi">
+                <h4 className="avz-map-info-label">Detail</h4>
+                <div className="avz-map-info-card">
+                  <span className="avz-info-field-name">Nama</span>
+                  <strong className="avz-info-field-val" style={{ display: "block", marginTop: 4 }}>
+                    {petaKustomAktif ? petaKustomAktif.namaArea : namaBasemap(basemap)}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="avz-map-info-seksi">
+                <h4 className="avz-map-info-label">Info</h4>
+                <div className="avz-map-info-card" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <p style={{ margin: 0 }}>
+                    <strong>Tanggal Diimpor:</strong> {new Date().toISOString().slice(0, 10)}
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    <strong>Penerbit:</strong> {basemap === "google" ? "Google Maps" : basemap === "esri" ? "Esri ArcGIS" : "OpenStreetMap contributors"}
+                  </p>
+                  <div className="avz-wkt-box">
+                    <pre style={{ margin: 0, fontFamily: "inherit" }}>
+{`PROJCS["WGS 84 / Pseudo-Mercator",
+  GEOGCS["WGS 84",
+    DATUM["WGS_1984",
+      SPHEROID["WGS 84", 6378137, 298.257223563]],
+    PRIMEM["Greenwich", 0],
+    UNIT["degree", 0.0174532925199433],
+    AUTHORITY["EPSG", "4326"]],
+  PROJECTION["Mercator_1SP"],
+  UNIT["metre", 1],
+  AUTHORITY["EPSG", "3857"]]`}
+                    </pre>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

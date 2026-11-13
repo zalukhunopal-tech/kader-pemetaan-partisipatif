@@ -54,6 +54,7 @@ import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta, rehidrasiArsipGeoPdf } fr
 import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
 import { perekamLatar, usePerekamLatar } from "./lib/perekamLatar";
+import { kunciOrientasiLayar } from "./lib/posisiPerangkat";
 import { AuthModal } from "./components/AuthModal";
 import { PustakaView } from "./components/PustakaView";
 import { PemberitahuanView } from "./components/PemberitahuanView";
@@ -259,6 +260,7 @@ export const App: React.FC = () => {
 
   // Inisialisasi protokol peta luring (PMTiles & MBTiles) serta rehidrasi GeoPDF dari penyimpanan IndexedDB
   useEffect(() => {
+    kunciOrientasiLayar();
     void muatSemuaArsipPetaKeProtokol();
     void rehidrasiArsipGeoPdf().then((petaPulih) => {
       const ids = Object.keys(petaPulih);
