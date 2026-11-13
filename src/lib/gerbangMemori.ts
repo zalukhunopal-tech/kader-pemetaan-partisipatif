@@ -26,6 +26,21 @@ export function buatGerbangMemori(batasDiamMs: number): GerbangMemori {
     versi++;
     pendengar.forEach((p) => p());
   };
+  let tertunda = false;
+  const beritahuNanti = () => {
+    if (tertunda) return;
+    tertunda = true;
+    const jadwalkan =
+      typeof queueMicrotask === "function"
+        ? queueMicrotask
+        : (fn: () => void) => {
+            void Promise.resolve().then(fn);
+          };
+    jadwalkan(() => {
+      tertunda = false;
+      beritahu();
+    });
+  };
   const langganan = (fn: () => void) => {
     pendengar.add(fn);
     return () => {
@@ -48,7 +63,8 @@ export function buatGerbangMemori(batasDiamMs: number): GerbangMemori {
       if (!state || !email) return false;
       if (sekarang - state.terakhirAktif > batasDiamMs || sekarang < state.terakhirAktif) {
         state = null; // diam terlalu lama, atau jam perangkat dimundurkan
-        beritahu();
+        // Tunda notifikasi agar aman bila terbuka() dipanggil di tengah fase render React
+        beritahuNanti();
         return false;
       }
       return state.email === email.trim().toLowerCase();
