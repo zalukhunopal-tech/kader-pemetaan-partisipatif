@@ -38,7 +38,10 @@ import {
   Lock,
   Plus,
   Image as ImageIcon,
-  FileText
+  FileText,
+  RotateCcw,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -126,11 +129,19 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const penandatanganListAktif: PenandatanganSertifikatItem[] = useMemo(() => {
-    if (profil.penandatanganList && profil.penandatanganList.length > 0) {
-      return profil.penandatanganList;
-    }
-    if (sertifikatSaya?.penandatanganList && sertifikatSaya.penandatanganList.length > 0) {
-      return sertifikatSaya.penandatanganList;
+    const list =
+      profil.penandatanganList && profil.penandatanganList.length > 0
+        ? profil.penandatanganList
+        : sertifikatSaya?.penandatanganList && sertifikatSaya.penandatanganList.length > 0
+          ? sertifikatSaya.penandatanganList
+          : null;
+
+    if (
+      list &&
+      list.length > 0 &&
+      !list.some((p) => p.instansi?.includes("Balai Pemetaan Spasial Desa") || p.nama?.includes("Jonni Marwa"))
+    ) {
+      return list;
     }
     return DEFAULT_PENANDATANGAN_SERTIFIKAT;
   }, [profil.penandatanganList, sertifikatSaya?.penandatanganList]);
@@ -147,9 +158,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
       pejabatUtama?.nama ||
       sertifikatSaya?.ditandatanganiOleh ||
       profil.namaPenandatanganSertifikat ||
-      "Dr. Ir. Jonni Marwa, S.Hut., M.Si.";
+      "Adi Junedi";
     const jabatanPenandatangan =
-      pejabatUtama?.jabatan || sertifikatSaya?.jabatanPenandatangan || profil.jabatanPenandatanganSertifikat || "Koordinator Wilayah";
+      pejabatUtama?.jabatan || sertifikatSaya?.jabatanPenandatangan || profil.jabatanPenandatanganSertifikat || "Direktur";
 
     if (sertifikatSaya) {
       return {
@@ -291,6 +302,37 @@ export const RewardView: React.FC<RewardViewProps> = ({
       ...profil,
       penandatanganList: baru
     });
+  };
+
+  const handleResetPenandatanganKkiWarsi = () => {
+    onUbahProfil({
+      ...profil,
+      penandatanganList: DEFAULT_PENANDATANGAN_SERTIFIKAT,
+      namaPenandatanganSertifikat: DEFAULT_PENANDATANGAN_SERTIFIKAT[0].nama,
+      jabatanPenandatanganSertifikat: DEFAULT_PENANDATANGAN_SERTIFIKAT[0].jabatan
+    });
+    onUbahPenandatanganSertifikat?.(
+      DEFAULT_PENANDATANGAN_SERTIFIKAT[0].nama,
+      DEFAULT_PENANDATANGAN_SERTIFIKAT[0].jabatan
+    );
+  };
+
+  const handlePindahUrutanPenandatangan = (index: number, arah: "atas" | "bawah") => {
+    const targetIndex = arah === "atas" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= penandatanganListAktif.length) return;
+    const baru = [...penandatanganListAktif];
+    const temp = baru[index];
+    baru[index] = baru[targetIndex];
+    baru[targetIndex] = temp;
+    onUbahProfil({
+      ...profil,
+      penandatanganList: baru,
+      namaPenandatanganSertifikat: baru[0]?.nama,
+      jabatanPenandatanganSertifikat: baru[0]?.jabatan
+    });
+    if (baru[0]) {
+      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan);
+    }
   };
 
   const handleUnduhSertifikatPng = () => {
@@ -633,16 +675,14 @@ export const RewardView: React.FC<RewardViewProps> = ({
             <LogoSertifikatResmiSvg size={22} variant="zamrud" />
             <h3 style={{ margin: 0, fontSize: "1rem" }}>Sertifikat</h3>
           </div>
-          {peran === "admin" && (
-            <button
-              type="button"
-              className="btn-outline-sm cert-admin-btn"
-              onClick={() => setBukaAturSertifikat((v) => !v)}
-              title="Atur Logo, Tanda Tangan, dan Tema Sertifikat (Khusus Admin)"
-            >
-              <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Sertifikat"}
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-outline-sm cert-admin-btn"
+            onClick={() => setBukaAturSertifikat((v) => !v)}
+            title="Atur Nama Penandatangan, Posisi, Logo, dan Tampilan Sertifikat"
+          >
+            <PenTool size={14} /> {bukaAturSertifikat ? "Tutup Editor" : "Atur Penandatangan"}
+          </button>
         </div>
 
         {/* Aksi sertifikat: baris tombol berukuran sama (ikon di atas label), lalu Unduh selebar kartu */}
@@ -702,20 +742,72 @@ export const RewardView: React.FC<RewardViewProps> = ({
           <canvas ref={certCanvasRef} className="certificate-wysiwyg-canvas" aria-label={`Sertifikat ${sertifikatTampil.namaKader}`} />
         </div>
 
-        {/* PANEL ATUR & TAMBAH LOGO, TTD, SERTA TEMA SERTIFIKAT (KHUSUS ADMIN) */}
-        {peran === "admin" && bukaAturSertifikat && (
+        {/* PANEL ATUR & TAMBAH LOGO, TTD, SERTA TEMA SERTIFIKAT */}
+        {bukaAturSertifikat && (
           <div className="cert-customizer-panel">
-            <div className="cert-admin-banner-info">
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="badge-admin-only">Khusus Admin</span>
-                <strong>Pengaturan Tampilan Sertifikat Resmi</strong>
+            {peran === "admin" && (
+              <div className="cert-admin-banner-info">
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="badge-admin-only">Khusus Admin</span>
+                  <strong>Pengaturan Tampilan Sertifikat Resmi</strong>
+                </div>
+                <small style={{ color: "#64748b" }}>
+                  Pengaturan logo, tanda tangan pejabat, dan teks tema kegiatan disesuaikan untuk penerbitan sertifikat resmi.
+                </small>
               </div>
-              <small style={{ color: "#64748b" }}>
-                Pengaturan logo, tanda tangan pejabat, dan teks tema kegiatan hanya dapat diakses dan diubah oleh akun Administrator.
-              </small>
+            )}
+
+            {/* A. FORM INPUT NAMA PENANDATANGAN UNTUK MASING-MASING POSISI (HIERARKI KKI WARSI) */}
+            <div className="cert-customizer-section cert-signer-quick-card">
+              <div className="cert-customizer-head">
+                <div style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                  <PenTool size={15} color="#0d7344" />
+                  <strong>Nama Penandatangan untuk Masing-masing Posisi</strong>
+                </div>
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  onClick={handleResetPenandatanganKkiWarsi}
+                  title="Kembalikan ke susunan baku 4 posisi resmi KKI Warsi"
+                >
+                  <RotateCcw size={13} /> Reset Format KKI Warsi
+                </button>
+              </div>
+              <p className="text-muted" style={{ margin: "2px 0 10px", fontSize: "0.82rem" }}>
+                Posisi diurutkan mulai dari yang lebih tinggi: Direktur KKI Warsi, Manajer Program KKI Warsi, Koordinator Proyek Kayan Mentarang, dan GIS dan IT KKI Warsi.
+                Ketik nama pejabat bergelar untuk masing-masing posisi di bawah ini:
+              </p>
+
+              <div className="cert-signer-positions-grid">
+                {penandatanganListAktif.map((sig, idx) => (
+                  <div key={sig.id} className="cert-signer-quick-item">
+                    <div className="cert-signer-badge-row">
+                      <span className="cert-signer-rank-badge">Posisi #{idx + 1}</span>
+                      <span className="cert-signer-role-tag">
+                        {sig.jabatan} — {sig.instansi}
+                      </span>
+                    </div>
+                    <div className="cert-signer-input-field">
+                      <label htmlFor={`nama-pejabat-input-${sig.id}`}>Nama Lengkap Pejabat dan Gelar:</label>
+                      <input
+                        id={`nama-pejabat-input-${sig.id}`}
+                        type="text"
+                        className="form-input"
+                        placeholder={`Nama lengkap beserta gelar untuk ${sig.jabatan}`}
+                        value={sig.nama}
+                        onChange={(e) =>
+                          handleUbahPenandatanganItem(sig.id, {
+                            nama: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* A. TEMA / DESKRIPSI KEGIATAN DI BAWAH 'SEBAGAI KADER DESA' (KHUSUS ADMIN) */}
+            {/* B. TEMA / DESKRIPSI KEGIATAN DI BAWAH 'SEBAGAI KADER DESA' */}
             <div className="cert-customizer-section">
               <div className="cert-customizer-head">
                 <div className="cert-admin-signer-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
@@ -738,7 +830,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
               </div>
             </div>
 
-            {/* B. PENGATURAN & TAMBAH LOGO SERTIFIKAT */}
+            {/* C. PENGATURAN & TAMBAH LOGO SERTIFIKAT */}
             <div className="cert-customizer-section" style={{ marginTop: 12 }}>
               <div className="cert-customizer-head">
                 <div className="cert-admin-signer-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
@@ -798,12 +890,12 @@ export const RewardView: React.FC<RewardViewProps> = ({
               )}
             </div>
 
-            {/* C. PENGATURAN & TAMBAH TANDA TANGAN PEJABAT */}
+            {/* D. PENGATURAN LANJUTAN POSISI & TANDA TANGAN PEJABAT */}
             <div className="cert-customizer-section" style={{ marginTop: 12 }}>
               <div className="cert-customizer-head">
                 <div className="cert-admin-signer-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
                   <PenTool size={15} color="#0284c7" />
-                  <strong>Tanda Tangan Pejabat ({penandatanganListAktif.length})</strong>
+                  <strong>Detail Jabatan, Instansi, dan Tanda Tangan ({penandatanganListAktif.length})</strong>
                 </div>
                 <button type="button" className="btn-primary-sm" onClick={handleTambahPenandatangan}>
                   <Plus size={13} /> Tambah Penandatangan
@@ -814,8 +906,26 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 {penandatanganListAktif.map((sig, idx) => (
                   <div key={sig.id} className="cert-signer-editor-card">
                     <div className="cert-signer-card-top">
-                      <strong>Penandatangan #{idx + 1}</strong>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <strong>Posisi #{idx + 1}: {sig.jabatan}</strong>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          disabled={idx === 0}
+                          onClick={() => handlePindahUrutanPenandatangan(idx, "atas")}
+                          title="Geser posisi ke atas / ke kiri"
+                        >
+                          <ArrowUp size={12} /> Naik
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          disabled={idx === penandatanganListAktif.length - 1}
+                          onClick={() => handlePindahUrutanPenandatangan(idx, "bawah")}
+                          title="Geser posisi ke bawah / ke kanan"
+                        >
+                          <ArrowDown size={12} /> Turun
+                        </button>
                         <label
                           className="btn-outline-sm"
                           style={{ margin: 0, cursor: "pointer", whiteSpace: "nowrap" }}

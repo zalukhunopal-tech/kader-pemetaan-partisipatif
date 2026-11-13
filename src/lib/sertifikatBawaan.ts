@@ -27,31 +27,36 @@ export const DEFAULT_LOGO_SERTIFIKAT: LogoSertifikatItem[] = [
 ];
 
 /**
- * Daftar Penandatangan Default pada Sertifikat (Dapat Diatur, Ditambah, Diubah & Dihapus)
+ * Daftar Penandatangan Default pada Sertifikat (Diurutkan dari Posisi Tertinggi KKI Warsi)
+ * 1. Direktur KKI Warsi (Tertinggi)
+ * 2. Manajer Program KKI Warsi (Diksi Baku Bahasa Indonesia)
+ * 3. Koordinator Proyek Kayan Mentarang KKI Warsi
+ * 4. GIS dan IT KKI Warsi (Bebas simbol & sesuai aturan UI)
+ * Masing-masing posisi dapat diubah dan diinput namanya langsung oleh pengguna/admin.
  */
 export const DEFAULT_PENANDATANGAN_SERTIFIKAT: PenandatanganSertifikatItem[] = [
   {
     id: "sign-1",
-    jabatan: "Koordinator Wilayah",
-    instansi: "Balai Pemetaan Spasial Desa",
-    nama: "Dr. Ir. Jonni Marwa, S.Hut., M.Si."
+    jabatan: "Direktur",
+    instansi: "KKI Warsi",
+    nama: "Adi Junedi"
   },
   {
     id: "sign-2",
-    jabatan: "Ketua Pelaksana",
-    instansi: "Jaringan Kader Geospasial",
-    nama: "Dr. Hj. Farah Diba, S.Hut., M.Si."
+    jabatan: "Manajer Program",
+    instansi: "KKI Warsi",
+    nama: "Yul Qari"
   },
   {
     id: "sign-3",
-    jabatan: "Kepala Divisi Verifikasi",
-    instansi: "Pusat Data Geospasial Komunitas",
-    nama: "Dr. Ir. Rudi Hartono, S.Hut., M.Si."
+    jabatan: "Koordinator Proyek Kayan Mentarang",
+    instansi: "KKI Warsi",
+    nama: "Koordinator Proyek Kayan Mentarang"
   },
   {
     id: "sign-4",
-    jabatan: "Ketua Umum",
-    instansi: "Indonesia Mapping Community",
-    nama: "Zulfikar Mardiyadi, S.Hut., M.Si."
+    jabatan: "GIS dan IT",
+    instansi: "KKI Warsi",
+    nama: "Staf GIS dan IT KKI Warsi"
   }
 ];

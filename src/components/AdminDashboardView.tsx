@@ -102,9 +102,9 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
     nomorDiketik && nomorDiketik.untukJumlah === sertifikatList.length ? nomorDiketik.nilai : nomorSertifikatBerikut(sertifikatList);
   const setNomorSertBaru = (nilai: string) => setNomorDiketik({ untukJumlah: sertifikatList.length, nilai });
   const [pesanTerbit, setPesanTerbit] = useState<{ teks: string; ok: boolean } | null>(null);
-  const [penandatangan, setPenandatangan] = useState(profilKader.namaPenandatanganSertifikat || "Koordinator Program GIS");
+  const [penandatangan, setPenandatangan] = useState(profilKader.namaPenandatanganSertifikat || "Adi Junedi");
   const [jabatanPenandatangan, setJabatanPenandatangan] = useState(
-    profilKader.jabatanPenandatanganSertifikat || "Koordinator Verifikasi Spasial"
+    profilKader.jabatanPenandatanganSertifikat || "Direktur"
   );
 
   const handleBuatTugas = (e: React.FormEvent) => {
