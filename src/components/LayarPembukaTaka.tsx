@@ -25,7 +25,7 @@ export function tandaiSplashTakaSudahTampil(): void {
 
 function deteksiModeLayarLandscape(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(min-width: 768px), (orientation: landscape)").matches;
+  return window.matchMedia("(min-width: 768px)").matches;
 }
 
 /**
@@ -49,7 +49,7 @@ export const LayarPembukaTaka: React.FC<LayarPembukaTakaProps> = ({ onSelesai })
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(min-width: 768px), (orientation: landscape)");
+    const mq = window.matchMedia("(min-width: 768px)");
     const ubah = () => setLandscape(mq.matches);
     if (typeof mq.addEventListener === "function") {
       mq.addEventListener("change", ubah);

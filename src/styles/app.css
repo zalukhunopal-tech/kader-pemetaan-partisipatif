@@ -11582,8 +11582,8 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: block;
 }
 
-/* Penyesuaian khusus PC / Tablet / Landscape agar video landscape proporsional & tajam */
-@media (min-width: 768px), (orientation: landscape) {
+/* Penyesuaian khusus PC / Tablet agar video proporsional & tajam tanpa melanggar HP rebah */
+@media (min-width: 768px) {
   .taka-splash-stage {
     padding: clamp(16px, 3vw, 36px);
     box-sizing: border-box;
@@ -11783,5 +11783,18 @@ html[data-field-theme="matahari"] .section-card h2 {
 @media (min-width: 768px) {
   .avenza-toast.di-peta {
     bottom: 96px;
+  }
+}
+
+/* ==========================================================================
+   PROTEKSI ORIENTASI HP REBAH (ANTI-AUTO-ROTATE SCREEN LOCK)
+   Mencegah aplikasi berputar otomatis menjadi lanskap saat HP direbahkan
+   atau dimiringkan saat kader melihat kompas bidik lapangan di genggaman.
+   ========================================================================== */
+@media screen and (max-width: 767px) and (orientation: landscape) {
+  html, body, #root, .app-root-container {
+    width: 100vw;
+    height: 100vh;
+    overflow-x: hidden;
   }
 }

@@ -26,6 +26,7 @@ export interface KoordinatTitik {
   lng: number;
   elevasi?: number; // Z (mdpl)
   akurasi?: number; // meter
+  kecepatan?: number; // m/s
   timestamp?: string;
   simulasi?: boolean; // true = titik acak dari mode simulasi, bukan GPS perangkat
 }

@@ -1611,3 +1611,560 @@
   flex: none !important;
   gap: 6px !important;
 }
+
+/* ==========================================================================
+   DESAIN ELEMEN PETA INTERAKTIF AVENZA MAPS (SESUAI VIDEO PENGGUNA)
+   - Bilah judul adaptif: heading kompas (359° U) & input telusuri penuh
+   - Reticle bidikan lingkaran target presisi
+   - Tombol cepat basemap kiri atas & tombol panah navigasi kanan atas
+   - FAB Pin lokasi besar putih-hijau di kanan bawah
+   - Bilah bawah mengambang (ruler tools, live coords pill, layers)
+   - Menu popover alat survei 8-opsi
+   - Drawer salin format koordinat multi-sistem (WGS84, DMS, DDM, UTM)
+   - Drawer GPS 3-tab: Lokasi, Pelacakan, Navigasi
+   - Modal metadata informasi lembar peta
+   ========================================================================== */
+
+.avz-titlebar-search-full {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.avz-search-input-top {
+  flex: 1;
+  height: 40px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 0.98rem;
+  color: var(--avz-ink);
+}
+
+.avz-btn-back-green {
+  background: transparent !important;
+  color: #0d7344 !important;
+}
+
+/* Reticle Bidikan Lingkaran Halus di Tengah */
+.avz-reticle-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid rgba(34, 49, 58, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Tombol Cepat Peta Dasar Kiri Atas */
+.avz-quick-basemap-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--avz-surface);
+  border: 1px solid var(--avz-line);
+  box-shadow: var(--avz-bayang-kecil);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  color: #0d7344;
+}
+
+/* Tombol Panah Navigasi Kanan Atas */
+.avz-nav-arrow-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--avz-surface);
+  border: 1px solid var(--avz-line);
+  box-shadow: var(--avz-bayang-kecil);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.avz-nav-arrow-ikon {
+  color: #0d7344;
+}
+
+/* Floating Action Button (FAB) Pin Kanan Bawah */
+.avz-fab-pin {
+  position: absolute;
+  right: 14px;
+  bottom: calc(var(--avz-toolbar-h) + 16px);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+  display: grid;
+  place-items: center;
+  color: #0d7344;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 25;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avz-fab-pin:active {
+  transform: scale(0.94);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Bilah Bawah Mengambang (Floating Bottom Pill Bar) */
+.avz-bottom-pill-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 4px 16px rgba(23, 43, 58, 0.18);
+  padding: 3px 6px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  margin: 6px auto 8px auto !important;
+  width: min(92%, 360px);
+  z-index: 22;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.avz-pill-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: #0d7344;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.avz-pill-btn:hover,
+.avz-pill-btn.active {
+  background: #e8f5e9;
+}
+
+.avz-pill-coord-btn {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font-family: var(--avz-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #263238;
+  text-align: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avz-pill-coord-btn:hover {
+  background: #f1f5f9;
+}
+
+/* Popover Menu Alat Peta */
+.avz-tool-popup-menu {
+  position: absolute;
+  left: 12px;
+  bottom: calc(var(--avz-toolbar-h) + 14px);
+  width: 240px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 6px 0;
+  z-index: 35;
+  pointer-events: auto;
+  animation: avzPopUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes avzPopUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.avz-tool-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: #263238;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.avz-tool-popup-item:hover,
+.avz-tool-popup-item:active {
+  background: #f1f5f9;
+}
+
+.avz-tool-popup-item svg {
+  color: #0d7344;
+  flex-shrink: 0;
+}
+
+/* Bottom Sheets Terpadu */
+.avz-bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: avzFadeIn 0.2s ease;
+}
+
+@keyframes avzFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.avz-bottom-sheet-content {
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  max-height: 84vh;
+  overflow-y: auto;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.28);
+  padding-bottom: 24px;
+  animation: avzSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes avzSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.avz-bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px 18px;
+  border-bottom: 1px solid var(--avz-line);
+}
+
+.avz-sheet-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avz-sheet-title-row h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--avz-ink);
+}
+
+/* Modal Salin Format Koordinat */
+.avz-coord-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+.avz-coord-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border: 0;
+  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.avz-coord-option-row:hover,
+.avz-coord-option-row.active {
+  background: #f8fafc;
+}
+
+.avz-coord-option-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.avz-coord-option-nama {
+  font-size: 0.8rem;
+  color: var(--avz-muted);
+  font-weight: 500;
+}
+
+.avz-coord-option-nilai {
+  font-family: var(--avz-mono);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--avz-ink);
+}
+
+.avz-coord-radio-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #b0bec5;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.avz-coord-radio-circle.active {
+  border-color: #0d7344;
+}
+
+.avz-coord-radio-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0d7344;
+}
+
+/* Drawer GPS: Lokasi, Pelacakan, Navigasi */
+.avz-gps-tabs-header {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--avz-line);
+  padding: 0 10px;
+  position: relative;
+}
+
+.avz-gps-tab-btn {
+  flex: 1;
+  padding: 14px 8px;
+  border: 0;
+  background: transparent;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--avz-muted);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.avz-gps-tab-btn.active {
+  color: #0d7344;
+}
+
+.avz-gps-tab-btn.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 15%;
+  right: 15%;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #0d7344;
+}
+
+.avz-gps-close-btn {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.avz-gps-tab-body {
+  padding: 16px 20px;
+}
+
+.avz-gps-coord-hero {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.avz-gps-coord-title {
+  margin: 0;
+  font-family: var(--avz-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a2730;
+  letter-spacing: -0.01em;
+}
+
+.avz-gps-coord-subtitle {
+  font-size: 0.8rem;
+  color: var(--avz-muted);
+}
+
+.avz-gps-compass-rose-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 16px 0;
+}
+
+.avz-compass-rose-svg {
+  width: 140px;
+  height: 140px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.08));
+}
+
+.avz-gps-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.avz-gps-metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
+}
+
+.avz-metric-label {
+  font-size: 0.72rem;
+  color: var(--avz-muted);
+  margin-bottom: 2px;
+  text-align: center;
+}
+
+.avz-metric-val {
+  font-family: var(--avz-mono);
+  font-size: 1.05rem;
+  color: #1a2730;
+  font-weight: 700;
+}
+
+.avz-gps-bottom-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.avz-gps-action-outline-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1.5px solid #cfd8dc;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #37474f;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.avz-gps-btn-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 14px;
+  background: #0d7344;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(13, 115, 68, 0.35);
+}
+
+.avz-nav-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.avz-nav-option-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #eef2f5;
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.avz-nav-option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #e8f5e9;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.avz-nav-option-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.avz-nav-option-text strong {
+  font-size: 0.94rem;
+  color: var(--avz-ink);
+}
+
+.avz-nav-option-text small {
+  font-size: 0.78rem;
+  color: var(--avz-muted);
+}
+
+/* Modal Informasi Lembar Peta */
+.avz-map-info-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.avz-map-info-seksi h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.88rem;
+  color: #0d7344;
+  font-weight: 700;
+}
+
+.avz-map-info-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.86rem;
+  color: #334155;
+}
+
+.avz-wkt-box {
+  margin-top: 10px;
+  padding: 10px;
+  background: #0f172a;
+  color: #38bdf8;
+  border-radius: 8px;
+  font-family: var(--avz-mono);
+  font-size: 0.72rem;
+  overflow-x: auto;
+  max-height: 180px;
+}
