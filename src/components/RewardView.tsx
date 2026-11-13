@@ -27,10 +27,8 @@ import {
 import {
   Download,
   ShieldCheck,
-  Settings,
   Printer,
   Camera,
-  UserCheck,
   Trash2,
   PenTool,
   ChevronLeft,
@@ -69,7 +67,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
 }) => {
   const certCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputFotoRef = useRef<HTMLInputElement | null>(null);
-  const [bukaPengaturan, setBukaPengaturan] = useState(false);
   const [bukaAturSertifikat, setBukaAturSertifikat] = useState(false);
 
   // Kemajuan yang terlihat kader memakai semua data; kelayakan sertifikat hanya dari data terverifikasi
@@ -445,10 +442,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
               <span className="visual-profile-loc">{profil.desaWilayah}</span>
             </div>
           </div>
-
-          <button type="button" className="visual-icon-gear-btn" onClick={() => setBukaPengaturan((v) => !v)} title="Profil">
-            <Settings size={18} />
-          </button>
         </div>
 
         {/* NAVIGASI LEVEL KE KIRI & KE KANAN DENGAN GAMBAR KUNCI UNTUK LEVEL DI ATASNYA */}
@@ -1026,55 +1019,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </div>
         )}
       </div>
-
-      {/* 4. DRAWER PENGATURAN PROFIL */}
-      {bukaPengaturan && (
-        <div className="section-card">
-          <h4 style={{ margin: "0 0 10px", fontSize: "0.94rem", display: "flex", alignItems: "center", gap: 6 }}>
-            <UserCheck size={16} color="#0d7344" /> Profil
-          </h4>
-          <div className="form-row-3">
-            <div>
-              <label>Nama</label>
-              <input
-                type="text"
-                className="form-input"
-                value={profil.nama}
-                onChange={(e) => onUbahProfil({ ...profil, nama: e.target.value })}
-              />
-            </div>
-            <div>
-              <label>Wilayah</label>
-              <input
-                type="text"
-                className="form-input"
-                value={profil.desaWilayah}
-                onChange={(e) => onUbahProfil({ ...profil, desaWilayah: e.target.value })}
-              />
-            </div>
-            <div>
-              <label>Organisasi</label>
-              <input
-                type="text"
-                className="form-input"
-                value={profil.namaOrganisasi}
-                onChange={(e) => onUbahProfil({ ...profil, namaOrganisasi: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" className="btn-primary-sm" onClick={() => inputFotoRef.current?.click()}>
-              <Camera size={14} /> {fotoSertifikatBase64 ? "Ubah Foto" : "Pilih Foto"}
-            </button>
-            {fotoSertifikatBase64 && (
-              <button type="button" className="btn-outline-sm" onClick={handleHapusFotoSertifikat}>
-                <Trash2 size={14} /> Hapus Foto
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
