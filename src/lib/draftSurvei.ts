@@ -16,6 +16,10 @@ export interface DraftSurvei {
   buktiFoto?: BuktiFotoLapangan;
   averaging?: HasilRataRataGps;
   rekaman?: { jenis: JenisGeometri; titik: KoordinatTitik[] };
+  url?: string;
+  tepi?: string;
+  warna?: string;
+  simbol?: string;
 }
 export const DRAFT_KOSONG: DraftSurvei = {
   kategori: "Flora",
@@ -28,7 +32,11 @@ export const DRAFT_KOSONG: DraftSurvei = {
   deskripsi: "",
   foto: "",
   saksi: "",
-  memo: []
+  memo: [],
+  url: "",
+  tepi: "",
+  warna: "",
+  simbol: ""
 };
 function semuaDraft(): Record<string, DraftSurvei> {
   try {

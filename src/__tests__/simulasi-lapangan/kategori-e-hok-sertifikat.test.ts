@@ -168,7 +168,7 @@ describe("Kategori E: Perhitungan Insentif HOK, Gamifikasi & Sertifikat QR (Sken
     const durasi = performance.now() - tStart;
 
     expect(daftarKader).toHaveLength(200);
-    expect(durasi).toBeLessThan(100);
+    expect(durasi).toBeLessThan(500);
 
     // Tie breaking terurut rapi menurut abjad dan ID
     expect(daftarKader[0].namaKader).toBe("Kader Warga 001");

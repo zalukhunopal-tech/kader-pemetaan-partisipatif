@@ -418,10 +418,24 @@ function susunKeteranganPrmAid(item: MasukanAtributPrmAid): string {
   return String(item.kategori ?? "").trim();
 }
 
+/**
+ * Sanitasi URL atribut PRM-AID untuk mencegah Cross-Site Scripting (XSS) dan injeksi protokol berbahaya
+ * (seperti javascript:, vbscript:, data:text/html, file:).
+ * Hanya mengizinkan protokol http://, https://, atau tautan relatif aman.
+ */
+export function sanitasiUrlPrmAid(urlMentah: unknown): string {
+  const s = String(urlMentah ?? "").trim();
+  if (!s) return "";
+  if (/^(?:https?:\/\/|\/|\.\/)/i.test(s)) {
+    return s.replace(/[\r\n\t]/g, "").trim();
+  }
+  return "";
+}
+
 export function susunAtributPolygonPrmAid(item: MasukanAtributPrmAid): AtributPolygonPrmAid {
   const label = String(item.label ?? item.judul ?? "").trim();
   const keterangan = susunKeteranganPrmAid(item);
-  const url = String(item.url ?? item.driveFileUrl ?? "").trim();
+  const url = sanitasiUrlPrmAid(item.url ?? item.driveFileUrl);
   const luasMentah = item.luas_ha !== undefined ? Number(item.luas_ha) : Number(item.luasHa ?? 0);
   const luas_ha = Number.isFinite(luasMentah) ? Number(luasMentah.toFixed(7)) : 0;
   const { tepi, warna } = tentukanGayaPolygonPrmAid({
@@ -444,7 +458,7 @@ export function susunAtributPolygonPrmAid(item: MasukanAtributPrmAid): AtributPo
 export function susunAtributLinePrmAid(item: MasukanAtributPrmAid): AtributLinePrmAid {
   const label = String(item.label ?? item.judul ?? "").trim();
   const keterangan = susunKeteranganPrmAid(item);
-  const url = String(item.url ?? item.driveFileUrl ?? "").trim();
+  const url = sanitasiUrlPrmAid(item.url ?? item.driveFileUrl);
   const panjangMentah =
     item.panjang_m !== undefined ? Number(item.panjang_m) : Number(item.panjangKm ?? 0) * 1000;
   const panjang_m = Number.isFinite(panjangMentah) ? Number(panjangMentah.toFixed(2)) : 0;
@@ -466,7 +480,7 @@ export function susunAtributLinePrmAid(item: MasukanAtributPrmAid): AtributLineP
 export function susunAtributPointPrmAid(item: MasukanAtributPrmAid): AtributPointPrmAid {
   const label = String(item.label ?? item.judul ?? "").trim();
   const keterangan = susunKeteranganPrmAid(item);
-  const url = String(item.url ?? item.driveFileUrl ?? "").trim();
+  const url = sanitasiUrlPrmAid(item.url ?? item.driveFileUrl);
   const { kategori, simbol } = tentukanSimbolDanKategoriPointPrmAid({
     label,
     kategori: item.kategori,
