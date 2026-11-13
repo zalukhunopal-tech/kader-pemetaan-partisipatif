@@ -1383,6 +1383,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const durasiRekamTeks = rekamLatar.status !== "idle" ? formatDurasi(durasiRekamMs(rekamLatar)) : "---";
   const jamRekam = rekamLatar.status !== "idle" ? durasiRekamMs(rekamLatar) / 3_600_000 : 0;
   const kecepatanRataTeks = jamRekam > 0 && panjangDraftKm > 0 ? (panjangDraftKm / jamRekam).toFixed(2).replace(".", ",") : "---";
+  /** Pilihan peta dasar di lembar pemilih (Kontur Taktis tidak ditawarkan lagi) */
+  const pilihanBasemap = URUTAN_BASEMAP.filter((id) => id !== "taktis" && basemapTersedia(id));
+  const batalkanRekaman = () => {
+    perekamLatar.batal();
+    setModeRekam(null);
+    setTitikDraft([]);
+  };
   const tutupSemuaPanel = () => {
     setBukaMenuAlat(false);
     setBukaSalinKoord(false);
@@ -1667,26 +1674,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
 
           <div className="avz-hud-bawah">
-            {/* PANEL REKAM JALUR / AREA (tetap berjalan di latar belakang) */}
-            {modeRekam && modeRekam !== "point" && (
-              <PanelPerekaman
-                rekamLatar={rekamLatar}
-                modeRekam={modeRekam}
-                jumlahTitik={titikDraft.length}
-                panjangDraftKm={panjangDraftKm}
-                luasDraftHa={luasDraftHa}
-                detikTick={detikTick}
-                snapAktif={snapAktif}
-                onToggleSnap={() => setSnapAktif((v) => !v)}
-                onTambahTitik={tambahTitikBidikan}
-                onSimpan={() => setBukaModalForm(true)}
-                onBatal={() => {
-                  perekamLatar.batal();
-                  setModeRekam(null);
-                  setTitikDraft([]);
-                }}
-              />
-            )}
             <div className="map-bawah">
               <div className="avz-skala-atribusi">
                 <div className="avenza-scale-bar-wrap">
@@ -1746,72 +1733,98 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </div>
           </div>
 
-          {/* BILAH BAWAH: alat · koordinat bidikan · lapisan; pegangan di atasnya membuka panel GPS */}
-          <div className="avz-bottom-pill-bar">
-            <button
-              type="button"
-              className="avz-pegangan"
-              aria-label="Buka panel lokasi, pelacakan, dan navigasi"
-              onClick={() => {
-                tutupSemuaPanel();
-                setTabDrawerGps("lokasi");
-                setBukaDrawerGps(true);
-              }}
-            >
-              <span aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className={`avz-pill-btn ${bukaMenuAlat ? "active" : ""}`}
-              title="Alat peta"
-              aria-label="Alat peta"
-              aria-expanded={bukaMenuAlat}
-              onClick={() => {
-                setBukaSalinKoord(false);
-                setBukaMenuAlat((v) => !v);
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="24"
-                height="24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-                strokeLinecap="round"
+          {/* KAKI HUD: status rekam oranye (jalur/area) tepat di atas bilah bawah, lalu bilah bawah */}
+          <div className="avz-hud-kaki">
+            {modeRekam && modeRekam !== "point" && (
+              <PanelPerekaman
+                rekamLatar={rekamLatar}
+                modeRekam={modeRekam}
+                jumlahTitik={titikDraft.length}
+                panjangDraftKm={panjangDraftKm}
+                luasDraftHa={luasDraftHa}
+                detikTick={detikTick}
+                onTambahTitik={tambahTitikBidikan}
+                onBukaPanel={() => {
+                  tutupSemuaPanel();
+                  setTabDrawerGps("pelacakan");
+                  setBukaDrawerGps(true);
+                }}
+                onSimpan={() => {
+                  setBukaDrawerGps(false);
+                  setBukaModalForm(true);
+                }}
+                onBatal={batalkanRekaman}
+              />
+            )}
+            {/* BILAH BAWAH: alat · koordinat bidikan · lapisan; pegangan di atasnya membuka panel GPS */}
+            <div className="avz-bottom-pill-bar">
+              <button
+                type="button"
+                className="avz-pegangan"
+                aria-label="Buka panel lokasi, pelacakan, dan navigasi"
+                onClick={() => {
+                  tutupSemuaPanel();
+                  setTabDrawerGps("lokasi");
+                  setBukaDrawerGps(true);
+                }}
               >
-                <path d="M3.5 16.5l7-7 4 4-7 7h-4z" />
-                <path d="M6 14l1.5 1.5M8.5 11.5l1.5 1.5" />
-                <path d="M14.5 3.5l6 6-4 4-6-6z" />
-                <path d="M16 8l1 1" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="avz-pill-koordinat"
-              title="Format dan salin koordinat"
-              onClick={() => {
-                setBukaMenuAlat(false);
-                setBukaSalinKoord((v) => !v);
-              }}
-            >
-              <span className="field-telemetry-coordinate">{formatPill.nilai}</span>
-            </button>
-            <button
-              type="button"
-              className="avz-pill-btn"
-              title="Lapisan peta"
-              aria-label="Lapisan peta"
-              onClick={() => {
-                tutupSemuaPanel();
-                setCariLapisanInput("");
-                setBukaHalamanLapisan(true);
-              }}
-            >
-              <Layers size={24} />
-            </button>
+                <span aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={`avz-pill-btn ${bukaMenuAlat ? "active" : ""}`}
+                title="Alat peta"
+                aria-label="Alat peta"
+                aria-expanded={bukaMenuAlat}
+                onClick={() => {
+                  setBukaSalinKoord(false);
+                  setBukaMenuAlat((v) => !v);
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                >
+                  <g transform="rotate(-45 12 12)">
+                    <rect x="3" y="5.2" width="18" height="5.2" rx="1" />
+                    <path d="M7 5.2v2.2M10.5 5.2v1.6M14 5.2v2.2M17.5 5.2v1.6" />
+                    <path d="M7.5 13.6h13.5v5.2H7.5L3 16.2z" />
+                    <path d="M7.5 13.6v5.2" />
+                  </g>
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="avz-pill-koordinat"
+                title="Format dan salin koordinat"
+                onClick={() => {
+                  setBukaMenuAlat(false);
+                  setBukaSalinKoord((v) => !v);
+                }}
+              >
+                <span className="field-telemetry-coordinate">{formatPill.nilai}</span>
+              </button>
+              <button
+                type="button"
+                className="avz-pill-btn"
+                title="Lapisan peta"
+                aria-label="Lapisan peta"
+                onClick={() => {
+                  tutupSemuaPanel();
+                  setCariLapisanInput("");
+                  setBukaHalamanLapisan(true);
+                }}
+              >
+                <Layers size={24} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1901,22 +1914,27 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <>
             <div className="avz-tutup-transparan" onClick={() => setBukaSalinKoord(false)} aria-hidden="true" />
             <div className="avz-coord-modal" role="dialog" aria-label="Format koordinat">
-              <button
-                type="button"
-                className="avz-coord-salin"
-                onClick={() => {
-                  if (navigator.clipboard) {
-                    void navigator.clipboard
-                      .writeText(formatPill.salin)
-                      .then(() => setPesanSalin("Koordinat disalin: " + formatPill.salin))
-                      .catch(() => setPesanSalin("Gagal menyalin koordinat"));
-                  }
-                  setBukaSalinKoord(false);
-                }}
-              >
-                <span>Salin koordinat</span>
-                <Copy size={22} />
-              </button>
+              <div className="avz-coord-kepala">
+                <button
+                  type="button"
+                  className="avz-coord-salin"
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      void navigator.clipboard
+                        .writeText(formatPill.salin)
+                        .then(() => setPesanSalin("Koordinat disalin: " + formatPill.salin))
+                        .catch(() => setPesanSalin("Gagal menyalin koordinat"));
+                    }
+                    setBukaSalinKoord(false);
+                  }}
+                >
+                  <span>Salin koordinat</span>
+                  <Copy size={22} />
+                </button>
+                <button type="button" className="avz-coord-tutup" aria-label="Tutup" title="Tutup" onClick={() => setBukaSalinKoord(false)}>
+                  <X size={22} />
+                </button>
+              </div>
               {[
                 { grup: "Lintang, Bujur. - WGS 84", ids: ["wgs84_desimal", "wgs84_ne", "wgs84_dms", "wgs84_ddm"] },
                 { grup: "UTM - WGS 84", ids: ["wgs84_utm"] },
@@ -1955,30 +1973,32 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <div className="avz-sheet-latar" onClick={() => setBukaPilihBasemap(false)}>
           <div className="avz-sheet avz-basemap-sheet" role="dialog" aria-label="Pilih peta dasar" onClick={(e) => e.stopPropagation()}>
             <span className="avz-sheet-pegangan" aria-hidden="true" />
-            {URUTAN_BASEMAP.filter(basemapTersedia).map((id) => {
-              const aktif = basemap === id && !petaKustomAktif;
-              return (
-                <button
-                  type="button"
-                  key={id}
-                  className={`map-basemap-Option avz-basemap-kartu ${aktif ? "active" : ""}`}
-                  aria-pressed={aktif}
-                  onClick={() => {
-                    if (petaKustomAktif) onTutupPetaKustom?.();
-                    setBasemap(id);
-                    setBukaPilihBasemap(false);
-                  }}
-                >
-                  <img src={pratinjauBasemap(id)} alt="" className="avz-basemap-kartu-img" draggable={false} />
-                  <span className="avz-basemap-kartu-label">{namaBasemap(id)}</span>
-                  {aktif && (
-                    <span className="avz-basemap-kartu-cek" aria-hidden="true">
-                      <Check size={16} strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <div className="avz-basemap-grid" style={{ "--jumlah": pilihanBasemap.length } as React.CSSProperties}>
+              {pilihanBasemap.map((id) => {
+                const aktif = basemap === id && !petaKustomAktif;
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    className={`map-basemap-Option avz-basemap-kartu ${aktif ? "active" : ""}`}
+                    aria-pressed={aktif}
+                    onClick={() => {
+                      if (petaKustomAktif) onTutupPetaKustom?.();
+                      setBasemap(id);
+                      setBukaPilihBasemap(false);
+                    }}
+                  >
+                    <img src={pratinjauBasemap(id)} alt="" className="avz-basemap-kartu-img" draggable={false} />
+                    <span className="avz-basemap-kartu-label">{namaBasemap(id)}</span>
+                    {aktif && (
+                      <span className="avz-basemap-kartu-cek" aria-hidden="true">
+                        <Check size={16} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -2092,7 +2112,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               <div className="avz-gps-tab-body">
                 <div className="avz-gps-coord-hero">
                   <h3 className="avz-gps-coord-title">
-                    {rekamLatar.status === "idle" ? "Siap Melacak" : rekamLatar.status === "dijeda" ? "Pelacakan Dijeda" : "Sedang Melacak"}
+                    {rekamLatar.status === "idle"
+                      ? "Siap Melacak"
+                      : modeRekam === "polygon"
+                        ? rekamLatar.status === "dijeda"
+                          ? "Area Dijeda"
+                          : "Menggambar Area"
+                        : rekamLatar.status === "dijeda"
+                          ? "Pelacakan Dijeda"
+                          : "Sedang Melacak"}
                   </h3>
                   <span className="avz-gps-coord-subtitle">
                     {rekamLatar.status === "idle" ? "Untuk merekam, tekan tombol mulai" : "Perekaman tetap berjalan walau pindah layar"}
@@ -2116,9 +2144,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   </div>
                   <div className="avz-gps-metric-item">
                     <strong className="avz-metric-val">
-                      {rekamLatar.status !== "idle" ? panjangDraftKm.toFixed(2).replace(".", ",") : "---"}
+                      {rekamLatar.status === "idle"
+                        ? "---"
+                        : (modeRekam === "polygon" ? luasDraftHa : panjangDraftKm).toFixed(2).replace(".", ",")}
                     </strong>
-                    <span className="avz-metric-label">Jarak: (Km)</span>
+                    <span className="avz-metric-label">{modeRekam === "polygon" ? "Luas: (Ha)" : "Jarak: (Km)"}</span>
                   </div>
                   <div className="avz-gps-metric-item">
                     <strong className="avz-metric-val">{kecepatanRataTeks}</strong>
@@ -2132,36 +2162,68 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   </div>
                 </div>
                 {rekamLatar.status === "idle" ? (
-                  <button
-                    type="button"
-                    className="avz-gps-btn-primary"
-                    onClick={() => {
-                      setBukaDrawerGps(false);
-                      mulaiModeRekam("line");
-                    }}
-                  >
+                  <button type="button" className="avz-gps-btn-primary" onClick={() => mulaiModeRekam("line")}>
                     Mulai Pelacakan
                   </button>
                 ) : (
-                  <div className="avz-gps-bottom-actions">
-                    <button
-                      type="button"
-                      className="avz-gps-action-outline-btn"
-                      onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
-                    >
-                      <span>{rekamLatar.status === "merekam" ? "Jeda" : "Lanjutkan"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="avz-gps-btn-primary avz-gps-btn-sejajar"
-                      onClick={() => {
-                        setBukaDrawerGps(false);
-                        setBukaModalForm(true);
-                      }}
-                    >
-                      Selesai
-                    </button>
-                  </div>
+                  <>
+                    {/* Saat merekam, tombol Mulai berganti menjadi Jeda dan Hentikan (seperti Avenza) */}
+                    <div className="avz-gps-bottom-actions">
+                      <button
+                        type="button"
+                        className="avz-gps-action-outline-btn"
+                        onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
+                      >
+                        <span>{rekamLatar.status === "merekam" ? "Jeda" : "Lanjutkan"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="avz-gps-btn-primary avz-gps-btn-sejajar avz-gps-btn-hentikan"
+                        disabled={titikDraft.length < (modeRekam === "polygon" ? 3 : 2)}
+                        title={titikDraft.length < (modeRekam === "polygon" ? 3 : 2) ? "Titik belum cukup" : "Hentikan lalu simpan"}
+                        onClick={() => {
+                          setBukaDrawerGps(false);
+                          setBukaModalForm(true);
+                        }}
+                      >
+                        Hentikan
+                      </button>
+                    </div>
+                    <div className="avz-gps-opsi-rekam">
+                      <button type="button" onClick={tambahTitikBidikan}>
+                        Tambah titik
+                      </button>
+                      <button type="button" disabled={!titikDraft.length} onClick={() => perekamLatar.hapusTitikTerakhir()}>
+                        Urungkan
+                      </button>
+                      <button type="button" disabled={!rekamLatar.redoVertex?.length} onClick={() => perekamLatar.ulangiVertex()}>
+                        Ulangi
+                      </button>
+                      {modeRekam === "polygon" && (
+                        <button type="button" aria-pressed={snapAktif} onClick={() => setSnapAktif((v) => !v)}>
+                          Snap {snapAktif ? "aktif" : "mati"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        aria-pressed={rekamLatar.autoGpsAktif}
+                        title="Mode simulasi: menambah titik acak tanpa GPS lapangan"
+                        onClick={() => perekamLatar.toggleAutoGps()}
+                      >
+                        Simulasi {rekamLatar.autoGpsAktif ? "aktif" : "mati"}
+                      </button>
+                      <button
+                        type="button"
+                        className="avz-opsi-bahaya"
+                        onClick={() => {
+                          batalkanRekaman();
+                          setBukaDrawerGps(false);
+                        }}
+                      >
+                        Batalkan
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -2625,6 +2687,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   <a className="avz-info-tautan" href={SUMBER_TILE[basemap].tautanLisensi} target="_blank" rel="noopener noreferrer">
                     {SUMBER_TILE[basemap].lisensi}
                   </a>
+                )}
+                {basemap !== "taktis" && SUMBER_TILE[basemap].catatanPakai && (
+                  <p id="info-lisensi-peta" className="avz-info-kecil">
+                    {SUMBER_TILE[basemap].catatanPakai}
+                  </p>
                 )}
               </>
             )}

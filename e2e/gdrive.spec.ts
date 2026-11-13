@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { JPEG, RUTE_TILE_PUBLIK, URL_APP, URL_APP_KUNCI, halamanBaru, masukSebagaiAdmin, sampai, teksToast } from "./bantu";
+import { JPEG, RUTE_TILE_PUBLIK, URL_APP, URL_APP_KUNCI, halamanBaru, masukSebagaiAdmin, pilihMenu, sampai, teksToast } from "./bantu";
 
 /** Web App Apps Script tiruan; dist-e2e dibangun dengan VITE_GDRIVE_URL dan VITE_GDRIVE_TOKEN dari .env.e2e */
 const RUTE_GDRIVE = /script\.google\.com\/macros\/s\/uji-geokader\/exec/;
@@ -22,6 +22,9 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   const kiriman: Kiriman[] = [];
   await p.context().route(RUTE_GDRIVE, async (r) => {
     const body = JSON.parse(r.request().postData() ?? "{}") as Kiriman;
+    // Permintaan lain (mis. pemeriksaan koneksi) tidak membawa records
+    if (!Array.isArray(body.records))
+      return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true }) });
     kiriman.push(body);
     const id = body.records.map((x) => x.id);
     await r.fulfill({
@@ -38,9 +41,10 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   await expect(p.locator("#akun-provinsi option")).toHaveCount(39);
   await expect(p.locator("#akun-kabupaten")).toHaveAttribute("required", "");
 
-  // Akun admin pertama belum punya wilayah lengkap: lengkapi lewat Detail > Ubah
+  // Akun admin uji belum punya wilayah lengkap: lengkapi lewat Aksi > Lihat detail akun > Ubah
   const panel = p.locator("#panel-akun-admin");
-  await panel.getByRole("button", { name: "Detail" }).first().click();
+  await panel.locator("tr", { hasText: "siti.admin@contoh.id" }).getByRole("button", { name: "Aksi" }).click();
+  await p.getByRole("menuitem", { name: /Lihat detail akun/ }).click();
   await expect(panel).toContainText("(belum lengkap)");
   await panel.getByRole("button", { name: "Ubah", exact: true }).click();
   await p.locator("#ubah-wilayah-provinsi").selectOption(WILAYAH.provinsi);
@@ -54,8 +58,8 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   // Rekam titik di Mode User
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
   await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
-  await p.locator(".map-fab-record-trigger").click();
-  await p.locator(".compact-rec-pill", { hasText: "Titik" }).click();
+  await p.locator(".avz-fab-pin").click();
+  await p.getByRole("button", { name: /^Biodiversitas/ }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Sebaran Anggrek");
   await p.locator(".modal-form button[type=submit]").click();
   expect(await sampai(async () => /Sebaran Anggrek/.test(await teksToast(p)))).toBe(true);
@@ -69,10 +73,11 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   expect(k.records[0].namaBerkas).toMatch(
     /^siti_rahmawati_sebaran_anggrek_(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)_\d{4}$/
   );
-  expect(JSON.parse(k.geojsonBundle).features[0].properties).toMatchObject({ provinsi: "Jambi", kelurahanDesa: "Rantau Panjang" });
+  // Atribut GeoJSON mengikuti skema PRM-AID (label, kategori, simbol); wilayah dibawa di records[].wilayah
+  expect(JSON.parse(k.geojsonBundle).features[0].properties).toMatchObject({ label: "Sebaran Anggrek", kategori: "Biodiversitas" });
 
   // Halaman GDrive: tanpa Konfigurasi, menampilkan folder dan berkas tujuan, status tersinkron
-  await p.locator(".avenza-nav-item", { hasText: "GDrive" }).click();
+  await pilihMenu(p, "Sinkronisasi");
   await expect(p.getByText("Konfigurasi", { exact: false })).toHaveCount(0);
   await expect(p.getByPlaceholder("https://script.google.com/macros/s/.../exec")).toHaveCount(0);
   await expect(p.locator("#gdrive-belum-aktif")).toHaveCount(0);
@@ -84,19 +89,15 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   await tutup();
 });
 
-test("build tanpa Google Drive: unggahan dinyatakan belum aktif, tanpa isian pengaturan, tanpa kiriman", async ({ browser }) => {
+test("Sinkronisasi: koneksi Google Drive bawaan aplikasi, tanpa isian konfigurasi atau sandi", async ({ browser }) => {
   const { p, galat, tutup } = await halamanBaru(browser);
-  let terkirim = 0;
-  await p.context().route(/script\.google\.com/, (r) => {
-    terkirim++;
-    return r.abort();
-  });
+  await p.context().route(/script\.google\.com/, (r) => r.abort());
   await masukSebagaiAdmin(p, URL_APP);
-  await p.locator(".avenza-nav-item", { hasText: "GDrive" }).click();
-  await expect(p.locator("#gdrive-belum-aktif")).toBeVisible();
+  await pilihMenu(p, "Sinkronisasi");
+  // Alamat dan token Drive dipasang saat build (ada nilai bawaan), sehingga tidak ada penanda "belum aktif"
+  await expect(p.locator("#gdrive-belum-aktif")).toHaveCount(0);
   await expect(p.getByText("Konfigurasi", { exact: false })).toHaveCount(0);
   await expect(p.locator("input[type=password]")).toHaveCount(0);
-  expect(terkirim).toBe(0);
   expect(galat).toEqual([]);
   await tutup();
 });

@@ -167,6 +167,7 @@
   z-index: 20;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) minmax(0, auto) auto;
+  grid-template-columns: minmax(0, 1fr);
   pointer-events: none;
 }
 
@@ -650,8 +651,9 @@
 
 /* ---------- 8. Lembar bawah (pemilih peta dasar, panel GPS) ---------- */
 .avz-peta .avz-sheet-latar {
-  position: fixed;
+  position: absolute;
   inset: 0;
+  overflow: hidden;
   z-index: 200;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
@@ -665,7 +667,7 @@
 .avz-peta .avz-sheet {
   position: relative;
   width: 100%;
-  max-height: 88dvh;
+  max-height: calc(100% - 56px);
   overflow-y: auto;
   background: var(--avz-putih);
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.16);
@@ -700,19 +702,32 @@
   background: #dfdfdf;
 }
 
-/* Pemilih peta dasar: kartu bergambar */
+/* Pemilih peta dasar: kartu bergambar dalam grid selebar peta. HP: 2 kolom (kartu ganjil terakhir
+   melebar penuh); PC/tablet: satu baris berisi semua kartu dengan lebar sama. */
 .avz-peta .avz-basemap-sheet {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-radius: 24px 24px 0 0;
+  border-radius: 20px 20px 0 0;
+  padding-inline: 16px;
+}
+
+.avz-peta .avz-basemap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.avz-peta .avz-basemap-grid > .avz-basemap-kartu:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .avz-peta .avz-basemap-kartu {
   position: relative;
   display: block !important;
   width: 100% !important;
-  height: 84px;
+  min-width: 0 !important;
+  height: 96px !important;
+  min-height: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
   border: 1px solid #d8d8d8 !important;
@@ -768,8 +783,9 @@
 
 /* Panel Lokasi · Pelacakan · Navigasi */
 .avz-peta .avz-gps-drawer {
-  height: 66dvh;
-  max-height: 66dvh;
+  height: min(66dvh, calc(100% - 56px));
+  max-height: calc(100% - 56px);
+  border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
   padding-top: 10px;
@@ -777,8 +793,9 @@
 
 .avz-peta .avz-gps-tabs-header {
   display: flex;
+  align-items: stretch;
   flex: none;
-  height: 32px;
+  height: 34px;
   margin: 6px 0 12px;
   border: 1.5px solid var(--avz-hijau);
   border-radius: 16px;
@@ -787,6 +804,13 @@
 
 .avz-peta .avz-gps-tab-btn {
   flex: 1 1 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  line-height: 1 !important;
+  margin: 0 !important;
   border: 0;
   border-left: 1.5px solid var(--avz-hijau);
   background: var(--avz-putih);
@@ -1419,101 +1443,269 @@
   border-color: var(--avz-hijau) !important;
 }
 
-/* ---------- 10. Panel rekam jalur dan area ---------- */
-.avz-peta .avz-hud .recording-active-bar {
+/* ---------- 10. Status rekam (jalur/area): pita oranye tembus pandang di atas bilah koordinat ---------- */
+.avz-peta .avz-hud-kaki {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  pointer-events: auto;
+}
+
+.avz-peta .avz-hud .avz-status-rekam {
   position: relative !important;
   inset: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
   width: auto !important;
   max-width: none !important;
   margin: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  padding: 12px !important;
-  background: var(--avz-putih) !important;
-  color: var(--avz-teks) !important;
-  border: 0 !important;
-  border-radius: 12px !important;
-  box-shadow: var(--avz-bayang) !important;
-  backdrop-filter: none !important;
-}
-
-.avz-peta .avz-hud .recording-header-row {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 8px !important;
-}
-
-.avz-peta .avz-hud .recording-metrics {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  min-width: 0 !important;
-  border: 0 !important;
-}
-
-.avz-peta .avz-hud .rec-info-col {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2px !important;
-  min-width: 0 !important;
-}
-
-.avz-peta .avz-hud .rec-status-badge-inline {
-  display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  color: var(--avz-merah);
-}
-
-.avz-peta .avz-hud .rec-status-label {
-  color: var(--avz-merah) !important;
-  font-weight: 700 !important;
-}
-
-.avz-peta .avz-hud .rec-timer-chip {
-  background: var(--avz-merah) !important;
+  padding: 0 !important;
+  background: rgba(253, 96, 2, 0.72) !important;
   color: #ffffff !important;
-  border-radius: 10px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(2px);
+  align-items: stretch !important;
+}
+
+.avz-peta .avz-status-rekam.dijeda {
+  background: rgba(253, 96, 2, 0.55) !important;
+}
+
+.avz-peta .avz-status-rekam-baris {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 0 6px 0 12px;
+}
+
+.avz-peta .avz-status-rekam-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.avz-peta .avz-status-rekam .rec-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  animation: avz-kedip 1.2s ease-in-out infinite;
+}
+
+.avz-peta .avz-status-rekam .rec-dot.paused {
+  animation: none;
+  opacity: 0.6;
+}
+
+@keyframes avz-kedip {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.avz-peta .avz-status-rekam .rec-dot {
+  grid-row: 1 / span 2;
+}
+
+.avz-peta .avz-status-rekam .rec-status-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.avz-peta .avz-status-rekam .rec-geom-summary {
+  grid-column: 2;
+  line-height: 1.2;
+  color: #ffffff !important;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.95;
+}
+
+.avz-peta .avz-status-rekam .rec-timer-chip {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+}
+
+.avz-peta .avz-status-rekam-aksi {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.avz-peta .avz-status-rekam-aksi > button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
   padding: 0 8px !important;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.avz-peta .avz-hud .recording-top-controls {
-  display: flex !important;
-  gap: 6px !important;
-  flex: none !important;
-}
-
-.avz-peta .avz-hud .recording-actions {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  overflow: visible !important;
-  gap: 6px !important;
-}
-
-.avz-peta .avz-hud .recording-actions > button,
-.avz-peta .avz-hud .recording-top-controls > button {
-  flex: 1 1 auto !important;
-  justify-content: center !important;
-  min-height: 40px !important;
-  height: auto !important;
-  border-radius: 20px !important;
-  border: 1px solid #c7d3cc !important;
-  background: var(--avz-putih) !important;
-  color: var(--avz-teks) !important;
-}
-
-.avz-peta .avz-hud .recording-actions .rec-btn-save {
-  background: var(--avz-hijau) !important;
-  border-color: var(--avz-hijau) !important;
+.avz-peta .avz-status-rekam-aksi > .rec-cancel-btn {
+  background: transparent !important;
   color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
-.avz-peta .avz-hud .recording-top-controls .rec-cancel-btn {
-  flex: none !important;
-  width: 40px !important;
-  color: var(--avz-merah) !important;
+.avz-peta .avz-status-rekam-aksi > button:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.avz-peta .avz-status-rekam-aksi > button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.avz-peta .avz-status-rekam-aksi .rec-btn-save {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.avz-peta .avz-status-rekam .rec-error-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 0 12px;
+  font-size: 0.82rem;
+}
+
+.avz-peta .avz-status-rekam .rec-error-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avz-peta .avz-status-rekam .rec-error-dismiss {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* Di layar sempit, label tombol disembunyikan (ikon saja) agar status tetap terbaca */
+@media (max-width: 420px) {
+  .avz-peta .avz-status-rekam-aksi > button span {
+    display: none;
+  }
+
+  .avz-peta .avz-status-rekam .rec-geom-summary {
+    font-size: 0.8rem;
+  }
+}
+
+/* Opsi tambahan rekaman di panel Pelacakan */
+.avz-peta .avz-gps-opsi-rekam {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avz-peta .avz-gps-opsi-rekam > button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #c7d3cc;
+  border-radius: 22px;
+  background: #ffffff;
+  color: var(--avz-teks);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.avz-peta .avz-gps-opsi-rekam > button[aria-pressed="true"] {
+  border-color: var(--avz-hijau);
+  color: var(--avz-hijau);
+  font-weight: 600;
+}
+
+.avz-peta .avz-gps-opsi-rekam > button:disabled {
+  opacity: 0.45;
+}
+
+.avz-peta .avz-gps-opsi-rekam .avz-opsi-bahaya {
+  color: var(--avz-merah);
+  border-color: #f0c4c2;
+}
+
+.avz-peta .avz-gps-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Menu format koordinat: Salin dan Tutup sebaris */
+.avz-peta .avz-coord-kepala {
+  display: flex;
+  align-items: center;
+}
+
+.avz-peta .avz-coord-kepala .avz-coord-salin {
+  flex: 1 1 auto;
+}
+
+.avz-peta .avz-coord-tutup {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #5f5f5f;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 /* ---------- 11. Pesan singkat dan toast di sel tengah ---------- */
@@ -1551,14 +1743,31 @@
 
 /* ---------- 13. PC: peta di samping navigasi; halaman dan lembar tetap selebar layar peta ---------- */
 @media (min-width: 768px) {
-  .avz-peta .avz-sheet {
-    max-width: 560px;
-    margin: 0 auto;
-    border-radius: 16px 16px 0 0;
+  .avz-peta .avz-basemap-grid {
+    grid-template-columns: repeat(var(--jumlah, 3), minmax(0, 1fr));
   }
 
-  .avz-peta .avz-sheet-latar {
-    justify-content: center;
+  .avz-peta .avz-basemap-grid > .avz-basemap-kartu:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
+  .avz-peta .avz-basemap-kartu {
+    height: 112px !important;
+  }
+
+  .avz-peta .avz-sheet {
+    padding-inline: 24px;
+  }
+
+  /* Isi panel Lokasi/Pelacakan/Navigasi dibatasi lebarnya dan diletakkan di tengah peta */
+  .avz-peta .avz-gps-drawer > * {
+    width: 100%;
+    max-width: 720px;
+    margin-inline: auto;
+  }
+
+  .avz-peta .avz-gps-drawer {
+    height: min(560px, calc(100% - 56px));
   }
 
   .avz-peta .avz-halaman {

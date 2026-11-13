@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { X } from "lucide-react";
 
 type TahapSheet = 25 | 55 | 92;
 /** Dialog nonmodal: peta tetap bisa digeser; handle dapat dipakai lewat sentuhan maupun keyboard. */
@@ -59,8 +59,8 @@ export function BottomSheet({
     >
       {halaman ? (
         <header className="avz-halaman-kepala field-sheet-header">
-          <button type="button" className="avenza-head-btn btn-icon-close" aria-label="Tutup panel" onClick={onTutup}>
-            <ChevronDown size={26} />
+          <button type="button" className="avenza-head-btn btn-icon-close" aria-label="Tutup panel" title="Tutup" onClick={onTutup}>
+            <X size={26} />
           </button>
           <h2 id={id}>{judul}</h2>
           {aksiKanan}
@@ -110,7 +110,7 @@ export function BottomSheet({
           </div>
           <header className="field-sheet-header">
             <h3 id={id}>{judul}</h3>
-            <button type="button" className="btn-icon-close" aria-label="Tutup panel" onClick={onTutup}>
+            <button type="button" className="btn-icon-close" aria-label="Tutup panel" title="Tutup" onClick={onTutup}>
               <X size={20} />
             </button>
           </header>

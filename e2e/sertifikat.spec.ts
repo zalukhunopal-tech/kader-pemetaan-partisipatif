@@ -26,6 +26,49 @@ const titik = (idKader: string, namaKader: string, n: number, statusSinkron: str
     riwayatPembaruan: []
   }));
 
+/** Jalur 6 km dan area 6 Ha terverifikasi: syarat sertifikat kini 50 titik, 5 km jalur, dan 5 Ha area */
+const jalurDanArea = (idKader: string, namaKader: string) =>
+  (
+    [
+      [
+        "line",
+        6,
+        0,
+        [
+          { lat: -0.9, lng: 100.4 },
+          { lat: -0.9, lng: 100.454 }
+        ]
+      ],
+      [
+        "polygon",
+        0,
+        6,
+        [
+          { lat: -0.91, lng: 100.4 },
+          { lat: -0.91, lng: 100.4025 },
+          { lat: -0.9125, lng: 100.4025 },
+          { lat: -0.9125, lng: 100.4 }
+        ]
+      ]
+    ] as const
+  ).map(([jenisGeometri, panjangKm, luasHa, koordinat]) => ({
+    id: `${idKader}-${jenisGeometri}`,
+    idKader,
+    namaKader,
+    desaWilayah: "Desa A",
+    jenisGeometri,
+    kategori: "Flora",
+    judul: jenisGeometri,
+    deskripsi: "",
+    koordinat,
+    panjangKm,
+    luasHa,
+    statusSinkron: "terverifikasi",
+    createdAt: "2026-10-01T00:00:00Z",
+    updatedAt: "",
+    riwayatPembaruan: []
+  }));
+
 const bacaIdb = (p: import("@playwright/test").Page, kunci: string) =>
   p.evaluate(
     (k) =>
@@ -67,6 +110,7 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
     data: [
       ...titik("KDR-1", "Budi", 50, "lokal"),
       ...titik("KDR-2", "Siti", 50, "terverifikasi"),
+      ...jalurDanArea("KDR-2", "Siti"),
       ...titik("KDR-3", "Sari", 30, "terverifikasi")
     ]
   };
@@ -92,7 +136,7 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
         nonaktif: (r.querySelector("button") as HTMLButtonElement).disabled
       }))
     );
-    expect(baris[0]).toEqual({ nama: "Siti", status: "SIAP TERBIT", nonaktif: false });
+    expect(baris.find((b) => b.nama === "Siti")).toEqual({ nama: "Siti", status: "SIAP TERBIT", nonaktif: false });
     expect(baris.find((b) => b.nama === "Budi")).toMatchObject({ status: "BELUM", nonaktif: true });
     expect(baris.find((b) => b.nama === "Sari")?.nonaktif).toBe(true);
     nomor = await p.locator("input.form-input").first().inputValue();
@@ -100,12 +144,12 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
   });
 
   await test.step("admin menerbitkan untuk Siti: atas nama Siti, nomor otomatis, tidak bisa ganda", async () => {
-    await p.locator("#tabel-kader-sertifikat tbody tr").first().locator("button").click();
+    await p.locator("#tabel-kader-sertifikat tbody tr", { hasText: "Siti" }).locator("button").click();
     expect(await sampai(async () => ((await bacaIdb(p, "geokader_sertifikat_v5")) as unknown[] | null)?.length === 1)).toBe(true);
     const daftar = (await bacaIdb(p, "geokader_sertifikat_v5")) as { idKader: string; namaKader: string; nomorSertifikat: string }[];
     expect(daftar[0]).toMatchObject({ idKader: "KDR-2", namaKader: "Siti", nomorSertifikat: nomor });
     expect(await p.locator("input.form-input").first().inputValue()).toMatch(/^0002\//);
-    expect(await p.locator("#tabel-kader-sertifikat tbody tr").first().locator("button").isDisabled()).toBe(true);
+    expect(await p.locator("#tabel-kader-sertifikat tbody tr", { hasText: "Siti" }).locator("button").isDisabled()).toBe(true);
   });
 
   await test.step("Siti masuk: sertifikat terbit, tombol Unduh aktif, QR berisi nomor, ID, dan tanggal", async () => {
