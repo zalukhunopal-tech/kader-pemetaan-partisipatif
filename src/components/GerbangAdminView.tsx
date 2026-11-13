@@ -15,7 +15,7 @@ interface GerbangAdminViewProps {
  * Google Authenticator terakhir masih berlaku (8 jam), selain itu dengan kode Authenticator.
  */
 export const GerbangAdminView: React.FC<GerbangAdminViewProps> = ({ sesi, onTerbuka, onModeUser }) => (
-  <div className="page-container">
+  <div className="page-container gerbang-admin-container">
     <div id="gerbang-admin" className="section-card gerbang-admin">
       <div className="gerbang-admin-ikon">
         <Lock size={26} aria-hidden="true" />
@@ -26,8 +26,8 @@ export const GerbangAdminView: React.FC<GerbangAdminViewProps> = ({ sesi, onTerb
         {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas, atau setelah beralih ke Mode User. Buka lagi untuk {sesi.email}:
       </p>
       <VerifikasiIdentitas sesi={sesi} tujuan="admin" onBerhasil={onTerbuka} />
-      <button type="button" className="btn-outline-sm gerbang-admin-tombol" onClick={onModeUser}>
-        <User size={15} aria-hidden="true" /> Lanjut sebagai User
+      <button type="button" className="btn-outline-sm gerbang-admin-tombol" onClick={onModeUser} title="Lanjut sebagai akun pengguna biasa">
+        <User size={15} aria-hidden="true" /> User
       </button>
     </div>
   </div>

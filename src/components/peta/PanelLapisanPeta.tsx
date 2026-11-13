@@ -123,28 +123,30 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
         </button>
       </div>
 
-      {/* HORIZONTAL TAB BAR DENGAN WHITE-SPACE NOWRAP */}
+      {/* HORIZONTAL TAB BAR DENGAN WHITE-SPACE NOWRAP & SATU KATA */}
       <div className="pustaka-tabs-header-bar">
         <button
           type="button"
           className={`pustaka-tab-nav-btn ${tabAktif === "peta_dasar" ? "active" : ""}`}
           onClick={() => setTabAktif("peta_dasar")}
+          title="Peta dasar online"
         >
-          Peta Dasar
+          Dasar
         </button>
         <button
           type="button"
           className={`pustaka-tab-nav-btn ${tabAktif === "lapisan_berkas" ? "active" : ""}`}
           onClick={() => setTabAktif("lapisan_berkas")}
-          title="Lapisan Berkas"
+          title="Lapisan berkas"
         >
-          <span className="pustaka-tab-label-full">Lapisan Berkas</span>
-          <span className="pustaka-tab-label-short">Lapisan</span>
+          <span className="pustaka-tab-label-full">Berkas</span>
+          <span className="pustaka-tab-label-short">Berkas</span>
         </button>
         <button
           type="button"
           className={`pustaka-tab-nav-btn ${tabAktif === "pustaka" ? "active" : ""}`}
           onClick={() => setTabAktif("pustaka")}
+          title="Pustaka peta offline"
         >
           Pustaka ({areaOffline.length})
         </button>
@@ -280,7 +282,7 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
                       title={sedangAktif ? "Tutup Lembar Peta" : "Buka Lembar Peta"}
                     >
                       <MapPin size={13} />
-                      <span>{sedangAktif ? "Tutup Lembar" : "Buka di Peta"}</span>
+                      <span>{sedangAktif ? "Tutup" : "Buka"}</span>
                     </button>
 
                     {onHapusAreaOffline && (
@@ -310,8 +312,9 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
                     onTutup();
                     onUnduhOffline();
                   }}
+                  title="Unduh area peta luring"
                 >
-                  <Download size={14} /> Unduh Wilayah Ini
+                  <Download size={14} /> Unduh
                 </button>
               </div>
             )}

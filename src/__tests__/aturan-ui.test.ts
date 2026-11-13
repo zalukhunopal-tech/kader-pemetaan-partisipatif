@@ -95,4 +95,35 @@ describe("Aturan UI", () => {
     expect(css).toMatch(/\.avz-hud\s*\{[^}]*display:\s*grid/);
     expect(css).toMatch(/grid-template-rows:\s*auto minmax\(0, 1fr\) minmax\(0, auto\) auto/);
   });
+
+  it("hak akses penandatangan sertifikat dikunci khusus admin (kader tidak dapat mengakses)", () => {
+    const rewardView = readFileSync(resolve(AKAR, "components/RewardView.tsx"), "utf8");
+    // Tombol Atur Penandatangan harus berada dalam blok kondisi peran === "admin"
+    expect(rewardView).toContain('peran === "admin" && (');
+    expect(rewardView).toContain('bukaAturSertifikat && (');
+    // Guard peran di dalam handler mutasi penandatangan
+    expect(rewardView).toContain('if (peran !== "admin") return;');
+  });
+
+  it("pengetengahan input PIN dan styling titik bullet berada di tengah presisi", () => {
+    const appCss = readFileSync(resolve(AKAR, "styles/app.css"), "utf8");
+    expect(appCss).toContain(".gerbang-admin-container");
+    expect(appCss).toMatch(/\.pin-input\s*\{[^}]*padding:\s*0\s+0\s+0\s+0\.5em/);
+  });
+
+  it("label pilihan pada sub-nav admin, tab lapisan peta, dan aksi data admin berupa satu kata", () => {
+    const adminDashboard = readFileSync(resolve(AKAR, "components/AdminDashboardView.tsx"), "utf8");
+    // Sub-nav admin wajib label satu kata
+    expect(adminDashboard).toContain('{ id: "kader_aktif", label: "Monitor", Ikon: Radio }');
+    expect(adminDashboard).toContain('{ id: "user_level", label: "Kader", Ikon: Users }');
+    expect(adminDashboard).toContain('{ id: "kelola_data", label: "Data", Ikon: Edit3 }');
+    expect(adminDashboard).toContain('{ id: "tugas_survei", label: "Tugas", Ikon: PlusCircle }');
+    expect(adminDashboard).toContain('{ id: "sertifikat", label: "Sertifikat", Ikon: LogoSertifikatResmiSvg }');
+    expect(adminDashboard).toContain('{ id: "akun", label: "Akun", Ikon: UserCog }');
+
+    // Tab bar lapisan peta wajib satu kata
+    const panelLapisan = readFileSync(resolve(AKAR, "components/peta/PanelLapisanPeta.tsx"), "utf8");
+    expect(panelLapisan).toMatch(/<button[\s\S]*?>\s*Dasar\s*<\/button>/);
+    expect(panelLapisan).toContain(">Berkas</span>");
+  });
 });
