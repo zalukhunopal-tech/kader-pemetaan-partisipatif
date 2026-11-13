@@ -60,9 +60,43 @@ describe("nomorSertifikatBerikut", () => {
 });
 
 describe("ringkasanKader dan penerbitan (S1)", () => {
-  const data = [
+  const data: DataSpasialItem[] = [
     ...titik("KDR-1", "Budi", 50, "lokal"), // banyak tetapi belum diverifikasi
     ...titik("KDR-2", "Siti", 50, "terverifikasi"),
+    {
+      id: "L-Siti",
+      idKader: "KDR-2",
+      namaKader: "Siti",
+      desaWilayah: "Desa A",
+      judul: "Jalur Patroli",
+      kategori: "Biodiversitas",
+      jenisGeometri: "line",
+      koordinat: [{ lat: -0.9, lng: 100.4 }, { lat: -0.95, lng: 100.45 }],
+      panjangKm: 5.5,
+      luasHa: 0,
+      statusSinkron: "terverifikasi",
+      createdAt: "2026-10-28T09:00:00.000Z",
+      updatedAt: "",
+      deskripsi: "",
+      riwayatPembaruan: []
+    },
+    {
+      id: "P-Siti",
+      idKader: "KDR-2",
+      namaKader: "Siti",
+      desaWilayah: "Desa A",
+      judul: "Lahan Adat",
+      kategori: "Wilayah Adat / Lahan",
+      jenisGeometri: "polygon",
+      koordinat: [{ lat: -0.9, lng: 100.4 }, { lat: -0.95, lng: 100.4 }, { lat: -0.95, lng: 100.45 }, { lat: -0.9, lng: 100.4 }],
+      luasHa: 5.2,
+      panjangKm: 0,
+      statusSinkron: "terverifikasi",
+      createdAt: "2026-10-28T09:00:00.000Z",
+      updatedAt: "",
+      deskripsi: "",
+      riwayatPembaruan: []
+    },
     ...titik("KDR-3", "Sari", 30, "terverifikasi")
   ];
 
@@ -93,7 +127,7 @@ describe("ringkasanKader dan penerbitan (S1)", () => {
       ditandatanganiOleh: "Pejabat"
     });
     expect(h.sertifikat!.id).toMatch(/^CERT-[0-9a-f]{12}$/);
-    expect(h.sertifikat!.alasanCapaian).toMatch(/50 Titik Koordinat/);
+    expect(h.sertifikat!.alasanCapaian).toMatch(/50 Titik/);
   });
 
   it("menolak sertifikat ganda untuk kader yang sama dan nomor kembar", () => {

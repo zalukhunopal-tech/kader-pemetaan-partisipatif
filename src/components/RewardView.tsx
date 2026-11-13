@@ -740,8 +740,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
           {sertifikatSaya
             ? `Sertifikat ${sertifikatSaya.nomorSertifikat} sudah diterbitkan.`
             : capaianTerverifikasi.berhakSertifikat
-              ? "Capaian terverifikasi sudah memenuhi satu paket. Menunggu admin menerbitkan sertifikat."
-              : "Sertifikat diterbitkan admin setelah data Anda yang memenuhi satu paket (50 titik, 5 km jalur, atau 5 Ha poligon) diverifikasi."}
+              ? "Capaian terverifikasi sudah memenuhi syarat (50 titik, 5 km jalur, dan 5 Ha poligon). Menunggu admin menerbitkan sertifikat."
+              : "Sertifikat diterbitkan admin setelah Anda mengambil 50 titik, 5 km jalur, dan 5 Ha poligon yang diverifikasi di menu admin."}
         </p>
 
         <div className="certificate-canvas-stage" id="certificate-print-area">

@@ -68,12 +68,12 @@ describe("UI lapangan", () => {
     }
     render(React.createElement(Form));
     expect(el.querySelector("input[required]")).toBeNull();
-    act(() => button("Batas desa / adat").click());
+    act(() => button("Batas").click());
     expect(el.querySelector("input[required]")).not.toBeNull();
     expect(el.textContent).toContain("Saksi Lapangan / Tokoh Desa");
     expect(bacaDraftSurvei("A").kategori).toBe("Tanda Batas");
     act(() => button("Ganti kategori").click());
-    act(() => button("Tumbuhan").click());
+    act(() => button("Biodiversitas").click());
     expect(el.textContent).not.toContain("Saksi Lapangan / Tokoh Desa");
   });
   it("memulihkan draf tiap akun dan tidak mencampur foto/saksi/geometri", () => {

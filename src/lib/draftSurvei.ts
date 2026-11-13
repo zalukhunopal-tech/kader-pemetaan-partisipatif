@@ -22,7 +22,7 @@ export interface DraftSurvei {
   simbol?: string;
 }
 export const DRAFT_KOSONG: DraftSurvei = {
-  kategori: "Flora",
+  kategori: "Biodiversitas",
   judul: "",
   namaLokal: "",
   namaIlmiah: "",

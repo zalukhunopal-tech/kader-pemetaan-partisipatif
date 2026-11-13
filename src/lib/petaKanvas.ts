@@ -59,6 +59,7 @@ export function teksStatusKompas(p: StatePosisiPerangkat): { teks: string; perin
 }
 
 export const WARNA_KATEGORI: Record<KategoriSurvei, string> = {
+  Biodiversitas: "#10b981",
   Flora: "#10b981",
   Fauna: "#f59e0b",
   "Mata Air": "#38bdf8",
@@ -66,7 +67,8 @@ export const WARNA_KATEGORI: Record<KategoriSurvei, string> = {
   "Ancaman / Temuan": "#ef4444",
   "Wilayah Adat / Lahan": "#fbbf24",
   "Sarana Desa": "#2563eb",
-  "Situs Budaya": "#b45309"
+  "Situs Budaya": "#b45309",
+  Lainnya: "#64748b"
 };
 
 export interface LapisanPeta {

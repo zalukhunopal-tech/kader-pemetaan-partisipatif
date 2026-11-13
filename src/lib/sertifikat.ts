@@ -83,14 +83,14 @@ export function siapkanSertifikat(
 ): HasilPenerbitan {
   const nomorBersih = nomor.trim();
   if (!nomorBersih) return { ok: false, pesan: "Nomor sertifikat wajib diisi." };
+  if (kader.sudahTerbit || daftar.some((s) => s.idKader === kader.idKader)) {
+    return { ok: false, pesan: `${kader.namaKader} sudah memiliki sertifikat.` };
+  }
   if (!kader.capaian.berhakSertifikat) {
     return {
       ok: false,
-      pesan: `${kader.namaKader} belum memenuhi satu paket capaian terverifikasi. Verifikasi datanya dulu di tab Data.`
+      pesan: `${kader.namaKader} belum memenuhi syarat sertifikasi (50 titik, 5 km jalur, dan 5 Ha poligon terverifikasi). Verifikasi datanya dulu di tab Data.`
     };
-  }
-  if (kader.sudahTerbit || daftar.some((s) => s.idKader === kader.idKader)) {
-    return { ok: false, pesan: `${kader.namaKader} sudah memiliki sertifikat.` };
   }
   if (nomorSudahDipakai(daftar, nomorBersih)) {
     return { ok: false, pesan: `Nomor ${nomorBersih} sudah dipakai sertifikat lain.` };

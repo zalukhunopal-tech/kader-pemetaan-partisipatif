@@ -331,11 +331,12 @@ export function hitungPeringkatGis20Level(
   const skorVolumeData = Math.round(jmlTitik * 10 + jmlPembaruan * 8 + totalKm * 25 + totalHa * 25);
 
   // 2. Skor Variasi Data (Kategori Unik & Geometri Unik)
+  // Bonus variasi diberikan untuk keberagaman tambahan di luar jenis/kategori pertama
   const kategoriSet = new Set(dataKader.map((d) => d.kategori));
   const geometriSet = new Set(dataKader.map((d) => d.jenisGeometri));
   const kategoriUnik = kategoriSet.size;
   const geometriUnik = geometriSet.size;
-  const skorVariasiData = kategoriUnik * 35 + geometriUnik * 45;
+  const skorVariasiData = Math.max(0, kategoriUnik - 1) * 35 + Math.max(0, geometriUnik - 1) * 45;
 
   // 3. Skor Keaktifan Diskusi & Koordinasi
   // Hanya ruang diskusi komunitas, dicocokkan dengan ID pengirim (bukan nama yang bisa sama atau
@@ -421,9 +422,9 @@ export function hitungPeringkatGis20Level(
 }
 
 /**
- * Menghitung capaian gamifikasi & insentif kader sesuai PRD Bab 3.3:
- * - 1 Paket Capaian = 50 Titik Koordinat ATAU 5 km Tracking Perjalanan ATAU 5 Ha Pemetaan Poligon
- * - Capaian Pertama (1x Target) -> berhak atas Sertifikat Kader Pemetaan (hanya data terverifikasi)
+ * Menghitung capaian gamifikasi & insentif kader:
+ * - 1 Paket Capaian Sertifikat Resmi = 50 Titik Koordinat DAN 5 km Tracking Jalur DAN 5 Ha Pemetaan Poligon
+ * - Sertifikat diterbitkan admin setelah ketiga indikator diverifikasi di menu admin.
  */
 export function hitungCapaianKader(
   semuaData: DataSpasialItem[],
@@ -461,35 +462,33 @@ export function hitungCapaianKader(
   const paketDariTracking = Math.floor(totalTrackingKm / TARGET_TRACKING_KM);
   const paketDariPoligon = Math.floor(totalPoligonHa / TARGET_POLIGON_HA);
 
-  let totalPaketSelesai: number;
-  let progresPaketBerikutnyaPersen: number;
+  // Syarat Sertifikat Resmi: Wajib memenuhi 50 Titik, 5 km Jalur, DAN 5 Ha Poligon yang diverifikasi admin
+  const totalPaketSelesai = Math.min(paketDariTitik, paketDariTracking, paketDariPoligon);
 
-  if (profil.modeKombinasiTarget === "gabungan_proporsional") {
-    const totalFraksi = totalPoinTitik / TARGET_TITIK + totalTrackingKm / TARGET_TRACKING_KM + totalPoligonHa / TARGET_POLIGON_HA;
-    totalPaketSelesai = Math.floor(totalFraksi);
-    progresPaketBerikutnyaPersen = Math.round((totalFraksi - totalPaketSelesai) * 100);
-  } else {
-    // Default PRD: menyelesaikan penuh salah satu indikator (50 titik ATAU 5 km ATAU 5 Ha)
-    totalPaketSelesai = paketDariTitik + paketDariTracking + paketDariPoligon;
-    const sisaTitikPersen = ((totalPoinTitik % TARGET_TITIK) / TARGET_TITIK) * 100;
-    const sisaTrackPersen = ((totalTrackingKm % TARGET_TRACKING_KM) / TARGET_TRACKING_KM) * 100;
-    const sisaPolyPersen = ((totalPoligonHa % TARGET_POLIGON_HA) / TARGET_POLIGON_HA) * 100;
-    progresPaketBerikutnyaPersen = Math.round(Math.max(sisaTitikPersen, sisaTrackPersen, sisaPolyPersen));
-  }
+  const persenTitik = Math.min(100, Math.round((totalPoinTitik / TARGET_TITIK) * 100));
+  const persenTracking = Math.min(100, Math.round((totalTrackingKm / TARGET_TRACKING_KM) * 100));
+  const persenPoligon = Math.min(100, Math.round((totalPoligonHa / TARGET_POLIGON_HA) * 100));
 
-  const persenTitik = Math.min(100, Math.round(((totalPoinTitik % TARGET_TITIK) / TARGET_TITIK) * 100)) || (paketDariTitik > 0 ? 100 : 0);
-  const persenTracking =
-    Math.min(100, Math.round(((totalTrackingKm % TARGET_TRACKING_KM) / TARGET_TRACKING_KM) * 100)) || (paketDariTracking > 0 ? 100 : 0);
-  const persenPoligon =
-    Math.min(100, Math.round(((totalPoligonHa % TARGET_POLIGON_HA) / TARGET_POLIGON_HA) * 100)) || (paketDariPoligon > 0 ? 100 : 0);
+  const progresPaketBerikutnyaPersen =
+    totalPaketSelesai >= 1
+      ? Math.round(
+          (((totalPoinTitik % TARGET_TITIK) / TARGET_TITIK +
+            (totalTrackingKm % TARGET_TRACKING_KM) / TARGET_TRACKING_KM +
+            (totalPoligonHa % TARGET_POLIGON_HA) / TARGET_POLIGON_HA) /
+            3) *
+            100
+        )
+      : Math.round((persenTitik + persenTracking + persenPoligon) / 3);
 
-  const berhakSertifikat = totalPaketSelesai >= 1;
+  const berhakSertifikat =
+    totalPoinTitik >= TARGET_TITIK && totalTrackingKm >= TARGET_TRACKING_KM && totalPoligonHa >= TARGET_POLIGON_HA;
   const alasanList: string[] = [];
-  if (paketDariTitik >= 1) alasanList.push(`${totalPoinTitik} Titik Koordinat`);
-  if (paketDariTracking >= 1) alasanList.push(`${totalTrackingKm} km Tracking Survei`);
-  if (paketDariPoligon >= 1) alasanList.push(`${totalPoligonHa} Ha Pemetaan Poligon`);
-  if (alasanList.length === 0 && berhakSertifikat) {
-    alasanList.push(`Kombinasi Capaian (${totalPoinTitik} titik, ${totalTrackingKm} km, ${totalPoligonHa} Ha)`);
+  if (berhakSertifikat) {
+    alasanList.push(`Lengkap: ${totalPoinTitik} Titik, ${totalTrackingKm} km Jalur, ${totalPoligonHa} Ha Poligon`);
+  } else {
+    alasanList.push(
+      `Progres: ${totalPoinTitik}/${TARGET_TITIK} Titik, ${totalTrackingKm}/${TARGET_TRACKING_KM} km Jalur, ${totalPoligonHa}/${TARGET_POLIGON_HA} Ha Poligon`
+    );
   }
 
   return {

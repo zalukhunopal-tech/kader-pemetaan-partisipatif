@@ -139,6 +139,27 @@ function tanganiGalat(err: GeolocationPositionError) {
         ? "GPS belum diizinkan"
         : "Sinyal GPS belum didapat";
     setState({ galat: pesan });
+
+    // Pemulihan otomatis jika GPS timeout saat merekam di latar belakang
+    if (err.code === err.TIMEOUT && state.status === "merekam" && typeof navigator !== "undefined" && "geolocation" in navigator) {
+      if (watchId !== null) {
+        try {
+          navigator.geolocation.clearWatch(watchId);
+        } catch {
+          /* abaikan */
+        }
+        watchId = null;
+      }
+      try {
+        watchId = navigator.geolocation.watchPosition(tanganiPosisi, tanganiGalat, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 20000
+        });
+      } catch {
+        watchId = null;
+      }
+    }
   }
 }
 
@@ -205,14 +226,28 @@ function hentikanWatch() {
   lepasWakeLock();
 }
 
-// Wake Lock otomatis dilepas browser saat tab disembunyikan: minta lagi saat kembali
+// Ketahanan latar belakang: Wake Lock dan GPS dipulihkan saat aplikasi/tab kembali ke depan
 if (typeof document !== "undefined") {
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && state.status === "merekam") {
+  const pulihkanLatarBelakang = () => {
+    if (state.status === "merekam") {
       wakeLock = null;
       mintaWakeLock();
+      if (watchId === null) {
+        mulaiWatch();
+      }
+    }
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      pulihkanLatarBelakang();
     }
   });
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("focus", pulihkanLatarBelakang);
+    window.addEventListener("pageshow", pulihkanLatarBelakang);
+  }
 }
 
 // Lanjutkan perekaman yang masih aktif sebelum aplikasi ditutup / dimuat ulang

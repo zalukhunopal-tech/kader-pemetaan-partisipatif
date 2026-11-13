@@ -51,6 +51,18 @@ const jalur = (km5: boolean, sim = false) =>
     koordinat: Array.from({ length: 60 }, (_, i) => ({ lat: -0.9478 + i * 0.0008, lng: 100.4, ...(sim ? { simulasi: true } : {}) })),
     panjangKm: km5 ? 5.25 : 1
   });
+const poligon = (ha5 = true) =>
+  objek({
+    id: "POLY-1",
+    jenisGeometri: "polygon",
+    koordinat: [
+      { lat: -0.9478, lng: 100.4 },
+      { lat: -0.9478, lng: 100.41 },
+      { lat: -0.9378, lng: 100.41 },
+      { lat: -0.9378, lng: 100.4 }
+    ],
+    luasHa: ha5 ? 5.5 : 1
+  });
 const upd = (ms: number, teks: string, over: Partial<PembaruanObjek> = {}): PembaruanObjek => ({
   id: "U" + ms,
   tanggal: iso(ms),
@@ -62,14 +74,28 @@ const upd = (ms: number, teks: string, over: Partial<PembaruanObjek> = {}): Pemb
 });
 
 describe("paket capaian", () => {
-  it("50 titik = 1 paket dan berhak sertifikat; 49 titik belum", () => {
-    expect(hitungCapaianKader(banyakTitik(50), profil).berhakSertifikat).toBe(true);
-    expect(hitungCapaianKader(banyakTitik(49), profil).berhakSertifikat).toBe(false);
+  it("50 titik, 5 km jalur, dan 5 Ha poligon wajib terpenuhi untuk berhak sertifikat", () => {
+    // Hanya titik belum cukup
+    expect(hitungCapaianKader(banyakTitik(50), profil).berhakSertifikat).toBe(false);
+    // Hanya jalur belum cukup
+    expect(hitungCapaianKader([jalur(true)], profil).berhakSertifikat).toBe(false);
+    // Hanya poligon belum cukup
+    expect(hitungCapaianKader([poligon(true)], profil).berhakSertifikat).toBe(false);
+    // Gabungan lengkap (50 titik + 5 km jalur + 5 Ha poligon) -> berhak sertifikat!
+    const lengkap = [...banyakTitik(50), jalur(true), poligon(true)];
+    const cLengkap = hitungCapaianKader(lengkap, profil);
+    expect(cLengkap.paketDariTitik).toBe(1);
+    expect(cLengkap.totalTrackingKm).toBeCloseTo(5.25, 2);
+    expect(cLengkap.totalPoligonHa).toBeCloseTo(5.5, 2);
+    expect(cLengkap.berhakSertifikat).toBe(true);
+    expect(cLengkap.totalPaketSelesai).toBe(1);
   });
-  it("5 km jalur = 1 paket", () => {
-    const c = hitungCapaianKader([jalur(true)], profil);
-    expect(c.totalTrackingKm).toBeCloseTo(5.25, 2);
-    expect(c.berhakSertifikat).toBe(true);
+  it("1 titik baru masuk aplikasi berada di Level 1 (bukan Level 3)", () => {
+    const satuTitik = banyakTitik(1);
+    const hasil = hitungPeringkatGis20Level(satuTitik, profil);
+    expect(hasil.levelSaatIni.level).toBe(1);
+    expect(hasil.levelSaatIni.namaLevel).toBe("Penjelajah Dasar");
+    expect(hasil.skorTotal).toBe(10); // hanya skor volume 10, bonus variasi = 0
   });
   it("data kader lain dan data ditolak tidak dihitung", () => {
     const data = [...banyakTitik(30), ...banyakTitik(30, { idKader: "KDR-002" }).map((d) => ({ ...d, id: "Z" + d.id }))];

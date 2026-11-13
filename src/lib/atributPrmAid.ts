@@ -110,6 +110,7 @@ export const DAFTAR_ATURAN_POLYGON_PRM_AID: AturanPolygonPrmAid[] = [
  * Fallback gaya Polygon berdasarkan Kategori Survei Titik Tapak (SNI 6502 / BIG RBI + PRM-AID)
  */
 export const FALLBACK_POLYGON_SNI: Record<string, { tepi: string; warna: string }> = {
+  Biodiversitas: { tepi: "#004D00", warna: "#02AD00" }, // Gabungan Flora & Fauna (Vegetasi & Satwa)
   "Wilayah Adat / Lahan": { tepi: "#8d4513", warna: "#C68642" }, // Wilayah MHA (PRM-AID)
   Flora: { tepi: "#004D00", warna: "#02AD00" }, // Vegetasi Hutan / Rimba (SNI 7645 / Hutan Lindung PRM-AID)
   Fauna: { tepi: "#6600CC", warna: "#AD3FFF" }, // Habitat Satwa / Konservasi (PRM-AID)
@@ -117,7 +118,8 @@ export const FALLBACK_POLYGON_SNI: Record<string, { tepi: string; warna: string 
   "Tanda Batas": { tepi: "#000000", warna: "Transparent" }, // Batas Administrasi (PRM-AID / SNI 6502)
   "Ancaman / Temuan": { tepi: "#A80000", warna: "#FF0000" }, // Zona Bahaya / Kerusakan (SNI / Zona Inti PRM-AID)
   "Sarana Desa": { tepi: "#000000", warna: "#F5F5DC" }, // Area Desa / Permukiman (PRM-AID / SNI 6502)
-  "Situs Budaya": { tepi: "#4A0099", warna: "#6600CC" } // Zona Religi, Sejarah & Budaya (PRM-AID)
+  "Situs Budaya": { tepi: "#4A0099", warna: "#6600CC" }, // Zona Religi, Sejarah & Budaya (PRM-AID)
+  Lainnya: { tepi: "#334155", warna: "#94a3b8" } // Kategori Lainnya
 };
 
 export interface AturanLinePrmAid {
@@ -139,6 +141,7 @@ export const DAFTAR_ATURAN_LINE_PRM_AID: AturanLinePrmAid[] = [
 ];
 
 export const FALLBACK_LINE_SNI: Record<string, string> = {
+  Biodiversitas: "#02AD00", // Jalur Vegetasi / Sabuk Hijau & Jelajah Satwa (SNI)
   "Mata Air": "#00BFFF", // Sungai / Hidrografi (Kode PRM-AID)
   "Sarana Desa": "#FF0000", // Jalan / Infrastruktur (Kode PRM-AID)
   "Tanda Batas": "#FFCC99", // Batas RT / Batas Wilayah (Kode PRM-AID)
@@ -146,7 +149,8 @@ export const FALLBACK_LINE_SNI: Record<string, string> = {
   Fauna: "#AD3FFF", // Jalur Jelajah Satwa (SNI)
   "Ancaman / Temuan": "#FF0000", // Jalur Kerusakan / Rawan Bencana (SNI)
   "Wilayah Adat / Lahan": "#8d4513", // Batas Wilayah MHA (Kode PRM-AID)
-  "Situs Budaya": "#6600CC" // Jalur Sejarah / Budaya (Kode PRM-AID / SNI)
+  "Situs Budaya": "#6600CC", // Jalur Sejarah / Budaya (Kode PRM-AID / SNI)
+  Lainnya: "#64748b" // Jalur Lainnya
 };
 
 export interface AturanPointPrmAid {
@@ -226,6 +230,7 @@ export const DAFTAR_ATURAN_POINT_PRM_AID: AturanPointPrmAid[] = [
 ];
 
 export const FALLBACK_POINT_SNI: Record<string, { kategori: string; simbol: string }> = {
+  Biodiversitas: { kategori: "Biodiversitas", simbol: "forest.png" },
   Kuburan: { kategori: "Kuburan", simbol: "cross.png" },
   Sanitasi: { kategori: "Sanitasi", simbol: "toilets.png" },
   Komunikasi: { kategori: "Komunikasi", simbol: "tower.png" },
@@ -241,7 +246,8 @@ export const FALLBACK_POINT_SNI: Record<string, { kategori: string; simbol: stri
   "Tanda Batas": { kategori: "Tanda Batas", simbol: "default-icon.png" },
   "Ancaman / Temuan": { kategori: "Ancaman / Temuan", simbol: "fire.png" },
   "Wilayah Adat / Lahan": { kategori: "Wilayah Adat / Lahan", simbol: "agriculture.png" },
-  "Sarana Desa": { kategori: "Sarana Desa", simbol: "default-icon.png" }
+  "Sarana Desa": { kategori: "Sarana Desa", simbol: "default-icon.png" },
+  Lainnya: { kategori: "Lainnya", simbol: "default-icon.png" }
 };
 
 function normalisasiTeksCari(...bagian: (string | undefined | null)[]): string {
