@@ -53,8 +53,8 @@ export const PROFIL_BAWAAN: ProfilKader = {
   noHp: "-",
   namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
   modeKombinasiTarget: "per_kategori",
-  namaPenandatanganSertifikat: "Koordinator Program GIS",
-  jabatanPenandatanganSertifikat: "Koordinator Verifikasi Spasial",
+  namaPenandatanganSertifikat: "Adi Junedi",
+  jabatanPenandatanganSertifikat: "Direktur",
   temaKegiatanSertifikat: "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau"
 };
 
@@ -112,6 +112,16 @@ export const muatProfil = () => {
   }
   if (p.nama === "Budi Santoso (Kader Lapangan)") {
     p.nama = "Budi Santoso";
+  }
+  if (!p.namaPenandatanganSertifikat || p.namaPenandatanganSertifikat === "Koordinator Program GIS") {
+    p.namaPenandatanganSertifikat = "Adi Junedi";
+    p.jabatanPenandatanganSertifikat = "Direktur";
+  }
+  if (
+    p.penandatanganList &&
+    p.penandatanganList.some((x) => x.instansi?.includes("Balai Pemetaan Spasial Desa") || x.nama?.includes("Jonni Marwa"))
+  ) {
+    p.penandatanganList = undefined;
   }
   return p;
 };

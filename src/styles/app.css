@@ -4218,6 +4218,64 @@ label {
   object-fit: cover;
 }
 
+/* Kartu Cepat Input Nama Masing-masing Posisi */
+.cert-signer-quick-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.cert-signer-positions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.cert-signer-quick-item {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cert-signer-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cert-signer-rank-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.cert-signer-role-tag {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cert-signer-input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cert-signer-input-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
 .cert-signer-editor-list {
   display: flex;
   flex-direction: column;

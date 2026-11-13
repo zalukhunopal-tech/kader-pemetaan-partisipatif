@@ -276,14 +276,28 @@ function gambarSatuBlokPenandatangan(
   ctx.save();
   ctx.textAlign = "center";
 
-  // 1. Jabatan & Instansi di atas
-  ctx.fillStyle = "#1e293b";
-  ctx.font = "bold 17px system-ui, -apple-system, sans-serif";
-  ctx.fillText(item.jabatan || "Pejabat Penandatangan", cx, yTop);
+  const maxBlokW = 310;
 
+  // 1. Jabatan & Instansi di atas (penskalatan dinamis agar pas dan rapi)
+  let fontJabatan = 17;
+  ctx.font = `bold ${fontJabatan}px system-ui, -apple-system, sans-serif`;
+  const teksJabatan = item.jabatan || "Pejabat Penandatangan";
+  while (ctx.measureText(teksJabatan).width > maxBlokW && fontJabatan > 11) {
+    fontJabatan -= 0.5;
+    ctx.font = `bold ${fontJabatan}px system-ui, -apple-system, sans-serif`;
+  }
+  ctx.fillStyle = "#1e293b";
+  ctx.fillText(teksJabatan, cx, yTop);
+
+  let fontInstansi = 16;
+  ctx.font = `600 ${fontInstansi}px system-ui, -apple-system, sans-serif`;
+  const teksInstansi = item.instansi || "";
+  while (ctx.measureText(teksInstansi).width > maxBlokW && fontInstansi > 11) {
+    fontInstansi -= 0.5;
+    ctx.font = `600 ${fontInstansi}px system-ui, -apple-system, sans-serif`;
+  }
   ctx.fillStyle = "#334155";
-  ctx.font = "600 16px system-ui, -apple-system, sans-serif";
-  ctx.fillText(item.instansi || "", cx, yTop + 23);
+  ctx.fillText(teksInstansi, cx, yTop + 23);
 
   // 2. Stempel Resmi Melingkar di Kiri-Tengah Blok
   const stampX = cx - 34;
@@ -306,7 +320,7 @@ function gambarSatuBlokPenandatangan(
   ctx.arc(0, 0, 17, 0, Math.PI * 2);
   ctx.stroke();
 
-  const labelStempel = (item.instansi || "VERIFIKASI SPASIAL").toUpperCase().slice(0, 22);
+  const labelStempel = (item.instansi || "KKI WARSI").toUpperCase().slice(0, 22);
   ctx.font = "bold 7.5px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(`★ ${labelStempel} ★`, 0, -24);
@@ -337,10 +351,16 @@ function gambarSatuBlokPenandatangan(
     ctx.restore();
   }
 
-  // 4. Nama Lengkap & Gelar Penandatangan di Bawah
+  // 4. Nama Lengkap & Gelar Penandatangan di Bawah (penskalatan dinamis)
+  let fontNama = 17.5;
+  ctx.font = `bold ${fontNama}px system-ui, -apple-system, sans-serif`;
+  const teksNama = item.nama || (item.jabatan ? `(${item.jabatan})` : "Pejabat Penandatangan");
+  while (ctx.measureText(teksNama).width > maxBlokW && fontNama > 11) {
+    fontNama -= 0.5;
+    ctx.font = `bold ${fontNama}px system-ui, -apple-system, sans-serif`;
+  }
   ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 17.5px system-ui, -apple-system, sans-serif";
-  ctx.fillText(item.nama || "Pejabat Verifikasi", cx, yTop + 142);
+  ctx.fillText(teksNama, cx, yTop + 142);
 
   ctx.restore();
 }

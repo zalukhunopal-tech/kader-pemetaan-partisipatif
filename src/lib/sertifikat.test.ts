@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { nomorSertifikatBerikut, nomorSudahDipakai, ringkasanKader, siapkanSertifikat } from "./sertifikat";
-import { DataSpasialItem, SertifikatKader } from "../types";
+import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "./sertifikatBawaan";
+import { DataSpasialItem, PenandatanganSertifikatItem, SertifikatKader } from "../types";
 
 const titik = (idKader: string, namaKader: string, n: number, status: DataSpasialItem["statusSinkron"]): DataSpasialItem[] =>
   Array.from({ length: n }, (_, i) => ({
@@ -111,5 +112,46 @@ describe("ringkasanKader dan penerbitan (S1)", () => {
     const impor = titik("KDR-5", "Rudi", 50, "lokal").map((d) => ({ ...d, diimpor: true }));
     const r = ringkasanKader([...simulasi, ...impor], []);
     expect(r.every((k) => !k.capaian.berhakSertifikat)).toBe(true);
+  });
+});
+
+describe("Daftar Penandatangan KKI Warsi pada Sertifikat", () => {
+  it("memiliki 4 posisi default terurut dari jabatan tertinggi sesuai instruksi", () => {
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT).toHaveLength(4);
+
+    // Posisi 1 (Tertinggi): Direktur KKI Warsi
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[0].jabatan).toBe("Direktur");
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[0].instansi).toBe("KKI Warsi");
+
+    // Posisi 2: Manajer Program KKI Warsi (diksi baku bahasa Indonesia)
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[1].jabatan).toBe("Manajer Program");
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[1].instansi).toBe("KKI Warsi");
+
+    // Posisi 3: Koordinator Proyek Kayan Mentarang KKI Warsi
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[2].jabatan).toBe("Koordinator Proyek Kayan Mentarang");
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[2].instansi).toBe("KKI Warsi");
+
+    // Posisi 4: GIS dan IT KKI Warsi (mematuhi tata bahasa baku tanpa simbol &)
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[3].jabatan).toBe("GIS dan IT");
+    expect(DEFAULT_PENANDATANGAN_SERTIFIKAT[3].instansi).toBe("KKI Warsi");
+  });
+
+  it("memungkinkan nama diinput untuk masing-masing posisi penandatangan", () => {
+    const namaKustom = [
+      "Dr. H. Adi Junedi, S.Hut., M.Si.",
+      "Yul Qari, S.Si., M.Sc.",
+      "Ahmad Fauzi, S.Hut.",
+      "Bayu Pratama, S.Kom."
+    ];
+
+    const daftarKustom: PenandatanganSertifikatItem[] = DEFAULT_PENANDATANGAN_SERTIFIKAT.map((item, idx) => ({
+      ...item,
+      nama: namaKustom[idx]
+    }));
+
+    daftarKustom.forEach((item, idx) => {
+      expect(item.nama).toBe(namaKustom[idx]);
+      expect(item.instansi).toBe("KKI Warsi");
+    });
   });
 });
