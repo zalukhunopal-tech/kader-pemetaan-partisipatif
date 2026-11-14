@@ -29,6 +29,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.locator('button[aria-label="Buka panel lokasi, pelacakan, dan navigasi"]').click();
     const drawer = p.locator(".avz-gps-drawer");
     await expect(drawer).toBeVisible();
+    await p.waitForTimeout(260);
 
     // Verifikasi posisi tab header tidak terlalu ke bawah terhadap tepi atas drawer
     const kotakDrawer = await drawer.boundingBox();
@@ -483,54 +484,87 @@ test("swipe ke atas buka drawer, kompas klik 3x pertahankan simbol, pelacakan ti
     expect(svgBox!.height, `kompas klik ke-${klik}`).toBeGreaterThanOrEqual(30);
   }
 
-  // 2. Uji swipe ke atas dari bilah bawah (.avz-pill-koordinat) memunculkan kotak dialog Lokasi · Pelacakan · Navigasi
+  // 2. Uji swipe ke atas & ke bawah yang halus dan bertahap (mengikuti jari + ringkas <-> sedang <-> penuh <-> tutup)
   const pillKoord = p.locator(".avz-pill-koordinat");
   const boxPill = (await pillKoord.boundingBox())!;
   const sx = boxPill.x + boxPill.width / 2;
   const sy = boxPill.y + boxPill.height / 2;
   const cdp = await p.context().newCDPSession(p);
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: sx, y: sy, id: 1 }] });
-  for (let i = 1; i <= 5; i++) {
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchMove",
-      touchPoints: [{ x: sx, y: sy - i * 16, id: 1 }]
-    });
-  }
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 
+  const geserVertikal = async (x: number, yAwal: number, totalDy: number, langkah = 5, jedaMs = 30, tahanSebelumLepas = false) => {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: yAwal, id: 1 }] });
+    for (let i = 1; i <= langkah; i++) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y: yAwal + (totalDy * i) / langkah, id: 1 }]
+      });
+      if (jedaMs > 0) await p.waitForTimeout(jedaMs);
+    }
+    if (!tahanSebelumLepas) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    }
+  };
+
+  // Tarikan terlalu pendek (< 28px) langsung memantul menutup kembali
+  await geserVertikal(sx, sy, -16, 4, 25);
   const drawer = p.locator(".avz-gps-drawer");
-  await expect(drawer).toBeVisible();
-  // Memastikan swipe pada pill koordinat TIDAK memicu dialog Salin Koordinat
-  await expect(p.locator(".avz-coord-modal")).toHaveCount(0);
-
-  // Swipe ke bawah dari kepala drawer menutup kembali kotak dialog
-  const kepala = drawer.locator(".avz-gps-drawer-kepala");
-  const boxKepala = (await kepala.boundingBox())!;
-  const kx = boxKepala.x + boxKepala.width / 2;
-  const ky = boxKepala.y + 12;
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: kx, y: ky, id: 2 }] });
-  for (let i = 1; i <= 5; i++) {
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchMove",
-      touchPoints: [{ x: kx, y: ky + i * 18, id: 2 }]
-    });
-  }
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(drawer).toBeHidden();
 
-  // Buka lagi dengan swipe ke atas dari bilah bawah untuk memeriksa tab Pelacakan
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: sx, y: sy, id: 3 }] });
-  for (let i = 1; i <= 5; i++) {
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchMove",
-      touchPoints: [{ x: sx, y: sy - i * 16, id: 3 }]
-    });
-  }
+  // Usap naik bertahap ke tahap 1 ("ringkas") sambil mengecek pelacakan jari real-time di tengah tarikan
+  await geserVertikal(sx, sy, -70, 5, 30, true);
+  await expect(drawer).toHaveClass(/sedang-seret/);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(drawer).toBeVisible();
+  await expect(drawer).toHaveAttribute("data-tahap", "ringkas");
+  // Memastikan swipe pada pill koordinat TIDAK memicu dialog Salin Koordinat
+  await expect(p.locator(".avz-coord-modal")).toHaveCount(0);
+  await p.waitForTimeout(280);
+  const tinggiRingkas = (await drawer.boundingBox())!.height;
+
+  // Usap naik dari kepala drawer -> naik bertahap ke "sedang", lalu ke "penuh"
+  const kepala = drawer.locator(".avz-gps-drawer-kepala");
+  const kMid = async () => {
+    const b = (await kepala.boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + 12 };
+  };
+  let posKepala = await kMid();
+  await geserVertikal(posKepala.x, posKepala.y, -70, 5, 30);
+  await expect(drawer).toHaveAttribute("data-tahap", "sedang");
+  await p.waitForTimeout(280);
+  const tinggiSedang = (await drawer.boundingBox())!.height;
+  expect(tinggiSedang).toBeGreaterThan(tinggiRingkas + 40);
+
+  posKepala = await kMid();
+  await geserVertikal(posKepala.x, posKepala.y, -70, 5, 30);
+  await expect(drawer).toHaveAttribute("data-tahap", "penuh");
+  await p.waitForTimeout(280);
+  const tinggiPenuh = (await drawer.boundingBox())!.height;
+  expect(tinggiPenuh).toBeGreaterThan(tinggiSedang + 40);
+
+  // Usap turun terkendali dari kepala drawer -> turun bertahap penuh -> sedang -> ringkas -> tutup
+  posKepala = await kMid();
+  await geserVertikal(posKepala.x, posKepala.y, 70, 5, 30);
+  await expect(drawer).toHaveAttribute("data-tahap", "sedang");
+  await p.waitForTimeout(280);
+
+  posKepala = await kMid();
+  await geserVertikal(posKepala.x, posKepala.y, 70, 5, 30);
+  await expect(drawer).toHaveAttribute("data-tahap", "ringkas");
+  await p.waitForTimeout(280);
+
+  posKepala = await kMid();
+  await geserVertikal(posKepala.x, posKepala.y, 70, 5, 30);
+  await expect(drawer).toBeHidden();
+
+  // Buka lagi ke "ringkas" dari bilah bawah, lalu pindah tab Pelacakan -> otomatis melebar agar tombol utuh
+  await geserVertikal(sx, sy, -70, 5, 30);
+  await expect(drawer).toBeVisible();
+  await expect(drawer).toHaveAttribute("data-tahap", "ringkas");
 
   // 3. Cek tab Pelacakan: tombol Mulai Pelacakan, Jeda, dan Hentikan TIDAK terpotong di bawah
   await drawer.getByRole("tab", { name: "Pelacakan" }).click();
+  await expect(drawer).toHaveAttribute("data-tahap", "sedang");
+  await p.waitForTimeout(280);
   const drawerBox = (await drawer.boundingBox())!;
   const btnMulai = drawer.getByRole("button", { name: "Mulai Pelacakan" });
   await expect(btnMulai).toBeVisible();
