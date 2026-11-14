@@ -34,11 +34,12 @@ interface KomunikasiViewProps {
     pinKoordinat?: { lat: number; lng: number; label: string },
     durasiSuaraDetik?: number,
     kustomPengirim?: {
-      idPengirim: string;
-      namaPengirim: string;
-      peranPengirim: PeranPengguna;
-      desaPengirim: string;
+      idPengirim?: string;
+      namaPengirim?: string;
+      peranPengirim?: PeranPengguna;
+      desaPengirim?: string;
       eskalasiAdmin?: boolean;
+      audioDataUrl?: string;
     }
   ) => void;
   onHapusPesan?: (idPesan: string) => void;
@@ -68,7 +69,17 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   const [cariKata, setCariKata] = useState("");
   const [tampilCari, setTampilCari] = useState(false);
   const [audioMemutar, setAudioMemutar] = useState<string | null>(null);
+  const [detikPutar, setDetikPutar] = useState(0);
+  const [sedangRekamSuara, setSedangRekamSuara] = useState(false);
+  const [detikRekamSuara, setDetikRekamSuara] = useState(0);
+  const [modeTanpaMikrofon, setModeTanpaMikrofon] = useState(false);
   const [geminiSedangMengetik, setGeminiSedangMengetik] = useState(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRekamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const detikRekamRef = useRef(0);
 
   // State WhatsApp: Pesan Terpilih (tekan tahan), Balasan (quote), Modal Teruskan, & Notifikasi Toast
   const [pesanTerpilih, setPesanTerpilih] = useState<PesanKomunikasi | null>(null);
@@ -275,9 +286,170 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
     setMenuLampiranTerbuka(false);
   };
 
-  const kirimVoiceNote = () => {
-    onKirimPesan(saluranAktif, "🎙️ Pesan Suara: Laporan kondisi jalur survei aman dan cuaca cerah.", undefined, 12);
+  const hentikanStreamRekam = () => {
+    streamRekamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRekamRef.current = null;
+  };
+
+  useEffect(() => {
+    if (!sedangRekamSuara) return;
+    const idInt = window.setInterval(() => {
+      setDetikRekamSuara((d) => {
+        const berikut = Math.min(60, d + 1);
+        detikRekamRef.current = berikut;
+        return berikut;
+      });
+    }, 1000);
+    return () => window.clearInterval(idInt);
+  }, [sedangRekamSuara]);
+
+  useEffect(() => {
+    if (!audioMemutar) {
+      setDetikPutar(0);
+      return;
+    }
+    const pesanAktif = pesanList.find((p) => p.id === audioMemutar);
+    const totalDurasi = Math.max(1, pesanAktif?.durasiSuaraDetik ?? 6);
+    const idInt = window.setInterval(() => {
+      setDetikPutar((d) => {
+        if (d + 1 >= totalDurasi) {
+          setAudioMemutar(null);
+          return 0;
+        }
+        return d + 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(idInt);
+  }, [audioMemutar, pesanList]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          /* abaikan */
+        }
+      }
+      hentikanStreamRekam();
+      audioElRef.current?.pause();
+    };
+  }, []);
+
+  const mulaiRekamSuara = async () => {
     setMenuLampiranTerbuka(false);
+    if (sedangRekamSuara) return;
+    detikRekamRef.current = 0;
+    setDetikRekamSuara(0);
+    audioChunksRef.current = [];
+    setModeTanpaMikrofon(false);
+
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined") {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRekamRef.current = stream;
+        const recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (ev) => {
+          if (ev.data && ev.data.size > 0) audioChunksRef.current.push(ev.data);
+        };
+        mediaRecorderRef.current = recorder;
+        recorder.start(250);
+        setSedangRekamSuara(true);
+        return;
+      } catch {
+        setModeTanpaMikrofon(true);
+      }
+    } else {
+      setModeTanpaMikrofon(true);
+    }
+
+    setSedangRekamSuara(true);
+  };
+
+  const batalkanRekamSuara = () => {
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      rec.onstop = null;
+      try {
+        rec.stop();
+      } catch {
+        /* abaikan */
+      }
+    }
+    mediaRecorderRef.current = null;
+    hentikanStreamRekam();
+    audioChunksRef.current = [];
+    setSedangRekamSuara(false);
+    setDetikRekamSuara(0);
+    setModeTanpaMikrofon(false);
+  };
+
+  const selesaiKirimSuara = () => {
+    const durasi = Math.max(1, detikRekamRef.current || detikRekamSuara || 1);
+    const labelWaktu = `0:${durasi < 10 ? `0${durasi}` : durasi}`;
+    const teksMemo = `🎙️ Pesan Suara (${labelWaktu})${modeTanpaMikrofon ? " · Memo lapangan" : ""}`;
+    const rec = mediaRecorderRef.current;
+
+    if (rec && rec.state !== "inactive") {
+      rec.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: rec.mimeType || "audio/webm" });
+        hentikanStreamRekam();
+        mediaRecorderRef.current = null;
+        if (blob.size > 0 && blob.size <= 350_000) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const url = typeof reader.result === "string" ? reader.result : undefined;
+            onKirimPesan(saluranAktif, teksMemo, undefined, durasi, url ? { audioDataUrl: url } : undefined);
+          };
+          reader.onerror = () => onKirimPesan(saluranAktif, teksMemo, undefined, durasi);
+          reader.readAsDataURL(blob);
+        } else {
+          onKirimPesan(saluranAktif, teksMemo, undefined, durasi);
+        }
+      };
+      try {
+        rec.stop();
+      } catch {
+        hentikanStreamRekam();
+        onKirimPesan(saluranAktif, teksMemo, undefined, durasi);
+      }
+    } else {
+      hentikanStreamRekam();
+      onKirimPesan(saluranAktif, teksMemo, undefined, durasi);
+    }
+
+    setSedangRekamSuara(false);
+    setDetikRekamSuara(0);
+    setModeTanpaMikrofon(false);
+  };
+
+  const togglePutarSuara = (pesan: PesanKomunikasi) => {
+    if (audioMemutar === pesan.id) {
+      audioElRef.current?.pause();
+      setAudioMemutar(null);
+      setDetikPutar(0);
+      return;
+    }
+
+    audioElRef.current?.pause();
+    setDetikPutar(0);
+    setAudioMemutar(pesan.id);
+
+    if (pesan.audioDataUrl && typeof Audio !== "undefined") {
+      try {
+        const el = new Audio(pesan.audioDataUrl);
+        audioElRef.current = el;
+        el.onended = () => {
+          setAudioMemutar(null);
+          setDetikPutar(0);
+        };
+        void el.play().catch(() => {
+          /* tetap jalankan pemutar visual bila autoplay dibatasi */
+        });
+      } catch {
+        /* fallback visual */
+      }
+    }
   };
 
   const kirimPeringatanCepat = (peringatan: string) => {
@@ -692,7 +864,8 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                     >
                       <button
                         type="button"
-                        onClick={() => setAudioMemutar(audioMemutar === m.id ? null : m.id)}
+                        onClick={() => togglePutarSuara(m)}
+                        aria-label={audioMemutar === m.id ? "Jeda Pesan Suara" : "Putar Pesan Suara"}
                         style={{
                           width: 30,
                           height: 30,
@@ -711,22 +884,30 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
                       </button>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                          {[6, 14, 22, 10, 18, 24, 12, 16, 20, 8, 14].map((h, i) => (
-                            <span
-                              key={i}
-                              style={{
-                                width: 3,
-                                height: audioMemutar === m.id ? Math.max(4, (h * Math.sin(Date.now() / 200 + i)) % 24) : h,
-                                background: "#075e54",
-                                borderRadius: 99,
-                                display: "inline-block"
-                              }}
-                            />
-                          ))}
+                          {[6, 14, 22, 10, 18, 24, 12, 16, 20, 8, 14].map((h, i, arr) => {
+                            const aktifPutar = audioMemutar === m.id;
+                            const rasio = aktifPutar ? Math.min(1, detikPutar / Math.max(1, m.durasiSuaraDetik ?? 6)) : 0;
+                            const sudahLewat = aktifPutar && i / arr.length <= rasio;
+                            return (
+                              <span
+                                key={i}
+                                style={{
+                                  width: 3,
+                                  height: aktifPutar ? Math.max(5, ((h + detikPutar * 3 + i * 2) % 20) + 4) : h,
+                                  background: sudahLewat ? "#00a884" : "#075e54",
+                                  borderRadius: 99,
+                                  display: "inline-block",
+                                  transition: "height 0.15s ease"
+                                }}
+                              />
+                            );
+                          })}
                         </div>
                       </div>
                       <span style={{ fontSize: "0.7rem", color: "#54656f", fontWeight: 600, flexShrink: 0 }}>
-                        0:{m.durasiSuaraDetik < 10 ? `0${m.durasiSuaraDetik}` : m.durasiSuaraDetik}
+                        {audioMemutar === m.id
+                          ? `0:${detikPutar < 10 ? `0${detikPutar}` : detikPutar}`
+                          : `0:${m.durasiSuaraDetik < 10 ? `0${m.durasiSuaraDetik}` : m.durasiSuaraDetik}`}
                       </span>
                     </div>
                   )}
@@ -924,7 +1105,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
 
           <button
             type="button"
-            onClick={kirimVoiceNote}
+            onClick={() => void mulaiRekamSuara()}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -1073,81 +1254,144 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
         </div>
       )}
 
-      {/* 3. WHATSAPP STYLE INPUT BAR */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: "#f0f2f5",
-          padding: "8px 10px",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          borderTop: "1px solid #d1d7db"
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setMenuLampiranTerbuka((v) => !v)}
+      {/* 3. WHATSAPP STYLE INPUT BAR ATAU BAR PEREKAMAN SUARA */}
+      {sedangRekamSuara ? (
+        <div
+          role="region"
+          aria-label="Rekaman Pesan Suara"
           style={{
-            background: menuLampiranTerbuka ? "#d9fdd3" : "transparent",
-            border: "none",
-            color: "#54656f",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
+            background: "#f0f2f5",
+            padding: "8px 12px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            flexShrink: 0
+            justifyContent: "space-between",
+            gap: "10px",
+            borderTop: "1px solid #d1d7db"
           }}
-          title="Lampirkan Lokasi GPS / Suara"
         >
-          <Paperclip size={19} />
-        </button>
-
-        <input
-          ref={inputRef}
-          type="text"
-          value={teksPesan}
-          onChange={(e) => setTeksPesan(e.target.value)}
-          placeholder={saluranAktif === "komunitas" ? "Ketik pesan ke grup kader..." : "Tulis pertanyaan ke Admin GIS..."}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "#ef4444",
+                flexShrink: 0
+              }}
+            />
+            <strong style={{ fontSize: "0.86rem", color: "#111b21", fontVariantNumeric: "tabular-nums" }}>
+              0:{detikRekamSuara < 10 ? `0${detikRekamSuara}` : detikRekamSuara}
+            </strong>
+            <span style={{ fontSize: "0.78rem", color: "#54656f", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {modeTanpaMikrofon ? "Mode memo cepat (tanpa mikrofon)" : "Merekam pesan suara..."}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <button type="button" className="btn-outline-sm" onClick={batalkanRekamSuara} aria-label="Batal Rekam Suara">
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={selesaiKirimSuara}
+              style={{
+                height: 36,
+                padding: "0 14px",
+                borderRadius: 99,
+                background: "#00a884",
+                color: "#ffffff",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                cursor: "pointer"
+              }}
+              aria-label="Kirim Pesan Suara"
+            >
+              <Send size={15} />
+              <span>Kirim</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form
+          onSubmit={handleSubmit}
           style={{
-            flex: 1,
-            minWidth: 0,
-            height: 40,
-            borderRadius: 99,
-            border: "none",
-            background: "#ffffff",
-            padding: "0 14px",
-            fontSize: "0.88rem",
-            color: "#111b21",
-            boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-            outline: "none"
-          }}
-        />
-
-        <button
-          type="submit"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
-            background: "#00a884",
-            color: "#ffffff",
-            border: "none",
+            background: "#f0f2f5",
+            padding: "8px 10px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            boxShadow: "0 2px 6px rgba(0,168,132,0.4)",
-            flexShrink: 0
+            gap: "8px",
+            borderTop: "1px solid #d1d7db"
           }}
-          title={teksPesan.trim() ? "Kirim Pesan" : "Rekam Pesan Suara"}
         >
-          {teksPesan.trim() ? <Send size={17} /> : <Mic size={17} />}
-        </button>
-      </form>
+          <button
+            type="button"
+            onClick={() => setMenuLampiranTerbuka((v) => !v)}
+            style={{
+              background: menuLampiranTerbuka ? "#d9fdd3" : "transparent",
+              border: "none",
+              color: "#54656f",
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+            title="Lampirkan Lokasi GPS / Suara"
+          >
+            <Paperclip size={19} />
+          </button>
+
+          <input
+            ref={inputRef}
+            type="text"
+            value={teksPesan}
+            onChange={(e) => setTeksPesan(e.target.value)}
+            placeholder={saluranAktif === "komunitas" ? "Ketik pesan ke grup kader..." : "Tulis pertanyaan ke Admin GIS..."}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              height: 40,
+              borderRadius: 99,
+              border: "none",
+              background: "#ffffff",
+              padding: "0 14px",
+              fontSize: "0.88rem",
+              color: "#111b21",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+              outline: "none"
+            }}
+          />
+
+          <button
+            type={teksPesan.trim() ? "submit" : "button"}
+            onClick={teksPesan.trim() ? undefined : () => void mulaiRekamSuara()}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "#00a884",
+              color: "#ffffff",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(0,168,132,0.4)",
+              flexShrink: 0
+            }}
+            title={teksPesan.trim() ? "Kirim Pesan" : "Rekam Pesan Suara"}
+            aria-label={teksPesan.trim() ? "Kirim Pesan" : "Rekam Pesan Suara"}
+          >
+            {teksPesan.trim() ? <Send size={17} /> : <Mic size={17} />}
+          </button>
+        </form>
+      )}
 
       {/* MODAL TERUSKAN PESAN (WHATSAPP FORWARD DIALOG) */}
       {modalTeruskanTerbuka && pesanTerpilih && (

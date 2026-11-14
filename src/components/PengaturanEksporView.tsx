@@ -1,11 +1,20 @@
-import React, { useState } from "react";
-import { DataSpasialItem } from "../types";
-import { eksporKeCSV, eksporKeGeoJSON, eksporKeGPX, eksporKeKML } from "../lib/geoUtils";
+import React, { useMemo, useState } from "react";
+import { AreaPetaOffline, DataSpasialItem } from "../types";
+import { eksporKeCSV, eksporKeGPX } from "../lib/geoUtils";
+import {
+  eksporGeoJsonDenganOpsi,
+  eksporKmlDenganOpsi,
+  filterDataUntukEkspor,
+  JenisDataEkspor,
+  KonteksEkspor
+} from "../lib/eksporFilter";
 import { ArrowLeft, ChevronDown, FileText, Image as ImageIcon, Info, Layers, MapPin, Share } from "lucide-react";
 import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface PengaturanEksporViewProps {
   dataSpasial: DataSpasialItem[];
+  areaOffline?: AreaPetaOffline[];
+  konteksEkspor?: KonteksEkspor | null;
   onTutup: () => void;
 }
 
@@ -21,39 +30,70 @@ function unduhBerkas(namaFile: string, isi: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ dataSpasial, onTutup }) => {
+export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
+  dataSpasial,
+  areaOffline = [],
+  konteksEkspor = null,
+  onTutup
+}) => {
   useTombolEsc(true, onTutup);
   const [namaFile, setNamaFile] = useState("Ekspor AM 2");
-  const [jenisData, setJenisData] = useState("Hanya lapisan");
+  const adaKonteksTerpilih = Boolean(
+    konteksEkspor?.petaDipilih?.length || konteksEkspor?.lapisanDipilih?.length || konteksEkspor?.fiturTerpilihIds?.length
+  );
+  const [jenisData, setJenisData] = useState<JenisDataEkspor>(() =>
+    adaKonteksTerpilih ? "Semua fitur terpilih" : "Hanya lapisan"
+  );
   const [formatFile, setFormatFile] = useState<".kml" | ".geojson" | ".gpx" | ".csv">(".kml");
   const [hanyaSkema, setHanyaSkema] = useState(false);
   const [sertakanFoto, setSertakanFoto] = useState(true);
   const [tampilInfo, setTampilInfo] = useState(false);
+  const [statusEkspor, setStatusEkspor] = useState<string>("");
 
-  // Total fitur riil sesuai data spasial lapangan
-  const jumlahFitur = dataSpasial.length;
+  const dataTersaring = useMemo(
+    () => filterDataUntukEkspor(dataSpasial, { jenisData, konteks: konteksEkspor ?? undefined, sertakanFoto }),
+    [dataSpasial, jenisData, konteksEkspor, sertakanFoto]
+  );
+  const petaBatasEkspor = useMemo(
+    () => (konteksEkspor?.petaDipilih?.length ? konteksEkspor.petaDipilih : areaOffline),
+    [konteksEkspor, areaOffline]
+  );
+  const jumlahFitur = dataTersaring.length;
 
   const handleEksporSekarang = () => {
     const namaBersih = (namaFile.trim() || "Ekspor_AM_2").replace(/\s+/g, "_");
-    const dataFilter = sertakanFoto
-      ? dataSpasial
-      : dataSpasial.map((d) => ({
-          ...d,
-          fotoBase64: undefined,
-          buktiFoto: undefined,
-          driveFileUrl: undefined
-        }));
-    const sumberData = hanyaSkema ? [] : dataFilter;
+    const sertakanPeta = jenisData === "Lapisan dan peta";
+    if (!hanyaSkema && dataTersaring.length === 0 && !(sertakanPeta && petaBatasEkspor.length > 0)) {
+      setStatusEkspor("⚠️ Tidak ada objek yang cocok dengan cakupan ekspor.");
+      return;
+    }
+
+    const sumberData = hanyaSkema ? [] : dataTersaring;
+    const petaUntukFile = hanyaSkema ? [] : petaBatasEkspor;
 
     if (formatFile === ".kml") {
-      unduhBerkas(`${namaBersih}.kml`, eksporKeKML(sumberData), "application/vnd.google-earth.kml+xml");
+      unduhBerkas(
+        `${namaBersih}.kml`,
+        eksporKmlDenganOpsi(sumberData, petaUntukFile, sertakanPeta),
+        "application/vnd.google-earth.kml+xml"
+      );
     } else if (formatFile === ".geojson") {
-      unduhBerkas(`${namaBersih}.geojson`, eksporKeGeoJSON(sumberData), "application/geo+json");
+      unduhBerkas(
+        `${namaBersih}.geojson`,
+        eksporGeoJsonDenganOpsi(sumberData, petaUntukFile, sertakanPeta),
+        "application/geo+json"
+      );
     } else if (formatFile === ".gpx") {
       unduhBerkas(`${namaBersih}.gpx`, eksporKeGPX(sumberData), "application/gpx+xml");
     } else {
       unduhBerkas(`${namaBersih}.csv`, eksporKeCSV(sumberData), "text/csv;charset=utf-8");
     }
+
+    setStatusEkspor(
+      hanyaSkema
+        ? `✓ Skema kosong berhasil diekspor ke ${namaBersih}${formatFile}`
+        : `✓ Berhasil mengekspor ${sumberData.length} objek ke ${namaBersih}${formatFile}`
+    );
   };
 
   return (
@@ -100,9 +140,9 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
 
           <div className="avenza-outlined-field select-field">
             <span className="avenza-floating-label">Ekspor</span>
-            <select value={jenisData} onChange={(e) => setJenisData(e.target.value)}>
+            <select value={jenisData} onChange={(e) => setJenisData(e.target.value as JenisDataEkspor)}>
               <option value="Hanya lapisan">Hanya lapisan</option>
-              <option value="Lapisan dan peta">Lapisan dan atribut lengkap</option>
+              <option value="Lapisan dan peta">Lapisan dan peta</option>
               <option value="Semua fitur terpilih">Semua fitur terpilih</option>
             </select>
             <ChevronDown size={18} className="avenza-select-arrow" />
@@ -160,7 +200,13 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
             </div>
             <div className="avenza-export-text">
               <div className="avenza-export-main">{hanyaSkema ? "0 objek" : `${jumlahFitur} objek`}</div>
-              <div className="avenza-export-sub">Semua data yang dipilih akan diekspor</div>
+              <div className="avenza-export-sub">
+                {konteksEkspor?.sumberLabel
+                  ? `${konteksEkspor.sumberLabel}${jenisData === "Lapisan dan peta" ? " (termasuk batas peta)" : ""}`
+                  : jenisData === "Lapisan dan peta"
+                    ? `Semua lapisan dan ${petaBatasEkspor.length} batas peta akan diekspor`
+                    : "Semua data yang dipilih akan diekspor"}
+              </div>
             </div>
           </div>
         </section>
@@ -171,7 +217,19 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
         <section className="avenza-export-section">
           <div className="avenza-section-title">Sertakan dalam ekspor</div>
 
-          <div className="avenza-export-item clickable" onClick={() => setSertakanFoto((v) => !v)}>
+          <div
+            className="avenza-export-item clickable"
+            role="switch"
+            tabIndex={0}
+            aria-checked={sertakanFoto}
+            onClick={() => setSertakanFoto((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                setSertakanFoto((v) => !v);
+              }
+            }}
+          >
             <div className="avenza-export-icon">
               <ImageIcon size={22} />
             </div>
@@ -180,6 +238,11 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({ data
               <div className="avenza-export-sub">{sertakanFoto ? "Sertakan tautan foto dokumentasi lapangan" : "Tanpa lampiran foto"}</div>
             </div>
           </div>
+          {statusEkspor && (
+            <div className="avenza-export-sub" role="status" style={{ padding: "8px 16px", fontWeight: 700, color: "#0d7344" }}>
+              {statusEkspor}
+            </div>
+          )}
         </section>
       </div>
 

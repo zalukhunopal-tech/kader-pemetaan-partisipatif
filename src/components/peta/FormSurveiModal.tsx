@@ -188,6 +188,7 @@ interface FormSurveiModalProps {
   sistemKoordinat?: SistemKoordinat;
   onGantiSistemKoordinat?: (s: SistemKoordinat) => void;
   onUbahKoordinat?: (titik: KoordinatTitik) => void;
+  aksiAwal?: "averaging" | "foto" | null;
 }
 export function FormSurveiModal({
   form,
@@ -202,19 +203,23 @@ export function FormSurveiModal({
   onTutup,
   sistemKoordinat,
   onGantiSistemKoordinat,
-  onUbahKoordinat
+  onUbahKoordinat,
+  aksiAwal = null
 }: FormSurveiModalProps) {
   const [sistemAktif, setSistemAktif] = useState<SistemKoordinat>(() => sistemKoordinat || bacaSistemKoordinat());
   useEffect(() => {
     if (sistemKoordinat) setSistemAktif(sistemKoordinat);
   }, [sistemKoordinat]);
-  const [detail, setDetail] = useState(Boolean(form.isian.judul)),
+  const [detail, setDetail] = useState(Boolean(form.isian.judul || aksiAwal)),
     [stamp, setStamp] = useState(true),
     [memoSibuk, setMemoSibuk] = useState(false),
     [gpsSibuk, setGpsSibuk] = useState(false),
     [sampel, setSampel] = useState(0),
-    [galatGps, setGalatGps] = useState("");
+    [galatGps, setGalatGps] = useState(""),
+    [sorotFoto, setSorotFoto] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const fotoBoxRef = useRef<HTMLDivElement | null>(null);
+  const sudahAksiAwalRef = useRef<"averaging" | "foto" | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   const { isian, ubah } = form;
   const rataGps = async () => {
@@ -236,6 +241,29 @@ export function FormSurveiModal({
       if (!kontrol.signal.aborted) setGpsSibuk(false);
     }
   };
+  useEffect(() => {
+    if (!aksiAwal) {
+      sudahAksiAwalRef.current = null;
+      return;
+    }
+    if (sudahAksiAwalRef.current === aksiAwal) return;
+    sudahAksiAwalRef.current = aksiAwal;
+    setDetail(true);
+    if (aksiAwal === "averaging") {
+      void rataGps();
+    } else if (aksiAwal === "foto") {
+      setSorotFoto(true);
+      const tScroll = window.setTimeout(() => {
+        fotoBoxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+      const tSorot = window.setTimeout(() => setSorotFoto(false), 3000);
+      return () => {
+        window.clearTimeout(tScroll);
+        window.clearTimeout(tSorot);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aksiAwal]);
   const field = (k: "judul" | "namaLokal" | "namaIlmiah" | "jumlahIndividu" | "manfaat" | "kondisi", label: string, required = false) => (
     <label>
       {label}
@@ -392,7 +420,7 @@ export function FormSurveiModal({
               onChange={(e) => ubah("url", e.target.value)}
             />
           </label>
-          <div className="form-photo-box">
+          <div ref={fotoBoxRef} className={`form-photo-box ${sorotFoto ? "sorot-aksi-foto" : ""}`}>
             <label className="btn-upload-photo">
               <Camera size={18} /> Lampirkan Foto
               <input

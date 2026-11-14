@@ -1782,3 +1782,36 @@
     width: 380px;
   }
 }
+
+.avz-peta .avz-tool-popup-item.active {
+  background: #e8f2fc;
+  color: #1665b8;
+  font-weight: 700;
+}
+
+.avz-peta .avz-geofence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: var(--avz-bayang);
+  pointer-events: auto;
+}
+
+.avz-peta .avz-geofence-pill.dalam {
+  background: #0f766e;
+}
+
+.avz-peta .avz-geofence-pill.luar {
+  background: #b91c1c;
+}
+
+.form-photo-box.sorot-aksi-foto {
+  border-color: #2185e6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(33, 133, 230, 0.2);
+}
