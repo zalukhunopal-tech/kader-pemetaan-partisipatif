@@ -686,10 +686,14 @@
 
 .avz-peta .avz-sheet-pegangan-tombol {
   width: 72px;
-  height: 16px;
+  height: 14px;
+  min-height: 0 !important;
+  min-width: 0 !important;
   border: 0;
   background: transparent;
-  padding: 0;
+  margin: 0 auto 6px;
+  padding: 2px 0;
+  flex: none;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -702,8 +706,7 @@
   background: #dfdfdf;
 }
 
-/* Pemilih peta dasar: kartu bergambar dalam grid selebar peta. HP: 2 kolom (kartu ganjil terakhir
-   melebar penuh); PC/tablet: satu baris berisi semua kartu dengan lebar sama. */
+/* Pemilih peta dasar: semua kartu dibuat memanjang penuh (1 kolom selebar sheet). */
 .avz-peta .avz-basemap-sheet {
   display: flex;
   flex-direction: column;
@@ -713,12 +716,8 @@
 
 .avz-peta .avz-basemap-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
-}
-
-.avz-peta .avz-basemap-grid > .avz-basemap-kartu:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
 }
 
 .avz-peta .avz-basemap-kartu {
@@ -788,17 +787,22 @@
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
-  padding-top: 10px;
+  padding-top: 6px;
+  overflow: hidden;
+}
+
+.avz-peta .avz-gps-drawer-kepala {
+  flex: none;
 }
 
 .avz-peta .avz-gps-tabs-header {
   display: flex;
   align-items: stretch;
   flex: none;
-  height: 34px;
-  margin: 6px 0 12px;
+  height: 36px;
+  margin: 0 0 8px;
   border: 1.5px solid var(--avz-hijau);
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
 }
 
@@ -830,16 +834,73 @@
   color: #ffffff;
 }
 
+.avz-peta .avz-gps-tab-btn.pelacakan-aktif {
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
+}
+
+.avz-peta .avz-gps-tab-btn.active.pelacakan-aktif {
+  background: #15803d;
+  color: #ffffff;
+}
+
+.avz-peta .avz-gps-tab-btn.pelacakan-dijeda {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+}
+
+.avz-peta .avz-gps-tab-btn.active.pelacakan-dijeda {
+  background: #d97706;
+  color: #ffffff;
+}
+
 .avz-peta .avz-gps-tab-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 4px;
 }
 
 .avz-peta .avz-gps-coord-hero {
   position: relative;
   text-align: center;
+}
+
+.avz-peta .avz-gps-status-box {
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.avz-peta .avz-gps-status-box.siap {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.avz-peta .avz-gps-status-box.sedang-melacak {
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+
+.avz-peta .avz-gps-status-box.sedang-melacak .avz-gps-coord-title {
+  color: #14532d;
+}
+
+.avz-peta .avz-gps-status-box.dijeda {
+  background: #fef3c7;
+  border-color: #d97706;
+}
+
+.avz-peta .avz-gps-status-box.dijeda .avz-gps-coord-title {
+  color: #78350f;
 }
 
 .avz-peta .avz-gps-coord-title {
@@ -1744,15 +1805,14 @@
 /* ---------- 13. PC: peta di samping navigasi; halaman dan lembar tetap selebar layar peta ---------- */
 @media (min-width: 768px) {
   .avz-peta .avz-basemap-grid {
-    grid-template-columns: repeat(var(--jumlah, 3), minmax(0, 1fr));
-  }
-
-  .avz-peta .avz-basemap-grid > .avz-basemap-kartu:last-child:nth-child(odd) {
-    grid-column: auto;
+    grid-template-columns: 1fr;
+    max-width: 720px;
+    width: 100%;
+    margin-inline: auto;
   }
 
   .avz-peta .avz-basemap-kartu {
-    height: 112px !important;
+    height: 104px !important;
   }
 
   .avz-peta .avz-sheet {
@@ -1781,6 +1841,23 @@
     right: auto;
     width: 380px;
   }
+}
+
+.avz-peta .avz-gps-btn-jeda {
+  border-color: #d97706;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.avz-peta .avz-gps-btn-jeda.aktif {
+  border-color: #16a34a;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.avz-peta .avz-gps-btn-hentikan {
+  background: #dc2626 !important;
+  color: #ffffff !important;
 }
 
 .avz-peta .avz-tool-popup-item.active {

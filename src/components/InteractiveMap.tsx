@@ -2060,36 +2060,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       {bukaDrawerGps && (
         <div className="avz-sheet-latar avz-sheet-latar-bening" onClick={() => setBukaDrawerGps(false)}>
           <div className="avz-sheet avz-gps-drawer" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="avz-sheet-pegangan avz-sheet-pegangan-tombol"
-              aria-label="Tutup panel"
-              onClick={() => setBukaDrawerGps(false)}
-            >
-              <span aria-hidden="true" />
-            </button>
-            <div className="avz-gps-tabs-header" role="tablist">
-              {(
-                [
-                  ["lokasi", "Lokasi"],
-                  ["pelacakan", "Pelacakan"],
-                  ["navigasi", "Navigasi"]
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  type="button"
-                  key={id}
-                  role="tab"
-                  aria-selected={tabDrawerGps === id}
-                  className={`avz-gps-tab-btn ${tabDrawerGps === id ? "active" : ""}`}
-                  onClick={() => {
-                    setTabDrawerGps(id);
-                    setNavSubView("menu");
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="avz-gps-drawer-kepala">
+              <button
+                type="button"
+                className="avz-sheet-pegangan avz-sheet-pegangan-tombol"
+                aria-label="Tutup panel"
+                onClick={() => setBukaDrawerGps(false)}
+              >
+                <span aria-hidden="true" />
+              </button>
+              <div className="avz-gps-tabs-header" role="tablist">
+                {(
+                  [
+                    ["lokasi", "Lokasi"],
+                    ["pelacakan", "Pelacakan"],
+                    ["navigasi", "Navigasi"]
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    role="tab"
+                    aria-selected={tabDrawerGps === id}
+                    className={`avz-gps-tab-btn ${tabDrawerGps === id ? "active" : ""} ${
+                      id === "pelacakan" && rekamLatar.status !== "idle"
+                        ? rekamLatar.status === "dijeda"
+                          ? "pelacakan-dijeda"
+                          : "pelacakan-aktif"
+                        : ""
+                    }`}
+                    onClick={() => {
+                      setTabDrawerGps(id);
+                      setNavSubView("menu");
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {tabDrawerGps === "lokasi" && (
@@ -2163,7 +2171,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
             {tabDrawerGps === "pelacakan" && (
               <div className="avz-gps-tab-body">
-                <div className="avz-gps-coord-hero">
+                <div
+                  className={`avz-gps-coord-hero avz-gps-status-box ${
+                    rekamLatar.status === "merekam"
+                      ? "sedang-melacak"
+                      : rekamLatar.status === "dijeda"
+                        ? "dijeda"
+                        : "siap"
+                  }`}
+                >
                   <h3 className="avz-gps-coord-title">
                     {rekamLatar.status === "idle"
                       ? "Siap Melacak"
@@ -2219,64 +2235,31 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     Mulai Pelacakan
                   </button>
                 ) : (
-                  <>
-                    {/* Saat merekam, tombol Mulai berganti menjadi Jeda dan Hentikan (seperti Avenza) */}
-                    <div className="avz-gps-bottom-actions">
-                      <button
-                        type="button"
-                        className="avz-gps-action-outline-btn"
-                        onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
-                      >
-                        <span>{rekamLatar.status === "merekam" ? "Jeda" : "Lanjutkan"}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="avz-gps-btn-primary avz-gps-btn-sejajar avz-gps-btn-hentikan"
-                        disabled={titikDraft.length < (modeRekam === "polygon" ? 3 : 2)}
-                        title={titikDraft.length < (modeRekam === "polygon" ? 3 : 2) ? "Titik belum cukup" : "Hentikan lalu simpan"}
-                        onClick={() => {
-                          setBukaDrawerGps(false);
-                          setBukaModalForm(true);
-                        }}
-                      >
-                        Hentikan
-                      </button>
-                    </div>
-                    <div className="avz-gps-opsi-rekam">
-                      <button type="button" onClick={tambahTitikBidikan}>
-                        Tambah titik
-                      </button>
-                      <button type="button" disabled={!titikDraft.length} onClick={() => perekamLatar.hapusTitikTerakhir()}>
-                        Urungkan
-                      </button>
-                      <button type="button" disabled={!rekamLatar.redoVertex?.length} onClick={() => perekamLatar.ulangiVertex()}>
-                        Ulangi
-                      </button>
-                      {modeRekam === "polygon" && (
-                        <button type="button" aria-pressed={snapAktif} onClick={() => setSnapAktif((v) => !v)}>
-                          Snap {snapAktif ? "aktif" : "mati"}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        aria-pressed={rekamLatar.autoGpsAktif}
-                        title="Mode simulasi: menambah titik acak tanpa GPS lapangan"
-                        onClick={() => perekamLatar.toggleAutoGps()}
-                      >
-                        Simulasi {rekamLatar.autoGpsAktif ? "aktif" : "mati"}
-                      </button>
-                      <button
-                        type="button"
-                        className="avz-opsi-bahaya"
-                        onClick={() => {
+                  <div className="avz-gps-bottom-actions">
+                    <button
+                      type="button"
+                      className={`avz-gps-action-outline-btn avz-gps-btn-jeda ${rekamLatar.status === "dijeda" ? "aktif" : ""}`}
+                      onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
+                    >
+                      <span>{rekamLatar.status === "merekam" ? "Jeda" : "Lanjutkan"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="avz-gps-btn-primary avz-gps-btn-sejajar avz-gps-btn-hentikan"
+                      onClick={() => {
+                        const minTitik = modeRekam === "polygon" ? 3 : 2;
+                        setBukaDrawerGps(false);
+                        if (titikDraft.length < minTitik) {
                           batalkanRekaman();
-                          setBukaDrawerGps(false);
-                        }}
-                      >
-                        Batalkan
-                      </button>
-                    </div>
-                  </>
+                          setPesanSalin("Pelacakan dihentikan (belum cukup titik untuk disimpan).");
+                        } else {
+                          setBukaModalForm(true);
+                        }
+                      }}
+                    >
+                      Hentikan
+                    </button>
+                  </div>
                 )}
               </div>
             )}

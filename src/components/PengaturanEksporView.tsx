@@ -1,15 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { AreaPetaOffline, DataSpasialItem } from "../types";
-import { eksporKeCSV, eksporKeGPX } from "../lib/geoUtils";
-import {
-  eksporGeoJsonDenganOpsi,
-  eksporKmlDenganOpsi,
-  filterDataUntukEkspor,
-  JenisDataEkspor,
-  KonteksEkspor
-} from "../lib/eksporFilter";
-import { ArrowLeft, ChevronDown, FileText, Image as ImageIcon, Info, Layers, MapPin, Share } from "lucide-react";
+import { eksporGeoJsonDenganOpsi, eksporKmlDenganOpsi, filterDataUntukEkspor, JenisDataEkspor, KonteksEkspor } from "../lib/eksporFilter";
+import { buatArsipZip, eksporPaketShapefile, eksporShpDenganOpsi } from "../lib/shapefile";
+import { ArrowLeft, ChevronDown, Download, FileText, Image as ImageIcon, Info, Layers, MapPin, Share } from "lucide-react";
 import { useTombolEsc } from "../lib/useTombolEsc";
+
+type FormatEksporUser = ".geojson" | ".kml" | ".shp";
 
 interface PengaturanEksporViewProps {
   dataSpasial: DataSpasialItem[];
@@ -18,8 +14,9 @@ interface PengaturanEksporViewProps {
   onTutup: () => void;
 }
 
-function unduhBerkas(namaFile: string, isi: string, mimeType: string) {
-  const blob = new Blob([isi], { type: mimeType });
+function unduhBerkas(namaFile: string, isi: string | Uint8Array, mimeType: string) {
+  const muatan: BlobPart = typeof isi === "string" ? isi : new Uint8Array(isi);
+  const blob = new Blob([muatan], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -44,7 +41,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
   const [jenisData, setJenisData] = useState<JenisDataEkspor>(() =>
     adaKonteksTerpilih ? "Semua fitur terpilih" : "Hanya lapisan"
   );
-  const [formatFile, setFormatFile] = useState<".kml" | ".geojson" | ".gpx" | ".csv">(".kml");
+  const [formatFile, setFormatFile] = useState<FormatEksporUser>(".geojson");
   const [hanyaSkema, setHanyaSkema] = useState(false);
   const [sertakanFoto, setSertakanFoto] = useState(true);
   const [tampilInfo, setTampilInfo] = useState(false);
@@ -77,23 +74,46 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
         eksporKmlDenganOpsi(sumberData, petaUntukFile, sertakanPeta),
         "application/vnd.google-earth.kml+xml"
       );
+      setStatusEkspor(
+        hanyaSkema
+          ? `✓ Skema kosong berhasil diekspor ke ${namaBersih}.kml`
+          : `✓ Berhasil mengekspor ${sumberData.length} objek ke ${namaBersih}.kml`
+      );
     } else if (formatFile === ".geojson") {
       unduhBerkas(
         `${namaBersih}.geojson`,
         eksporGeoJsonDenganOpsi(sumberData, petaUntukFile, sertakanPeta),
         "application/geo+json"
       );
-    } else if (formatFile === ".gpx") {
-      unduhBerkas(`${namaBersih}.gpx`, eksporKeGPX(sumberData), "application/gpx+xml");
+      setStatusEkspor(
+        hanyaSkema
+          ? `✓ Skema kosong berhasil diekspor ke ${namaBersih}.geojson`
+          : `✓ Berhasil mengekspor ${sumberData.length} objek ke ${namaBersih}.geojson`
+      );
     } else {
-      unduhBerkas(`${namaBersih}.csv`, eksporKeCSV(sumberData), "text/csv;charset=utf-8");
+      const hasilShp = eksporShpDenganOpsi(sumberData, petaUntukFile, sertakanPeta);
+      unduhBerkas(`${namaBersih}.shp`, hasilShp.shp, "application/octet-stream");
+      setStatusEkspor(
+        hanyaSkema
+          ? `✓ Skema kosong SHP diekspor ke ${namaBersih}.shp`
+          : `✓ Berhasil mengekspor ${hasilShp.jumlahFitur} fitur (${hasilShp.jenisGeometri}) ke ${namaBersih}.shp`
+      );
     }
+  };
 
-    setStatusEkspor(
-      hanyaSkema
-        ? `✓ Skema kosong berhasil diekspor ke ${namaBersih}${formatFile}`
-        : `✓ Berhasil mengekspor ${sumberData.length} objek ke ${namaBersih}${formatFile}`
-    );
+  const handleUnduhPaketShpZip = () => {
+    const namaBersih = (namaFile.trim() || "Ekspor_AM_2").replace(/\s+/g, "_");
+    const sertakanPeta = jenisData === "Lapisan dan peta";
+    if (!hanyaSkema && dataTersaring.length === 0 && !(sertakanPeta && petaBatasEkspor.length > 0)) {
+      setStatusEkspor("⚠️ Tidak ada objek yang cocok dengan cakupan ekspor.");
+      return;
+    }
+    const sumberData = hanyaSkema ? [] : dataTersaring;
+    const petaUntukFile = hanyaSkema ? [] : petaBatasEkspor;
+    const berkasPaket = eksporPaketShapefile(sumberData, namaBersih, petaUntukFile, sertakanPeta);
+    const arsipZip = buatArsipZip(berkasPaket);
+    unduhBerkas(`${namaBersih}_shp.zip`, arsipZip, "application/zip");
+    setStatusEkspor(`✓ Berhasil mengunduh paket Shapefile lengkap (${berkasPaket.length} berkas) ke ${namaBersih}_shp.zip`);
   };
 
   return (
@@ -114,12 +134,12 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
 
       {tampilInfo && (
         <div className="avenza-info-banner">
-          Ekspor lapisan spasial ke format standar GIS (<strong>.kml</strong>, <strong>.geojson</strong>, <strong>.gpx</strong>, atau{" "}
-          <strong>.csv</strong>) agar siap dibuka di Avenza Maps, QGIS, Google Earth, atau diunggah ke Google Drive.
+          Ekspor lapisan spasial ke format standar GIS (<strong>.geojson</strong>, <strong>.kml</strong>, atau <strong>.shp</strong>)
+          agar siap dibuka di QGIS, Avenza Maps, Google Earth, atau ArcGIS.
         </div>
       )}
 
-      {/* ISI PENGATURAN EKSPOR SESUAI SCREENSHOT 4 */}
+      {/* ISI PENGATURAN EKSPOR */}
       <div className="avenza-export-body">
         {/* BAGIAN 1: NAMA FILE */}
         <section className="avenza-export-section">
@@ -155,11 +175,11 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
         <section className="avenza-export-section">
           <div className="avenza-section-title">Data untuk diekspor</div>
 
-          {/* Format (.kml / .geojson / .gpx / .csv) */}
+          {/* Format (.geojson / .kml / .shp) */}
           <div
             className="avenza-export-item clickable"
             onClick={() => {
-              const urutan: (".kml" | ".geojson" | ".gpx" | ".csv")[] = [".kml", ".geojson", ".gpx", ".csv"];
+              const urutan: FormatEksporUser[] = [".geojson", ".kml", ".shp"];
               const idx = urutan.indexOf(formatFile);
               setFormatFile(urutan[(idx + 1) % urutan.length]);
             }}
@@ -169,9 +189,37 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
             </div>
             <div className="avenza-export-text">
               <div className="avenza-export-main">{formatFile}</div>
-              <div className="avenza-export-sub">Format (Ketuk untuk ganti: .kml / .geojson / .gpx / .csv)</div>
+              <div className="avenza-export-sub">Format (Ketuk untuk ganti: .geojson / .kml / .shp)</div>
             </div>
           </div>
+
+          <div className="avenza-format-chips" role="group" aria-label="Pilih format ekspor">
+            {(
+              [
+                [".geojson", "GeoJSON (.geojson)"],
+                [".kml", "KML (.kml)"],
+                [".shp", "Shapefile (.shp)"]
+              ] as const
+            ).map(([fmt, label]) => (
+              <button
+                key={fmt}
+                type="button"
+                aria-pressed={formatFile === fmt}
+                className={`avenza-format-chip ${formatFile === fmt ? "active" : ""}`}
+                onClick={() => setFormatFile(fmt)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {formatFile === ".shp" && (
+            <div style={{ marginTop: 8 }}>
+              <button type="button" className="btn-outline-sm" onClick={handleUnduhPaketShpZip}>
+                <Download size={14} /> Unduh Paket Lengkap SHP (.zip: .shp, .shx, .dbf, .prj)
+              </button>
+            </div>
+          )}
 
           {/* Hanya skema (Toggle) */}
           <div className="avenza-export-item">

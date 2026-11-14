@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { JPEG, RUTE_TILE_PUBLIK, halamanBaru, masukSebagaiAdmin, posisiPeta, sampai } from "./bantu";
 
-test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Ekspor Pustaka, dan Obrolan Suara", async ({
+test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna, basemap memanjang, menu alat, ekspor GeoJSON KML SHP biner, dan obrolan suara", async ({
   browser
 }) => {
   const { p, galat, tutup } = await halamanBaru(
@@ -21,10 +21,71 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
 
   await masukSebagaiAdmin(p);
 
-  await test.step("1. Peta: Pencarian koordinat, Pusatkan GPS, Menu Alat Rata-rata Plot GPS & Tandai Foto, Monitor Geofences dinamis", async () => {
+  await test.step("1. Peta: posisi tab Lokasi/Pelacakan/Navigasi rapat atas, pewarnaan Pelacakan tanpa tombol ekstra, & basemap memanjang penuh", async () => {
     await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
     await p.waitForSelector(".map-canvas-container");
 
+    // Buka drawer Lokasi · Pelacakan · Navigasi
+    await p.locator('button[aria-label="Buka panel lokasi, pelacakan, dan navigasi"]').click();
+    const drawer = p.locator(".avz-gps-drawer");
+    await expect(drawer).toBeVisible();
+
+    // Verifikasi posisi tab header tidak terlalu ke bawah terhadap tepi atas drawer
+    const kotakDrawer = await drawer.boundingBox();
+    const kotakTabs = await drawer.locator(".avz-gps-tabs-header").boundingBox();
+    expect(kotakDrawer).toBeTruthy();
+    expect(kotakTabs).toBeTruthy();
+    const jarakAtasTabs = kotakTabs!.y - kotakDrawer!.y;
+    expect(jarakAtasTabs).toBeLessThan(36);
+
+    // Pindah ke tab Pelacakan dan mulai pelacakan
+    const tabPelacakan = drawer.getByRole("tab", { name: "Pelacakan" });
+    await tabPelacakan.click();
+    await expect(drawer.locator(".avz-gps-status-box.siap")).toBeVisible();
+    await drawer.getByRole("button", { name: "Mulai Pelacakan" }).click();
+
+    // Kotak status & tab Pelacakan mendapat pewarnaan aktif ketika mulai pelacakan
+    await expect(tabPelacakan).toHaveClass(/pelacakan-aktif/);
+    const kotakStatusAktif = drawer.locator(".avz-gps-status-box.sedang-melacak");
+    await expect(kotakStatusAktif).toBeVisible();
+    const warnaLatarAktif = await kotakStatusAktif.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(warnaLatarAktif).not.toBe("rgba(0, 0, 0, 0)");
+    expect(warnaLatarAktif).not.toBe("rgb(255, 255, 255)");
+
+    // Tombol ekstra di bawah Jeda dan Hentikan sudah dihapus
+    await expect(drawer.getByRole("button", { name: "Jeda" })).toBeVisible();
+    const btnHentikan = drawer.getByRole("button", { name: "Hentikan" });
+    await expect(btnHentikan).toBeVisible();
+    await expect(btnHentikan).toBeEnabled();
+    await expect(drawer.locator("button", { hasText: /Tambah titik|Urungkan|Ulangi|Simulasi|Batalkan/ })).toHaveCount(0);
+
+    // Tab header tetap berada di atas tanpa terpotong
+    const kotakTabsSaatMelacak = await drawer.locator(".avz-gps-tabs-header").boundingBox();
+    expect(kotakTabsSaatMelacak!.y).toBeGreaterThanOrEqual(kotakDrawer!.y);
+
+    // Jeda -> warna status dijeda -> Lanjutkan -> Hentikan
+    await drawer.getByRole("button", { name: "Jeda" }).click();
+    await expect(drawer.locator(".avz-gps-status-box.dijeda")).toBeVisible();
+    await drawer.getByRole("button", { name: "Lanjutkan" }).click();
+    await expect(drawer.locator(".avz-gps-status-box.sedang-melacak")).toBeVisible();
+    await btnHentikan.click();
+    await expect(drawer).toHaveCount(0);
+
+    // Verifikasi semua kartu Pilihan Peta Dasar dibuat memanjang penuh seperti Topografi
+    await p.locator('button[aria-label="Pilih peta dasar"]').click();
+    const sheetBasemap = p.locator(".avz-basemap-sheet");
+    await expect(sheetBasemap).toBeVisible();
+    const lebarGrid = (await sheetBasemap.locator(".avz-basemap-grid").boundingBox())!.width;
+    const jumlahKartu = await sheetBasemap.locator(".avz-basemap-kartu").count();
+    expect(jumlahKartu).toBeGreaterThanOrEqual(2);
+    for (let i = 0; i < jumlahKartu; i++) {
+      const box = await sheetBasemap.locator(".avz-basemap-kartu").nth(i).boundingBox();
+      expect(Math.abs(box!.width - lebarGrid)).toBeLessThan(2);
+    }
+    await p.locator(".avz-sheet-latar").click({ position: { x: 10, y: 10 } });
+  });
+
+  await test.step("2. Menu Alat Peta: Cari Koordinat, Pusatkan GPS, Rata-rata Plot GPS, Tandai Foto, & Monitor Geofences dinamis", async () => {
     // Buka pencarian dan lompat ke koordinat jauh
     await p.locator('button[aria-label="Cari di Peta"]').click();
     await p.locator("input.avz-cari-input").fill("2.875000, 117.395000");
@@ -34,14 +95,14 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
       return Boolean(pos && Math.abs(pos.lat - 2.875) < 0.002);
     });
 
-    // Klik tombol Posisi saya -> harus memusatkan peta ke GPS aktif
+    // Klik tombol Posisi saya -> memusatkan peta ke GPS aktif
     await p.locator("button.avz-nav-arrow-btn").click();
     await sampai(async () => {
       const pos = await posisiPeta(p);
       return Boolean(pos && Math.abs(pos.lat - 2.85727) < 0.002);
     });
 
-    // Menu Alat -> Rata-rata Plot GPS langsung masuk ke detail form dan memicu pengukuran GPS, lalu simpan 1 titik nyata
+    // Menu Alat -> Rata-rata Plot GPS langsung masuk ke detail form, lalu simpan 1 titik nyata
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.locator(".avz-tool-popup-item", { hasText: "Rata-rata Plot GPS" }).click();
     await expect(p.locator(".visual-category-grid")).toHaveCount(0);
@@ -54,7 +115,7 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
     await p.locator('#form-survei-lapangan button[type="submit"]').click();
     await expect(p.locator("form.field-survey-form")).toHaveCount(0);
 
-    // Menu Alat -> Tandai Foto langsung membuka detail form dengan sorotan unggah foto
+    // Menu Alat -> Tandai Foto membuka detail form dengan sorotan unggah foto
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.locator(".avz-tool-popup-item", { hasText: "Tandai Foto" }).click();
     await expect(p.locator(".visual-category-grid")).toHaveCount(0);
@@ -66,24 +127,21 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
     await p.locator(".avz-tool-popup-item", { hasText: "Monitor Geofences" }).click();
     await expect(p.locator(".avz-geofence-pill")).toContainText(/Di dalam/i);
 
-    // Simulasikan pengguna berjalan 1.8 km keluar radius
     await p.context().setGeolocation({ latitude: 2.872, longitude: 117.392, accuracy: 8 });
     await expect(p.locator(".avz-geofence-pill")).toContainText(/Di luar/i, { timeout: 8000 });
 
-    // Simulasikan pengguna kembali masuk ke dalam radius
     await p.context().setGeolocation({ latitude: 2.8573, longitude: 117.3775, accuracy: 6 });
     await expect(p.locator(".avz-geofence-pill")).toContainText(/Di dalam/i, { timeout: 8000 });
 
-    // Matikan geofence
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.locator(".avz-tool-popup-item", { hasText: "Matikan Monitor Geofences" }).click();
     await expect(p.locator(".avz-geofence-pill")).toHaveCount(0);
 
-    // Keluar dari peta layar penuh agar navigasi bawah tampil di mobile
+    // Keluar dari peta layar penuh
     await p.locator('button[aria-label="Kembali"]').first().click();
   });
 
-  await test.step("2. Pustaka: Buat lapisan, pilih item, dan Pengaturan Ekspor mengunduh GeoJSON nyata", async () => {
+  await test.step("3. Pustaka & Pengaturan Ekspor: Verifikasi nyata GeoJSON, KML, SHP biner ESRI, dan Paket SHP ZIP", async () => {
     await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
     await p.locator(".avenza-nav-item", { hasText: "Pustaka" }).click();
     await p.locator('[role="tab"]', { hasText: "Lapisan" }).click();
@@ -93,7 +151,6 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
     await p.locator("button", { hasText: /^Buat Lapisan$/ }).click();
     await expect(p.locator(".avenza-pustaka-container")).toContainText("Lapisan Survei Simulasi");
 
-    // Buka menu atas -> Pilih -> centang item pertama -> Pengaturan Ekspor
     await p.locator('button.avenza-toolbar-toggle-btn[title="Buka Toolbar"]').click();
     await p.locator(".avenza-overflow-item", { hasText: "Pilih" }).click();
     await expect(p.locator(".avenza-selection-banner")).toBeVisible();
@@ -102,8 +159,13 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
 
     await expect(p.locator(".avenza-subpage-header")).toContainText("Ekspor");
     await p.locator("select").first().selectOption("Lapisan dan peta");
-    await p.locator(".avenza-export-item", { hasText: "Format (Ketuk untuk ganti:" }).click();
-    await expect(p.locator(".avenza-export-item", { hasText: ".geojson" })).toBeVisible();
+
+    // Pastikan chip format hanya menyediakan GeoJSON, KML, dan SHP
+    const grupFormat = p.getByRole("group", { name: "Pilih format ekspor" });
+    await expect(grupFormat.locator("button")).toHaveCount(3);
+    await expect(grupFormat.getByRole("button", { name: "GeoJSON (.geojson)" })).toBeVisible();
+    await expect(grupFormat.getByRole("button", { name: "KML (.kml)" })).toBeVisible();
+    await expect(grupFormat.getByRole("button", { name: "Shapefile (.shp)" })).toBeVisible();
 
     // Toggle switch Foto ditautkan
     const switchFoto = p.getByRole("switch", { name: /Foto ditautkan/ });
@@ -111,41 +173,73 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
     await switchFoto.click();
     await expect(switchFoto).toHaveAttribute("aria-checked", "false");
 
-    const tungguUnduh = p.waitForEvent("download");
+    // 3a. Ekspor GeoJSON dan verifikasi isi FeatureCollection
+    await grupFormat.getByRole("button", { name: "GeoJSON (.geojson)" }).click();
+    const tungguGeoJson = p.waitForEvent("download");
     await p.locator('button[title="Ekspor sekarang"]').click();
-    const unduhan = await tungguUnduh;
-    expect(unduhan.suggestedFilename()).toMatch(/\.geojson$/);
-
-    const pathFile = await unduhan.path();
-    expect(pathFile).toBeTruthy();
-    const isiGeoJson = JSON.parse(readFileSync(pathFile!, "utf8")) as {
+    const unduhanGeoJson = await tungguGeoJson;
+    expect(unduhanGeoJson.suggestedFilename()).toMatch(/\.geojson$/);
+    const isiGeoJson = JSON.parse(readFileSync((await unduhanGeoJson.path())!, "utf8")) as {
       type: string;
       features: Array<{ properties?: Record<string, unknown> }>;
     };
     expect(isiGeoJson.type).toBe("FeatureCollection");
-    expect(isiGeoJson.features.some((f) => f.properties?.judul === "Pohon Meranti Simulasi" || f.properties?.label === "Pohon Meranti Simulasi")).toBe(true);
-    await expect(p.locator('.avenza-export-sub[role="status"]')).toContainText("Berhasil mengekspor");
+    expect(
+      isiGeoJson.features.some(
+        (f) => f.properties?.judul === "Pohon Meranti Simulasi" || f.properties?.label === "Pohon Meranti Simulasi"
+      )
+    ).toBe(true);
+
+    // 3b. Ekspor KML dan verifikasi struktur XML Placemark
+    await grupFormat.getByRole("button", { name: "KML (.kml)" }).click();
+    const tungguKml = p.waitForEvent("download");
+    await p.locator('button[title="Ekspor sekarang"]').click();
+    const unduhanKml = await tungguKml;
+    expect(unduhanKml.suggestedFilename()).toMatch(/\.kml$/);
+    const isiKml = readFileSync((await unduhanKml.path())!, "utf8");
+    expect(isiKml).toContain("<kml");
+    expect(isiKml).toContain("Pohon Meranti Simulasi");
+
+    // 3c. Ekspor SHP (.shp) dan verifikasi biner header ESRI 9994 + panjang + versi + shapeType
+    await grupFormat.getByRole("button", { name: "Shapefile (.shp)" }).click();
+    const tungguShp = p.waitForEvent("download");
+    await p.locator('button[title="Ekspor sekarang"]').click();
+    const unduhanShp = await tungguShp;
+    expect(unduhanShp.suggestedFilename()).toMatch(/\.shp$/);
+    const bufShp = readFileSync((await unduhanShp.path())!);
+    const dvShp = new DataView(bufShp.buffer, bufShp.byteOffset, bufShp.byteLength);
+    expect(dvShp.getInt32(0, false)).toBe(9994);
+    expect(dvShp.getInt32(24, false) * 2).toBe(bufShp.byteLength);
+    expect(dvShp.getInt32(28, true)).toBe(1000);
+    expect([1, 3, 5]).toContain(dvShp.getInt32(32, true));
+
+    // 3d. Ekspor Paket Lengkap SHP (.zip: .shp, .shx, .dbf, .prj)
+    const tungguZip = p.waitForEvent("download");
+    await p.getByRole("button", { name: /Unduh Paket Lengkap SHP/ }).click();
+    const unduhanZip = await tungguZip;
+    expect(unduhanZip.suggestedFilename()).toMatch(/_shp\.zip$/);
+    const bufZip = readFileSync((await unduhanZip.path())!);
+    const dvZip = new DataView(bufZip.buffer, bufZip.byteOffset, bufZip.byteLength);
+    expect(dvZip.getUint32(0, true)).toBe(0x04034b50);
+    expect(dvZip.getUint32(bufZip.byteLength - 22, true)).toBe(0x06054b50);
 
     await p.locator(".avenza-back-btn").click();
   });
 
-  await test.step("3. Komunikasi: Rekam Pesan Suara, Putar Audio, Kirim Pin GPS, dan Buka di Peta", async () => {
+  await test.step("4. Komunikasi: Rekam Pesan Suara, Putar Audio, Kirim Pin GPS, dan Buka di Peta", async () => {
     await p.locator(".avenza-nav-item", { hasText: "Diskusi" }).click();
 
-    // Klik tombol Mic (sebelumnya mati saat input kosong) -> muncul bar perekaman suara
     await p.locator('button[aria-label="Rekam Pesan Suara"]').click();
     await expect(p.locator('[role="region"][aria-label="Rekaman Pesan Suara"]')).toBeVisible();
     await p.waitForTimeout(1100);
     await p.locator('button[aria-label="Kirim Pesan Suara"]').click();
 
-    // Putar memo suara lalu jeda
     const btnPutar = p.locator('button[aria-label="Putar Pesan Suara"]').last();
     await expect(btnPutar).toBeVisible();
     await btnPutar.click();
     await expect(p.locator('button[aria-label="Jeda Pesan Suara"]')).toBeVisible();
     await p.locator('button[aria-label="Jeda Pesan Suara"]').click();
 
-    // Bagikan pin koordinat lalu buka langsung di peta
     await p.locator('button[title="Lampirkan Lokasi GPS / Suara"]').click();
     await p.locator("button", { hasText: "Kirim Pin Lokasi" }).click();
     await p.locator("input.form-input").nth(0).fill("Patok Simulasi Lapangan");
@@ -156,6 +250,47 @@ test("simulasi pemakaian manusia lengkap: Menu Alat peta, Geofence dinamis, Eksp
     await btnBukaPeta.click();
     await expect(p.locator(".map-canvas-container")).toBeVisible();
   });
+
+  expect(galat).toEqual([]);
+  await tutup();
+});
+
+test("simulasi PC desktop: basemap memanjang konsisten dan drawer pelacakan bersih dan berwarna", async ({ browser }) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    {
+      viewport: { width: 1280, height: 800 },
+      permissions: ["geolocation"],
+      geolocation: { latitude: 2.85727, longitude: 117.377476, accuracy: 6 }
+    },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  await masukSebagaiAdmin(p);
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.waitForSelector(".map-canvas-container");
+
+  // Basemap memanjang penuh di PC juga
+  await p.locator('button[aria-label="Pilih peta dasar"]').click();
+  const sheet = p.locator(".avz-basemap-sheet");
+  await expect(sheet).toBeVisible();
+  const lebarGrid = (await sheet.locator(".avz-basemap-grid").boundingBox())!.width;
+  const jumlahKartu = await sheet.locator(".avz-basemap-kartu").count();
+  for (let i = 0; i < jumlahKartu; i++) {
+    const box = await sheet.locator(".avz-basemap-kartu").nth(i).boundingBox();
+    expect(Math.abs(box!.width - lebarGrid)).toBeLessThan(2);
+  }
+  await p.locator(".avz-sheet-latar").click({ position: { x: 10, y: 10 } });
+
+  // Drawer Pelacakan berwarna aktif dan bebas tombol ekstra
+  await p.locator('button[aria-label="Buka panel lokasi, pelacakan, dan navigasi"]').click();
+  const drawer = p.locator(".avz-gps-drawer");
+  await drawer.getByRole("tab", { name: "Pelacakan" }).click();
+  await drawer.getByRole("button", { name: "Mulai Pelacakan" }).click();
+  await expect(drawer.locator(".avz-gps-status-box.sedang-melacak")).toBeVisible();
+  await expect(drawer.locator("button", { hasText: /Urungkan|Ulangi|Simulasi|Batalkan/ })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "Hentikan" }).click();
 
   expect(galat).toEqual([]);
   await tutup();

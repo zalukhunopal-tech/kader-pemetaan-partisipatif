@@ -1,7 +1,8 @@
 import { PusatSinkronisasi } from "./PusatSinkronisasi";
 import React, { useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, PilihanResolusiKonflik } from "../types";
-import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
+import { eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
+import { eksporKeSHP } from "../lib/shapefile";
 import { gdriveTerpasang, tujuanDrive } from "../lib/gdriveSync";
 import { muatSemuaAkun } from "../lib/auth";
 import { teksWilayah, wilayahLengkap } from "../lib/wilayah";
@@ -34,8 +35,9 @@ interface DatabaseSyncViewProps {
   onFokusKePeta: (lat: number, lng: number, label: string) => void;
 }
 
-function unduhBerkasTeks(namaFile: string, isi: string, mimeType: string) {
-  const blob = new Blob([isi], { type: mimeType });
+function unduhBerkasTeks(namaFile: string, isi: string | Uint8Array, mimeType: string) {
+  const muatan: BlobPart = typeof isi === "string" ? isi : new Uint8Array(isi);
+  const blob = new Blob([muatan], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -423,9 +425,11 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             <button
               type="button"
               className="btn-outline-sm"
-              onClick={() => unduhBerkasTeks("Master_Tabel_Pemetaan.csv", eksporKeCSV(dataSpasial), "text/csv;charset=utf-8")}
+              onClick={() =>
+                unduhBerkasTeks("Database_Pemetaan_Kader.shp", eksporKeSHP(dataSpasial), "application/octet-stream")
+              }
             >
-              <Download size={13} /> CSV
+              <Download size={13} /> SHP
             </button>
           </div>
         </div>
