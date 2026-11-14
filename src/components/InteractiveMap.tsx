@@ -44,6 +44,16 @@ import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
+import {
+  SampelSentuh,
+  TahapDrawerGps,
+  TahapDrawerTerbuka,
+  hitungGayaSeretTerbuka,
+  hitungGayaSeretTutupKeBuka,
+  hitungKecepatanVertikal,
+  tahapBerikutnyaTerbuka,
+  tahapDariTarikanTutup
+} from "../lib/usapDrawer";
 import { buatZonaGeofence, evaluasiGeofence, StatusGeofence, ZonaGeofence } from "../lib/geofence";
 import {
   bacaSistemKoordinat,
@@ -361,7 +371,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   // State UI Avenza Maps (sesuai referensi video antarmuka pengguna)
-  const [bukaDrawerGps, setBukaDrawerGps] = useState<boolean>(false);
+  const [tahapDrawerGps, setTahapDrawerGps] = useState<TahapDrawerGps>("tutup");
+  const bukaDrawerGps = tahapDrawerGps !== "tutup";
+  const [sedangMenutupDrawer, setSedangMenutupDrawer] = useState<boolean>(false);
+  const [sedangSeretDrawer, setSedangSeretDrawer] = useState<boolean>(false);
+  const [drawerDariSeret, setDrawerDariSeret] = useState<boolean>(false);
   const [tabDrawerGps, setTabDrawerGps] = useState<"lokasi" | "pelacakan" | "navigasi">("lokasi");
   const [bukaMenuAlat, setBukaMenuAlat] = useState<boolean>(false);
   const [bukaSalinKoord, setBukaSalinKoord] = useState<boolean>(false);
@@ -1456,43 +1470,313 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setModeRekam(null);
     setTitikDraft([]);
   };
-  const usapDrawerRef = useRef<{ x: number; y: number; arah: "naik" | "turun" } | null>(null);
+  const drawerLatarRef = useRef<HTMLDivElement | null>(null);
+  const drawerPanelRef = useRef<HTMLDivElement | null>(null);
+  const tahapDrawerRef = useRef<TahapDrawerGps>("tutup");
+  const sedangMenutupDrawerRef = useRef<boolean>(false);
+  const tutupTimerRef = useRef<number | null>(null);
+  const settleTimerRef = useRef<number | null>(null);
+  const klikBlokTimerRef = useRef<number | null>(null);
+  const dyTertundaRef = useRef<number | null>(null);
+  const lepasListenerRef = useRef<(() => void) | null>(null);
   const abaikanKlikBilahRef = useRef(false);
+
+  const ubahTahapDrawer = (tahap: TahapDrawerGps) => {
+    tahapDrawerRef.current = tahap;
+    setTahapDrawerGps(tahap);
+  };
+
+  const ubahSedangMenutup = (aktif: boolean) => {
+    sedangMenutupDrawerRef.current = aktif;
+    setSedangMenutupDrawer(aktif);
+  };
+  const usapDrawerRef = useRef<{
+    x: number;
+    y: number;
+    tahapAwal: TahapDrawerGps;
+    sampelSebelumnya: SampelSentuh;
+    sampelTerakhir: SampelSentuh;
+    sumber: "touch" | "pointer";
+    arahDari: "bawah" | "kepala";
+    sedangAktif: boolean;
+    tinggiAwalPanel: number;
+    tinggiKontainer: number;
+  } | null>(null);
+
+  const bersihkanTimerDrawer = () => {
+    if (tutupTimerRef.current !== null) {
+      window.clearTimeout(tutupTimerRef.current);
+      tutupTimerRef.current = null;
+    }
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+  };
+
+  const bersihkanGayaInlineDrawer = () => {
+    const panel = drawerPanelRef.current;
+    if (panel) {
+      panel.style.transition = "";
+      panel.style.transform = "";
+      panel.style.height = "";
+    }
+    const latar = drawerLatarRef.current;
+    if (latar) {
+      latar.style.transition = "";
+      latar.style.backgroundColor = "";
+    }
+  };
+
   const tutupSemuaPanel = () => {
     setBukaMenuAlat(false);
     setBukaSalinKoord(false);
     setBukaPilihBasemap(false);
   };
-  const bukaDrawerLokasi = (tab: "lokasi" | "pelacakan" | "navigasi" = "lokasi") => {
+
+  const tutupDrawerHalus = (seketika = false) => {
+    bersihkanTimerDrawer();
+    dyTertundaRef.current = null;
+    if (tahapDrawerRef.current === "tutup" && !sedangMenutupDrawerRef.current) return;
+    const kurangGerak = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (seketika || kurangGerak || !drawerPanelRef.current) {
+      bersihkanGayaInlineDrawer();
+      setSedangSeretDrawer(false);
+      ubahSedangMenutup(false);
+      setDrawerDariSeret(false);
+      ubahTahapDrawer("tutup");
+      return;
+    }
+    setSedangSeretDrawer(false);
+    ubahSedangMenutup(true);
+    const panel = drawerPanelRef.current;
+    panel.style.transition = "transform 220ms cubic-bezier(0.32, 0.72, 0, 1)";
+    panel.style.transform = "translateY(100%)";
+    panel.style.height = "";
+    if (drawerLatarRef.current) {
+      drawerLatarRef.current.style.transition = "background-color 220ms ease";
+      drawerLatarRef.current.style.backgroundColor = "rgba(0, 0, 0, 0)";
+    }
+    tutupTimerRef.current = window.setTimeout(() => {
+      tutupTimerRef.current = null;
+      bersihkanGayaInlineDrawer();
+      ubahSedangMenutup(false);
+      setDrawerDariSeret(false);
+      ubahTahapDrawer("tutup");
+    }, 225);
+  };
+
+  const bukaDrawerLokasi = (tab: "lokasi" | "pelacakan" | "navigasi" = "lokasi", tahap: TahapDrawerTerbuka = "sedang") => {
+    bersihkanTimerDrawer();
+    bersihkanGayaInlineDrawer();
+    dyTertundaRef.current = null;
     tutupSemuaPanel();
+    ubahSedangMenutup(false);
+    setSedangSeretDrawer(false);
+    setDrawerDariSeret(false);
     setTabDrawerGps(tab);
-    setBukaDrawerGps(true);
+    ubahTahapDrawer(tab === "pelacakan" && tahap === "ringkas" ? "sedang" : tahap);
   };
-  const mulaiUsapDrawer = (x: number, y: number, arah: "naik" | "turun") => {
-    abaikanKlikBilahRef.current = false;
-    usapDrawerRef.current = { x, y, arah };
+
+  const terapkanGayaSeretKeDom = (dy: number, arahDari: "bawah" | "kepala", tahapAwal: TahapDrawerGps, tinggiAwalPanel: number, tinggiKontainer: number) => {
+    const panel = drawerPanelRef.current;
+    if (!panel) return false;
+    const panelH = panel.offsetHeight || tinggiAwalPanel || 310;
+    const latarH = drawerLatarRef.current?.offsetHeight || tinggiKontainer || window.innerHeight || 780;
+    const gaya =
+      arahDari === "bawah"
+        ? hitungGayaSeretTutupKeBuka(-dy, panelH, latarH)
+        : hitungGayaSeretTerbuka(dy, (tahapAwal === "tutup" ? "sedang" : tahapAwal) as TahapDrawerTerbuka, tinggiAwalPanel || panelH, latarH);
+    panel.style.transition = "none";
+    panel.style.transform = `translateY(${gaya.translateYPx}px)`;
+    panel.style.height = gaya.heightPx !== null ? `${gaya.heightPx}px` : "";
+    if (drawerLatarRef.current) {
+      drawerLatarRef.current.style.transition = "none";
+      drawerLatarRef.current.style.backgroundColor = `rgba(0, 0, 0, ${gaya.backdropAlpha})`;
+    }
+    return true;
   };
-  const cekUsapDrawer = (x: number, y: number, selesai = false) => {
+
+  useLayoutEffect(() => {
+    if (!bukaDrawerGps || !sedangSeretDrawer || dyTertundaRef.current === null) return;
     const awal = usapDrawerRef.current;
     if (!awal) return;
-    const dy = y - awal.y;
-    const dx = x - awal.x;
-    const dominanVertikal = Math.abs(dy) >= 24 && Math.abs(dy) >= Math.abs(dx);
-    if (awal.arah === "naik" && dominanVertikal && dy < 0) {
-      usapDrawerRef.current = null;
-      abaikanKlikBilahRef.current = true;
-      window.setTimeout(() => {
-        abaikanKlikBilahRef.current = false;
-      }, 350);
-      bukaDrawerLokasi();
-      return;
+    if (terapkanGayaSeretKeDom(dyTertundaRef.current, awal.arahDari, awal.tahapAwal, awal.tinggiAwalPanel, awal.tinggiKontainer)) {
+      dyTertundaRef.current = null;
     }
-    if (awal.arah === "turun" && dominanVertikal && dy > 0) {
+  }, [bukaDrawerGps, sedangSeretDrawer]);
+
+  useEffect(() => {
+    return () => {
+      lepasListenerRef.current?.();
+      lepasListenerRef.current = null;
+      bersihkanTimerDrawer();
+      if (klikBlokTimerRef.current !== null) window.clearTimeout(klikBlokTimerRef.current);
+    };
+  }, []);
+
+  const jadwalkanSettleDrawer = () => {
+    bersihkanTimerDrawer();
+    window.requestAnimationFrame(() => {
+      const panel = drawerPanelRef.current;
+      if (panel) {
+        panel.style.transition =
+          "transform 280ms cubic-bezier(0.22, 1, 0.36, 1), min-height 260ms cubic-bezier(0.22, 1, 0.36, 1), max-height 260ms cubic-bezier(0.22, 1, 0.36, 1)";
+        panel.style.transform = "translateY(0px)";
+        panel.style.height = "";
+      }
+      if (drawerLatarRef.current) {
+        drawerLatarRef.current.style.transition = "background-color 240ms ease";
+        drawerLatarRef.current.style.backgroundColor = "";
+      }
+      settleTimerRef.current = window.setTimeout(() => {
+        settleTimerRef.current = null;
+        bersihkanGayaInlineDrawer();
+      }, 295);
+    });
+  };
+
+  const aktifkanPenahanKlik = () => {
+    abaikanKlikBilahRef.current = true;
+    if (klikBlokTimerRef.current !== null) window.clearTimeout(klikBlokTimerRef.current);
+    klikBlokTimerRef.current = window.setTimeout(() => {
+      abaikanKlikBilahRef.current = false;
+      klikBlokTimerRef.current = null;
+    }, 350);
+  };
+
+  const mulaiUsapDrawer = (x: number, y: number, arahDari: "bawah" | "kepala", sumber: "touch" | "pointer") => {
+    if (usapDrawerRef.current) return;
+    if (arahDari === "kepala" && (tahapDrawerRef.current === "tutup" || sedangMenutupDrawerRef.current)) return;
+    lepasListenerRef.current?.();
+    abaikanKlikBilahRef.current = false;
+    const sekarangMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const sampelAwal: SampelSentuh = { y, waktuMs: sekarangMs };
+    const kontainerH = drawerLatarRef.current?.offsetHeight || (typeof window !== "undefined" ? window.innerHeight : 780);
+    const panelAwalH = drawerPanelRef.current?.offsetHeight || 310;
+    usapDrawerRef.current = {
+      x,
+      y,
+      tahapAwal: arahDari === "bawah" ? "tutup" : tahapDrawerRef.current,
+      sampelSebelumnya: sampelAwal,
+      sampelTerakhir: sampelAwal,
+      sumber,
+      arahDari,
+      sedangAktif: false,
+      tinggiAwalPanel: panelAwalH,
+      tinggiKontainer: kontainerH
+    };
+
+    const prosesGerak = (cx: number, cy: number) => {
+      const awal = usapDrawerRef.current;
+      if (!awal) return;
+      const dx = cx - awal.x;
+      const dy = cy - awal.y;
+      const waktuMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      awal.sampelSebelumnya = awal.sampelTerakhir;
+      awal.sampelTerakhir = { y: cy, waktuMs };
+
+      if (!awal.sedangAktif) {
+        if (Math.abs(dx) >= 12 && Math.abs(dx) > Math.abs(dy) + 4) {
+          lepasListenerRef.current?.();
+          usapDrawerRef.current = null;
+          return;
+        }
+        const melewatiAmbangBawah = awal.arahDari === "bawah" && dy <= -8 && Math.abs(dy) >= Math.abs(dx);
+        const melewatiAmbangKepala = awal.arahDari === "kepala" && Math.abs(dy) >= 8 && Math.abs(dy) >= Math.abs(dx);
+        if (!melewatiAmbangBawah && !melewatiAmbangKepala) return;
+
+        awal.sedangAktif = true;
+        aktifkanPenahanKlik();
+        bersihkanTimerDrawer();
+        ubahSedangMenutup(false);
+        if (awal.arahDari === "bawah") {
+          dyTertundaRef.current = dy;
+          tutupSemuaPanel();
+          setTabDrawerGps("lokasi");
+          setDrawerDariSeret(true);
+          setSedangSeretDrawer(true);
+          ubahTahapDrawer("ringkas");
+          return;
+        }
+        awal.tinggiAwalPanel = drawerPanelRef.current?.offsetHeight || awal.tinggiAwalPanel || 420;
+        setSedangSeretDrawer(true);
+      }
+
+      if (!terapkanGayaSeretKeDom(dy, awal.arahDari, awal.tahapAwal, awal.tinggiAwalPanel, awal.tinggiKontainer)) {
+        dyTertundaRef.current = dy;
+      }
+    };
+
+    const prosesSelesai = (cy: number, dibatalkan = false) => {
+      lepasListenerRef.current?.();
+      lepasListenerRef.current = null;
+      const awal = usapDrawerRef.current;
       usapDrawerRef.current = null;
-      setBukaDrawerGps(false);
-      return;
+      dyTertundaRef.current = null;
+      if (!awal || !awal.sedangAktif) return;
+
+      aktifkanPenahanKlik();
+      const dy = cy - awal.y;
+      const waktuMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const vy = hitungKecepatanVertikal(awal.sampelSebelumnya, { y: cy, waktuMs });
+      setSedangSeretDrawer(false);
+
+      if (awal.arahDari === "bawah") {
+        const target = dibatalkan ? "tutup" : tahapDariTarikanTutup(-dy, -vy);
+        if (target === "tutup") {
+          tutupDrawerHalus();
+          return;
+        }
+        ubahTahapDrawer(target);
+        jadwalkanSettleDrawer();
+        return;
+      }
+
+      const tahapSekarang = (awal.tahapAwal === "tutup" ? "sedang" : awal.tahapAwal) as TahapDrawerTerbuka;
+      const target = dibatalkan ? tahapSekarang : tahapBerikutnyaTerbuka(tahapSekarang, dy, vy);
+      if (target === "tutup") {
+        tutupDrawerHalus();
+        return;
+      }
+      ubahTahapDrawer(target);
+      jadwalkanSettleDrawer();
+    };
+
+    if (sumber === "touch") {
+      const onMove = (ev: TouchEvent) => {
+        const t = ev.touches[0];
+        if (t) prosesGerak(t.clientX, t.clientY);
+      };
+      const onEnd = (ev: TouchEvent) => {
+        const t = ev.changedTouches[0];
+        prosesSelesai(t ? t.clientY : awalLastY(), ev.type === "touchcancel");
+      };
+      const awalLastY = () => usapDrawerRef.current?.sampelTerakhir.y ?? y;
+      window.addEventListener("touchmove", onMove, { passive: true });
+      window.addEventListener("touchend", onEnd, { passive: true });
+      window.addEventListener("touchcancel", onEnd, { passive: true });
+      lepasListenerRef.current = () => {
+        window.removeEventListener("touchmove", onMove);
+        window.removeEventListener("touchend", onEnd);
+        window.removeEventListener("touchcancel", onEnd);
+      };
+    } else {
+      const onMove = (ev: PointerEvent) => {
+        prosesGerak(ev.clientX, ev.clientY);
+      };
+      const onUp = (ev: PointerEvent) => {
+        prosesSelesai(ev.clientY, ev.type === "pointercancel");
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+      lepasListenerRef.current = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+      };
     }
-    if (selesai) usapDrawerRef.current = null;
   };
   // Esc menutup lapisan paling atas milik peta: menu titik tiga → halaman → lembar → menu kecil
   const adaLapisanTerbuka =
@@ -1509,7 +1793,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     else if (bukaHalamanLapisan) setBukaHalamanLapisan(false);
     else if (bukaInfoPetaModal) setBukaInfoPetaModal(false);
     else if (cariKoordTerbuka) setCariKoordTerbuka(false);
-    else if (bukaDrawerGps) setBukaDrawerGps(false);
+    else if (bukaDrawerGps) tutupDrawerHalus();
     else tutupSemuaPanel();
   });
   const bukaPinDenganAksi = (aksi: "averaging" | "foto" | null = null) => {
@@ -1859,12 +2143,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 detikTick={detikTick}
                 onTambahTitik={tambahTitikBidikan}
                 onBukaPanel={() => {
-                  tutupSemuaPanel();
-                  setTabDrawerGps("pelacakan");
-                  setBukaDrawerGps(true);
+                  bukaDrawerLokasi("pelacakan", "sedang");
                 }}
                 onSimpan={() => {
-                  setBukaDrawerGps(false);
+                  tutupDrawerHalus(true);
                   setBukaModalForm(true);
                 }}
                 onBatal={batalkanRekaman}
@@ -1875,21 +2157,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               className="avz-bottom-pill-bar"
               onTouchStart={(e) => {
                 const t = e.touches[0];
-                if (t) mulaiUsapDrawer(t.clientX, t.clientY, "naik");
+                if (t) mulaiUsapDrawer(t.clientX, t.clientY, "bawah", "touch");
               }}
-              onTouchMove={(e) => {
-                const t = e.touches[0];
-                if (t) cekUsapDrawer(t.clientX, t.clientY);
+              onPointerDown={(e) => {
+                if (e.pointerType !== "touch" && e.button === 0) mulaiUsapDrawer(e.clientX, e.clientY, "bawah", "pointer");
               }}
-              onTouchEnd={(e) => {
-                const t = e.changedTouches[0];
-                if (t) cekUsapDrawer(t.clientX, t.clientY, true);
-              }}
-              onPointerDown={(e) => mulaiUsapDrawer(e.clientX, e.clientY, "naik")}
-              onPointerMove={(e) => {
-                if (e.buttons === 1 || e.pointerType === "touch") cekUsapDrawer(e.clientX, e.clientY);
-              }}
-              onPointerUp={(e) => cekUsapDrawer(e.clientX, e.clientY, true)}
               onClickCapture={(e) => {
                 if (abaikanKlikBilahRef.current) {
                   e.stopPropagation();
@@ -1980,10 +2252,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 role="menuitem"
                 className="avz-tool-popup-item"
                 onClick={() => {
-                  setBukaMenuAlat(false);
                   setNavSubView("menu");
-                  setTabDrawerGps("navigasi");
-                  setBukaDrawerGps(true);
+                  bukaDrawerLokasi("navigasi", "sedang");
                 }}
               >
                 Bernavigasi ke Tujuan
@@ -2155,33 +2425,43 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* PANEL LOKASI · PELACAKAN · NAVIGASI */}
       {bukaDrawerGps && (
-        <div className="avz-sheet-latar avz-sheet-latar-bening" onClick={() => setBukaDrawerGps(false)}>
-          <div className="avz-sheet avz-gps-drawer" onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={drawerLatarRef}
+          className={`avz-sheet-latar avz-sheet-latar-bening ${sedangMenutupDrawer ? "menutup" : ""}`}
+          onClick={() => {
+            if (!sedangMenutupDrawer) tutupDrawerHalus();
+          }}
+        >
+          <div
+            ref={drawerPanelRef}
+            data-tahap={tahapDrawerGps}
+            className={`avz-sheet avz-gps-drawer tahap-${tahapDrawerGps} ${drawerDariSeret ? "tanpa-animasi-masuk" : ""} ${
+              sedangSeretDrawer ? "sedang-seret" : ""
+            } ${sedangMenutupDrawer ? "menutup" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div
               className="avz-gps-drawer-kepala"
               onTouchStart={(e) => {
                 const t = e.touches[0];
-                if (t) mulaiUsapDrawer(t.clientX, t.clientY, "turun");
+                if (t) mulaiUsapDrawer(t.clientX, t.clientY, "kepala", "touch");
               }}
-              onTouchMove={(e) => {
-                const t = e.touches[0];
-                if (t) cekUsapDrawer(t.clientX, t.clientY);
+              onPointerDown={(e) => {
+                if (e.pointerType !== "touch" && e.button === 0) mulaiUsapDrawer(e.clientX, e.clientY, "kepala", "pointer");
               }}
-              onTouchEnd={(e) => {
-                const t = e.changedTouches[0];
-                if (t) cekUsapDrawer(t.clientX, t.clientY, true);
+              onClickCapture={(e) => {
+                if (abaikanKlikBilahRef.current) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  abaikanKlikBilahRef.current = false;
+                }
               }}
-              onPointerDown={(e) => mulaiUsapDrawer(e.clientX, e.clientY, "turun")}
-              onPointerMove={(e) => {
-                if (e.buttons === 1 || e.pointerType === "touch") cekUsapDrawer(e.clientX, e.clientY);
-              }}
-              onPointerUp={(e) => cekUsapDrawer(e.clientX, e.clientY, true)}
             >
               <button
                 type="button"
                 className="avz-sheet-pegangan avz-sheet-pegangan-tombol"
                 aria-label="Tutup panel"
-                onClick={() => setBukaDrawerGps(false)}
+                onClick={() => tutupDrawerHalus()}
               >
                 <span aria-hidden="true" />
               </button>
@@ -2208,6 +2488,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     onClick={() => {
                       setTabDrawerGps(id);
                       setNavSubView("menu");
+                      if (id === "pelacakan" && tahapDrawerRef.current === "ringkas") {
+                        ubahTahapDrawer("sedang");
+                      }
                     }}
                   >
                     {label}
@@ -2364,7 +2647,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                       className="avz-gps-btn-primary avz-gps-btn-sejajar avz-gps-btn-hentikan"
                       onClick={() => {
                         const minTitik = modeRekam === "polygon" ? 3 : 2;
-                        setBukaDrawerGps(false);
+                        tutupDrawerHalus(titikDraft.length >= minTitik);
                         if (titikDraft.length < minTitik) {
                           batalkanRekaman();
                           setPesanSalin("Pelacakan dihentikan (belum cukup titik untuk disimpan).");
@@ -2391,7 +2674,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                         Ikon: Crosshair,
                         aksi: () => {
                           setTargetGoTo({ lat: center.lat, lng: center.lng, judul: "Titik bidikan" });
-                          setBukaDrawerGps(false);
+                          tutupDrawerHalus();
                         }
                       },
                       { id: "fitur", label: "Bernavigasi Ke Fitur", Ikon: MapPin, aksi: () => setNavSubView("fitur") },
@@ -2401,7 +2684,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                         label: "Buat Rute",
                         Ikon: Route,
                         aksi: () => {
-                          setBukaDrawerGps(false);
+                          tutupDrawerHalus();
                           mulaiModeRekam("line");
                         }
                       }
@@ -2438,7 +2721,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                         onClick={() => {
                           const k = d.koordinat[0];
                           setTargetGoTo({ lat: k.lat, lng: k.lng, judul: d.judul });
-                          setBukaDrawerGps(false);
+                          tutupDrawerHalus();
                         }}
                       >
                         <span className="avz-nav-option-icon">
@@ -2461,7 +2744,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (tujuKoordinat(navKoordInput)) {
-                        setBukaDrawerGps(false);
+                        tutupDrawerHalus();
                         setNavKoordInput("");
                       } else setPesanSalin("Koordinat tidak valid. Contoh: 2.857270, 117.377476");
                     }}
