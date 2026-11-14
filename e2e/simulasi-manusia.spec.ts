@@ -412,3 +412,155 @@ test("posisi pojok kiri bawah skala/atribusi dan auto-cache 1x1 km zoom tinggi 2
   expect(galat).toEqual([]);
   await tutup();
 });
+
+test("swipe ke atas buka drawer, kompas klik 3x pertahankan simbol, pelacakan tidak terpotong di bawah, dan hapus lembar peta dari Lapisan", async ({
+  browser
+}) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    {
+      viewport: { width: 390, height: 780 },
+      hasTouch: true,
+      isMobile: true,
+      permissions: ["geolocation"],
+      geolocation: { latitude: 2.85727, longitude: 117.377476, accuracy: 6 }
+    },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  await masukSebagaiAdmin(p);
+
+  // Semai area offline ke localStorage agar bisa menguji bahwa menu Lapisan Peta TIDAK menampilkan Lembar peta
+  await p.evaluate(() => {
+    localStorage.setItem(
+      "geokader_offline_maps_v5",
+      JSON.stringify([
+        {
+          id: "lembar-uji-1",
+          namaArea: "Peta Uji Offline GeoPDF",
+          basemap: "esri",
+          basemapId: "esri",
+          minLat: 2.84,
+          maxLat: 2.87,
+          minLng: 117.36,
+          maxLng: 117.39,
+          zoomMin: 12,
+          zoomMax: 16,
+          jumlahTile: 4,
+          ukuranMb: 1.5,
+          diunduhPada: "2026-11-14T00:00:00.000Z"
+        }
+      ])
+    );
+  });
+
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.waitForSelector(".map-canvas-container");
+
+  // 1. Uji menu kompas (.avz-nav-arrow-btn & .avz-kompas) diklik 3x: simbol harus selalu tampak dan kontras
+  const navBtn = p.locator(".avz-nav-arrow-btn");
+  const kompasBtn = p.locator(".avz-kompas");
+  for (let klik = 1; klik <= 3; klik++) {
+    await navBtn.click();
+    await expect(navBtn.locator("svg")).toBeVisible();
+    await expect(kompasBtn.locator("svg")).toBeVisible();
+    const gaya = await navBtn.evaluate((el) => {
+      const s = getComputedStyle(el);
+      const svg = el.querySelector("svg")!.getBoundingClientRect();
+      return { color: s.color, bg: s.backgroundColor, w: svg.width, h: svg.height };
+    });
+    expect(gaya.w, `klik ke-${klik} ukuran ikon nav`).toBeGreaterThanOrEqual(20);
+    expect(gaya.h, `klik ke-${klik} tinggi ikon nav`).toBeGreaterThanOrEqual(20);
+    expect(gaya.color, `klik ke-${klik} warna ikon jangan putih-di-putih`).not.toBe(gaya.bg);
+  }
+  for (let klik = 1; klik <= 3; klik++) {
+    await kompasBtn.click();
+    await expect(kompasBtn).toBeVisible();
+    await expect(kompasBtn.locator("svg")).toBeVisible();
+    const svgBox = await kompasBtn.locator("svg").boundingBox();
+    expect(svgBox!.width, `kompas klik ke-${klik}`).toBeGreaterThanOrEqual(30);
+    expect(svgBox!.height, `kompas klik ke-${klik}`).toBeGreaterThanOrEqual(30);
+  }
+
+  // 2. Uji swipe ke atas dari bilah bawah (.avz-pill-koordinat) memunculkan kotak dialog Lokasi · Pelacakan · Navigasi
+  const pillKoord = p.locator(".avz-pill-koordinat");
+  const boxPill = (await pillKoord.boundingBox())!;
+  const sx = boxPill.x + boxPill.width / 2;
+  const sy = boxPill.y + boxPill.height / 2;
+  const cdp = await p.context().newCDPSession(p);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: sx, y: sy, id: 1 }] });
+  for (let i = 1; i <= 5; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: sx, y: sy - i * 16, id: 1 }]
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+
+  const drawer = p.locator(".avz-gps-drawer");
+  await expect(drawer).toBeVisible();
+  // Memastikan swipe pada pill koordinat TIDAK memicu dialog Salin Koordinat
+  await expect(p.locator(".avz-coord-modal")).toHaveCount(0);
+
+  // Swipe ke bawah dari kepala drawer menutup kembali kotak dialog
+  const kepala = drawer.locator(".avz-gps-drawer-kepala");
+  const boxKepala = (await kepala.boundingBox())!;
+  const kx = boxKepala.x + boxKepala.width / 2;
+  const ky = boxKepala.y + 12;
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: kx, y: ky, id: 2 }] });
+  for (let i = 1; i <= 5; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: kx, y: ky + i * 18, id: 2 }]
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(drawer).toBeHidden();
+
+  // Buka lagi dengan swipe ke atas dari bilah bawah untuk memeriksa tab Pelacakan
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: sx, y: sy, id: 3 }] });
+  for (let i = 1; i <= 5; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: sx, y: sy - i * 16, id: 3 }]
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(drawer).toBeVisible();
+
+  // 3. Cek tab Pelacakan: tombol Mulai Pelacakan, Jeda, dan Hentikan TIDAK terpotong di bawah
+  await drawer.getByRole("tab", { name: "Pelacakan" }).click();
+  const drawerBox = (await drawer.boundingBox())!;
+  const btnMulai = drawer.getByRole("button", { name: "Mulai Pelacakan" });
+  await expect(btnMulai).toBeVisible();
+  const mulaiBox = (await btnMulai.boundingBox())!;
+  expect(mulaiBox.y + mulaiBox.height).toBeLessThanOrEqual(drawerBox.y + drawerBox.height + 0.5);
+  expect(mulaiBox.y + mulaiBox.height).toBeLessThanOrEqual(780 + 0.5);
+
+  await btnMulai.click();
+  const drawerAktifBox = (await drawer.boundingBox())!;
+  const btnJeda = drawer.getByRole("button", { name: "Jeda" });
+  const btnHentikan = drawer.getByRole("button", { name: "Hentikan" });
+  await expect(btnJeda).toBeVisible();
+  await expect(btnHentikan).toBeVisible();
+  const jedaBox = (await btnJeda.boundingBox())!;
+  const hentiBox = (await btnHentikan.boundingBox())!;
+  expect(jedaBox.y + jedaBox.height).toBeLessThanOrEqual(drawerAktifBox.y + drawerAktifBox.height + 0.5);
+  expect(hentiBox.y + hentiBox.height).toBeLessThanOrEqual(drawerAktifBox.y + drawerAktifBox.height + 0.5);
+
+  await btnHentikan.click();
+  await p.locator(".avz-gps-drawer").waitFor({ state: "hidden" }).catch(() => undefined);
+
+  // 4. Buka Lapisan Peta: pastikan fitur Lembar peta sudah dihilangkan dari menu ini
+  await p.getByRole("button", { name: "Lapisan peta" }).click();
+  const halamanLapisan = p.locator(".avz-halaman");
+  await expect(halamanLapisan.getByRole("heading", { name: "Lapisan Peta" })).toBeVisible();
+  await expect(halamanLapisan.getByText("Data lapangan")).toBeVisible();
+  await expect(halamanLapisan.getByText("Lembar peta")).toHaveCount(0);
+  await expect(halamanLapisan.getByText("Peta Uji Offline GeoPDF")).toHaveCount(0);
+  await halamanLapisan.getByRole("button", { name: "Kembali" }).click();
+
+  expect(galat).toEqual([]);
+  await tutup();
+});

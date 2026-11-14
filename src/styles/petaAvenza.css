@@ -254,18 +254,39 @@
   cursor: default;
 }
 
+.avz-peta .avz-nav-arrow-btn.active,
 .avz-peta .avz-nav-arrow-btn.mode-posisi,
 .avz-peta .avz-nav-arrow-btn.mode-kompas {
-  color: var(--avz-hijau);
+  background: var(--avz-putih) !important;
+  color: var(--avz-hijau) !important;
+  border: 0 !important;
+  box-shadow:
+    0 0 0 2px rgba(4, 122, 72, 0.28),
+    var(--avz-bayang) !important;
+}
+
+.avz-peta .avz-nav-arrow-btn svg {
+  display: block;
+  width: 22px !important;
+  height: 22px !important;
+  flex: none;
 }
 
 .avz-peta .avz-kompas-pod {
+  position: static;
   display: block;
   padding: 0;
   margin: 0;
   background: transparent;
   border: 0;
   box-shadow: none;
+}
+
+.avz-peta .avz-kompas svg {
+  display: block;
+  width: 38px !important;
+  height: 38px !important;
+  flex: none;
 }
 
 .avz-peta .avz-kompas.ikuti {
@@ -464,6 +485,7 @@
   box-sizing: border-box;
   background: var(--avz-putih);
   pointer-events: auto;
+  touch-action: none;
 }
 
 .avz-peta .avz-pegangan {
@@ -481,6 +503,7 @@
   display: grid;
   place-items: center;
   cursor: pointer;
+  touch-action: none;
 }
 
 .avz-peta .avz-pegangan span {
@@ -790,17 +813,20 @@
 
 /* Panel Lokasi · Pelacakan · Navigasi */
 .avz-peta .avz-gps-drawer {
-  height: min(66dvh, calc(100% - 56px));
-  max-height: calc(100% - 56px);
+  height: auto;
+  min-height: min(62dvh, calc(100% - 40px));
+  max-height: calc(100% - 40px);
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
   padding-top: 6px;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   overflow: hidden;
 }
 
 .avz-peta .avz-gps-drawer-kepala {
   flex: none;
+  touch-action: none;
 }
 
 .avz-peta .avz-gps-tabs-header {
@@ -867,16 +893,17 @@
 .avz-peta .avz-gps-tab-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-bottom: 4px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
 .avz-peta .avz-gps-coord-hero {
   position: relative;
   text-align: center;
+  flex: none;
 }
 
 .avz-peta .avz-gps-status-box {
@@ -938,6 +965,7 @@
 }
 
 .avz-peta .avz-gps-kompas-baris {
+  flex: none;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -976,6 +1004,7 @@
 }
 
 .avz-peta .avz-gps-metrics-grid {
+  flex: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
   row-gap: 14px;
@@ -1003,6 +1032,7 @@
 }
 
 .avz-peta .avz-gps-bottom-actions {
+  flex: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
@@ -1031,6 +1061,7 @@
 }
 
 .avz-peta .avz-gps-btn-primary {
+  flex: none;
   width: 100%;
   min-height: 46px;
   margin-top: auto;
@@ -1835,7 +1866,9 @@
   }
 
   .avz-peta .avz-gps-drawer {
-    height: min(560px, calc(100% - 56px));
+    height: auto;
+    min-height: min(500px, calc(100% - 40px));
+    max-height: calc(100% - 40px);
   }
 
   .avz-peta .avz-halaman {
