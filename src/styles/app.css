@@ -1214,6 +1214,32 @@ body {
   color: #68706c;
 }
 
+.avenza-format-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.avenza-format-chip {
+  min-height: 38px !important;
+  min-width: 0 !important;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.avenza-format-chip.active {
+  border-color: var(--avenza-green);
+  background: #e6f4ed;
+  color: var(--avenza-green);
+}
+
 .avenza-switch {
   width: 46px;
   height: 26px;
