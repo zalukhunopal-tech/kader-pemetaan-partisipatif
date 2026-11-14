@@ -59,6 +59,7 @@ import { AuthModal } from "./components/AuthModal";
 import { PustakaView } from "./components/PustakaView";
 import { PemberitahuanView } from "./components/PemberitahuanView";
 import { PengaturanEksporView } from "./components/PengaturanEksporView";
+import { KonteksEkspor } from "./lib/eksporFilter";
 import { InteractiveMap } from "./components/InteractiveMap";
 import { DatabaseSyncView } from "./components/DatabaseSyncView";
 import { useAutoSyncGDrive } from "./lib/gdriveSync";
@@ -134,6 +135,7 @@ export const App: React.FC = () => {
   // Sub-halaman penuh & menu
   const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
   const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
+  const [konteksEkspor, setKonteksEkspor] = useState<KonteksEkspor | null>(null);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
@@ -692,11 +694,12 @@ export const App: React.FC = () => {
     pinKoordinat?: { lat: number; lng: number; label: string },
     durasiSuaraDetik?: number,
     kustomPengirim?: {
-      idPengirim: string;
-      namaPengirim: string;
-      peranPengirim: PeranPengguna;
-      desaPengirim: string;
+      idPengirim?: string;
+      namaPengirim?: string;
+      peranPengirim?: PeranPengguna;
+      desaPengirim?: string;
       eskalasiAdmin?: boolean;
+      audioDataUrl?: string;
     }
   ) => {
     const msgBaru: PesanKomunikasi = {
@@ -705,12 +708,13 @@ export const App: React.FC = () => {
       idPengirim: kustomPengirim?.idPengirim ?? (aksesAdmin ? "ADMIN-01" : profil.idKader),
       namaPengirim: kustomPengirim?.namaPengirim ?? (aksesAdmin ? "Admin GIS Organisasi" : profil.nama),
       peranPengirim: kustomPengirim?.peranPengirim ?? (aksesAdmin ? "admin" : "kader"),
-      desaPengirim: kustomPengirim ? kustomPengirim.desaPengirim : aksesAdmin ? "Pusat" : profil.desaWilayah,
+      desaPengirim: kustomPengirim?.desaPengirim ?? (aksesAdmin ? "Pusat" : profil.desaWilayah),
       teks,
       waktu: new Date().toTimeString().slice(0, 5),
       statusKirim: "tersimpan",
       pinKoordinat,
       durasiSuaraDetik,
+      audioDataUrl: kustomPengirim?.audioDataUrl,
       eskalasiAdmin: kustomPengirim?.eskalasiAdmin
     };
     setPesanList((prev) => [...prev, msgBaru]);
@@ -725,7 +729,13 @@ export const App: React.FC = () => {
   };
 
   const handleTeruskanPesan = (pesan: PesanKomunikasi, saluranTujuan: "komunitas" | "admin") => {
-    handleKirimPesan(saluranTujuan, pesan.teks, pesan.pinKoordinat, pesan.durasiSuaraDetik);
+    handleKirimPesan(
+      saluranTujuan,
+      pesan.teks,
+      pesan.pinKoordinat,
+      pesan.durasiSuaraDetik,
+      pesan.audioDataUrl ? { audioDataUrl: pesan.audioDataUrl } : undefined
+    );
     tampilkanToast(`Pesan diteruskan ke ${saluranTujuan === "komunitas" ? "Grup Komunitas" : "Admin GIS"}.`);
   };
 
@@ -790,7 +800,17 @@ export const App: React.FC = () => {
   }
 
   if (bukaPengaturanEkspor) {
-    return denganKunci(<PengaturanEksporView dataSpasial={dataSpasial} onTutup={() => setBukaPengaturanEkspor(false)} />);
+    return denganKunci(
+      <PengaturanEksporView
+        dataSpasial={dataSpasial}
+        areaOffline={areaOffline}
+        konteksEkspor={konteksEkspor}
+        onTutup={() => {
+          setBukaPengaturanEkspor(false);
+          setKonteksEkspor(null);
+        }}
+      />
+    );
   }
 
   const catatAktivitas = () => {
@@ -822,7 +842,10 @@ export const App: React.FC = () => {
         setModeOfflineManual={setModeOfflineManual}
         tampilkanToast={tampilkanToast}
         onBukaPemberitahuan={() => setBukaPemberitahuan(true)}
-        onBukaEkspor={() => setBukaPengaturanEkspor(true)}
+        onBukaEkspor={() => {
+          setKonteksEkspor(null);
+          setBukaPengaturanEkspor(true);
+        }}
         onModePilihPustaka={() => setModePilihPustaka(true)}
         onBukaKeamanan={() => setBukaKeamanan(true)}
         onBukaGantiSandi={() => setBukaGantiSandi(true)}
@@ -930,7 +953,10 @@ export const App: React.FC = () => {
                 }}
                 onHapusLapisan={(id) => setLapisanList((prev) => prev.filter((l) => l.id !== id))}
                 onImporBerkas={handleImporBerkas}
-                onBukaPengaturanEkspor={() => setBukaPengaturanEkspor(true)}
+                onBukaPengaturanEkspor={(konteks) => {
+                  setKonteksEkspor(konteks ?? null);
+                  setBukaPengaturanEkspor(true);
+                }}
               />
             )}
 

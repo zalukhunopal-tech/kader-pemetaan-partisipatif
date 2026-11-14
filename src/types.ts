@@ -25,7 +25,8 @@ export interface KoordinatTitik {
   lat: number;
   lng: number;
   elevasi?: number; // Z (mdpl)
-  akurasi?: number; // meter
+  akurasi?: number; // meter (horizontal)
+  akurasiVertikal?: number; // meter (vertikal)
   kecepatan?: number; // m/s
   timestamp?: string;
   simulasi?: boolean; // true = titik acak dari mode simulasi, bukan GPS perangkat
@@ -351,6 +352,7 @@ export interface PesanKomunikasi {
   };
   lampiranFoto?: string;
   durasiSuaraDetik?: number;
+  audioDataUrl?: string;
   eskalasiAdmin?: boolean;
 }
 

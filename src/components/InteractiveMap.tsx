@@ -43,6 +43,7 @@ import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
+import { buatZonaGeofence, evaluasiGeofence, StatusGeofence, ZonaGeofence } from "../lib/geofence";
 import {
   bacaSistemKoordinat,
   DAFTAR_SISTEM_KOORDINAT,
@@ -401,6 +402,31 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     rekamLatar.status !== "idle" ? rekamLatar.titik : (form.rekaman?.titik ?? [])
   );
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
+  const [aksiAwalForm, setAksiAwalForm] = useState<"averaging" | "foto" | null>(null);
+  const [monitorGeofenceAktif, setMonitorGeofenceAktif] = useState<boolean>(false);
+  const [zonaGeofenceAktif, setZonaGeofenceAktif] = useState<ZonaGeofence | null>(null);
+  const [statusGeofence, setStatusGeofence] = useState<StatusGeofence | null>(null);
+  const prevGeofenceInsideRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!monitorGeofenceAktif) {
+      setStatusGeofence(null);
+      prevGeofenceInsideRef.current = null;
+      return;
+    }
+    const titikUji = gpsPos ?? center;
+    const zona = zonaGeofenceAktif ?? buatZonaGeofence({ petaKustomAktif, areaOffline, gpsPos, center });
+    if (!zonaGeofenceAktif) setZonaGeofenceAktif(zona);
+    const hasil = evaluasiGeofence(zona, titikUji);
+    setStatusGeofence(hasil);
+    if (prevGeofenceInsideRef.current !== null && prevGeofenceInsideRef.current !== hasil.diDalam) {
+      setPesanSalin(
+        hasil.diDalam
+          ? `Masuk Geofence: ${zona.nama}.`
+          : `Keluar Geofence: ${zona.nama} (±${Math.round(hasil.jarakDariTepiMeter)} m dari batas).`
+      );
+    }
+    prevGeofenceInsideRef.current = hasil.diDalam;
+  }, [monitorGeofenceAktif, zonaGeofenceAktif, gpsPos, center, petaKustomAktif, areaOffline]);
   useEffect(() => {
     if ((modeIkutiGps === "posisi" || modeIkutiGps === "kompas") && gpsPos) {
       setCenter({ lat: gpsPos.lat, lng: gpsPos.lng });
@@ -1223,6 +1249,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     onSimpanDataBaru(form.susunItem(profil, modeRekam, titikDraft, kompasDerajat));
     perekamLatar.selesai();
     setBukaModalForm(false);
+    setAksiAwalForm(null);
     setModeRekam(null);
     setTitikDraft([]);
     form.kosongkan();
@@ -1413,15 +1440,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     else if (bukaDrawerGps) setBukaDrawerGps(false);
     else tutupSemuaPanel();
   });
-  const jatuhkanPin = () => {
+  const bukaPinDenganAksi = (aksi: "averaging" | "foto" | null = null) => {
     tutupSemuaPanel();
     setObjekTerpilih(null);
     const pt: KoordinatTitik = { ...titikDariBidikan(center, posisiNyata), timestamp: new Date().toISOString() };
     setModeRekam("point");
     setTitikDraft([pt]);
     form.setKategoriInput("Biodiversitas");
+    setAksiAwalForm(aksi);
     setBukaModalForm(true);
   };
+  const jatuhkanPin = () => bukaPinDenganAksi(null);
   const tujuKoordinat = (teks: string): boolean => {
     const t = uraikanTeksKoordinat(teks);
     if (!t) return false;
@@ -1666,6 +1695,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
 
           <div className="avz-hud-tengah">
+            {monitorGeofenceAktif && statusGeofence && (
+              <div className={`avz-geofence-pill ${statusGeofence.diDalam ? "dalam" : "luar"}`} role="status">
+                <span>
+                  Geofence · {statusGeofence.zona.nama}:{" "}
+                  {statusGeofence.diDalam
+                    ? `Di dalam (±${Math.round(statusGeofence.jarakDariTepiMeter)} m ke tepi)`
+                    : `Di luar (±${Math.round(statusGeofence.jarakDariTepiMeter)} m)`}
+                </span>
+              </div>
+            )}
             {pesanSalin && (
               <span className="field-map-message" role="status">
                 {pesanSalin}
@@ -1867,30 +1906,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 type="button"
                 role="menuitem"
                 className="avz-tool-popup-item"
-                title="Buka form titik; rata-rata GPS ada di bagian Koordinat"
-                onClick={jatuhkanPin}
+                title="Buka form titik dan langsung jalankan rata-rata GPS"
+                onClick={() => bukaPinDenganAksi("averaging")}
               >
                 Rata-rata Plot GPS
               </button>
               <button
                 type="button"
                 role="menuitem"
-                className="avz-tool-popup-item"
+                aria-pressed={monitorGeofenceAktif}
+                className={`avz-tool-popup-item ${monitorGeofenceAktif ? "active" : ""}`}
                 onClick={() => {
                   setBukaMenuAlat(false);
-                  if (!posisiNyata) {
-                    setPesanSalin("Geofence: posisi GPS belum tersedia.");
+                  if (monitorGeofenceAktif) {
+                    setMonitorGeofenceAktif(false);
+                    setZonaGeofenceAktif(null);
+                    setStatusGeofence(null);
+                    prevGeofenceInsideRef.current = null;
+                    setPesanSalin("Monitor Geofences dimatikan.");
                     return;
                   }
-                  const area = dataSpasial.filter((d) => d.jenisGeometri === "polygon" && titikDalamPoligon(posisiNyata, d.koordinat));
+                  const titikUji = gpsPos ?? center;
+                  const zona = buatZonaGeofence({ petaKustomAktif, areaOffline, gpsPos, center });
+                  const hasil = evaluasiGeofence(zona, titikUji);
+                  setZonaGeofenceAktif(zona);
+                  setStatusGeofence(hasil);
+                  prevGeofenceInsideRef.current = hasil.diDalam;
+                  setMonitorGeofenceAktif(true);
+                  const areaPoligon = gpsPos ? dataSpasial.filter((d) => d.jenisGeometri === "polygon" && titikDalamPoligon(gpsPos, d.koordinat)) : [];
                   setPesanSalin(
-                    area.length
-                      ? `Geofence: Anda berada di dalam ${area.map((a) => a.judul).join(", ")}.`
-                      : "Geofence: Anda di luar semua area yang tersimpan."
+                    areaPoligon.length
+                      ? `Geofence aktif: berada di dalam ${areaPoligon.map((a) => a.judul).join(", ")}.`
+                      : hasil.diDalam
+                        ? `Monitor Geofences aktif: di dalam ${zona.nama}.`
+                        : `Monitor Geofences aktif: di luar ${zona.nama} (±${Math.round(hasil.jarakDariTepiMeter)} m).`
                   );
                 }}
               >
-                Monitor Geofences
+                {monitorGeofenceAktif ? "Matikan Monitor Geofences" : "Monitor Geofences"}
               </button>
               <a
                 role="menuitem"
@@ -1902,7 +1955,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               >
                 Lihat di Google Maps
               </a>
-              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={jatuhkanPin}>
+              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => bukaPinDenganAksi("foto")}>
                 Tandai Foto
               </button>
             </div>
@@ -2740,6 +2793,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <FormSurveiModal
           form={form}
           modeRekam={modeRekam}
+          aksiAwal={aksiAwalForm}
           profil={profil}
           koordinat={titikDraft}
           galatGeometri={modeRekam ? validasiGeometri(modeRekam, titikDraft).join(" ") : undefined}
@@ -2752,6 +2806,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onSimpan={handleSimpanForm}
           onTutup={() => {
             setBukaModalForm(false);
+            setAksiAwalForm(null);
             // Pin yang belum disimpan dibuang saat form ditutup (seperti Avenza)
             if (modeRekam === "point") {
               setModeRekam(null);

@@ -28,6 +28,7 @@ import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
 import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
 import { singkatkanLabelPeta } from "../lib/labelPeta";
 import { useTombolEsc } from "../lib/useTombolEsc";
+import { KonteksEkspor } from "../lib/eksporFilter";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -42,7 +43,7 @@ interface PustakaViewProps {
   onTambahLapisan: (lapisan: LapisanSpasial) => void;
   onHapusLapisan: (id: string) => void;
   onImporBerkas: (namaBerkas: string, isi: string) => boolean;
-  onBukaPengaturanEkspor: () => void;
+  onBukaPengaturanEkspor: (konteks?: KonteksEkspor) => void;
 }
 
 /**
@@ -608,7 +609,23 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         <div className="avenza-selection-banner">
           <span>{idTerpilih.length} item dipilih</span>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button type="button" className="btn-outline-sm" onClick={onBukaPengaturanEkspor}>
+            <button
+              type="button"
+              className="btn-outline-sm"
+              onClick={() => {
+                const petaDipilih = areaOffline.filter((a) => idTerpilih.includes(a.id));
+                const lapisanDipilih = lapisanList.filter((l) => idTerpilih.includes(l.id));
+                onBukaPengaturanEkspor(
+                  petaDipilih.length || lapisanDipilih.length
+                    ? {
+                        petaDipilih,
+                        lapisanDipilih,
+                        sumberLabel: `${idTerpilih.length} item dipilih dari Pustaka`
+                      }
+                    : undefined
+                );
+              }}
+            >
               Pengaturan Ekspor
             </button>
             <button
@@ -792,7 +809,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                         type="button"
                         onClick={() => {
                           setMenuItemTerbuka(null);
-                          onBukaPengaturanEkspor();
+                          onBukaPengaturanEkspor({
+                            petaDipilih: [item],
+                            sumberLabel: `Peta: ${item.namaArea}`
+                          });
                         }}
                       >
                         Ekspor Peta / Lapisan
@@ -857,8 +877,23 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           <div className="avenza-layer-list">
             {daftarLapisanTampil.map((lapisan) => {
               const jmlObjek = hitungObjekLapisan(lapisan);
+              const dipilih = idTerpilih.includes(lapisan.id);
               return (
-                <div key={lapisan.id} className="avenza-layer-row" onClick={onBukaPetaDasar}>
+                <div
+                  key={lapisan.id}
+                  className={`avenza-layer-row ${modePilihAktif && dipilih ? "selected" : ""}`}
+                  onClick={() => (modePilihAktif ? togglePilihId(lapisan.id) : onBukaPetaDasar())}
+                >
+                  {modePilihAktif && (
+                    <input
+                      type="checkbox"
+                      checked={dipilih}
+                      onChange={() => togglePilihId(lapisan.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Pilih ${lapisan.nama}`}
+                      className="avenza-checkbox"
+                    />
+                  )}
                   <div className="avenza-layer-icon-box">
                     <Layers size={24} />
                   </div>
@@ -902,7 +937,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                           type="button"
                           onClick={() => {
                             setMenuItemTerbuka(null);
-                            onBukaPengaturanEkspor();
+                            onBukaPengaturanEkspor({
+                              lapisanDipilih: [lapisan],
+                              sumberLabel: `Lapisan: ${lapisan.nama}`
+                            });
                           }}
                         >
                           Pengaturan Ekspor (.kml / .geojson)
