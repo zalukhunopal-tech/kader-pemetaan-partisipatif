@@ -51,6 +51,8 @@ test("HP dengan huruf besar: peta layar penuh, atribusi dan tombol pin tidak ter
     const pin = await kotak(p, ".avz-fab-pin");
     expect(bilah.bottom).toBeLessThanOrEqual(bawahLayar + 0.5);
     expect(atr.bottom).toBeLessThanOrEqual(bilah.top + 0.5);
+    expect(bilah.top - atr.bottom).toBeLessThanOrEqual(10);
+    expect(atr.left).toBeLessThanOrEqual(12);
     expect(pin.bottom).toBeLessThanOrEqual(bilah.top + 0.5);
     expect(pin.right).toBeLessThanOrEqual(360);
     const tidakBertumpuk = atr.right <= pin.left + 1 || atr.bottom <= pin.top + 1 || pin.bottom <= atr.top + 1;

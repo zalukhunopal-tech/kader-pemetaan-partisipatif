@@ -27,6 +27,7 @@ import {
   zoomSumber,
   urlTile
 } from "../lib/petaOffline";
+import { jalankanAutoCache1Km } from "../lib/cachePetaOtomatis";
 import {
   TILE_SIZE,
   gambarLapisanPeta,
@@ -111,6 +112,8 @@ interface InteractiveMapProps {
   /** Tombol kembali di bilah judul peta (bila bukan lembar peta kustom) */
   onKembali?: () => void;
   onHapusAreaOffline?: (id: string) => void;
+  /** Status konektivitas aplikasi (jaringan + sakelar offline manual) */
+  sedangOnline?: boolean;
 }
 
 /** Format nama peta agar ringkas, adaptif, dan tidak meluap keluar layar */
@@ -225,7 +228,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanAreaOffline,
   onImporBerkas,
   onHapusAreaOffline,
-  onKembali
+  onKembali,
+  sedangOnline = typeof navigator === "undefined" ? true : navigator.onLine
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tileCacheRef = useRef<Map<string, HTMLImageElement | "loading" | "error">>(new Map());
@@ -512,6 +516,45 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // Modal Offline Downloader
   const unduh = useUnduhAreaOffline(basemap, areaOffline, onSimpanAreaOffline);
+  const areaOfflineRef = useRef(areaOffline);
+  areaOfflineRef.current = areaOffline;
+  const latAuto = posisiNyata?.lat ?? center.lat;
+  const lngAuto = posisiNyata?.lng ?? center.lng;
+  const posisiAutoRef = useRef({ lat: latAuto, lng: lngAuto });
+  posisiAutoRef.current = { lat: latAuto, lng: lngAuto };
+  const kunciGridAuto = `${Math.round(latAuto * 1000)}:${Math.round(lngAuto * 1000)}`;
+
+  // Cache otomatis 1 x 1 km sampai zoom tertinggi basemap (cadangan 2 generasi, aman terhadap jaringan nyasar)
+  useEffect(() => {
+    if (!sedangOnline || petaKustomAktif || basemap === "taktis") return;
+    if (SUMBER_TILE[basemap].berkuota) return;
+    if (unduh.bukaModalOffline || unduh.sedangMengunduhTile) return;
+
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => {
+      const { lat, lng } = posisiAutoRef.current;
+      void jalankanAutoCache1Km({
+        basemap,
+        lat,
+        lng,
+        online: sedangOnline,
+        areaOffline: areaOfflineRef.current,
+        sinyal: ac.signal
+      });
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [
+    sedangOnline,
+    petaKustomAktif,
+    basemap,
+    kunciGridAuto,
+    unduh.bukaModalOffline,
+    unduh.sedangMengunduhTile
+  ]);
 
   const dragRef = useRef<{
     active: boolean;

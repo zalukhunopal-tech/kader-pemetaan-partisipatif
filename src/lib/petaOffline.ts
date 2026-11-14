@@ -488,32 +488,36 @@ export interface HasilUnduh {
 export interface OpsiUnduh {
   sinyal?: AbortSignal;
   onKemajuan?: (selesai: number, total: number, gagal: number) => void;
+  /** Jika true, unduh ulang dari jaringan meski URL sudah ada di Cache API; hanya timpa bila unduhan sukses */
+  paksaSegarkan?: boolean;
 }
 
 async function ambilSatuTile(
   cache: Cache,
   url: string,
-  sinyal?: AbortSignal
-): Promise<{ status: "baru" | "ada" | "gagal" | "tidakAda"; byte: number }> {
+  sinyal?: AbortSignal,
+  paksaSegarkan = false
+): Promise<{ status: "baru" | "ada" | "gagal" | "tidakAda"; adaSebelumnya: boolean; byte: number }> {
   const hit = await cache.match(url);
-  if (hit) return { status: "ada", byte: (await hit.blob()).size };
+  const adaSebelumnya = Boolean(hit);
+  if (hit && !paksaSegarkan) return { status: "ada", adaSebelumnya: true, byte: (await hit.blob()).size };
   for (let percobaan = 0; percobaan < 2; percobaan++) {
     try {
       const resp = await fetch(url, { mode: "cors", signal: sinyal });
-      if (resp.status === 404 || resp.status === 410) return { status: "tidakAda", byte: 0 };
-      if (!resp.ok) return { status: "gagal", byte: 0 };
+      if (resp.status === 404 || resp.status === 410) return { status: "tidakAda", adaSebelumnya, byte: 0 };
+      if (!resp.ok) return { status: "gagal", adaSebelumnya, byte: 0 };
       const tipe = resp.headers.get("content-type") ?? "";
-      if (!tipe.startsWith("image/")) return { status: "gagal", byte: 0 }; // mis. halaman galat berformat HTML
+      if (!tipe.startsWith("image/")) return { status: "gagal", adaSebelumnya, byte: 0 }; // mis. halaman galat berformat HTML
       const blob = await resp.blob();
       await cache.put(url, new Response(blob, { headers: { "content-type": tipe } }));
-      return { status: "baru", byte: blob.size };
+      return { status: "baru", adaSebelumnya, byte: blob.size };
     } catch (err) {
       if (sinyal?.aborted) throw err;
       if (err instanceof DOMException && err.name === "QuotaExceededError") throw err;
       // galat jaringan: coba sekali lagi
     }
   }
-  return { status: "gagal", byte: 0 };
+  return { status: "gagal", adaSebelumnya, byte: 0 };
 }
 
 /** Mengunduh daftar URL tile ke penyimpanan offline dengan beberapa permintaan paralel */
@@ -537,10 +541,10 @@ export async function unduhTile(daftarUrl: string[], opsi: OpsiUnduh = {}): Prom
     while (indeks < total && !hasil.dihentikan && !hasil.kuotaPenuh) {
       const url = daftarUrl[indeks++];
       try {
-        const r = await ambilSatuTile(cache, url, opsi.sinyal);
+        const r = await ambilSatuTile(cache, url, opsi.sinyal, Boolean(opsi.paksaSegarkan));
         if (r.status === "baru") {
           hasil.tersimpan++;
-          hasil.urlBaru.push(url);
+          if (!r.adaSebelumnya) hasil.urlBaru.push(url);
         } else if (r.status === "ada") hasil.sudahAda++;
         else if (r.status === "tidakAda") hasil.tidakAda++;
         else hasil.gagal++;

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { JPEG, RUTE_TILE_PUBLIK, halamanBaru, masukSebagaiAdmin, posisiPeta, sampai } from "./bantu";
+import { JPEG, RUTE_TILE_PUBLIK, halamanBaru, kodeBerikutnya, majukanJam, masukSebagaiAdmin, posisiPeta, sampai, terkunci } from "./bantu";
 
 test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna, basemap memanjang, menu alat, ekspor GeoJSON KML SHP biner, dan obrolan suara", async ({
   browser
@@ -19,7 +19,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
   );
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
-  await masukSebagaiAdmin(p);
+  const rahasia = await masukSebagaiAdmin(p);
 
   await test.step("1. Peta: posisi tab Lokasi/Pelacakan/Navigasi rapat atas, pewarnaan Pelacakan tanpa tombol ekstra, & basemap memanjang penuh", async () => {
     await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
@@ -267,7 +267,7 @@ test("simulasi PC desktop: basemap memanjang konsisten dan drawer pelacakan bers
   );
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
-  await masukSebagaiAdmin(p);
+  const rahasia = await masukSebagaiAdmin(p);
   await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
   await p.waitForSelector(".map-canvas-container");
 
@@ -291,6 +291,123 @@ test("simulasi PC desktop: basemap memanjang konsisten dan drawer pelacakan bers
   await expect(drawer.locator(".avz-gps-status-box.sedang-melacak")).toBeVisible();
   await expect(drawer.locator("button", { hasText: /Urungkan|Ulangi|Simulasi|Batalkan/ })).toHaveCount(0);
   await drawer.getByRole("button", { name: "Hentikan" }).click();
+
+  expect(galat).toEqual([]);
+  await tutup();
+});
+
+test("posisi pojok kiri bawah skala/atribusi dan auto-cache 1x1 km zoom tinggi 2 slot bergulir", async ({ browser }) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }
+  );
+  let gagalJaringan = false;
+  await p.context().route(/server\.arcgisonline\.com|ibasemaps-api\.arcgis\.com/, (r) =>
+    r.fulfill({ status: 404, body: "" })
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) =>
+    gagalJaringan
+      ? r.fulfill({ status: 503, body: "offline-nyasar" })
+      : r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG })
+  );
+
+  const rahasia = await masukSebagaiAdmin(p);
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.waitForSelector(".map-canvas-container");
+
+  // 1. Verifikasi skala & atribusi mepet sudut kiri bawah tepat di atas bilah bawah
+  const kanvasBox = await p.locator(".map-canvas-container").boundingBox();
+  const bilahBox = await p.locator(".avz-bottom-pill-bar").boundingBox();
+  const skalaBox = await p.locator(".avenza-scale-bar-wrap").boundingBox();
+  const atrBox = await p.locator("#atribusi-peta").boundingBox();
+  expect(skalaBox!.x - kanvasBox!.x).toBeLessThanOrEqual(12);
+  expect(atrBox!.x - kanvasBox!.x).toBeLessThanOrEqual(12);
+  expect(bilahBox!.y - (atrBox!.y + atrBox!.height)).toBeLessThanOrEqual(10);
+  expect(bilahBox!.y - (atrBox!.y + atrBox!.height)).toBeGreaterThanOrEqual(-0.5);
+
+  // 2. Pilih OSM agar rute RUTE_TILE_PUBLIK melayani tile 200 OK
+  await p.locator('button[aria-label="Pilih peta dasar"]').click();
+  await p.locator(".map-basemap-Option", { hasText: "OSM" }).click();
+
+  // Tunggu auto-cache 1x1 km pertama selesai mengisi Cache API & localStorage slot 1
+  expect(
+    await sampai(async () => {
+      return p.evaluate(() => {
+        const raw = localStorage.getItem("geokader_auto_cache_peta_v1");
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) && arr.length === 1 && arr[0].basemap === "osm";
+      });
+    }, 15_000)
+  ).toBe(true);
+
+  const infoSlot1 = await p.evaluate(async () => {
+    const slots = JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]");
+    const keys = await (await caches.open("geokader-tiles-v1")).keys();
+    return { slots, jumlahKeys: keys.length };
+  });
+  expect(infoSlot1.slots[0].zoomMax).toBe(19);
+  expect(infoSlot1.jumlahKeys).toBeGreaterThanOrEqual(infoSlot1.slots[0].urls.length);
+
+  // 3. Pindah lokasi > 1 km via fitur Cari di Peta -> tunggu terbentuk cadangan 2 slot
+  await p.getByRole("button", { name: "Cari di Peta" }).click();
+  await p.getByPlaceholder("Telusuri...").fill("-6.2450, 106.8650");
+  await p.getByPlaceholder("Telusuri...").press("Enter");
+
+  expect(
+    await sampai(async () => {
+      return p.evaluate(() => {
+        const arr = JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]");
+        return Array.isArray(arr) && arr.length === 2;
+      });
+    }, 15_000)
+  ).toBe(true);
+
+  // 4. Jaringan nyasar (503) saat pindah ke lokasi ke-3: 2 slot sebelumnya TIDAK boleh terhapus
+  gagalJaringan = true;
+  await p.getByRole("button", { name: "Cari di Peta" }).click();
+  await p.getByPlaceholder("Telusuri...").fill("-6.2900, 106.9100");
+  await p.getByPlaceholder("Telusuri...").press("Enter");
+  await p.waitForTimeout(2500);
+
+  const setelahNyasar = await p.evaluate(() => JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]"));
+  expect(setelahNyasar).toHaveLength(2);
+  expect(Math.abs(setelahNyasar[0].pusatLat - -6.245)).toBeLessThan(0.01);
+
+  // 5. Majukan waktu > 30 hari (buka kunci TOTP bila sesi 8 jam habis) & simulasikan jaringan menyambung -> otomatis perbarui ke lokasi aktif dan tetap jaga maks 2 slot
+  const waktuSebelum = setelahNyasar[0].dibuatPada as number;
+  gagalJaringan = false;
+  await majukanJam(p, 31 * 86400);
+  await p.evaluate(() => window.dispatchEvent(new Event("offline")));
+  await p.waitForTimeout(1200);
+  if (await terkunci(p)) {
+    await p.locator(".layar-kunci").getByPlaceholder("123 456").fill(await kodeBerikutnya(p, rahasia));
+    await p.locator(".layar-kunci").getByRole("button", { name: "Verifikasi" }).click();
+    expect(await sampai(async () => !(await terkunci(p)))).toBe(true);
+  }
+  await p.evaluate(() => window.dispatchEvent(new Event("online")));
+  if ((await p.locator(".map-canvas-container").count()) === 0) {
+    await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+    await p.waitForSelector(".map-canvas-container");
+  }
+  const basemapNow = await p.locator("#atribusi-peta").innerText();
+  if (!/OpenStreetMap/.test(basemapNow)) {
+    await p.locator('button[aria-label="Pilih peta dasar"]').click();
+    await p.locator(".map-basemap-Option", { hasText: "OSM" }).click();
+  }
+
+  expect(
+    await sampai(async () => {
+      return p.evaluate((lama) => {
+        const arr = JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]");
+        return Array.isArray(arr) && arr.length === 2 && arr[0]?.dibuatPada > lama;
+      }, waktuSebelum);
+    }, 15_000)
+  ).toBe(true);
+
+  const hasilAkhir = await p.evaluate(() => JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]"));
+  expect(hasilAkhir).toHaveLength(2);
+  expect(Math.abs(hasilAkhir[0].pusatLat - -6.29)).toBeLessThan(0.01);
+  expect(Math.abs(hasilAkhir[1].pusatLat - -6.245)).toBeLessThan(0.01);
 
   expect(galat).toEqual([]);
   await tutup();
