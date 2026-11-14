@@ -983,6 +983,7 @@ export const App: React.FC = () => {
                 onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
                 onHapusAreaOffline={handleHapusAreaOffline}
                 onImporBerkas={handleImporBerkas}
+                sedangOnline={sedangOnline}
                 onKembali={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
               />
             )}
