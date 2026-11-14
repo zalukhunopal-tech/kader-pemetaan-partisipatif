@@ -222,6 +222,34 @@ export function gambarLembarPetaGeoPdf(
 }
 
 /** Menggambar semua lapisan di atas tile peta, berurutan dari bawah ke atas */
+/** Warna garis jalur dan area seperti di Avenza Maps */
+export const WARNA_JALUR_AVENZA = "#f7861f";
+
+/** Pin merah ala Avenza: ujung bawah tepat di titik (0,0) */
+export function gambarPinMerah(ctx: CanvasRenderingContext2D): void {
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetY = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-3, -6, -10, -11, -10, -18);
+  ctx.arc(0, -18, 10, Math.PI, 0, false);
+  ctx.bezierCurveTo(10, -11, 3, -6, 0, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#ee271e";
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(120, 10, 10, 0.55)";
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, -18, 3.6, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.restore();
+}
+
 export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: LapisanPeta): void {
   const {
     W,
@@ -247,113 +275,73 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     gambarLembarPetaGeoPdf(ctx, petaKustomAktif, keLayar, zoom, W, H, saatGambarSiap);
   }
 
-  // 3. Kisi Koordinat Halus (Tanpa label contoh/dummy)
-  ctx.save();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
-  ctx.lineWidth = 1;
-  const stepGrid = 128;
-  for (let gx = (W / 2) % stepGrid; gx < W; gx += stepGrid) {
-    ctx.beginPath();
-    ctx.moveTo(gx, 0);
-    ctx.lineTo(gx, H);
-    ctx.stroke();
-  }
-  for (let gy = (H / 2) % stepGrid; gy < H; gy += stepGrid) {
-    ctx.beginPath();
-    ctx.moveTo(0, gy);
-    ctx.lineTo(W, gy);
-    ctx.stroke();
-  }
-  ctx.restore();
+  // 4. Objek tersimpan (gaya Avenza Maps): titik = pin merah, jalur = garis oranye, area = garis oranye
+  //    dengan isian tipis. Nama objek tidak ditulis di peta; objek terpilih diberi sudut seleksi.
+  const sudutSeleksi = (cx: number, cy: number, r: number) => {
+    const p = 7;
+    ctx.save();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 3;
+    for (const [sx, sy] of [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1]
+    ]) {
+      const x = cx + sx * r;
+      const y = cy + sy * r;
+      ctx.beginPath();
+      ctx.moveTo(x, y - sy * p);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x - sx * p, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
 
-  // 4. Gambar Objek Spasial yang Sudah Tersimpan
   dataSpasial.forEach((item) => {
-    const color = WARNA_KATEGORI[item.kategori] || "#10b981";
     const isSelected = idTerpilih === item.id;
+    const garis = (tutup: boolean) => {
+      ctx.beginPath();
+      item.koordinat.forEach((k, idx) => {
+        const p = keLayar(k.lat, k.lng);
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      if (tutup) ctx.closePath();
+    };
 
     if (item.jenisGeometri === "polygon" && item.koordinat.length >= 3) {
       ctx.save();
-      ctx.beginPath();
-      item.koordinat.forEach((k, idx) => {
-        const p = keLayar(k.lat, k.lng);
-        if (idx === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      });
-      ctx.closePath();
-      ctx.fillStyle = isSelected ? "rgba(251, 191, 36, 0.38)" : "rgba(16, 185, 129, 0.24)";
+      garis(true);
+      ctx.fillStyle = isSelected ? "rgba(247, 134, 31, 0.32)" : "rgba(247, 134, 31, 0.16)";
       ctx.fill();
-      ctx.strokeStyle = isSelected ? "#fbbf24" : color;
-      ctx.lineWidth = isSelected ? 3 : 2;
+      ctx.strokeStyle = WARNA_JALUR_AVENZA;
+      ctx.lineWidth = isSelected ? 4.5 : 3;
+      ctx.lineJoin = "round";
       ctx.stroke();
-
-      const avgLat = item.koordinat.reduce((a, b) => a + b.lat, 0) / item.koordinat.length;
-      const avgLng = item.koordinat.reduce((a, b) => a + b.lng, 0) / item.koordinat.length;
-      const centerPoly = keLayar(avgLat, avgLng);
-      ctx.fillStyle = "rgba(6, 20, 17, 0.85)";
-      ctx.fillRect(centerPoly.x - 58, centerPoly.y - 18, 116, 32);
-      ctx.strokeStyle = color;
-      ctx.strokeRect(centerPoly.x - 58, centerPoly.y - 18, 116, 32);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(item.judul.slice(0, 18), centerPoly.x, centerPoly.y - 4);
-      ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.fillText(`${item.luasHa} Ha`, centerPoly.x, centerPoly.y + 10);
       ctx.restore();
     } else if (item.jenisGeometri === "line" && item.koordinat.length >= 2) {
       ctx.save();
-      ctx.beginPath();
-      item.koordinat.forEach((k, idx) => {
-        const p = keLayar(k.lat, k.lng);
-        if (idx === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      });
-      ctx.strokeStyle = isSelected ? "#fbbf24" : "#38bdf8";
-      ctx.lineWidth = isSelected ? 4 : 3;
+      garis(false);
+      ctx.strokeStyle = WARNA_JALUR_AVENZA;
+      ctx.lineWidth = isSelected ? 5 : 3.5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.setLineDash([]);
       ctx.stroke();
-
-      const mid = item.koordinat[Math.floor(item.koordinat.length / 2)];
-      const mp = keLayar(mid.lat, mid.lng);
-      ctx.fillStyle = "rgba(6, 20, 17, 0.88)";
-      ctx.fillRect(mp.x - 42, mp.y - 12, 84, 22);
-      ctx.fillStyle = "#38bdf8";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(`${item.panjangKm} km`, mp.x, mp.y + 3);
       ctx.restore();
     } else if (item.jenisGeometri === "point" && item.koordinat[0]) {
       const p = keLayar(item.koordinat[0].lat, item.koordinat[0].lng);
       ctx.save();
-      if (isSelected) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(251, 191, 36, 0.35)";
-        ctx.fill();
-      }
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "#ffffff";
-      ctx.stroke();
-
-      ctx.save();
       ctx.translate(p.x, p.y);
+      // Pin tetap tegak walau peta diputar
       if (bearingPeta) ctx.rotate((bearingPeta * Math.PI) / 180);
-      ctx.fillStyle = "rgba(6, 20, 17, 0.82)";
-      const label = item.namaLokal || item.judul.slice(0, 16);
-      const tw = ctx.measureText(label).width + 12;
-      ctx.fillRect(-tw / 2, 12, tw, 18);
-      ctx.fillStyle = "#e2e8f0";
-      ctx.font = "600 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(label, 0, 24);
-      ctx.restore();
+      gambarPinMerah(ctx);
+      if (isSelected) sudutSeleksi(0, -14, 22);
       ctx.restore();
     }
   });
@@ -366,7 +354,7 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
       const p = keLayar(titikDraft[0].lat, titikDraft[0].lng);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = "#fbbf24";
+      ctx.fillStyle = WARNA_JALUR_AVENZA;
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
@@ -381,10 +369,10 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
       });
       if (modeRekam === "polygon" && titikDraft.length >= 3) {
         ctx.closePath();
-        ctx.fillStyle = "rgba(251, 191, 36, 0.28)";
+        ctx.fillStyle = "rgba(247, 134, 31, 0.22)";
         ctx.fill();
       }
-      ctx.strokeStyle = "#fbbf24";
+      ctx.strokeStyle = WARNA_JALUR_AVENZA;
       ctx.lineWidth = 3;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -517,4 +505,3 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     ctx.restore();
   }
 }
-

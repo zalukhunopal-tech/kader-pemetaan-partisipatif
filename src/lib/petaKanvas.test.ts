@@ -117,14 +117,17 @@ describe("teks status sensor", () => {
 });
 
 describe("gambarLapisanPeta", () => {
-  it("objek titik digambar di posisi layarnya beserta label; objek terpilih diberi lingkaran sorot", () => {
+  it("objek titik digambar sebagai pin merah di posisi layarnya tanpa label; objek terpilih diberi sudut seleksi", () => {
     const { ctx, panggilan } = kanvasTiruan();
     gambarLapisanPeta(ctx, lapisanDasar({ dataSpasial: [titik("A", -1, 100), titik("B", -1, 100.001)], idTerpilih: "B" }));
-    const lingkaran = panggilan("arc").map((c) => c.argumen.slice(0, 3));
-    expect(lingkaran).toContainEqual([200, 300, 9]); // titik A
-    expect(lingkaran).toContainEqual([210, 300, 16]); // sorot titik B yang terpilih
-    expect(lingkaran.filter((a) => a[2] === 16)).toHaveLength(1);
-    expect(panggilan("fillText").map((c) => c.argumen[0])).toEqual(["Pohon Ulin", "Pohon Ulin"]);
+    const geser = panggilan("translate").map((c) => c.argumen);
+    expect(geser).toContainEqual([200, 300]); // pin titik A
+    expect(geser).toContainEqual([210, 300]); // pin titik B
+    expect(panggilan("=fillStyle").map((c) => c.argumen[0])).toContain("#ee271e");
+    // Nama objek tidak ditulis di peta (detail tampil saat diketuk)
+    expect(panggilan("fillText")).toHaveLength(0);
+    // Sudut seleksi: empat siku putih hanya untuk objek terpilih
+    expect(panggilan("=strokeStyle").filter((c) => c.argumen[0] === "#ffffff").length).toBeGreaterThanOrEqual(1);
   });
 
   it("posisi GPS: lingkaran akurasi mengikuti skala peta dan dibatasi; kipas arah hanya bila kompas ada", () => {
@@ -151,7 +154,7 @@ describe("gambarLapisanPeta", () => {
     ];
     gambarLapisanPeta(ctx, lapisanDasar({ modeRekam: "polygon", titikDraft }));
     expect(panggilan("closePath")).toHaveLength(1);
-    expect(panggilan("=fillStyle").map((c) => c.argumen[0])).toContain("rgba(251, 191, 36, 0.28)");
+    expect(panggilan("=fillStyle").map((c) => c.argumen[0])).toContain("rgba(247, 134, 31, 0.22)");
     // Garis lurus saja, bukan berupa titik-titik pada tiap koordinat
     expect(panggilan("arc").filter((c) => c.argumen[2] === 6)).toHaveLength(0);
     expect(panggilan("stroke").length).toBeGreaterThanOrEqual(1);

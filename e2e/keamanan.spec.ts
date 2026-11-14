@@ -125,7 +125,12 @@ test("sidik jari / pengenalan wajah (autentikator virtual Chrome)", async ({ bro
     expect(await sampai(async () => !(await terkunci(p)))).toBe(true);
     const kred = await cdp.send("WebAuthn.getCredentials", { authenticatorId });
     expect(kred.credentials).toHaveLength(1);
-    const bio = await p.evaluate(() => JSON.parse(localStorage.getItem("geokader_accounts_v5")!)[0].biometrik);
+    const bio = await p.evaluate(
+      () =>
+        (
+          JSON.parse(localStorage.getItem("geokader_accounts_v5")!) as { email: string; biometrik?: { kunciPublik: string; alg: number } }[]
+        ).find((a) => a.email === "siti.admin@contoh.id")!.biometrik!
+    );
     expect(bio.kunciPublik).toBeTruthy();
     expect(bio.alg).toBe(-7);
   });

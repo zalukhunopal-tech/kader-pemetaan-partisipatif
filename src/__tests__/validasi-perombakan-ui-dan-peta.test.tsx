@@ -90,9 +90,15 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
         </button>
         {alatGambarTerbuka && (
           <div className="drawing-tool-flyout-menu">
-            <button type="button" className="flyout-tool-choice">📍 Ambil Titik</button>
-            <button type="button" className="flyout-tool-choice">〰️ Rekam Jalur</button>
-            <button type="button" className="flyout-tool-choice">⬠ Buat Poligon</button>
+            <button type="button" className="flyout-tool-choice">
+              📍 Ambil Titik
+            </button>
+            <button type="button" className="flyout-tool-choice">
+              〰️ Rekam Jalur
+            </button>
+            <button type="button" className="flyout-tool-choice">
+              ⬠ Buat Poligon
+            </button>
           </div>
         )}
       </div>
@@ -268,13 +274,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
   // SIMULASI 6: 100% Background Auto-Sync & Tab Sinkronisasi Dihapus dari Navigasi
   it("Simulasi 6: Tab Sinkronisasi manual terhapus dari NavigasiBawah dan auto-sync berjalan transparan", () => {
     const html = renderToString(
-      <NavigasiBawah
-        peran="kader"
-        tabAktif="peta"
-        setTabAktif={vi.fn()}
-        antreanLokalCount={1}
-        onModeUser={vi.fn()}
-      />
+      <NavigasiBawah peran="kader" tabAktif="peta" setTabAktif={vi.fn()} antreanLokalCount={1} onModeUser={vi.fn()} />
     );
 
     // Tombol tab GDrive / CloudUpload tidak ada lagi di baris navigasi
@@ -301,12 +301,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
 
     // Render PanelDataUserLevel
     const html = renderToString(
-      <PanelDataUserLevel
-        dataSpasial={[mockItemSurvey]}
-        profilSaya={mockProfil}
-        peranPengguna="admin"
-        onFokusPetaKader={vi.fn()}
-      />
+      <PanelDataUserLevel dataSpasial={[mockItemSurvey]} profilSaya={mockProfil} peranPengguna="admin" onFokusPetaKader={vi.fn()} />
     );
 
     expect(html).toContain("Level Kader");
@@ -345,13 +340,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
 
     // A. Chip Telemetri Peta
     const htmlChip = renderToString(
-      <ChipKoordinatPeta
-        posisi={dummyPos}
-        teksMenunggu="Mencari sinyal..."
-        sistem="UTM"
-        onGantiSistem={vi.fn()}
-        onSalin={vi.fn()}
-      />
+      <ChipKoordinatPeta posisi={dummyPos} teksMenunggu="Mencari sinyal..." sistem="UTM" onGantiSistem={vi.fn()} onSalin={vi.fn()} />
     );
     expect(htmlChip).toContain("coord-chip");
     expect(htmlChip).toContain("50N");
@@ -404,22 +393,20 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
         luasDraftHa={1.24}
         detikTick={65}
         onTambahTitik={vi.fn()}
-        snapAktif={true}
-        onToggleSnap={vi.fn()}
+        onBukaPanel={vi.fn()}
         onSimpan={vi.fn()}
         onBatal={vi.fn()}
       />
     );
 
-    expect(htmlPanel).toContain("recording-active-bar");
-    expect(htmlPanel).toContain("recording-header-row");
-    expect(htmlPanel).toContain("recording-actions");
-    expect(htmlPanel).toContain("Poligon");
-    expect(htmlPanel).toContain("+Titik");
+    // Status rekam ala Avenza: pita oranye di atas bilah koordinat, bukan kotak dialog
+    expect(htmlPanel).toContain("recording-active-bar avz-status-rekam");
+    expect(htmlPanel).toContain("Gambar area");
+    expect(htmlPanel).toContain("1,24 Ha");
+    expect(htmlPanel).toContain("Titik");
     expect(htmlPanel).toContain("Urungkan");
-    expect(htmlPanel).toContain("Simpan");
-    expect(htmlPanel).toContain("Snap");
-    expect(htmlPanel).toContain("ON");
+    expect(htmlPanel).toContain("Jeda");
+    expect(htmlPanel).toContain("Hentikan");
 
     // Uji arah rotasi dua jari:
     // Jika dua jari berputar searah jarum jam (deltaSudut > 0), bearing baru harus berkurang
@@ -508,11 +495,11 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(dd1).toEqual({ lat: -6.1754, lng: 106.8272 });
 
     const dd2 = uraikanTeksKoordinat("2.857270 117.377476");
-    expect(dd2).toEqual({ lat: 2.857270, lng: 117.377476 });
+    expect(dd2).toEqual({ lat: 2.85727, lng: 117.377476 });
 
     // 2. Format Kardinal Indonesia (LU, LS, BT, BB)
     const kardinalId = uraikanTeksKoordinat("2.857270° LU, 117.377476° BT");
-    expect(kardinalId?.lat).toBeCloseTo(2.857270, 5);
+    expect(kardinalId?.lat).toBeCloseTo(2.85727, 5);
     expect(kardinalId?.lng).toBeCloseTo(117.377476, 5);
 
     const kardinalSelatan = uraikanTeksKoordinat("6.2000° LS, 106.8166° BT");

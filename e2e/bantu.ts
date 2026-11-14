@@ -121,21 +121,38 @@ export async function buatPin(p: Page, pin = PIN): Promise<void> {
   expect(await sampai(async () => !(await terkunci(p)))).toBe(true);
 }
 
+/** Melewati layar pembuka maskot bila masih tampil (bisa menutupi form masuk) */
+export async function lewatiSplash(p: Page): Promise<void> {
+  await p.evaluate(() => (document.querySelector("#lewati-splash-taka") as HTMLButtonElement | null)?.click());
+  await sampai(async () => (await p.locator("#lewati-splash-taka").count()) === 0, 8000);
+}
+
 /**
- * Penyiapan Administrator pertama lewat antarmuka sampai layar pembuatan PIN, termasuk memasang
- * Google Authenticator dari kunci yang ditampilkan. Mengembalikan rahasia TOTP.
+ * Penyiapan Administrator lewat antarmuka sampai layar pembuatan PIN. Aplikasi selalu memiliki admin
+ * utama bawaan, sehingga form "admin pertama" tidak muncul lagi; admin uji disemai ke penyimpanan tanpa
+ * Authenticator, lalu masuk lewat form sehingga aplikasi memintanya memasang Google Authenticator dari
+ * kunci yang ditampilkan. Mengembalikan rahasia TOTP.
  */
 export async function siapkanAdmin(p: Page, url = URL_APP, nama = "Siti Rahmawati", email = "siti.admin@contoh.id"): Promise<string> {
+  const akun = {
+    ...akunSemai({ idKader: "ADM-UJI", nama, email, peran: "admin", sandi: SANDI, totpRahasia: "" }),
+    desaWilayah: "Desa Rimba Hijau",
+    noHp: "0812"
+  };
+  delete (akun as { totpRahasia?: string }).totpRahasia;
+  await p.context().addInitScript((a) => {
+    if (localStorage.getItem("__disemai_admin")) return;
+    localStorage.setItem("__disemai_admin", "1");
+    const ada = JSON.parse(localStorage.getItem("geokader_accounts_v5") || "[]") as unknown[];
+    localStorage.setItem("geokader_accounts_v5", JSON.stringify([...ada, a]));
+  }, akun);
   await p.goto(url);
-  expect(await sampai(async () => (await p.locator("#form-setup-admin").count()) === 1)).toBe(true);
-  const f = p.locator("#form-setup-admin");
-  await f.getByPlaceholder("Nama lengkap").fill(nama);
-  await f.getByPlaceholder("Alamat email").fill(email);
-  await f.getByPlaceholder("Nama desa/wilayah").fill("Desa Rimba Hijau");
-  await f.getByPlaceholder("Nomor telepon").fill("0812");
-  await f.locator("input[type=password]").nth(0).fill(SANDI);
-  await f.locator("input[type=password]").nth(1).fill(SANDI);
-  await f.locator("button[type=submit]").click();
+  await p.waitForTimeout(1500);
+  await lewatiSplash(p);
+  expect(await sampai(async () => (await p.getByPlaceholder("Masukkan alamat email").count()) === 1)).toBe(true);
+  await p.getByPlaceholder("Masukkan alamat email").fill(email);
+  await p.getByPlaceholder("Masukkan kata sandi").fill(SANDI);
+  await p.getByRole("button", { name: "Lanjut ke Titik Tapak" }).click();
   expect(await sampai(async () => (await p.locator("#kunci-totp").count()) === 1)).toBe(true);
   const rahasia = (await p.locator("#kunci-totp").innerText()).replace(/\s+/g, "");
   await p.locator("#kode-konfirmasi-totp").fill(totp(rahasia, Date.now() + (await offsetJam(p))));
@@ -156,12 +173,25 @@ export async function masukSebagaiAdmin(p: Page, url = URL_APP, nama?: string): 
 
 /** Masuk dengan email, sandi, dan kode Authenticator lewat halaman masuk */
 export async function masuk(p: Page, email: string, sandi: string, rahasia: string): Promise<void> {
+  await lewatiSplash(p);
   await p.getByPlaceholder("Masukkan alamat email").fill(email);
   await p.getByPlaceholder("Masukkan kata sandi").fill(sandi);
-  await p.getByRole("button", { name: "Lanjut" }).click();
+  await p.getByRole("button", { name: "Lanjut ke Titik Tapak" }).click();
   expect(await sampai(async () => (await p.locator("#form-kode-totp").count()) === 1)).toBe(true);
   await p.locator("#kode-totp").fill(await kodeBerikutnya(p, rahasia));
   await p.locator("#form-kode-totp button[type=submit]").click();
+  // Layar kunci bisa meminta kode Authenticator sekali lagi (gerbang sesi); isi lalu tunggu layar berikutnya
+  for (let i = 0; i < 10; i++) {
+    await p.waitForTimeout(800);
+    if (await p.locator("#form-siapkan-pin").count()) return;
+    const kunci = p.locator(".layar-kunci").getByPlaceholder("123 456");
+    if (await kunci.count()) {
+      await kunci.fill(await kodeBerikutnya(p, rahasia));
+      await p.locator(".layar-kunci").getByRole("button", { name: "Verifikasi" }).click();
+      continue;
+    }
+    if ((await p.locator(".avenza-nav-item").count()) > 0 && !(await terkunci(p))) return;
+  }
 }
 
 /** Akun siap pakai untuk disemai langsung ke penyimpanan (sandi di-hash seperti aplikasi, iterasi rendah) */
@@ -195,6 +225,9 @@ export function akunSemai(data: {
 
 /** Menu titik tiga lalu pilih item */
 export async function pilihMenu(p: Page, teks: string | RegExp): Promise<void> {
+  // Tab peta tampil layar penuh tanpa bilah atas aplikasi: keluar dulu lewat tombol kembali
+  const kembaliPeta = p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" });
+  if (await kembaliPeta.isVisible().catch(() => false)) await kembaliPeta.click();
   await p.getByRole("button", { name: /Menu/ }).first().click();
   await p.locator(".avenza-overflow-item", { hasText: teks }).click();
 }
@@ -234,7 +267,9 @@ export async function masukAkunSemai(
   const { p } = h;
   const rahasia = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
   const sandi = "Sungai-Batang-2026";
-  const akun = [akunSemai({ idKader: "ADM-1", nama: "Siti Rahmawati", email: "admin@contoh.id", peran: "admin", sandi, totpRahasia: rahasia })];
+  const akun = [
+    akunSemai({ idKader: "ADM-1", nama: "Siti Rahmawati", email: "admin@contoh.id", peran: "admin", sandi, totpRahasia: rahasia })
+  ];
   await p.context().addInitScript(
     (s) => {
       if (localStorage.getItem("__disemai")) return;

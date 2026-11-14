@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Leaf, PawPrint, Droplets, Flag, Flame, Trees, Landmark, House, MapPin, MoreHorizontal } from "lucide-react";
+import { Camera, Check, Leaf, PawPrint, Droplets, Flag, Flame, Trees, Landmark, House, MapPin, MoreHorizontal } from "lucide-react";
 import {
   BuktiFotoLapangan,
   DataSpasialItem,
@@ -17,11 +17,7 @@ import { kompresFoto, perkiraBytesDataUrl, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } fr
 import { bacaDraftSurvei, DraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "../../lib/draftSurvei";
 import { ambilRataRataGps } from "../../lib/posisiPerangkat";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
-import {
-  susunAtributPolygonPrmAid,
-  susunAtributLinePrmAid,
-  susunAtributPointPrmAid
-} from "../../lib/atributPrmAid";
+import { susunAtributPolygonPrmAid, susunAtributLinePrmAid, susunAtributPointPrmAid } from "../../lib/atributPrmAid";
 import { BottomSheet } from "./BottomSheet";
 import { PerekamMemoSuara } from "./PerekamMemoSuara";
 import { KartuLokasiTitik } from "./KartuLokasiTitik";
@@ -259,14 +255,28 @@ export function FormSurveiModal({
     <BottomSheet
       judul={
         modeRekam === "point"
-          ? "Simpan Titik Lokasi"
+          ? "Pin dijatuhkan"
           : modeRekam === "line"
-            ? `Simpan Jalur · ${panjangDraftKm} km`
-            : `Simpan Poligon · ${luasDraftHa} Ha`
+            ? `Jalur direkam · ${panjangDraftKm} km`
+            : `Area digambar · ${luasDraftHa} Ha`
       }
       onTutup={onTutup}
       awal={55}
       className="field-survey-sheet"
+      halaman
+      aksiKanan={
+        detail ? (
+          <button
+            type="submit"
+            form="form-survei-lapangan"
+            className="avenza-head-btn avz-centang"
+            aria-label="Simpan"
+            disabled={gpsSibuk || memoSibuk || form.memprosesFoto || Boolean(galatGeometri)}
+          >
+            <Check size={26} />
+          </button>
+        ) : undefined
+      }
     >
       <p className="draft-status" role="status">
         Draf otomatis disimpan pada akun ini.
@@ -294,6 +304,7 @@ export function FormSurveiModal({
         </>
       ) : (
         <form
+          id="form-survei-lapangan"
           className="modal-form field-survey-form"
           onSubmit={(e) => {
             if (gpsSibuk || memoSibuk || form.memprosesFoto) {

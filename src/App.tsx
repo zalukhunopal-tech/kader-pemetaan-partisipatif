@@ -198,7 +198,9 @@ export const App: React.FC = () => {
         if (tabAktif !== "komunikasi") {
           const pesanTerakhir = pesanTerbaru[pesanTerbaru.length - 1];
           if (pesanTerakhir) {
-            tampilkanToast(`💬 Pesan baru dari ${pesanTerakhir.namaPengirim}: "${pesanTerakhir.teks.slice(0, 35)}${pesanTerakhir.teks.length > 35 ? "…" : ""}"`);
+            tampilkanToast(
+              `💬 Pesan baru dari ${pesanTerakhir.namaPengirim}: "${pesanTerakhir.teks.slice(0, 35)}${pesanTerakhir.teks.length > 35 ? "…" : ""}"`
+            );
           }
         }
       }
@@ -798,7 +800,7 @@ export const App: React.FC = () => {
 
   return denganKunci(
     <div
-      className="app-shell"
+      className={`app-shell ${tabAktif === "peta" ? "peta-layar-penuh" : ""}`}
       onClick={() => {
         if (bukaMenuTitikTiga) setBukaMenuTitikTiga(false);
       }}
@@ -932,7 +934,6 @@ export const App: React.FC = () => {
               />
             )}
 
-
             {tabAktif === "peta" && (
               <InteractiveMap
                 dataSpasial={dataSpasial}
@@ -956,8 +957,8 @@ export const App: React.FC = () => {
                 onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
                 onHapusAreaOffline={handleHapusAreaOffline}
                 onImporBerkas={handleImporBerkas}
+                onKembali={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
               />
-
             )}
 
             {tabAktif === "data_sync" && (
