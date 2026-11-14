@@ -66,7 +66,6 @@ import {
   Hexagon,
   Info,
   Layers,
-  Map as MapIcon,
   MapPin,
   MoreHorizontal,
   MoreVertical,
@@ -78,7 +77,6 @@ import {
   Search,
   Share,
   Sliders,
-  Trash2,
   X
 } from "lucide-react";
 
@@ -220,14 +218,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   areaOffline,
   petaKustomAktif,
   onTutupPetaKustom,
-  onPilihPetaKustom,
   fokusKoordinat,
   onFokusDipakai,
   onSimpanDataBaru,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
   onImporBerkas,
-  onHapusAreaOffline,
   onKembali,
   sedangOnline = typeof navigator === "undefined" ? true : navigator.onLine
 }) => {
@@ -1460,10 +1456,43 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setModeRekam(null);
     setTitikDraft([]);
   };
+  const usapDrawerRef = useRef<{ x: number; y: number; arah: "naik" | "turun" } | null>(null);
+  const abaikanKlikBilahRef = useRef(false);
   const tutupSemuaPanel = () => {
     setBukaMenuAlat(false);
     setBukaSalinKoord(false);
     setBukaPilihBasemap(false);
+  };
+  const bukaDrawerLokasi = (tab: "lokasi" | "pelacakan" | "navigasi" = "lokasi") => {
+    tutupSemuaPanel();
+    setTabDrawerGps(tab);
+    setBukaDrawerGps(true);
+  };
+  const mulaiUsapDrawer = (x: number, y: number, arah: "naik" | "turun") => {
+    abaikanKlikBilahRef.current = false;
+    usapDrawerRef.current = { x, y, arah };
+  };
+  const cekUsapDrawer = (x: number, y: number, selesai = false) => {
+    const awal = usapDrawerRef.current;
+    if (!awal) return;
+    const dy = y - awal.y;
+    const dx = x - awal.x;
+    const dominanVertikal = Math.abs(dy) >= 24 && Math.abs(dy) >= Math.abs(dx);
+    if (awal.arah === "naik" && dominanVertikal && dy < 0) {
+      usapDrawerRef.current = null;
+      abaikanKlikBilahRef.current = true;
+      window.setTimeout(() => {
+        abaikanKlikBilahRef.current = false;
+      }, 350);
+      bukaDrawerLokasi();
+      return;
+    }
+    if (awal.arah === "turun" && dominanVertikal && dy > 0) {
+      usapDrawerRef.current = null;
+      setBukaDrawerGps(false);
+      return;
+    }
+    if (selesai) usapDrawerRef.current = null;
   };
   // Esc menutup lapisan paling atas milik peta: menu titik tiga → halaman → lembar → menu kecil
   const adaLapisanTerbuka =
@@ -1705,35 +1734,38 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   <Navigation size={22} fill={modeIkutiGps === "posisi" ? "currentColor" : "none"} />
                 )}
               </button>
-              {(putaran !== 0 || modeIkutiKompas) && (
-                <div className="map-hud-pod avz-kompas-pod">
-                  <button
-                    type="button"
-                    aria-label={infoKompas.teks}
-                    className={`avz-bulat avz-kompas ${modeIkutiKompas ? "ikuti" : ""}`}
-                    onClick={() => {
+              <div className="map-hud-pod avz-kompas-pod">
+                <button
+                  type="button"
+                  aria-label={infoKompas.teks}
+                  className={`avz-bulat avz-kompas ${modeIkutiKompas ? "ikuti" : ""}`}
+                  onClick={() => {
+                    if (putaran !== 0 || modeIkutiKompas) {
                       setBearing(0);
                       setModeIkutiKompas(false);
-                    }}
-                    title="Ketuk untuk tegak ke utara"
+                    } else {
+                      void aktifkanKompas();
+                      setModeIkutiKompas(true);
+                    }
+                  }}
+                  title={putaran !== 0 || modeIkutiKompas ? "Ketuk untuk tegak ke utara" : "Ketuk untuk aktifkan kompas peta"}
+                >
+                  <svg
+                    viewBox="0 0 40 40"
+                    width="38"
+                    height="38"
+                    aria-hidden="true"
+                    style={{ transform: `rotate(${-bearingAktif}deg)`, transition: "transform 0.15s ease-out" }}
                   >
-                    <svg
-                      viewBox="0 0 40 40"
-                      width="38"
-                      height="38"
-                      aria-hidden="true"
-                      style={{ transform: `rotate(${-bearingAktif}deg)`, transition: "transform 0.15s ease-out" }}
-                    >
-                      <circle cx="20" cy="20" r="16" fill="none" stroke="#c9c9c9" strokeWidth="1" strokeDasharray="1.5 2.6" />
-                      <polygon points="20,7 23.5,20 16.5,20" fill="#e53935" />
-                      <polygon points="20,33 23.5,20 16.5,20" fill="#9e9e9e" />
-                      <text x="20" y="23.6" textAnchor="middle" fontSize="9" fontWeight="800" fill="#202020">
-                        N
-                      </text>
-                    </svg>
-                  </button>
-                </div>
-              )}
+                    <circle cx="20" cy="20" r="16" fill="none" stroke="#c9c9c9" strokeWidth="1" strokeDasharray="1.5 2.6" />
+                    <polygon points="20,7 23.5,20 16.5,20" fill="#e53935" />
+                    <polygon points="20,33 23.5,20 16.5,20" fill="#9e9e9e" />
+                    <text x="20" y="23.6" textAnchor="middle" fontSize="9" fontWeight="800" fill="#202020">
+                      N
+                    </text>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1838,17 +1870,39 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 onBatal={batalkanRekaman}
               />
             )}
-            {/* BILAH BAWAH: alat · koordinat bidikan · lapisan; pegangan di atasnya membuka panel GPS */}
-            <div className="avz-bottom-pill-bar">
+            {/* BILAH BAWAH: alat · koordinat bidikan · lapisan; ketuk pegangan atau usap ke atas membuka panel GPS */}
+            <div
+              className="avz-bottom-pill-bar"
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                if (t) mulaiUsapDrawer(t.clientX, t.clientY, "naik");
+              }}
+              onTouchMove={(e) => {
+                const t = e.touches[0];
+                if (t) cekUsapDrawer(t.clientX, t.clientY);
+              }}
+              onTouchEnd={(e) => {
+                const t = e.changedTouches[0];
+                if (t) cekUsapDrawer(t.clientX, t.clientY, true);
+              }}
+              onPointerDown={(e) => mulaiUsapDrawer(e.clientX, e.clientY, "naik")}
+              onPointerMove={(e) => {
+                if (e.buttons === 1 || e.pointerType === "touch") cekUsapDrawer(e.clientX, e.clientY);
+              }}
+              onPointerUp={(e) => cekUsapDrawer(e.clientX, e.clientY, true)}
+              onClickCapture={(e) => {
+                if (abaikanKlikBilahRef.current) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  abaikanKlikBilahRef.current = false;
+                }
+              }}
+            >
               <button
                 type="button"
                 className="avz-pegangan"
                 aria-label="Buka panel lokasi, pelacakan, dan navigasi"
-                onClick={() => {
-                  tutupSemuaPanel();
-                  setTabDrawerGps("lokasi");
-                  setBukaDrawerGps(true);
-                }}
+                onClick={() => bukaDrawerLokasi("lokasi")}
               >
                 <span aria-hidden="true" />
               </button>
@@ -2103,7 +2157,26 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       {bukaDrawerGps && (
         <div className="avz-sheet-latar avz-sheet-latar-bening" onClick={() => setBukaDrawerGps(false)}>
           <div className="avz-sheet avz-gps-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="avz-gps-drawer-kepala">
+            <div
+              className="avz-gps-drawer-kepala"
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                if (t) mulaiUsapDrawer(t.clientX, t.clientY, "turun");
+              }}
+              onTouchMove={(e) => {
+                const t = e.touches[0];
+                if (t) cekUsapDrawer(t.clientX, t.clientY);
+              }}
+              onTouchEnd={(e) => {
+                const t = e.changedTouches[0];
+                if (t) cekUsapDrawer(t.clientX, t.clientY, true);
+              }}
+              onPointerDown={(e) => mulaiUsapDrawer(e.clientX, e.clientY, "turun")}
+              onPointerMove={(e) => {
+                if (e.buttons === 1 || e.pointerType === "touch") cekUsapDrawer(e.clientX, e.clientY);
+              }}
+              onPointerUp={(e) => cekUsapDrawer(e.clientX, e.clientY, true)}
+            >
               <button
                 type="button"
                 className="avz-sheet-pegangan avz-sheet-pegangan-tombol"
@@ -2596,49 +2669,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 ))}
                 {objekLapisan.length === 0 && <p className="avz-nav-kosong">Tidak ada objek.</p>}
               </div>
-            )}
-
-            {areaOffline.length > 0 && (
-              <>
-                <h3 className="avz-seksi-judul">Lembar peta</h3>
-                {areaOffline.map((item) => {
-                  const sedangAktif = petaKustomAktif?.id === item.id;
-                  return (
-                    <div key={item.id} className={`avz-lapisan-baris pustaka-offline-item-card ${sedangAktif ? "active-map" : ""}`}>
-                      <button
-                        type="button"
-                        className="avz-lapisan-utama btn-pustaka-action"
-                        onClick={() => {
-                          if (sedangAktif) onTutupPetaKustom?.();
-                          else onPilihPetaKustom?.(item);
-                          setBukaHalamanLapisan(false);
-                        }}
-                      >
-                        <span className="avz-lapisan-ikon">
-                          <MapIcon size={22} />
-                        </span>
-                        <span className="avz-lapisan-teks">
-                          <strong>{item.namaArea}</strong>
-                          <small>
-                            {item.jenisFile || "GeoPDF"} · {item.ukuranMb.toFixed(1).replace(".", ",")} MB
-                          </small>
-                          <em>{sedangAktif ? "Dibuka" : "Buka di peta"}</em>
-                        </span>
-                      </button>
-                      {onHapusAreaOffline && (
-                        <button
-                          type="button"
-                          className="avz-titik-tiga"
-                          aria-label={`Hapus ${item.namaArea}`}
-                          onClick={() => onHapusAreaOffline(item.id)}
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
             )}
           </div>
 
