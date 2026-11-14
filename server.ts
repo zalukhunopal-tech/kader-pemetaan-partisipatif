@@ -23,7 +23,14 @@ function parseArg(flag: string): string | undefined {
 }
 
 const cliPort = parseArg("--port") || parseArg("-p");
-const PORT = cliPort ? Number(cliPort) : (Number(process.env.PORT) || 3000);
+const envPort = Number(process.env.PORT);
+const nginxPort = Number(process.env.NGINX_PORT);
+const defaultAppPort = Number(process.env.DEFAULT_APP_PORT) || 3000;
+const PORT = cliPort
+  ? Number(cliPort)
+  : envPort && envPort !== nginxPort
+    ? envPort
+    : defaultAppPort;
 const cliHost = parseArg("--host") || parseArg("-h");
 const HOST = cliHost || process.env.HOST || "0.0.0.0";
 
@@ -394,7 +401,7 @@ async function startServer() {
 
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true, host: HOST, port: PORT, allowedHosts: true, hmr: false },
+      server: { middlewareMode: true, host: HOST, port: PORT, allowedHosts: true, hmr: false, ws: false },
       appType: "spa"
     });
     app.use(vite.middlewares);
