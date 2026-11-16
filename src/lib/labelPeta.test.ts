@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { singkatkanLabelPeta } from "./labelPeta";
+import { ringkasLabelCrs, singkatkanLabelPeta } from "./labelPeta";
 
 describe("Pembersih dan Penyingkat Label Peta Adaptif (singkatkanLabelPeta)", () => {
   it("membersihkan ekstensi berkas .geopdf, .pdf, .pmtiles, dan underscore", () => {
@@ -33,5 +33,22 @@ describe("Pembersih dan Penyingkat Label Peta Adaptif (singkatkanLabelPeta)", ()
   it("menangani string kosong atau nama pendek tanpa merusaknya", () => {
     expect(singkatkanLabelPeta("")).toBe("");
     expect(singkatkanLabelPeta("Peta Desa")).toBe("Peta Ds.");
+  });
+});
+
+describe("Penyingkat Label CRS (ringkasLabelCrs)", () => {
+  it("mengekstrak dan meringkas WKT PROJCS panjang agar tidak overlap kartu", () => {
+    const wkt = 'PROJCS["WGS_1984_UTM_Zone_50N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984"]]]';
+    const res = ringkasLabelCrs(wkt);
+    expect(res).toBe("WGS84 UTM Zone 50N");
+    expect(res.length).toBeLessThanOrEqual(26);
+  });
+
+  it("menjaga kode EPSG ringkas dan memotong string tak dikenal yang terlalu panjang", () => {
+    expect(ringkasLabelCrs("EPSG:4326 (WGS 84)")).toBe("EPSG:4326");
+    const panjang = "PROYEKSI_KHUSUS_KALIMANTAN_UTARA_ZONA_SANGAT_PANJANG";
+    const res = ringkasLabelCrs(panjang, 22);
+    expect(res.endsWith("...")).toBe(true);
+    expect(res.length).toBeLessThanOrEqual(22);
   });
 });

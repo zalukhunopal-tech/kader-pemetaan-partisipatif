@@ -1,7 +1,13 @@
 /**
- * Penjaga tombol Back (perangkat / browser / PWA) agar menekan Back 1 kali
- * menampilkan peringatan terlebih dahulu dan baru keluar pada tekanan ke-2
- * dalam jendela waktu singkat.
+ * Penjaga tombol Back (perangkat / browser / Android PWA) agar menekan Back 1 kali
+ * menutup panel aktif atau menampilkan peringatan terlebih dahulu, dan baru keluar
+ * pada tekanan Back ke-2 dalam jendela waktu singkat.
+ *
+ * Penting untuk Chromium / Android WebAPK:
+ * `history.pushState` sebelum adanya aktivasi pengguna membuat entri dasar ditandai
+ * skippable oleh History Manipulation Intervention sehingga tombol Back perangkat keras
+ * langsung keluar dari aplikasi. Karena itu entri penjaga hanya dipasang saat/setelah
+ * ada interaksi nyata pengguna.
  */
 
 export const BATAS_WAKTU_KEMBALI_MS = 2000;
@@ -18,12 +24,39 @@ export interface OpsiPenjagaKembali {
   batasWaktuMs?: number;
 }
 
+const tumpukanPenutup: (() => boolean)[] = [];
+
+/**
+ * Mendaftarkan penutup lapisan anak (modal/panel) secara LIFO untuk ditangani saat tombol Back ditekan.
+ */
+export function daftarkanPenutupLapisan(penutup: () => boolean): () => void {
+  tumpukanPenutup.push(penutup);
+  return () => {
+    const idx = tumpukanPenutup.lastIndexOf(penutup);
+    if (idx !== -1) tumpukanPenutup.splice(idx, 1);
+  };
+}
+
+export function panggilPenutupLapisanTeratas(): boolean {
+  for (let i = tumpukanPenutup.length - 1; i >= 0; i--) {
+    if (tumpukanPenutup[i]()) return true;
+  }
+  return false;
+}
+
 function urlSaatIni(): string {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
 function adalahObjekState(nilai: unknown): nilai is Record<string, unknown> {
   return typeof nilai === "object" && nilai !== null;
+}
+
+export function userSudahAktif(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean; isActive: boolean } }).userActivation;
+  if (!ua) return true;
+  return Boolean(ua.hasBeenActive || ua.isActive);
 }
 
 /**
@@ -50,7 +83,7 @@ export function pastikanRiwayatPenjaga(): boolean {
 }
 
 /**
- * Pasang pendengar global tombol Back (`popstate`).
+ * Pasang pendengar global tombol Back (`popstate`) dengan penjaga aktivasi pengguna.
  * Kembalikan fungsi pembersih untuk melepas pendengar dan timer.
  */
 export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
@@ -68,7 +101,30 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
     }
   };
 
-  pastikanRiwayatPenjaga();
+  const sinkronkanPenjagaJikaAktif = () => {
+    if (siapKeluar) return;
+    if (userSudahAktif()) {
+      pastikanRiwayatPenjaga();
+    }
+  };
+
+  // Pasang langsung hanya jika browser melaporkan sesi sudah pernah beraktivasi pengguna
+  sinkronkanPenjagaJikaAktif();
+
+  const saatInteraksi = () => {
+    if (siapKeluar) return;
+    // Tunggu microtask bila handler event berjalan tepat sebelum bit userActivation menyala, lalu pasang penjaga
+    if (userSudahAktif()) {
+      pastikanRiwayatPenjaga();
+    } else {
+      window.setTimeout(sinkronkanPenjagaJikaAktif, 0);
+    }
+  };
+
+  const acaraInteraksi: (keyof WindowEventMap)[] = ["pointerup", "touchend", "click", "keydown"];
+  for (const ev of acaraInteraksi) {
+    window.addEventListener(ev, saatInteraksi, { capture: true, passive: true });
+  }
 
   const tanganiPopState = (event: PopStateEvent) => {
     const stateSekarang = event.state;
@@ -78,10 +134,10 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
       return;
     }
 
-    // Jika masih ada panel/menu/halaman anak yang terbuka, tutup terlebih dahulu
-    if (opsi.onTutupLapisanTeratas?.()) {
+    // Tutup panel/modal aktif (dari tumpukan anak dulu, lalu dari App)
+    if (panggilPenutupLapisanTeratas() || opsi.onTutupLapisanTeratas?.()) {
       batalkanSiapKeluar();
-      pastikanRiwayatPenjaga();
+      sinkronkanPenjagaJikaAktif();
       return;
     }
 
@@ -97,7 +153,7 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
     timerReset = window.setTimeout(() => {
       timerReset = null;
       siapKeluar = false;
-      pastikanRiwayatPenjaga();
+      sinkronkanPenjagaJikaAktif();
     }, batasWaktuMs);
     opsi.onPeringatanKeluar();
   };
@@ -106,5 +162,8 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
   return () => {
     batalkanSiapKeluar();
     window.removeEventListener("popstate", tanganiPopState);
+    for (const ev of acaraInteraksi) {
+      window.removeEventListener(ev, saatInteraksi, { capture: true });
+    }
   };
 }

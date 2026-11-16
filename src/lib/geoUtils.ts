@@ -374,6 +374,7 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
       geometry,
       properties: {
         ...atributPrmAid,
+        ...(item.tematik ? { tematik: item.tematik } : {}),
         ...(sim ? { simulasi: true } : {}),
         ...(imp ? { diimpor: true } : {})
       }

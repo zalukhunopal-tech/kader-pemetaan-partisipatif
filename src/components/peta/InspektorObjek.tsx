@@ -99,6 +99,13 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
+            <strong>Peta Tematik</strong>
+          </div>
+          <span>{objek.tematik ? objek.tematik : "Bukan Peta Tematik (Peta Biasa)"}</span>
+        </div>
+
+        <div className="avz-isian-baris">
+          <div className="avz-isian-kepala">
             <strong>Kategori</strong>
           </div>
           <span>{objek.kategori}</span>

@@ -79,6 +79,7 @@ import { LayarPembukaTaka, sudahTampilSplashTakaSesiIni } from "./components/Lay
 import { BantuanBugView } from "./components/BantuanBugView";
 import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug";
 import { pasangPenjagaKembali, PESAN_TEKAN_KEMBALI_LAGI } from "./lib/penjagaKembali";
+import { sinkronkanLapisanDenganItem } from "./lib/tematik";
 
 export const App: React.FC = () => {
   const desktop = useDesktop();
@@ -516,11 +517,17 @@ export const App: React.FC = () => {
 
   // Handler Simpan Data Spasial Baru dari Peta (User Feature)
   const handleSimpanDataBaru = (item: DataSpasialItem) => {
-    setDataSpasial((prev) => [item, ...prev]);
+    const berikutnya = [item, ...dataSpasial];
+    setDataSpasial(berikutnya);
+    if (item.tematik) {
+      setLapisanList((lama) => sinkronkanLapisanDenganItem(lama, item, berikutnya));
+    }
     tampilkanToast(
       adalahDataSimulasi(item)
         ? `✓ "${item.judul}" disimpan sebagai data simulasi (tidak dihitung ke capaian).`
-        : `✓ "${item.judul}" disimpan di HP.`
+        : item.tematik
+          ? `✓ "${item.judul}" masuk ke kolam tematik "${item.tematik}".`
+          : `✓ "${item.judul}" disimpan ke peta (non-tematik).`
     );
   };
 
@@ -1043,6 +1050,7 @@ export const App: React.FC = () => {
             {tabAktif === "peta" && (
               <InteractiveMap
                 dataSpasial={dataSpasial}
+                lapisanList={lapisanList}
                 profil={profil}
                 areaOffline={areaOffline}
                 petaKustomAktif={petaKustomAktif}

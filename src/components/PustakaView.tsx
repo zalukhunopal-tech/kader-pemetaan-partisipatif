@@ -26,7 +26,8 @@ import { bacaPosisiPeta, POSISI_AWAL_PETA } from "../lib/posisiPeta";
 import { simpanArsipPeta } from "../lib/penyimpananPetaLuring";
 import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
 import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
-import { singkatkanLabelPeta } from "../lib/labelPeta";
+import { singkatkanLabelPeta, ringkasLabelCrs } from "../lib/labelPeta";
+import { objekCocokLapisan } from "../lib/tematik";
 import { useTombolEsc } from "../lib/useTombolEsc";
 import { KonteksEkspor } from "../lib/eksporFilter";
 
@@ -196,7 +197,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   useTombolEsc(petaPratinjauAktif !== null, () => setPetaPratinjauAktif(null));
 
   const hitungObjekLapisan = (lapisan: LapisanSpasial): number => {
-    return dataSpasial.filter((d) => d.kategori === lapisan.kategoriDefault).length;
+    return dataSpasial.filter((d) => objekCocokLapisan(d, lapisan)).length;
   };
 
   const daftarPetaTampil = areaOffline
@@ -760,7 +761,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                         {" "}
                         <span className="dot-sep">•</span>{" "}
                         <span className="avenza-crs-badge" title={item.crsDeskripsi || item.crs}>
-                          {item.crs.replace(/\s*\(.*\)$/, "")}
+                          {ringkasLabelCrs(item.crs, 24)}
                         </span>
                       </>
                     )}
@@ -901,7 +902,13 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <div className="avenza-layer-info">
                     <div className="avenza-layer-title">{lapisan.nama}</div>
                     <div className="avenza-layer-meta">
-                      {lapisan.jumlahPeta} Peta
+                      {lapisan.adalahTematik ? "Kolam Tematik" : `${lapisan.jumlahPeta} Peta`}
+                      {lapisan.kategoriDefault && (
+                        <>
+                          {" "}
+                          <span className="dot-sep">•</span> {lapisan.kategoriDefault}
+                        </>
+                      )}
                       {jmlObjek > 0 && (
                         <>
                           {" "}
@@ -1106,7 +1113,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <div className="avenza-spatial-grid">
                     <div className="avenza-spatial-item full-width">
                       <span className="spatial-label">Sistem Koordinat Acuan (CRS):</span>
-                      <strong className="spatial-value crs-name">{metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}</strong>
+                      <strong className="spatial-value crs-name" title={metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}>
+                        {ringkasLabelCrs(metadataPetaBaru.crs || "EPSG:4326 (WGS 84)", 36)}
+                      </strong>
                       {metadataPetaBaru.crsDeskripsi && <span className="spatial-desc">{metadataPetaBaru.crsDeskripsi}</span>}
                     </div>
                     <div className="avenza-spatial-item">
@@ -1306,7 +1315,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 <div className="avenza-preview-map-name">{petaPratinjauAktif.namaArea}</div>
 
                 <div className="avenza-preview-meta-row">
-                  <span className="meta-badge-crs">{petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)"}</span>
+                  <span className="meta-badge-crs" title={petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)"}>
+                    {ringkasLabelCrs(petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)", 28)}
+                  </span>
                   <span className="meta-text-size">{formatAngkaIndo(petaPratinjauAktif.ukuranMb)} MB</span>
                   <span className="meta-text-status text-emerald font-semibold">● {petaPratinjauAktif.statusTeks || "Pada peta"}</span>
                   {petaPratinjauAktif.jarakKm !== undefined && petaPratinjauAktif.jarakKm > 0 && (
