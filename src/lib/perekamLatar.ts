@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { KoordinatTitik } from "../types";
 import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm } from "./geoUtils";
 import { titikJalurDapatDiterima } from "./filterJalur";
+import { hitungKecepatanMps } from "./posisiPerangkat";
 
 /**
  * PEREKAM LATAR BELAKANG (Background Recorder)
@@ -99,12 +100,19 @@ function lepasWakeLock() {
 function tanganiPosisi(pos: GeolocationPosition) {
   const elevasiValid = pos.coords.altitude != null && Number.isFinite(pos.coords.altitude);
   const akurasiValid = pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy);
-  const pt: KoordinatTitik = {
+  const akurasiVertikalValid = pos.coords.altitudeAccuracy != null && Number.isFinite(pos.coords.altitudeAccuracy);
+  const speedSensor = pos.coords.speed != null && Number.isFinite(pos.coords.speed) && pos.coords.speed >= 0 ? pos.coords.speed : null;
+  const ptDasar: KoordinatTitik = {
     lat: Number.isFinite(pos.coords.latitude) ? Number(pos.coords.latitude.toFixed(7)) : 0,
     lng: Number.isFinite(pos.coords.longitude) ? Number(pos.coords.longitude.toFixed(7)) : 0,
     elevasi: elevasiValid ? Math.round(pos.coords.altitude!) : undefined,
     akurasi: akurasiValid ? Number(pos.coords.accuracy.toFixed(1)) : undefined,
+    akurasiVertikal: akurasiVertikalValid ? Number(pos.coords.altitudeAccuracy!.toFixed(1)) : undefined,
     timestamp: new Date(pos.timestamp || Date.now()).toISOString()
+  };
+  const pt: KoordinatTitik = {
+    ...ptDasar,
+    kecepatan: hitungKecepatanMps(ptDasar, state.posisiTerakhir ?? state.titik[state.titik.length - 1], speedSensor)
   };
 
   if (state.status !== "merekam") {
@@ -181,11 +189,13 @@ function sinkronkanAutoTimer() {
       const nextLat = Number((ref.lat + (Math.random() - 0.35) * 0.00042).toFixed(6));
       const nextLng = Number((ref.lng + (Math.random() - 0.3) * 0.00042).toFixed(6));
       const nextElev = Math.round((ref.elevasi || 415) + (Math.random() - 0.45) * 3);
+      const jarakSimulasiM = hitungJarakMeter(ref, { lat: nextLat, lng: nextLng });
       const ptBaru: KoordinatTitik = {
         lat: nextLat,
         lng: nextLng,
         elevasi: nextElev,
         akurasi: Number((2.1 + Math.random() * 1.4).toFixed(1)),
+        kecepatan: Number((jarakSimulasiM / 2).toFixed(2)),
         timestamp: new Date().toISOString(),
         simulasi: true
       };

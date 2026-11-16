@@ -90,6 +90,7 @@ export interface LapisanPeta {
   waktuMs?: number;
   statusGps?: StatusGps;
   bearingPeta?: number;
+  koordinatDipilih?: { lat: number; lng: number; label?: string } | null;
 }
 
 const cacheGambarPetaKustom = new Map<string, HTMLImageElement | "loading" | "error">();
@@ -267,7 +268,8 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     saatGambarSiap,
     waktuMs,
     statusGps,
-    bearingPeta
+    bearingPeta,
+    koordinatDipilih
   } = lapisan;
 
   // 1. Gambar Lembar Peta GeoPDF Georeferensi (Jika sedang membuka peta kustom/GeoPDF)
@@ -502,6 +504,41 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     ctx.fillStyle = isStale ? "#94a3b8" : "#0284c7";
     ctx.fill();
 
+    ctx.restore();
+  }
+
+  // 8. Penanda Target Navigasi Go-To & Koordinat Dicari
+  if (targetGoTo) {
+    const tp = keLayar(targetGoTo.lat, targetGoTo.lng);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(tp.x, tp.y, 11, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(244, 63, 94, 0.16)";
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = "#f43f5e";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(tp.x, tp.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#f43f5e";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (koordinatDipilih) {
+    const kp = keLayar(koordinatDipilih.lat, koordinatDipilih.lng);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(kp.x, kp.y, 12, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(4, 122, 72, 0.18)";
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = "#047a48";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(kp.x, kp.y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#047a48";
+    ctx.fill();
     ctx.restore();
   }
 }

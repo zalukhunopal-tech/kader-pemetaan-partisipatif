@@ -105,9 +105,10 @@ describe("perekam latar: merekam dari GPS perangkat", () => {
     expect(perekamLatar.getState().galat).toBeNull();
 
     vi.advanceTimersByTime(1000); // Fix berikutnya punya waktu berbeda untuk gate kecepatan.
-    gps.sukses!(posisi(-1.6001, 103.6, 4, null)); // ±11 m: sah, tanpa elevasi
+    gps.sukses!(posisi(-1.6001, 103.6, 4, null)); // ±11 m dalam 1 detik: sah, tanpa elevasi, kecepatan terhitung
     expect(perekamLatar.getState().titik).toHaveLength(2);
     expect(perekamLatar.getState().titik[1].elevasi).toBeUndefined();
+    expect(perekamLatar.getState().titik[1].kecepatan).toBeGreaterThan(8);
   });
 
   it("galat GPS ditampilkan apa adanya (izin ditolak atau sinyal belum ada)", async () => {
