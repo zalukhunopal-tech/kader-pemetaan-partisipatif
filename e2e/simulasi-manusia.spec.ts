@@ -963,13 +963,28 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await expect(p.locator(".form-tematik-info")).toHaveCount(0);
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
 
-  // Verifikasi filter kolam tematik vs non-tematik di halaman Lapisan Peta
+  // Verifikasi filter kolam tematik vs non-tematik di halaman Lapisan Peta (kotak label pipih)
   await p.getByRole("button", { name: "Lapisan" }).click();
+  const chipSemua = p.locator(".avz-tematik-chip", { hasText: /^Semua \(/ });
+  const chipNonTematik = p.locator(".avz-tematik-chip", { hasText: "Non-Tematik (1)" });
+  await expect(chipSemua).toBeVisible();
   await expect(p.locator(".avz-tematik-chip", { hasText: "Kolam Flora · Biodiversitas (1)" })).toBeVisible();
   await expect(p.locator(".avz-tematik-chip", { hasText: "Kolam Flora (Mata Air) · Mata Air (1)" })).toBeVisible();
-  await expect(p.locator(".avz-tematik-chip", { hasText: "Non-Tematik (1)" })).toBeVisible();
+  await expect(chipNonTematik).toBeVisible();
+  const boxSemua = await chipSemua.boundingBox();
+  const boxNonTematik = await chipNonTematik.boundingBox();
+  expect(boxSemua!.height).toBeLessThanOrEqual(30);
+  expect(boxNonTematik!.height).toBeLessThanOrEqual(30);
 
   await p.getByRole("dialog", { name: "Lapisan Peta" }).getByRole("button", { name: "Kembali" }).click();
+  await p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" }).click();
+
+  // Verifikasi menu Sertifikat: asal desa/lembaga (bukan Kantor Balai Spasial) & pratinjau sertifikat aktif
+  await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();
+  await expect(p.locator(".visual-profile-name")).toContainText("Siti Rahmawati");
+  await expect(p.locator(".visual-profile-loc")).toHaveText("Desa Rimba Hijau");
+  await expect(p.getByText("Kantor Balai Spasial")).toHaveCount(0);
+  await expect(p.locator("canvas.certificate-wysiwyg-canvas")).toBeVisible();
 
   expect(galat).toEqual([]);
   await tutup();

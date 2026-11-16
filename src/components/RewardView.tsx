@@ -46,6 +46,32 @@ import {
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+export const JUDUL_SERTIFIKAT_BAWAAN = "Survei dan Pemetaan Wilayah Partisipatif";
+const JUDUL_SERTIFIKAT_LAMA = "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+const ASAL_INSTANSI_LAMA = new Set(["kantor balai spasial", "administrator utama titik tapak", "-"]);
+
+/**
+ * Menampilkan desa (masyarakat desa) atau asal lembaga pengguna di kartu menu sertifikat,
+ * sambil membersihkan placeholder usang ("Kantor Balai Spasial").
+ */
+export function ringkasAsalProfilSertifikat(
+  profil: Pick<ProfilKader, "desaWilayah" | "kelompokMasyarakat" | "namaOrganisasi" | "idKader">
+): string {
+  const desa = profil.desaWilayah?.trim();
+  if (desa && !ASAL_INSTANSI_LAMA.has(desa.toLowerCase())) {
+    return desa;
+  }
+  const kelompok = profil.kelompokMasyarakat?.trim();
+  if (kelompok && !ASAL_INSTANSI_LAMA.has(kelompok.toLowerCase())) {
+    return kelompok;
+  }
+  const org = profil.namaOrganisasi?.trim();
+  if (org && org !== "-" && org !== "Sertifikat Kader Pemetaan Partisipatif") {
+    return org;
+  }
+  return profil.idKader?.startsWith("ADM") ? "KKI Warsi" : "Masyarakat Desa";
+}
+
 interface RewardViewProps {
   dataSpasial: DataSpasialItem[];
   pencadanganList?: ItemPencadanganSpasial[];
@@ -129,10 +155,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
     return [];
   }, [profil.logoSertifikatList, sertifikatSaya?.logoSertifikatList]);
 
+  const temaMentah = profil.temaKegiatanSertifikat ?? sertifikatSaya?.temaKegiatanSertifikat;
   const temaKegiatanAktif =
-    profil.temaKegiatanSertifikat ??
-    sertifikatSaya?.temaKegiatanSertifikat ??
-    "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+    !temaMentah || temaMentah.trim() === JUDUL_SERTIFIKAT_LAMA ? JUDUL_SERTIFIKAT_BAWAAN : temaMentah;
 
   const handleUbahTemaKegiatan = (teks: string) => {
     onUbahProfil({
@@ -191,7 +216,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
       nomorSertifikat: "Belum diterbitkan",
       idKader: profil.idKader,
       namaKader: profil.nama,
-      desaWilayah: profil.desaWilayah,
+      desaWilayah: ringkasAsalProfilSertifikat(profil),
       namaOrganisasi: profil.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif",
       tanggalTerbit: new Date().toISOString().slice(0, 10),
       alasanCapaian: capaianTerverifikasi.alasanSertifikat,
@@ -276,7 +301,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
     const itemBaru: PenandatanganSertifikatItem = {
       id: `sign-${Date.now()}`,
       jabatan: "Koordinator Lapangan",
-      instansi: profil.desaWilayah || "Lembaga Pemetaan Desa",
+      instansi: ringkasAsalProfilSertifikat(profil),
       nama: "Nama Pejabat, S.Hut., M.Si."
     };
     const baru = [...penandatanganListAktif, itemBaru];
@@ -455,7 +480,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 )}
               </div>
               <h2 className="visual-profile-name">{profil.nama}</h2>
-              <span className="visual-profile-loc">{profil.desaWilayah}</span>
+              <span className="visual-profile-loc">{ringkasAsalProfilSertifikat(profil)}</span>
             </div>
           </div>
         </div>
@@ -840,7 +865,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder='Contoh: "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau"'
+                  placeholder='Contoh: "Survei dan Pemetaan Wilayah Partisipatif"'
                   value={temaKegiatanAktif}
                   onChange={(e) => handleUbahTemaKegiatan(e.target.value)}
                 />

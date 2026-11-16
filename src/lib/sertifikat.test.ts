@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { nomorSertifikatBerikut, nomorSudahDipakai, ringkasanKader, siapkanSertifikat } from "./sertifikat";
 import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "./sertifikatBawaan";
+import { JUDUL_SERTIFIKAT_BAWAAN, ringkasAsalProfilSertifikat } from "../components/RewardView";
+import { MASTER_ADMIN } from "./auth";
+import { PROFIL_BAWAAN } from "./storage";
 import { DataSpasialItem, PenandatanganSertifikatItem, SertifikatKader } from "../types";
 
 const titik = (idKader: string, namaKader: string, n: number, status: DataSpasialItem["statusSinkron"]): DataSpasialItem[] =>
@@ -187,5 +190,29 @@ describe("Daftar Penandatangan KKI Warsi pada Sertifikat", () => {
       expect(item.nama).toBe(namaKustom[idx]);
       expect(item.instansi).toBe("KKI Warsi");
     });
+  });
+
+  it("menampilkan asal lembaga atau desa di kartu sertifikat dan memakai judul Survei dan Pemetaan Wilayah Partisipatif", () => {
+    expect(MASTER_ADMIN.desaWilayah).toBe("KKI Warsi");
+    expect(JUDUL_SERTIFIKAT_BAWAAN).toBe("Survei dan Pemetaan Wilayah Partisipatif");
+    expect(PROFIL_BAWAAN.temaKegiatanSertifikat).toBe("Survei dan Pemetaan Wilayah Partisipatif");
+
+    expect(
+      ringkasAsalProfilSertifikat({
+        idKader: "ADM-001",
+        desaWilayah: "Kantor Balai Spasial",
+        kelompokMasyarakat: "Administrator Utama Titik Tapak",
+        namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif"
+      })
+    ).toBe("KKI Warsi");
+
+    expect(
+      ringkasAsalProfilSertifikat({
+        idKader: "KDR-101",
+        desaWilayah: "Desa Long Loreh",
+        kelompokMasyarakat: "Masyarakat Adat",
+        namaOrganisasi: "KKI Warsi"
+      })
+    ).toBe("Desa Long Loreh");
   });
 });

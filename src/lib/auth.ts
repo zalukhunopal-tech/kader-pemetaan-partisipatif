@@ -195,9 +195,9 @@ export const MASTER_ADMIN: AkunPengguna = {
   nama: "Nopal (Administrator)",
   email: "zalukhunopal@gmail.com",
   peran: "admin",
-  desaWilayah: "Kantor Balai Spasial",
+  desaWilayah: "KKI Warsi",
   noHp: "-",
-  kelompokMasyarakat: "Administrator Utama Titik Tapak",
+  kelompokMasyarakat: "KKI Warsi",
   namaOrganisasi: NAMA_ORGANISASI_BAWAAN,
   createdAt: "2026-10-29T00:00:00.000Z",
   kataSandiHash: "KCKh1/sx5mlgKHg2cV2odkjevao/VnuaRmwcVYDLx/o=",
@@ -226,7 +226,22 @@ export function muatSemuaAkun(): AkunPengguna[] {
       return [];
     }
     const accounts = JSON.parse(raw) as AkunPengguna[];
-    const hasil = Array.isArray(accounts) ? accounts.map(verifikasiIntegritasPeran) : [];
+    const hasil = Array.isArray(accounts)
+      ? accounts.map((a) => {
+          const terverifikasi = verifikasiIntegritasPeran(a);
+          if (terverifikasi.desaWilayah === "Kantor Balai Spasial") {
+            return {
+              ...terverifikasi,
+              desaWilayah: terverifikasi.wilayah?.desa?.trim() || "KKI Warsi",
+              kelompokMasyarakat:
+                terverifikasi.kelompokMasyarakat === "Administrator Utama Titik Tapak"
+                  ? "KKI Warsi"
+                  : terverifikasi.kelompokMasyarakat
+            };
+          }
+          return terverifikasi;
+        })
+      : [];
     if (import.meta.env.MODE !== "test") {
       if (!hasil.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
         const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
@@ -1419,7 +1434,7 @@ export async function siapkanAkunUji(): Promise<void> {
       email: "admin@geokader.id",
       kataSandi: "admin123",
       peran: "admin" as const,
-      desaWilayah: "Kantor Balai Spasial",
+      desaWilayah: "KKI Warsi",
       noHp: "081987654321",
       kelompokMasyarakat: "Tim Verifikasi Data Spasial"
     }
