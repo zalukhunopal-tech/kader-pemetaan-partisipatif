@@ -2,6 +2,7 @@ import { hitungSkorKualitasData } from "../lib/kualitasData";
 import React, { useState } from "react";
 import {
   DataSpasialItem,
+  ItemPencadanganSpasial,
   JenisGeometri,
   KaderAktifPresence,
   KategoriSurvei,
@@ -12,11 +13,12 @@ import {
   TugasPemetaan
 } from "../types";
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
+import { sisaHariPencadangan } from "../lib/pencadanganData";
 import { AkunSesi } from "../lib/auth";
 import { AkunAdminPanel } from "./AkunAdminPanel";
 import { CatatanPerangkat } from "./CatatanPerangkat";
 import { PanelDataUserLevel } from "./PanelDataUserLevel";
-import { Users } from "lucide-react";
+import { Archive, RefreshCw, RotateCcw, Users } from "lucide-react";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
@@ -25,6 +27,7 @@ import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface AdminDashboardViewProps {
   dataSpasial: DataSpasialItem[];
+  pencadanganList?: ItemPencadanganSpasial[];
   profilKader: ProfilKader;
   sertifikatList: SertifikatKader[];
   tugasList: TugasPemetaan[];
@@ -33,6 +36,10 @@ interface AdminDashboardViewProps {
   onVerifikasiData: (id: string, status: StatusSinkron, catatan?: string) => void;
   onUbahDataSpasial: (data: DataSpasialItem) => void;
   onHapusDataSpasial: (id: string) => void;
+  onPulihkanCadangan?: (id: string) => void;
+  onHapusPermanenCadangan?: (id: string) => void;
+  onRekonsiliasiGDrive?: () => Promise<void> | void;
+  sedangRekonsiliasi?: boolean;
   onTerbitkanSertifikat: (sert: SertifikatKader) => void;
   onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
   onTambahPengumuman: (p: PengumumanBroadcast) => void;
@@ -45,6 +52,7 @@ interface AdminDashboardViewProps {
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   dataSpasial,
+  pencadanganList = [],
   profilKader,
   sertifikatList,
   tugasList,
@@ -53,6 +61,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onVerifikasiData,
   onUbahDataSpasial,
   onHapusDataSpasial,
+  onPulihkanCadangan,
+  onHapusPermanenCadangan,
+  onRekonsiliasiGDrive,
+  sedangRekonsiliasi = false,
   onTerbitkanSertifikat,
   onUbahPenandatanganSertifikat,
   onTambahPengumuman,
@@ -62,6 +74,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onFokusKePeta
 }) => {
 const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "user_level">("kader_aktif");
+const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
   // Menu aksi data (mobile): satu daftar pilihan yang muncul saat tombol "Aksi" ditekan
@@ -223,6 +236,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
       {subTabAdmin === "user_level" && (
         <PanelDataUserLevel
           dataSpasial={dataSpasial}
+          pencadanganList={pencadanganList}
           profilSaya={profilKader}
           peranPengguna="admin"
           onFokusPetaKader={onFokusKePeta}
@@ -280,114 +294,222 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
         </div>
       )}
 
-      {/* 3. TAB B: KELOLA DATA SPASIAL */}
+      {/* 3. TAB B: KELOLA DATA SPASIAL & PENCADANGAN 90 HARI */}
       {subTabAdmin === "kelola_data" && (
         <div className="section-card">
-          <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>✏️ Data ({dataSpasial.length})</h3>
-          <CatatanPerangkat style={{ marginBottom: 10 }}>
-            Status verifikasi disimpan di perangkat ini. Data kader di perangkat lain baru bisa diverifikasi setelah masuk ke sini, misalnya
-            lewat impor berkas atau pemakaian satu perangkat bersama.
-          </CatatanPerangkat>
+          <div className="admin-data-header-bar">
+            <h3 style={{ margin: 0, fontSize: "1rem" }}>✏️ Data ({dataSpasial.length})</h3>
+            {onRekonsiliasiGDrive && (
+              <button
+                type="button"
+                className="btn-outline-sm"
+                disabled={sedangRekonsiliasi}
+                onClick={() => void onRekonsiliasiGDrive()}
+                title="Periksa kesesuaian data aktif dan folder pencadangan dengan database Google Drive"
+              >
+                <RefreshCw size={14} /> {sedangRekonsiliasi ? "Memeriksa…" : "Cek Database GDrive"}
+              </button>
+            )}
+          </div>
 
-          {dataSpasial.length > 0 ? (
-            <div className="table-responsive">
-              <table className="data-table data-table-admin-spasial">
-                <thead>
-                  <tr>
-                    <th>Kader</th>
-                    <th>Objek</th>
-                    <th>Status</th>
-                    <th>Kualitas</th>
-                    <th>Tindakan</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dataSpasial.map((d) => (
-                    <tr key={d.id}>
-                      <td className="col-admin-kader">
-                        <strong>{d.namaKader}</strong>
-                        <div className="text-xs text-muted">{d.id}</div>
-                      </td>
-                      <td className="col-admin-objek">
-                        <span className="badge-kategori">{d.kategori}</span>{" "}
-                        {adalahDataImpor(d) && <span className="badge-kategori">IMPOR</span>}{" "}
-                        {adalahDataSimulasi(d) && <span className="badge-kategori">SIMULASI</span>} <strong>{d.judul}</strong>
-                      </td>
-                      <td className="col-admin-status">
-                        <span className={`badge-sync status-${d.statusSinkron}`} style={{ marginLeft: 0 }}>
-                          {d.statusSinkron.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="col-admin-kualitas">
-                        <details className="dqa-details">
-                          <summary className="dqa-badge">
-                            {hitungSkorKualitasData(d).grade} · {hitungSkorKualitasData(d).skor}/100
-                          </summary>
-                          <ul>
-                            {hitungSkorKualitasData(d).masalah.map((m) => (
-                              <li key={m}>{m}</li>
-                            ))}
-                          </ul>
-                        </details>
-                      </td>
-                      <td className="col-admin-tindakan">
-                        <div className="aksi-data-desktop" style={{ display: "flex", gap: "6px", flexWrap: "nowrap" }}>
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            disabled={!d.koordinat[0]}
-                            title="Tinjau lokasi objek pada peta"
-                            onClick={() => {
-                              const p = d.koordinat[0];
-                              if (p) onFokusKePeta(p.lat, p.lng, d.judul);
-                            }}
-                          >
-                            <MapPin size={14} /> Peta
-                          </button>
-                          <button type="button" className="btn-outline-sm" onClick={() => setItemDiedit(d)} title="Edit data objek">
-                            <Edit3 size={13} /> Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-primary-sm"
-                            disabled={!hitungSkorKualitasData(d).geometriValid}
-                            onClick={() => onVerifikasiData(d.id, "terverifikasi")}
-                            title="Sahkan data valid"
-                          >
-                            <Check size={13} /> Sah
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            title="Minta revisi data kepada kader"
-                            onClick={() => {
-                              const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
-                              if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
-                            }}
-                          >
-                            <X size={13} /> Revisi
-                          </button>
-                          <button type="button" className="btn-danger-sm" onClick={() => onHapusDataSpasial(d.id)} title="Hapus data">
-                            <Trash2 size={13} />
-                          </button>
+          <div className="admin-data-subtabs" role="tablist" aria-label="Pilih daftar data">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tampilanData === "aktif"}
+              className={`admin-data-subtab-btn ${tampilanData === "aktif" ? "aktif" : ""}`}
+              onClick={() => setTampilanData("aktif")}
+            >
+              Database Aktif ({dataSpasial.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tampilanData === "pencadangan"}
+              className={`admin-data-subtab-btn ${tampilanData === "pencadangan" ? "aktif" : ""}`}
+              onClick={() => setTampilanData("pencadangan")}
+            >
+              <Archive size={14} /> Pencadangan 90 Hari ({pencadanganList.length})
+            </button>
+          </div>
+
+          {tampilanData === "aktif" && (
+            <>
+              <CatatanPerangkat style={{ marginBottom: 10 }}>
+                Menghapus data di sini akan memindahkannya ke folder Pencadangan 90 Hari (baik di perangkat maupun di folder
+                Pencadangan_90_Hari Google Drive) dan mengeluarkannya dari perhitungan level.
+              </CatatanPerangkat>
+
+              {dataSpasial.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="data-table data-table-admin-spasial">
+                    <thead>
+                      <tr>
+                        <th>Kader</th>
+                        <th>Objek</th>
+                        <th>Status</th>
+                        <th>Kualitas</th>
+                        <th>Tindakan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dataSpasial.map((d) => (
+                        <tr key={d.id}>
+                          <td className="col-admin-kader">
+                            <strong>{d.namaKader}</strong>
+                            <div className="text-xs text-muted">{d.id}</div>
+                          </td>
+                          <td className="col-admin-objek">
+                            <span className="badge-kategori">{d.kategori}</span>{" "}
+                            {adalahDataImpor(d) && <span className="badge-kategori">IMPOR</span>}{" "}
+                            {adalahDataSimulasi(d) && <span className="badge-kategori">SIMULASI</span>} <strong>{d.judul}</strong>
+                          </td>
+                          <td className="col-admin-status">
+                            <span className={`badge-sync status-${d.statusSinkron}`} style={{ marginLeft: 0 }}>
+                              {d.statusSinkron.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="col-admin-kualitas">
+                            <details className="dqa-details">
+                              <summary className="dqa-badge">
+                                {hitungSkorKualitasData(d).grade} · {hitungSkorKualitasData(d).skor}/100
+                              </summary>
+                              <ul>
+                                {hitungSkorKualitasData(d).masalah.map((m) => (
+                                  <li key={m}>{m}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          </td>
+                          <td className="col-admin-tindakan">
+                            <div className="aksi-data-desktop" style={{ display: "flex", gap: "6px", flexWrap: "nowrap" }}>
+                              <button
+                                type="button"
+                                className="btn-outline-sm"
+                                disabled={!d.koordinat[0]}
+                                title="Tinjau lokasi objek pada peta"
+                                onClick={() => {
+                                  const p = d.koordinat[0];
+                                  if (p) onFokusKePeta(p.lat, p.lng, d.judul);
+                                }}
+                              >
+                                <MapPin size={14} /> Peta
+                              </button>
+                              <button type="button" className="btn-outline-sm" onClick={() => setItemDiedit(d)} title="Edit data objek">
+                                <Edit3 size={13} /> Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-primary-sm"
+                                disabled={!hitungSkorKualitasData(d).geometriValid}
+                                onClick={() => onVerifikasiData(d.id, "terverifikasi")}
+                                title="Sahkan data valid"
+                              >
+                                <Check size={13} /> Sah
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-outline-sm"
+                                title="Minta revisi data kepada kader"
+                                onClick={() => {
+                                  const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
+                                  if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
+                                }}
+                              >
+                                <X size={13} /> Revisi
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-danger-sm"
+                                onClick={() => onHapusDataSpasial(d.id)}
+                                title="Pindahkan ke Pencadangan 90 Hari"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-outline-sm aksi-data-trigger"
+                              aria-haspopup="menu"
+                              onClick={() => setMenuAksiData(d)}
+                            >
+                              Aksi <ChevronDown size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
+                  Belum ada data lapangan yang direkam.
+                </div>
+              )}
+            </>
+          )}
+
+          {tampilanData === "pencadangan" && (
+            <div className="admin-pencadangan-panel">
+              <CatatanPerangkat style={{ marginBottom: 10 }}>
+                File survei yang dihapus admin tersimpan di folder Pencadangan selama 90 hari dan otomatis terhapus permanen jika tidak
+                dipulihkan sebelum masa retensi berakhir. Data di Pencadangan tidak dihitung sebagai syarat kenaikan level.
+              </CatatanPerangkat>
+
+              {pencadanganList.length > 0 ? (
+                <div className="admin-pencadangan-list">
+                  {pencadanganList.map((entri) => {
+                    const sisa = sisaHariPencadangan(entri);
+                    return (
+                      <div key={entri.id} className="admin-pencadangan-card">
+                        <div className="admin-pencadangan-info">
+                          <div className="admin-pencadangan-judul">
+                            <strong>{entri.data.judul}</strong>
+                            <span className="admin-pencadangan-sisa">{sisa} hari tersisa</span>
+                          </div>
+                          <div className="admin-pencadangan-meta">
+                            <span>{entri.data.namaKader}</span> · <span>{entri.data.kategori}</span> ·{" "}
+                            <span>Dipindah {new Date(entri.dipindahkanPada).toLocaleDateString("id-ID")}</span>
+                          </div>
+                          <div className="admin-pencadangan-status">
+                            {entri.statusGDrive === "di_pencadangan" && "Tersinkron ke folder Pencadangan_90_Hari Google Drive"}
+                            {entri.statusGDrive === "menunggu_pindah" && "Menunggu pemindahan ke Pencadangan_90_Hari Google Drive"}
+                            {entri.statusGDrive === "menunggu_pulih" && "Menunggu pemulihan ke database Google Drive"}
+                            {entri.statusGDrive === "menunggu_hapus_permanen" && "Menunggu penghapusan permanen di Google Drive"}
+                            {entri.statusGDrive === "lokal_saja" && "Arsip lokal perangkat (belum pernah diunggah ke Google Drive)"}
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-outline-sm aksi-data-trigger"
-                          aria-haspopup="menu"
-                          onClick={() => setMenuAksiData(d)}
-                        >
-                          Aksi <ChevronDown size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
-              Belum ada data lapangan yang direkam.
+                        <div className="admin-pencadangan-aksi">
+                          {onPulihkanCadangan && (
+                            <button
+                              type="button"
+                              className="btn-outline-sm"
+                              onClick={() => onPulihkanCadangan(entri.id)}
+                              title="Kembalikan data ke database aktif"
+                            >
+                              <RotateCcw size={13} /> Pulihkan
+                            </button>
+                          )}
+                          {onHapusPermanenCadangan && (
+                            <button
+                              type="button"
+                              className="btn-danger-sm"
+                              onClick={() => onHapusPermanenCadangan(entri.id)}
+                              title="Hapus permanen sekarang"
+                            >
+                              <Trash2 size={13} /> Hapus Permanen
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8faf9", borderRadius: 12 }}>
+                  Folder Pencadangan 90 Hari kosong. Data yang dihapus oleh Admin akan tampil di sini selama 90 hari sebelum dihapus permanen.
+                </div>
+              )}
             </div>
           )}
         </div>

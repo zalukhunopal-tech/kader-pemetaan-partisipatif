@@ -952,3 +952,143 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   expect(galat).toEqual([]);
   await tutup();
 });
+
+test("korelasi database GDrive, pencadangan 90 hari (pulihkan & hapus permanen), dan perhitungan level hanya dari database aktif", async ({
+  browser
+}) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 1024, height: 820 }, hasTouch: false, isMobile: false },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  const aksiGDrive: string[] = [];
+  await p.context().route(/script\.google\.com/, async (route) => {
+    const raw = route.request().postData() || "{}";
+    let body: { action?: string; idData?: string; records?: { id: string }[] } = {};
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      body = {};
+    }
+    if (body.action) aksiGDrive.push(body.action);
+    if (body.action === "list_active_status") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true, aktif: [], pencadanganIds: [] }) });
+      return;
+    }
+    if (body.action === "move_to_backup" || body.action === "restore_from_backup" || body.action === "delete_backup_permanent") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true }) });
+      return;
+    }
+    const ids = (body.records || []).map((r) => r.id).filter((id) => id !== "SPS-LOKAL-ONLY");
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true, diterima: ids, gagal: [] }) });
+  });
+
+  // Semai 1 data lokal (belum di database) & 1 jalur tersinkron (di database asli) milik Admin ADM-UJI
+  await p.context().addInitScript(() => {
+    const ada = localStorage.getItem("geokader_data_spasial_v5");
+    if (!ada || ada === "[]") {
+      const sekarang = new Date().toISOString();
+      localStorage.setItem(
+        "geokader_data_spasial_v5",
+        JSON.stringify([
+          {
+            id: "SPS-DB-OK",
+            idKader: "ADM-UJI",
+            namaKader: "Siti Rahmawati",
+            desaWilayah: "Desa Rimba Hijau",
+            jenisGeometri: "line",
+            kategori: "Tanda Batas",
+            judul: "Jalur Aktif Database",
+            deskripsi: "Sudah di GDrive",
+            koordinat: [
+              { lat: 2.85, lng: 117.37, akurasi: 4 },
+              { lat: 2.87, lng: 117.39, akurasi: 4 }
+            ],
+            panjangKm: 3.1,
+            luasHa: 0,
+            statusSinkron: "tersinkron",
+            createdAt: sekarang,
+            updatedAt: sekarang,
+            riwayatPembaruan: []
+          },
+          {
+            id: "SPS-LOKAL-ONLY",
+            idKader: "ADM-UJI",
+            namaKader: "Siti Rahmawati",
+            desaWilayah: "Desa Rimba Hijau",
+            jenisGeometri: "point",
+            kategori: "Biodiversitas",
+            judul: "Titik Lokal Belum Standar",
+            deskripsi: "",
+            koordinat: [{ lat: 2.85, lng: 117.37 }],
+            panjangKm: 0,
+            luasHa: 0,
+            statusSinkron: "lokal",
+            createdAt: sekarang,
+            updatedAt: sekarang,
+            riwayatPembaruan: []
+          }
+        ])
+      );
+    }
+  });
+
+  await masukSebagaiAdmin(p);
+
+  // Helper klik Hapus pada baris data (berfungsi baik untuk tampilan desktop maupun tablet/HP)
+  const hapusBaris = async (judul: string) => {
+    const baris = p.locator("tr", { hasText: judul });
+    await expect(baris).toBeVisible();
+    const btnDesktop = baris.locator('button[title="Pindahkan ke Pencadangan 90 Hari"]');
+    if (await btnDesktop.isVisible()) {
+      await btnDesktop.click();
+    } else {
+      await baris.locator(".aksi-data-trigger").click();
+      await p.locator(".aksi-sheet .aksi-sheet-hapus").click();
+    }
+  };
+
+  // 1. Buka Kendali > Data -> hapus data "Jalur Aktif Database" (harus pindah ke Pencadangan 90 Hari & kirim move_to_backup ke GDrive)
+  await p.getByRole("button", { name: "Data", exact: true }).click();
+  await hapusBaris("Jalur Aktif Database");
+  await expect(p.locator(".avenza-toast")).toContainText("Pencadangan 90 Hari");
+  await expect.poll(() => aksiGDrive.includes("move_to_backup")).toBe(true);
+
+  // 2. Cek tab Pencadangan 90 Hari di Admin
+  await p.getByRole("tab", { name: /Pencadangan 90 Hari/ }).click();
+  const kartuCadangan = p.locator(".admin-pencadangan-card", { hasText: "Jalur Aktif Database" });
+  await expect(kartuCadangan).toBeVisible();
+  await expect(kartuCadangan).toContainText(/90 hari tersisa/);
+
+  // 3. Cek Level di Kader/User: karena Jalur Aktif Database ada di Pencadangan, hanya tersisa 0 data sah DB -> tetap Level 1
+  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();
+  await expect(p.locator(".visual-current-level-title")).toContainText("Penjelajah Dasar");
+  await expect(p.locator("#info-korelasi-level-database")).toContainText("Di Pencadangan 90 Hari (tidak dihitung): 1");
+
+  // 4. Kembali ke Admin -> Pulihkan data dari Pencadangan 90 Hari -> kirim restore_from_backup & Level naik kembali!
+  await p.locator(".avenza-nav-item", { hasText: "Pustaka" }).click();
+  await p.locator(".avenza-toolbar-toggle-btn").click();
+  await p.locator(".avenza-overflow-item", { hasText: /Mode Admin/i }).click();
+  await p.locator("#kode-totp-admin").waitFor({ state: "visible", timeout: 5000 }).catch(() => undefined);
+  // Buka tab Data bila gerbang masih terbuka
+  if ((await p.getByRole("button", { name: "Data", exact: true }).count()) > 0) {
+    await p.getByRole("button", { name: "Data", exact: true }).click();
+    await p.getByRole("tab", { name: /Pencadangan 90 Hari/ }).click();
+    await p.locator(".admin-pencadangan-card", { hasText: "Jalur Aktif Database" }).getByRole("button", { name: "Pulihkan" }).click();
+    await expect.poll(() => aksiGDrive.includes("restore_from_backup")).toBe(true);
+
+    // Pindah lagi ke cadangan lalu uji Hapus Permanen
+    await p.getByRole("tab", { name: /Database Aktif/ }).click();
+    await hapusBaris("Jalur Aktif Database");
+    await p.getByRole("tab", { name: /Pencadangan 90 Hari/ }).click();
+    await p.locator(".admin-pencadangan-card", { hasText: "Jalur Aktif Database" }).getByRole("button", { name: "Hapus Permanen" }).click();
+    await expect.poll(() => aksiGDrive.includes("delete_backup_permanent")).toBe(true);
+    await expect(p.locator(".admin-pencadangan-card", { hasText: "Jalur Aktif Database" })).toHaveCount(0);
+  }
+
+  expect(galat).toEqual([]);
+  await tutup();
+});

@@ -198,12 +198,36 @@ export interface DataSpasialItem {
   simbol?: string;
   /** Nama kolam peta tematik (kosong/undefined = data peta biasa / non-tematik) */
   tematik?: string;
+  /** Penanda bahwa data sedang berada di folder pencadangan 90 hari (tidak masuk database aktif maupun level) */
+  dalamPencadangan?: boolean;
   statusSinkron: StatusSinkron;
   diimpor?: boolean; // true = berasal dari berkas luar, bukan rekaman lapangan kader
   catatanAdmin?: string;
   createdAt: string;
   updatedAt: string;
   riwayatPembaruan: PembaruanObjek[];
+}
+
+export type StatusPencadanganGDrive =
+  | "menunggu_pindah"
+  | "di_pencadangan"
+  | "menunggu_pulih"
+  | "menunggu_hapus_permanen"
+  | "lokal_saja";
+
+/**
+ * Arsip sementara 90 hari untuk data survei yang dihapus akun Admin.
+ * Selama belum dipulihkan, data tidak berada di database aktif dan tidak dihitung dalam kenaikan level.
+ * Setelah 90 hari tidak dipulihkan, data dihapus secara permanen.
+ */
+export interface ItemPencadanganSpasial {
+  id: string;
+  data: DataSpasialItem;
+  dipindahkanPada: string;
+  kedaluwarsaPada: string;
+  alasan?: string;
+  dihapusOleh?: string;
+  statusGDrive: StatusPencadanganGDrive;
 }
 
 export interface AreaPetaOffline {

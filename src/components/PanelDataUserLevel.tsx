@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Users, Search, Check, Shield, Award, MapPin, Route, Square, DollarSign, Filter, Save } from "lucide-react";
-import { DataSpasialItem, ProfilKader, PeranPengguna } from "../types";
+import { Users, Search, Award, MapPin, Route, Square } from "lucide-react";
+import { DataSpasialItem, ItemPencadanganSpasial, ProfilKader, PeranPengguna } from "../types";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
 import { muatSemuaAkun } from "../lib/auth";
-import { dihitungUntukCapaian } from "../lib/geoUtils";
 import { hitungSkorKualitasData } from "../lib/kualitasData";
+import { dataSahUntukLevel } from "../lib/rewardEngine";
+import { idsDiPencadangan } from "../lib/pencadanganData";
 
 export interface MetrikKaderUser {
   idKader: string;
@@ -58,6 +59,7 @@ export function hitungLevelKaderOtomatis(titik: number, jalurKm: number, poligon
 
 interface PanelDataUserLevelProps {
   dataSpasial: DataSpasialItem[];
+  pencadanganList?: ItemPencadanganSpasial[];
   peranPengguna?: PeranPengguna;
   profilSaya?: ProfilKader;
   onFokusPetaKader?: (lat: number, lng: number, nama: string) => void;
@@ -65,13 +67,14 @@ interface PanelDataUserLevelProps {
 
 
 function hitungRerataKualitas(items: DataSpasialItem[]): number {
-  if (items.length === 0) return 80;
+  if (items.length === 0) return 0;
   const total = items.reduce((acc, d) => acc + hitungSkorKualitasData(d).skor, 0);
   return Math.round(total / items.length);
 }
 
 export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
   dataSpasial,
+  pencadanganList = [],
   peranPengguna = "admin",
   profilSaya,
   onFokusPetaKader
@@ -79,13 +82,14 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
   const [kataKunci, setKataKunci] = useState("");
   const [filterTier, setFilterTier] = useState<string>("semua");
 
-  // Kompilasi data direktori kader dari data spasial riil & profil
+  // Kompilasi data direktori kader hanya dari data sah di database asli (bukan pencadangan / lokal / ditolak)
   const daftarKader = React.useMemo(() => {
     const petaKader = new Map<string, MetrikKaderUser>();
+    const setCadangan = idsDiPencadangan(pencadanganList);
 
     // Tambahkan profil pengguna sendiri terlebih dahulu
     if (profilSaya) {
-      const dataSaya = dataSpasial.filter((d) => d.idKader === profilSaya.idKader && dihitungUntukCapaian(d));
+      const dataSaya = dataSpasial.filter((d) => d.idKader === profilSaya.idKader && dataSahUntukLevel(d, setCadangan));
       const jmlTitik = dataSaya.filter((d) => d.jenisGeometri === "point").length;
       const jmlKm = dataSaya.reduce((acc, d) => acc + (d.panjangKm || 0), 0);
       const jmlHa = dataSaya.reduce((acc, d) => acc + (d.luasHa || 0), 0);
@@ -106,11 +110,12 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       });
     }
 
-    // Ekstrak kader-kader lain dari riwayat data spasial
+    // Ekstrak kader-kader lain dari riwayat data spasial yang sah di database asli
     dataSpasial.forEach((d) => {
+      if (!dataSahUntukLevel(d, setCadangan)) return;
       const id = d.idKader || "KADER-UMUM";
       if (!petaKader.has(id)) {
-        const dataDia = dataSpasial.filter((x) => (x.idKader || "KADER-UMUM") === id && dihitungUntukCapaian(x));
+        const dataDia = dataSpasial.filter((x) => (x.idKader || "KADER-UMUM") === id && dataSahUntukLevel(x, setCadangan));
         const jmlTitik = dataDia.filter((x) => x.jenisGeometri === "point").length;
         const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
         const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
@@ -138,7 +143,9 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
       akunTerdaftar.forEach((a) => {
         const id = a.idKader || a.email;
         if (!petaKader.has(id)) {
-          const dataDia = dataSpasial.filter((x) => ((x.idKader || "") === a.idKader || (x.namaKader || "").toLowerCase() === a.nama.toLowerCase()) && dihitungUntukCapaian(x));
+          const dataDia = dataSpasial.filter(
+            (x) => ((x.idKader || "") === a.idKader || (x.namaKader || "").toLowerCase() === a.nama.toLowerCase()) && dataSahUntukLevel(x, setCadangan)
+          );
           const jmlTitik = dataDia.filter((x) => x.jenisGeometri === "point").length;
           const jmlKm = dataDia.reduce((acc, x) => acc + (x.panjangKm || 0), 0);
           const jmlHa = dataDia.reduce((acc, x) => acc + (x.luasHa || 0), 0);
@@ -176,7 +183,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
     }
 
     return Array.from(petaKader.values());
-  }, [dataSpasial, profilSaya]);
+  }, [dataSpasial, pencadanganList, profilSaya]);
 
   const kaderTersaring = daftarKader.filter((k) => {
     const cocokTeks =
@@ -208,7 +215,7 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
               Level Kader
             </h3>
             <p style={{ margin: "2px 0 0", fontSize: "0.8rem", color: "#64748b" }}>
-              Direktori kader terdaftar dan klasifikasi tingkatan otomatis (Level 1–20).
+              Direktori kader terdaftar dan klasifikasi tingkatan otomatis (Level 1–20) hanya dari data valid di database aktif, bukan pencadangan.
             </p>
           </div>
         </div>

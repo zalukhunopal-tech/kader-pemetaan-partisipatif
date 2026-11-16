@@ -174,6 +174,25 @@ function doPost(e) {
     if (body.action === "rename_wilayah_folder" || body.action === "migrasi_wilayah") {
       return balas_(migrasiFolderWilayah_(body, konteks));
     }
+    if (body.action === "move_to_backup") {
+      return balas_(pindahKePencadangan_(body, konteks));
+    }
+    if (body.action === "restore_from_backup") {
+      return balas_(pulihkanDariPencadangan_(body, konteks));
+    }
+    if (body.action === "delete_backup_permanent") {
+      return balas_(hapusPermanenCadangan_(body, konteks));
+    }
+    if (body.action === "purge_expired_backup") {
+      return balas_(bersihkanCadanganKedaluwarsa_(konteks, body.sekarangIso));
+    }
+    if (body.action === "update_status_verifikasi") {
+      return balas_(perbaruiStatusVerifikasi_(body, konteks));
+    }
+    if (body.action === "list_active_status") {
+      bersihkanCadanganKedaluwarsa_(konteks, body.sekarangIso);
+      return balas_(daftarStatusAktif_(konteks));
+    }
 
     var records = body.records || [];
     var diterima = [];
@@ -1224,4 +1243,295 @@ function validasiPayloadV3_(r, fitur) {
     var b = Utilities.base64Decode(String(a.dataUrl).split("base64,")[1] || "");
     if (b.length > 300000 || b.length !== a.ukuranByte || sha256V3_(b) !== a.sha256) throw new Error("Checksum/ukuran audio tidak cocok.");
   }
+}
+
+var NAMA_FOLDER_CADANGAN = "Pencadangan_90_Hari";
+var TAB_PENCADANGAN = "Pencadangan_90_Hari";
+var KOLOM_PENCADANGAN = [
+  "ID_Data",
+  "ID_Kader",
+  "Nama_Kader",
+  "Judul",
+  "Kategori",
+  "Jenis_Geometri",
+  "Dipindahkan_Pada",
+  "Kedaluwarsa_Pada",
+  "Alasan",
+  "Oleh_Admin",
+  "ID_Berkas_Backup",
+  "Snapshot_JSON"
+];
+
+function folderPencadangan_(induk) {
+  return dapatkanAtauBuatFolder_(induk, NAMA_FOLDER_CADANGAN);
+}
+
+function tabPencadangan_(ss) {
+  var tab = ss.getSheetByName(TAB_PENCADANGAN);
+  if (!tab) {
+    tab = ss.insertSheet(TAB_PENCADANGAN);
+    tab.appendRow(KOLOM_PENCADANGAN);
+  } else if (tab.getLastRow() === 0) {
+    tab.appendRow(KOLOM_PENCADANGAN);
+  }
+  return tab;
+}
+
+function ekstrakIdDriveDariUrl_(url) {
+  var u = String(url || "");
+  if (!u) return "";
+  var m = u.match(/(?:\/d\/|[?&]id=|\/)([A-Za-z0-9_-]{3,})$/) || u.match(/([A-Za-z0-9_-]{3,})/);
+  return m ? m[1] : "";
+}
+
+function hapusBarisTabGeometri_(ss, idData) {
+  var tabs = [TAB_POLYGON, TAB_LINE, TAB_POINT];
+  var tagId = "id:" + idData;
+  for (var t = 0; t < tabs.length; t++) {
+    var tab = ss.getSheetByName(tabs[t]);
+    if (!tab) continue;
+    var jml = tab.getLastRow();
+    if (jml <= 1) continue;
+    var rentang = tab.getRange(2, 1, jml - 1, 1);
+    if (typeof rentang.getNotes === "function") {
+      var notes = rentang.getNotes();
+      for (var i = notes.length - 1; i >= 0; i--) {
+        if (notes[i] && notes[i][0] === tagId && typeof tab.deleteRow === "function") {
+          tab.deleteRow(i + 2);
+        }
+      }
+    }
+  }
+}
+
+function hapusBarisPencadangan_(tabCad, idData) {
+  var jml = tabCad.getLastRow();
+  if (jml <= 1) return -1;
+  var vals = tabCad.getRange(2, 1, jml - 1, KOLOM_PENCADANGAN.length).getValues();
+  for (var i = vals.length - 1; i >= 0; i--) {
+    if (String(vals[i][0]) === String(idData)) {
+      var idBerkas = String(vals[i][10] || "");
+      if (typeof tabCad.deleteRow === "function") tabCad.deleteRow(i + 2);
+      return idBerkas;
+    }
+  }
+  return "";
+}
+
+function pindahKePencadangan_(body, konteks) {
+  var id = String(body.idData || "");
+  if (!id) throw new Error("ID data wajib diisi.");
+  var ss = spreadsheetInduk_(konteks.induk);
+  var folderCad = folderPencadangan_(konteks.induk);
+  var tabCad = tabPencadangan_(ss);
+
+  var baris = konteks.barisAda[id];
+  var lama = baris ? konteks.sheet.getRange(baris, 1, 1, KOLOM.length).getValues()[0] : null;
+  var fiturArsip = null;
+
+  if (lama) {
+    var idBerkasAktif = String(lama[K.ID_Berkas] || "");
+    if (idBerkasAktif) {
+      try {
+        var berkas = DriveApp.getFileById(idBerkasAktif);
+        var kol = JSON.parse(berkas.getBlob().getDataAsString());
+        if (kol && Array.isArray(kol.features)) {
+          for (var i = 0; i < kol.features.length; i++) {
+            if (String(kol.features[i].id) === id) {
+              fiturArsip = kol.features[i];
+              break;
+            }
+          }
+        }
+      } catch (ignored) {}
+      hapusFiturLama_(idBerkasAktif, id);
+    }
+    var urlFoto = String(lama[K.Tautan_Foto_Drive] || "");
+    var idFoto = ekstrakIdDriveDariUrl_(urlFoto);
+    if (idFoto) {
+      try {
+        var fotoFile = DriveApp.getFileById(idFoto);
+        if (fotoFile && typeof fotoFile.moveTo === "function") fotoFile.moveTo(folderCad);
+      } catch (ignored2) {}
+    }
+    if (typeof konteks.sheet.deleteRow === "function") {
+      konteks.sheet.deleteRow(baris);
+      delete konteks.barisAda[id];
+    }
+  }
+
+  hapusBarisTabGeometri_(ss, id);
+
+  var retensiMs = (Number(body.retensiHari) || 90) * 24 * 60 * 60 * 1000;
+  var tPindah = body.dipindahkanPada || konteks.waktu;
+  var tKadaluarsa = body.kedaluwarsaPada || new Date(Date.parse(tPindah) + retensiMs).toISOString();
+  var rec = body.record || (lama ? {
+    id: id,
+    idKader: String(lama[K.ID_Kader] || ""),
+    namaKader: String(lama[K.Nama_Kader] || ""),
+    judul: String(lama[K.Judul] || ""),
+    kategori: String(lama[K.Kategori] || ""),
+    jenisGeometri: String(lama[K.Jenis_Geometri] || "point"),
+    panjangKm: Number(lama[K.Panjang_Km] || 0),
+    luasHa: Number(lama[K.Luas_Ha] || 0),
+    wkt: String(lama[K.Koordinat_WKT] || ""),
+    namaBerkas: String(lama[K.Nama_Berkas] || ""),
+    createdAt: String(lama[K.Waktu_Rekam] || ""),
+    statusLama: String(lama[K.Status_Verifikasi] || "Tersinkron_GDrive"),
+    wilayah: {
+      provinsi: String(lama[K.Provinsi] || ""),
+      kabupaten: String(lama[K.Kabupaten_Kota] || ""),
+      kecamatan: String(lama[K.Kecamatan] || ""),
+      desa: String(lama[K.Kelurahan_Desa] || "")
+    }
+  } : { id: id });
+
+  var arsipPayload = {
+    id: id,
+    dipindahkanPada: tPindah,
+    kedaluwarsaPada: tKadaluarsa,
+    alasan: String(body.alasan || "Dihapus admin"),
+    olehAdmin: String(body.olehAdmin || "Admin GIS"),
+    record: rec,
+    feature: fiturArsip
+  };
+  var namaFileBackup = "backup_" + slug_(id, 60) + ".json";
+  var lamaCad = berkasAktif_(folderCad.getFilesByName(namaFileBackup));
+  var fileBackup = lamaCad
+    ? lamaCad.setContent(JSON.stringify(arsipPayload))
+    : folderCad.createFile(namaFileBackup, JSON.stringify(arsipPayload), MimeType.PLAIN_TEXT);
+
+  hapusBarisPencadangan_(tabCad, id);
+  tabCad.appendRow([
+    sanitasiSel_(id),
+    sanitasiSel_(rec.idKader || ""),
+    sanitasiSel_(rec.namaKader || ""),
+    sanitasiSel_(rec.judul || ""),
+    sanitasiSel_(rec.kategori || ""),
+    sanitasiSel_(rec.jenisGeometri || ""),
+    sanitasiSel_(tPindah),
+    sanitasiSel_(tKadaluarsa),
+    sanitasiSel_(body.alasan || "Dihapus admin"),
+    sanitasiSel_(body.olehAdmin || "Admin GIS"),
+    fileBackup.getId(),
+    sanitasiSel_(JSON.stringify(rec))
+  ]);
+
+  return { sukses: true, id: id, dipindahkanKe: NAMA_FOLDER_CADANGAN, kedaluwarsaPada: tKadaluarsa };
+}
+
+function pulihkanDariPencadangan_(body, konteks) {
+  var id = String(body.idData || "");
+  if (!id) throw new Error("ID data wajib diisi.");
+  var ss = spreadsheetInduk_(konteks.induk);
+  var folderCad = folderPencadangan_(konteks.induk);
+  var tabCad = tabPencadangan_(ss);
+
+  var arsip = null;
+  var namaFileBackup = "backup_" + slug_(id, 60) + ".json";
+  var fileCad = berkasAktif_(folderCad.getFilesByName(namaFileBackup));
+  if (fileCad) {
+    try {
+      arsip = JSON.parse(fileCad.getBlob().getDataAsString());
+    } catch (ignored) {}
+    fileCad.setTrashed(true);
+  }
+  hapusBarisPencadangan_(tabCad, id);
+
+  var rec = body.record || (arsip && arsip.record) || null;
+  if (!rec) {
+    return { sukses: false, pesan: "Arsip pencadangan tidak ditemukan untuk dipulihkan." };
+  }
+  var fitur = (arsip && arsip.feature) || null;
+  simpanRekaman_(rec, fitur, konteks);
+  return { sukses: true, id: id, dipulihkan: true };
+}
+
+function hapusPermanenCadangan_(body, konteks) {
+  var id = String(body.idData || "");
+  if (!id) throw new Error("ID data wajib diisi.");
+  var ss = spreadsheetInduk_(konteks.induk);
+  var folderCad = folderPencadangan_(konteks.induk);
+  var tabCad = tabPencadangan_(ss);
+
+  var idBerkas = hapusBarisPencadangan_(tabCad, id);
+  if (idBerkas) {
+    try {
+      var f = DriveApp.getFileById(idBerkas);
+      if (f) f.setTrashed(true);
+    } catch (ignored) {}
+  }
+  var fileCad = berkasAktif_(folderCad.getFilesByName("backup_" + slug_(id, 60) + ".json"));
+  if (fileCad) fileCad.setTrashed(true);
+  return { sukses: true, id: id, dihapusPermanen: true };
+}
+
+function bersihkanCadanganKedaluwarsa_(konteks, sekarangIso) {
+  var ss = spreadsheetInduk_(konteks.induk);
+  var tabCad = ss.getSheetByName(TAB_PENCADANGAN);
+  if (!tabCad) return { sukses: true, jumlahDihapus: 0 };
+  var jml = tabCad.getLastRow();
+  if (jml <= 1) return { sukses: true, jumlahDihapus: 0 };
+
+  var sekarangMs = sekarangIso ? Date.parse(sekarangIso) : Date.now();
+  if (isNaN(sekarangMs)) sekarangMs = Date.now();
+  var vals = tabCad.getRange(2, 1, jml - 1, KOLOM_PENCADANGAN.length).getValues();
+  var dihapus = 0;
+  for (var i = vals.length - 1; i >= 0; i--) {
+    var kedMs = Date.parse(String(vals[i][7] || ""));
+    if (!isNaN(kedMs) && sekarangMs >= kedMs) {
+      var idBerkas = String(vals[i][10] || "");
+      if (idBerkas) {
+        try {
+          var bf = DriveApp.getFileById(idBerkas);
+          if (bf) bf.setTrashed(true);
+        } catch (ignored) {}
+      }
+      if (typeof tabCad.deleteRow === "function") tabCad.deleteRow(i + 2);
+      dihapus++;
+    }
+  }
+  return { sukses: true, jumlahDihapus: dihapus };
+}
+
+function perbaruiStatusVerifikasi_(body, konteks) {
+  var id = String(body.idData || "");
+  var baris = konteks.barisAda[id];
+  if (!baris) return { sukses: false, pesan: "Data tidak ditemukan di spreadsheet aktif." };
+  var statusBaru = String(body.statusSinkron || "Tersinkron_GDrive");
+  var labelSheet =
+    statusBaru === "terverifikasi" ? "Terverifikasi" : statusBaru === "ditolak" ? "Ditolak" : "Tersinkron_GDrive";
+  konteks.sheet.getRange(baris, K.Status_Verifikasi + 1).setValues([[sanitasiSel_(labelSheet)]]);
+  if (body.catatanAdmin !== undefined) {
+    konteks.sheet.getRange(baris, K.Catatan_Admin + 1).setValues([[sanitasiSel_(body.catatanAdmin)]]);
+  }
+  return { sukses: true, id: id, status: labelSheet };
+}
+
+function daftarStatusAktif_(konteks) {
+  var jml = konteks.sheet.getLastRow();
+  var aktif = [];
+  if (jml > 1) {
+    var vals = konteks.sheet.getRange(2, 1, jml - 1, KOLOM.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var id = String(vals[i][K.ID_Data] || "");
+      if (!id) continue;
+      aktif.push({
+        id: id,
+        idKader: String(vals[i][K.ID_Kader] || ""),
+        statusSinkron: String(vals[i][K.Status_Verifikasi] || ""),
+        catatanAdmin: String(vals[i][K.Catatan_Admin] || "")
+      });
+    }
+  }
+  var ss = spreadsheetInduk_(konteks.induk);
+  var tabCad = ss.getSheetByName(TAB_PENCADANGAN);
+  var pencadanganIds = [];
+  if (tabCad && tabCad.getLastRow() > 1) {
+    var cVals = tabCad.getRange(2, 1, tabCad.getLastRow() - 1, 1).getValues();
+    for (var c = 0; c < cVals.length; c++) {
+      if (cVals[c][0]) pencadanganIds.push(String(cVals[c][0]));
+    }
+  }
+  return { sukses: true, aktif: aktif, pencadanganIds: pencadanganIds };
 }
