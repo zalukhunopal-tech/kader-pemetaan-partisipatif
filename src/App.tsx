@@ -76,6 +76,8 @@ import { MenuAtas } from "./components/app/MenuAtas";
 import { BannerModeAdmin, BannerPenyimpanan, BannerPerekaman } from "./components/app/BannerAplikasi";
 import { NavigasiBawah } from "./components/app/NavigasiBawah";
 import { LayarPembukaTaka, sudahTampilSplashTakaSesiIni } from "./components/LayarPembukaTaka";
+import { BantuanBugView } from "./components/BantuanBugView";
+import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug";
 
 export const App: React.FC = () => {
   const desktop = useDesktop();
@@ -135,10 +137,15 @@ export const App: React.FC = () => {
   // Sub-halaman penuh & menu
   const [bukaPemberitahuan, setBukaPemberitahuan] = useState<boolean>(false);
   const [bukaPengaturanEkspor, setBukaPengaturanEkspor] = useState<boolean>(false);
+  const [bukaBantuan, setBukaBantuan] = useState<boolean>(false);
   const [konteksEkspor, setKonteksEkspor] = useState<KonteksEkspor | null>(null);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
+  const inventarisBug = useInventarisBug();
+  const konteksBugRef = useRef<{ lokasi?: string; pengguna?: string }>({});
+  konteksBugRef.current = { lokasi: tabAktif, pengguna: sesiPengguna?.nama };
+  useEffect(() => pasangPenangkapBugGlobal(() => konteksBugRef.current), []);
   // id naik setiap toast baru, sehingga efek di bawah memulai ulang hitung mundurnya
   const [notifToast, setNotifToast] = useState<{ pesan: string; id: number; urungkan?: () => void } | null>(null);
   const statusPenyimpanan = useStatusPenyimpanan();
@@ -813,6 +820,17 @@ export const App: React.FC = () => {
     );
   }
 
+  if (bukaBantuan) {
+    return denganKunci(
+      <BantuanBugView
+        tabAsal={tabAktif}
+        namaPengguna={sesiPengguna.nama}
+        onPesan={tampilkanToast}
+        onTutup={() => setBukaBantuan(false)}
+      />
+    );
+  }
+
   const catatAktivitas = () => {
     catatAktivitasAdmin();
     catatAktivitasAplikasi();
@@ -849,6 +867,8 @@ export const App: React.FC = () => {
         onModePilihPustaka={() => setModePilihPustaka(true)}
         onBukaKeamanan={() => setBukaKeamanan(true)}
         onBukaGantiSandi={() => setBukaGantiSandi(true)}
+        onBukaBantuan={() => setBukaBantuan(true)}
+        jumlahBug={inventarisBug.length}
         onKeluar={handleLogout}
         autoSync={autoSync}
         onBukaSplashTaka={() => setTampilSplashTaka(true)}

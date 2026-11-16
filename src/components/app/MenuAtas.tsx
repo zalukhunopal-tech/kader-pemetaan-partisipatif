@@ -4,6 +4,7 @@ import {
   CloudUpload,
   Fingerprint,
   Folder,
+  HelpCircle,
   KeyRound,
   LogOut,
   MoreVertical,
@@ -46,6 +47,8 @@ interface MenuAtasProps {
   onModePilihPustaka: () => void;
   onBukaKeamanan: () => void;
   onBukaGantiSandi: () => void;
+  onBukaBantuan?: () => void;
+  jumlahBug?: number;
   onKeluar: () => void;
   autoSync?: StateAutoSync;
   onBukaSplashTaka?: () => void;
@@ -70,6 +73,8 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
   onModePilihPustaka,
   onBukaKeamanan,
   onBukaGantiSandi,
+  onBukaBantuan,
+  jumlahBug = 0,
   onKeluar,
   autoSync,
   onBukaSplashTaka
@@ -234,6 +239,18 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
             }}
           >
             <KeyRound size={16} /> Kata sandi
+          </button>
+
+          <button
+            type="button"
+            className="avenza-overflow-item"
+            onClick={() => {
+              setBukaMenuTitikTiga(false);
+              onBukaBantuan?.();
+            }}
+          >
+            <HelpCircle size={16} /> <span>Bantuan</span>
+            {jumlahBug > 0 && <span className="menu-bug-badge">{jumlahBug}</span>}
           </button>
 
           <button

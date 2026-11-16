@@ -2,6 +2,7 @@ import "./polyfills";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { PenangkapErrorBoundary } from "./components/PenangkapErrorBoundary";
 import { siapkanAutentikasi } from "./lib/auth";
 import { siapkanStorage } from "./lib/storage";
 import { pasangPendengarInstal } from "./lib/instal";
@@ -18,7 +19,9 @@ pasangPendengarInstal();
 Promise.all([siapkanAutentikasi().catch(() => undefined), siapkanStorage().catch(() => undefined)]).finally(() => {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-      <App />
+      <PenangkapErrorBoundary>
+        <App />
+      </PenangkapErrorBoundary>
     </React.StrictMode>
   );
 });
