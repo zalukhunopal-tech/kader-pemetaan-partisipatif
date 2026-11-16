@@ -1,5 +1,6 @@
 import { DataSpasialItem, PembaruanObjek, PesanKomunikasi, ProfilKader, TugasPemetaan } from "../types";
 import { dihitungUntukCapaian } from "./geoUtils";
+import { hitungSkorKualitasData } from "./kualitasData";
 
 export const TARGET_TITIK = 50;
 export const TARGET_TRACKING_KM = 5.0;
@@ -307,20 +308,36 @@ export const DAFTAR_20_LEVEL_GIS: InfoLevelGis[] = [
 ];
 
 /**
- * Menghitung posisi level kader dari 20 Level GIS berdasarkan:
- * 1. Banyak data yang diambil (Titik, Jalur Tracking km, Poligon Ha, Pembaruan objek)
- * 2. Variasi data (Keberagaman kategori survei & jenis geometri)
- * 3. Keaktifan dalam diskusi (Pesan yang dibuat, berbagi pin koordinat, pesan suara)
- * 4. Kualitas & kelengkapan data (Foto geotagging, atribut lokal/ilmiah, akurasi GPS, verifikasi)
- * 5. Penyelesaian penugasan pemetaan lapangan
+ * Menentukan apakah data spasial sah dihitung sebagai syarat kenaikan level:
+ * 1. Tidak berada di folder pencadangan 90 hari dan tidak berstatus ditolak.
+ * 2. Sudah ada di database aktif Google Drive (`tersinkron` atau `terverifikasi`),
+ *    bukan sekadar draf lokal di perangkat.
+ * 3. Bukan data simulasi, data impor wajib terverifikasi, dan memenuhi standar geometri valid.
+ */
+export function dataSahUntukLevel(
+  item: DataSpasialItem,
+  idsPencadangan?: ReadonlySet<string>
+): boolean {
+  if (idsPencadangan?.has(item.id) || item.dalamPencadangan === true) return false;
+  if (item.statusSinkron === "ditolak") return false;
+  if (item.statusSinkron !== "tersinkron" && item.statusSinkron !== "terverifikasi") return false;
+  if (!dihitungUntukCapaian(item)) return false;
+  if (!hitungSkorKualitasData(item).geometriValid) return false;
+  return true;
+}
+
+/**
+ * Menghitung posisi level kader dari 20 Level GIS berdasarkan data yang ada di database asli aktif
+ * (bukan data lokal yang belum masuk database dan bukan data di folder pencadangan).
  */
 export function hitungPeringkatGis20Level(
   semuaData: DataSpasialItem[],
   profil: ProfilKader,
   pesanList: PesanKomunikasi[] = [],
-  tugasList: TugasPemetaan[] = []
+  tugasList: TugasPemetaan[] = [],
+  idsPencadangan?: ReadonlySet<string>
 ): HasilPeringkatGis20 {
-  const dataKader = semuaData.filter((d) => d.idKader === profil.idKader && d.statusSinkron !== "ditolak" && dihitungUntukCapaian(d));
+  const dataKader = semuaData.filter((d) => d.idKader === profil.idKader && dataSahUntukLevel(d, idsPencadangan));
 
   // 1. Skor Volume Data
   const jmlTitik = dataKader.filter((d) => d.jenisGeometri === "point").length;
@@ -429,10 +446,12 @@ export function hitungPeringkatGis20Level(
 export function hitungCapaianKader(
   semuaData: DataSpasialItem[],
   profil: ProfilKader,
-  hanyaTerverifikasi: boolean = false
+  hanyaTerverifikasi: boolean = false,
+  idsPencadangan?: ReadonlySet<string>
 ): HasilPerhitunganCapaian {
   const dataKader = semuaData.filter((d) => {
     if (d.idKader !== profil.idKader) return false;
+    if (idsPencadangan?.has(d.id) || d.dalamPencadangan === true) return false;
     if (d.statusSinkron === "ditolak") return false;
     if (!dihitungUntukCapaian(d)) return false;
     if (hanyaTerverifikasi) return d.statusSinkron === "terverifikasi";

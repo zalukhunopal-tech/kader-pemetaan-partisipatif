@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import {
   AreaPetaOffline,
   DataSpasialItem,
+  ItemPencadanganSpasial,
   KaderAktifPresence,
   LapisanSpasial,
   MenuTab,
@@ -24,6 +25,7 @@ import {
   muatKaderAktif,
   muatStatusGDrive,
   muatLapisan,
+  muatPencadanganSpasial,
   muatPengumuman,
   muatPesan,
   muatProfil,
@@ -34,6 +36,7 @@ import {
   simpanKaderAktif,
   simpanStatusGDrive,
   simpanLapisan,
+  simpanPencadanganSpasial,
   simpanPengumuman,
   simpanPesan,
   simpanProfil,
@@ -44,7 +47,23 @@ import { AkunSesi, aksesAdminSah, capWilayah, muatSesiPengguna, simpanSesiPenggu
 import { catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
 import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi, useVersiKunciAplikasi } from "./lib/kunciAplikasi";
 import { metodeKunciCepat } from "./lib/kunciCepat";
-import { gdriveTerpasang, sinkronkanDataKeGDrive, terapkanHasilSinkron } from "./lib/gdriveSync";
+import {
+  gdriveTerpasang,
+  hapusPermanenCadanganGDrive,
+  perbaruiStatusVerifikasiGDrive,
+  pindahKePencadanganGDrive,
+  pulihkanDariPencadanganGDrive,
+  sinkronkanDataKeGDrive,
+  tarikStatusDatabaseGDrive,
+  terapkanHasilSinkron,
+  useAutoSyncGDrive
+} from "./lib/gdriveSync";
+import {
+  pindahkanKePencadangan,
+  pisahkanPencadanganKedaluwarsa,
+  pulihkanItemDariPencadangan,
+  rekonsiliasiDatabaseDenganGDrive
+} from "./lib/pencadanganData";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
@@ -62,7 +81,6 @@ import { PengaturanEksporView } from "./components/PengaturanEksporView";
 import { KonteksEkspor } from "./lib/eksporFilter";
 import { InteractiveMap } from "./components/InteractiveMap";
 import { DatabaseSyncView } from "./components/DatabaseSyncView";
-import { useAutoSyncGDrive } from "./lib/gdriveSync";
 import { RewardView } from "./components/RewardView";
 import { TugasPengumumanView } from "./components/TugasPengumumanView";
 import { KomunikasiView } from "./components/KomunikasiView";
@@ -171,6 +189,12 @@ export const App: React.FC = () => {
   });
 
   const [dataSpasial, setDataSpasial] = useState<DataSpasialItem[]>(() => muatDataSpasial());
+  const [pencadanganList, setPencadanganList] = useState<ItemPencadanganSpasial[]>(() => {
+    const hasil = pisahkanPencadanganKedaluwarsa(muatPencadanganSpasial());
+    if (hasil.kedaluwarsa.length > 0) simpanPencadanganSpasial(hasil.aktif);
+    return hasil.aktif;
+  });
+  const [sedangRekonsiliasi, setSedangRekonsiliasi] = useState<boolean>(false);
   const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() => muatAreaOffline());
   const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() => muatLapisan());
   const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() => muatSertifikat());
@@ -262,6 +286,7 @@ export const App: React.FC = () => {
 
   useEffect(() => simpanProfil(profil), [profil]);
   useEffect(() => simpanDataSpasial(dataSpasial), [dataSpasial]);
+  useEffect(() => simpanPencadanganSpasial(pencadanganList), [pencadanganList]);
   useEffect(() => simpanAreaOffline(areaOffline), [areaOffline]);
   useEffect(() => simpanLapisan(lapisanList), [lapisanList]);
   useEffect(() => simpanSertifikat(sertifikatList), [sertifikatList]);
@@ -642,15 +667,111 @@ export const App: React.FC = () => {
     tampilkanToast(`✓ Data "${dataDiubah.judul}" berhasil diperbarui oleh Admin.`);
   };
 
-  // Handler Hapus Data Spasial oleh Admin (Admin Feature)
+  // Handler Hapus Data Spasial oleh Admin -> pindah ke Pencadangan 90 Hari (lokal + Google Drive Pencadangan_90_Hari)
   const handleHapusDataSpasial = (id: string) => {
     const indeks = dataSpasial.findIndex((d) => d.id === id);
     const item = dataSpasial[indeks];
-    setDataSpasial((prev) => prev.filter((d) => d.id !== id));
     if (!item) return;
-    tampilkanToast(`Data "${item.judul}" dihapus.`, () =>
-      setDataSpasial((prev) => (prev.some((d) => d.id === id) ? prev : [...prev.slice(0, indeks), item, ...prev.slice(indeks)]))
-    );
+
+    const entri = pindahkanKePencadangan(item, sesiPengguna?.nama || "Admin GIS");
+    setDataSpasial((prev) => prev.filter((d) => d.id !== id));
+    setPencadanganList((prev) => [entri, ...prev.filter((p) => p.id !== id)]);
+
+    if (gdriveTerpasang() && sedangOnline && (item.statusSinkron === "tersinkron" || item.statusSinkron === "terverifikasi")) {
+      void pindahKePencadanganGDrive(entri).then((res) => {
+        if (res.sukses) {
+          setPencadanganList((prev) => prev.map((p) => (p.id === id ? { ...p, statusGDrive: "di_pencadangan" } : p)));
+        }
+      });
+    }
+
+    tampilkanToast(`Data "${item.judul}" dipindahkan ke Pencadangan 90 Hari (tidak lagi dihitung ke level).`, () => {
+      setPencadanganList((prev) => prev.filter((p) => p.id !== id));
+      setDataSpasial((prev) => (prev.some((d) => d.id === id) ? prev : [...prev.slice(0, indeks), item, ...prev.slice(indeks)]));
+      if (gdriveTerpasang() && sedangOnline && (item.statusSinkron === "tersinkron" || item.statusSinkron === "terverifikasi")) {
+        void pulihkanDariPencadanganGDrive(entri);
+      }
+    });
+  };
+
+  // Handler Pulihkan Data dari Pencadangan 90 Hari ke Database Aktif
+  const handlePulihkanCadangan = (id: string) => {
+    const entri = pencadanganList.find((p) => p.id === id);
+    if (!entri) return;
+    const itemPulih = pulihkanItemDariPencadangan(entri);
+    setPencadanganList((prev) => prev.filter((p) => p.id !== id));
+    setDataSpasial((prev) => (prev.some((d) => d.id === id) ? prev : [itemPulih, ...prev]));
+    if (gdriveTerpasang() && sedangOnline && entri.statusGDrive !== "lokal_saja") {
+      void pulihkanDariPencadanganGDrive(entri);
+    }
+    tampilkanToast(`✓ "${itemPulih.judul}" dipulihkan kembali ke database aktif.`);
+  };
+
+  // Handler Hapus Permanen dari Pencadangan 90 Hari
+  const handleHapusPermanenCadangan = (id: string) => {
+    const entri = pencadanganList.find((p) => p.id === id);
+    if (!entri) return;
+    setPencadanganList((prev) => prev.filter((p) => p.id !== id));
+    if (gdriveTerpasang() && sedangOnline && entri.statusGDrive !== "lokal_saja") {
+      void hapusPermanenCadanganGDrive(id);
+    }
+    tampilkanToast(`🗑️ "${entri.data.judul}" dihapus secara permanen.`);
+  };
+
+  // Sinkronkan perubahan status pencadangan tertunda & rekonsiliasi status aktif dengan Google Drive
+  const jalankanRekonsiliasiGDrive = async (otomatis = false) => {
+    if (!gdriveTerpasang() || !sedangOnline || sedangRekonsiliasi) {
+      if (!otomatis) {
+        tampilkanToast(
+          !gdriveTerpasang()
+            ? "Koneksi Google Drive belum dipasang pada build ini."
+            : "Perangkat sedang offline; pengecekan database GDrive ditunda."
+        );
+      }
+      return;
+    }
+    setSedangRekonsiliasi(true);
+    try {
+      // 1. Bersihkan entri lokal yang sudah lewat 90 hari
+      const hasilRetensi = pisahkanPencadanganKedaluwarsa(pencadanganList);
+      for (const kadaluarsa of hasilRetensi.kedaluwarsa) {
+        if (kadaluarsa.statusGDrive !== "lokal_saja") {
+          await hapusPermanenCadanganGDrive(kadaluarsa.id);
+        }
+      }
+
+      // 2. Dorong pemindahan ke pencadangan yang sempat tertunda saat offline
+      const cadanganTersinkron = await Promise.all(
+        hasilRetensi.aktif.map(async (entri) => {
+          if (entri.statusGDrive === "menunggu_pindah") {
+            const res = await pindahKePencadanganGDrive(entri);
+            if (res.sukses) return { ...entri, statusGDrive: "di_pencadangan" as const };
+          }
+          return entri;
+        })
+      );
+
+      // 3. Tarik daftar ID aktif & pencadangan asli dari spreadsheet Google Drive
+      const tarik = await tarikStatusDatabaseGDrive();
+      if (tarik.sukses && tarik.snapshot) {
+        const rek = rekonsiliasiDatabaseDenganGDrive(dataSpasial, cadanganTersinkron, tarik.snapshot);
+        setDataSpasial(rek.dataAktif);
+        setPencadanganList(rek.pencadangan);
+        if (!otomatis) {
+          tampilkanToast(
+            `✓ Database GDrive dicek: ${rek.dataAktif.length} aktif, ${rek.pencadangan.length} di pencadangan` +
+              (rek.jumlahDipindahKeCadangan + rek.jumlahDihapusDariLokal > 0
+                ? ` (${rek.jumlahDipindahKeCadangan + rek.jumlahDihapusDariLokal} disesuaikan).`
+                : ".")
+          );
+        }
+      } else {
+        setPencadanganList(cadanganTersinkron);
+        if (!otomatis) tampilkanToast(`⚠️ ${tarik.pesan || "Belum dapat membaca status database GDrive."}`);
+      }
+    } finally {
+      setSedangRekonsiliasi(false);
+    }
   };
 
   // Handler Tambah Tugas Baru oleh Admin (Admin Feature)
@@ -744,6 +865,16 @@ export const App: React.FC = () => {
     // sehingga satu perubahan menghasilkan paling banyak satu percobaan sinkron otomatis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sedangOnline, antreanLokalCount, adaSesi]);
+
+  const pendingCadanganCount = pencadanganList.filter((c) => c.statusGDrive === "menunggu_pindah").length;
+  useEffect(() => {
+    if (!adaSesi || !sedangOnline || !gdriveTerpasang() || pendingCadanganCount === 0) return;
+    const t = window.setTimeout(() => {
+      void jalankanRekonsiliasiGDrive(true);
+    }, 2500);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedangOnline, pendingCadanganCount, adaSesi]);
 
   // Handler Fokus ke Titik Koordinat di Peta
   const handleFokusKePeta = (lat: number, lng: number, label: string) => {
@@ -1108,6 +1239,7 @@ export const App: React.FC = () => {
             {tabAktif === "reward" && (
               <RewardView
                 dataSpasial={dataSpasial}
+                pencadanganList={pencadanganList}
                 profil={profil}
                 peran={aksesAdmin ? "admin" : "kader"}
                 sertifikatList={sertifikatList}
@@ -1143,16 +1275,24 @@ export const App: React.FC = () => {
             {tabAktif === "admin" && aksesAdmin && (
               <AdminDashboardView
                 dataSpasial={dataSpasial}
+                pencadanganList={pencadanganList}
                 profilKader={profil}
                 sertifikatList={sertifikatList}
                 tugasList={tugasList}
                 kaderAktifList={kaderAktifList}
                 sesiAdmin={sesiPengguna}
-                onVerifikasiData={wajibAdmin((id: string, status: StatusSinkron, catatan?: string) =>
-                  setDataSpasial((prev) => prev.map((d) => (d.id === id ? { ...d, statusSinkron: status, catatanAdmin: catatan } : d)))
-                )}
+                onVerifikasiData={wajibAdmin((id: string, status: StatusSinkron, catatan?: string) => {
+                  setDataSpasial((prev) => prev.map((d) => (d.id === id ? { ...d, statusSinkron: status, catatanAdmin: catatan } : d)));
+                  if (gdriveTerpasang() && sedangOnline) {
+                    void perbaruiStatusVerifikasiGDrive(id, status, catatan);
+                  }
+                })}
                 onUbahDataSpasial={wajibAdmin(handleUbahDataSpasial)}
                 onHapusDataSpasial={wajibAdmin(handleHapusDataSpasial)}
+                onPulihkanCadangan={wajibAdmin(handlePulihkanCadangan)}
+                onHapusPermanenCadangan={wajibAdmin(handleHapusPermanenCadangan)}
+                onRekonsiliasiGDrive={wajibAdmin(() => void jalankanRekonsiliasiGDrive(false))}
+                sedangRekonsiliasi={sedangRekonsiliasi}
                 onTerbitkanSertifikat={wajibAdmin((sert: SertifikatKader) => {
                   // Satu sertifikat per kader dan nomor tidak boleh kembar
                   if (sertifikatList.some((s) => s.idKader === sert.idKader || s.nomorSertifikat === sert.nomorSertifikat)) {

@@ -90,12 +90,26 @@ describe("paket capaian", () => {
     expect(cLengkap.berhakSertifikat).toBe(true);
     expect(cLengkap.totalPaketSelesai).toBe(1);
   });
-  it("1 titik baru masuk aplikasi berada di Level 1 (bukan Level 3)", () => {
-    const satuTitik = banyakTitik(1);
-    const hasil = hitungPeringkatGis20Level(satuTitik, profil);
-    expect(hasil.levelSaatIni.level).toBe(1);
-    expect(hasil.levelSaatIni.namaLevel).toBe("Penjelajah Dasar");
-    expect(hasil.skorTotal).toBe(10); // hanya skor volume 10, bonus variasi = 0
+  it("data lokal yang belum masuk database aktif tidak menaikkan skor level; setelah tersinkron ke database baru dihitung di Level 1+", () => {
+    const satuTitikLokal = banyakTitik(1, { statusSinkron: "lokal" });
+    const hasilLokal = hitungPeringkatGis20Level(satuTitikLokal, profil);
+    expect(hasilLokal.levelSaatIni.level).toBe(1);
+    expect(hasilLokal.levelSaatIni.namaLevel).toBe("Penjelajah Dasar");
+    expect(hasilLokal.skorTotal).toBe(0);
+
+    const satuTitikDb = banyakTitik(1, { statusSinkron: "tersinkron" });
+    const hasilDb = hitungPeringkatGis20Level(satuTitikDb, profil);
+    expect(hasilDb.levelSaatIni.level).toBe(1);
+    expect(hasilDb.skorTotal).toBe(20); // skor volume 10 + tersinkron 10, bonus variasi = 0
+  });
+  it("data di folder pencadangan 90 hari tidak dihitung sebagai syarat kenaikan level", () => {
+    const dataSync = [...banyakTitik(10, { statusSinkron: "tersinkron" })];
+    const setCadangan = new Set(dataSync.map((d) => d.id));
+    const tanpaCadangan = hitungPeringkatGis20Level(dataSync, profil);
+    const saatDiCadangan = hitungPeringkatGis20Level(dataSync, profil, [], [], setCadangan);
+    expect(tanpaCadangan.skorTotal).toBeGreaterThan(0);
+    expect(saatDiCadangan.skorTotal).toBe(0);
+    expect(saatDiCadangan.levelSaatIni.level).toBe(1);
   });
   it("data kader lain dan data ditolak tidak dihitung", () => {
     const data = [...banyakTitik(30), ...banyakTitik(30, { idKader: "KDR-002" }).map((d) => ({ ...d, id: "Z" + d.id }))];
@@ -119,9 +133,9 @@ describe("data simulasi (K2)", () => {
     const sim = banyakTitik(30, { koordinat: [{ lat: 0, lng: 0, simulasi: true }] }).map((d) => ({ ...d, id: "S" + d.id }));
     expect(hitungCapaianKader([...sim, ...banyakTitik(20)], profil).totalPoinTitik).toBe(20);
   });
-  it("skor level data simulasi = 0, data asli > 0", () => {
-    expect(hitungPeringkatGis20Level([jalur(true, true)], profil).skorTotal).toBe(0);
-    expect(hitungPeringkatGis20Level([jalur(true)], profil).skorTotal).toBeGreaterThan(0);
+  it("skor level data simulasi = 0, data asli di database > 0", () => {
+    expect(hitungPeringkatGis20Level([{ ...jalur(true, true), statusSinkron: "terverifikasi" }], profil).skorTotal).toBe(0);
+    expect(hitungPeringkatGis20Level([{ ...jalur(true), statusSinkron: "tersinkron" }], profil).skorTotal).toBeGreaterThan(0);
   });
 });
 

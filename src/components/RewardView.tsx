@@ -6,6 +6,7 @@ import { CincinProgresSvg, KunciLevelSvg, SiluetOrangSvg } from "./sertifikat/Ik
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DataSpasialItem,
+  ItemPencadanganSpasial,
   LogoSertifikatItem,
   PenandatanganSertifikatItem,
   PeranPengguna,
@@ -22,6 +23,7 @@ import {
   TARGET_TITIK,
   TARGET_TRACKING_KM
 } from "../lib/rewardEngine";
+import { idsDiPencadangan } from "../lib/pencadanganData";
 import {
   LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
 import {
@@ -46,6 +48,7 @@ const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 
 interface RewardViewProps {
   dataSpasial: DataSpasialItem[];
+  pencadanganList?: ItemPencadanganSpasial[];
   profil: ProfilKader;
   peran?: PeranPengguna;
   sertifikatList: SertifikatKader[];
@@ -57,6 +60,7 @@ interface RewardViewProps {
 
 export const RewardView: React.FC<RewardViewProps> = ({
   dataSpasial,
+  pencadanganList = [],
   profil,
   peran = "kader",
   sertifikatList,
@@ -69,14 +73,26 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const inputFotoRef = useRef<HTMLInputElement | null>(null);
   const [bukaAturSertifikat, setBukaAturSertifikat] = useState(false);
 
-  // Kemajuan yang terlihat kader memakai semua data; kelayakan sertifikat hanya dari data terverifikasi
-  const capaian = useMemo(() => hitungCapaianKader(dataSpasial, profil, false), [dataSpasial, profil]);
-  const capaianTerverifikasi = useMemo(() => hitungCapaianKader(dataSpasial, profil, true), [dataSpasial, profil]);
+  const idsCadangan = useMemo(() => idsDiPencadangan(pencadanganList), [pencadanganList]);
+  // Kemajuan yang terlihat kader memakai semua data non-cadangan; kelayakan sertifikat hanya dari data terverifikasi
+  const capaian = useMemo(() => hitungCapaianKader(dataSpasial, profil, false, idsCadangan), [dataSpasial, profil, idsCadangan]);
+  const capaianTerverifikasi = useMemo(() => hitungCapaianKader(dataSpasial, profil, true, idsCadangan), [dataSpasial, profil, idsCadangan]);
 
   const peringkatGis = useMemo(
-    () => hitungPeringkatGis20Level(dataSpasial, profil, pesanList, tugasList),
-    [dataSpasial, profil, pesanList, tugasList]
+    () => hitungPeringkatGis20Level(dataSpasial, profil, pesanList, tugasList, idsCadangan),
+    [dataSpasial, profil, pesanList, tugasList, idsCadangan]
   );
+
+  const statistikDatabaseLevel = useMemo(() => {
+    const milikSaya = dataSpasial.filter((d) => d.idKader === profil.idKader && !idsCadangan.has(d.id));
+    const menungguSync = milikSaya.filter((d) => d.statusSinkron === "lokal" || d.statusSinkron === "mengunggah").length;
+    const diCadangan = pencadanganList.filter((c) => c.data.idKader === profil.idKader).length;
+    return {
+      sahDiDatabase: peringkatGis.rincianSkor.detailStatistik.totalObjek,
+      menungguSync,
+      diCadangan
+    };
+  }, [dataSpasial, pencadanganList, profil.idKader, idsCadangan, peringkatGis.rincianSkor.detailStatistik.totalObjek]);
 
   const { levelSaatIni, persenProgresLevel } = peringkatGis;
 
@@ -617,6 +633,12 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </small>
         </div>
       </div>
+
+      <p id="info-korelasi-level-database" className="level-db-correlation-note">
+        Syarat Level dihitung hanya dari data valid di database aktif ({statistikDatabaseLevel.sahDiDatabase} data).
+        {statistikDatabaseLevel.menungguSync > 0 && ` Menunggu sinkron: ${statistikDatabaseLevel.menungguSync}.`}
+        {statistikDatabaseLevel.diCadangan > 0 && ` Di Pencadangan 90 Hari (tidak dihitung): ${statistikDatabaseLevel.diCadangan}.`}
+      </p>
 
       {/* 2. GRAFIK CINCIN VISUAL: CAPAIAN SPASIAL (TITIK, JALUR, POLIGON) */}
       <div className="visual-rings-grid">

@@ -1,6 +1,7 @@
 import {
   AreaPetaOffline,
   DataSpasialItem,
+  ItemPencadanganSpasial,
   KaderAktifPresence,
   LapisanSpasial,
   PengumumanBroadcast,
@@ -16,6 +17,7 @@ import { bacaTeks, siapkanPenyimpanan, tulisTeks } from "./penyimpanan";
 // Versi 5 storage keys — seluruh contoh/dummy data dihapus bersih
 const KEY_PROFIL = "geokader_profil_v5";
 const KEY_SPASIAL = "geokader_data_spasial_v5";
+const KEY_PENCADANGAN_SPASIAL = "geokader_pencadangan_spasial_v5";
 const KEY_OFFLINE_MAPS = "geokader_offline_maps_v5";
 const KEY_LAPISAN = "geokader_lapisan_v5";
 const KEY_SERTIFIKAT = "geokader_sertifikat_v5";
@@ -176,3 +178,7 @@ export const muatStatusGDrive = (): StatusGDrive => {
   return v.terakhirSinkron ? { terakhirSinkron: v.terakhirSinkron } : {};
 };
 export const simpanStatusGDrive = (v: StatusGDrive) => simpanJson(KEY_GDRIVE, { terakhirSinkron: v.terakhirSinkron ?? "" });
+
+export const muatPencadanganSpasial = () =>
+  unikkanId(bacaJson<ItemPencadanganSpasial[]>(KEY_PENCADANGAN_SPASIAL, []));
+export const simpanPencadanganSpasial = (v: ItemPencadanganSpasial[]) => simpanJson(KEY_PENCADANGAN_SPASIAL, v);

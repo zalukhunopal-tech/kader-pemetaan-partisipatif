@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { DataSpasialItem, WilayahAdministrasi } from "../types";
+import { DataSpasialItem, ItemPencadanganSpasial, StatusSinkron, WilayahAdministrasi } from "../types";
 import { eksporKeGeoJSON, keWKT } from "./geoUtils";
 import { wilayahAkun } from "./auth";
 import { namaBerkasData, wilayahUntukData } from "./wilayah";
 import { sinkronkanBertahapKeGDrive } from "./gdriveBertahap";
+import { SnapshotStatusDatabaseServer } from "./pencadanganData";
 
 /**
  * Unggahan data spasial ke Google Drive pemilik aplikasi lewat Web App Apps Script (apps-script/Code.gs).
@@ -464,5 +465,145 @@ export function useAutoSyncGDrive(
     pesanStatus,
     sedangSinkron,
     sinkronSekarang: jalankanSinkron
+  };
+}
+
+async function kirimAksiDrive(
+  payload: Record<string, unknown>,
+  koneksi: KoneksiGDrive = KONEKSI_GDRIVE
+): Promise<Record<string, unknown>> {
+  if (!gdriveTerpasang(koneksi)) {
+    return { sukses: false, belumDiatur: true, pesan: "Koneksi Google Drive belum diatur pada build ini." };
+  }
+  const pengendali = new AbortController();
+  const pewaktu = setTimeout(() => pengendali.abort(), WAKTU_TUNGGU_MS);
+  try {
+    const resp = await fetch(koneksi.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ ...payload, token: koneksi.token }),
+      signal: pengendali.signal
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return (await resp.json()) as Record<string, unknown>;
+  } catch (err) {
+    return { sukses: false, pesan: pesanGalat(err) };
+  } finally {
+    clearTimeout(pewaktu);
+  }
+}
+
+export async function pindahKePencadanganGDrive(
+  entri: ItemPencadanganSpasial,
+  koneksi: KoneksiGDrive = KONEKSI_GDRIVE,
+  cariWilayah: CariWilayahAkun = wilayahAkun
+): Promise<{ sukses: boolean; pesan?: string }> {
+  const tujuan = tujuanDrive(entri.data, cariWilayah);
+  const res = await kirimAksiDrive(
+    {
+      action: "move_to_backup",
+      idData: entri.id,
+      retensiHari: 90,
+      dipindahkanPada: entri.dipindahkanPada,
+      kedaluwarsaPada: entri.kedaluwarsaPada,
+      alasan: entri.alasan ?? "Dihapus admin",
+      olehAdmin: entri.dihapusOleh ?? "Admin GIS",
+      record: {
+        id: entri.data.id,
+        idKader: entri.data.idKader,
+        namaKader: entri.data.namaKader,
+        desaWilayah: entri.data.desaWilayah,
+        wilayah: tujuan.wilayah,
+        namaBerkas: tujuan.namaBerkas,
+        jenisGeometri: entri.data.jenisGeometri,
+        kategori: entri.data.kategori,
+        judul: entri.data.judul,
+        panjangKm: entri.data.panjangKm,
+        luasHa: entri.data.luasHa,
+        wkt: keWKT(entri.data),
+        createdAt: entri.data.createdAt,
+        updatedAt: entri.data.updatedAt
+      }
+    },
+    koneksi
+  );
+  return { sukses: Boolean(res.sukses), pesan: res.pesan ? String(res.pesan) : undefined };
+}
+
+export async function pulihkanDariPencadanganGDrive(
+  entri: ItemPencadanganSpasial,
+  koneksi: KoneksiGDrive = KONEKSI_GDRIVE,
+  cariWilayah: CariWilayahAkun = wilayahAkun
+): Promise<{ sukses: boolean; pesan?: string }> {
+  const tujuan = tujuanDrive(entri.data, cariWilayah);
+  const res = await kirimAksiDrive(
+    {
+      action: "restore_from_backup",
+      idData: entri.id,
+      record: {
+        id: entri.data.id,
+        idKader: entri.data.idKader,
+        namaKader: entri.data.namaKader,
+        desaWilayah: entri.data.desaWilayah,
+        wilayah: tujuan.wilayah,
+        namaBerkas: tujuan.namaBerkas,
+        jenisGeometri: entri.data.jenisGeometri,
+        kategori: entri.data.kategori,
+        judul: entri.data.judul,
+        namaLokal: entri.data.namaLokal || "",
+        namaIlmiah: entri.data.namaIlmiah || "",
+        jumlahIndividu: entri.data.jumlahIndividu ?? "",
+        manfaatMasyarakat: entri.data.manfaatMasyarakat || "",
+        kondisiAncaman: entri.data.kondisiAncaman || "",
+        deskripsi: entri.data.deskripsi,
+        wkt: keWKT(entri.data),
+        panjangKm: entri.data.panjangKm,
+        luasHa: entri.data.luasHa,
+        createdAt: entri.data.createdAt,
+        updatedAt: new Date().toISOString()
+      }
+    },
+    koneksi
+  );
+  return { sukses: Boolean(res.sukses), pesan: res.pesan ? String(res.pesan) : undefined };
+}
+
+export async function hapusPermanenCadanganGDrive(
+  idData: string,
+  koneksi: KoneksiGDrive = KONEKSI_GDRIVE
+): Promise<{ sukses: boolean; pesan?: string }> {
+  const res = await kirimAksiDrive({ action: "delete_backup_permanent", idData }, koneksi);
+  return { sukses: Boolean(res.sukses), pesan: res.pesan ? String(res.pesan) : undefined };
+}
+
+export async function perbaruiStatusVerifikasiGDrive(
+  idData: string,
+  statusSinkron: StatusSinkron,
+  catatanAdmin?: string,
+  koneksi: KoneksiGDrive = KONEKSI_GDRIVE
+): Promise<{ sukses: boolean; pesan?: string }> {
+  const res = await kirimAksiDrive(
+    { action: "update_status_verifikasi", idData, statusSinkron, catatanAdmin },
+    koneksi
+  );
+  return { sukses: Boolean(res.sukses), pesan: res.pesan ? String(res.pesan) : undefined };
+}
+
+export async function tarikStatusDatabaseGDrive(
+  koneksi: KoneksiGDrive = KONEKSI_GDRIVE
+): Promise<{ sukses: boolean; snapshot?: SnapshotStatusDatabaseServer; pesan?: string }> {
+  const res = await kirimAksiDrive(
+    { action: "list_active_status", sekarangIso: new Date().toISOString() },
+    koneksi
+  );
+  if (!res.sukses || !Array.isArray(res.aktif) || !Array.isArray(res.pencadanganIds)) {
+    return { sukses: false, pesan: res.pesan ? String(res.pesan) : undefined };
+  }
+  return {
+    sukses: true,
+    snapshot: {
+      aktif: res.aktif as SnapshotStatusDatabaseServer["aktif"],
+      pencadanganIds: res.pencadanganIds.map(String)
+    }
   };
 }

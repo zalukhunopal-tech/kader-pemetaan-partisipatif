@@ -101,6 +101,12 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
     getLastRow() {
       return this.baris.length;
     }
+    deleteRow(r: number) {
+      if (r >= 1 && r <= this.baris.length) {
+        this.baris.splice(r - 1, 1);
+        this.catatan.splice(r - 1, 1);
+      }
+    }
     getRange(r: number, c: number, nr = 1, nc = 1) {
       const baris = this.baris;
       const catatan = this.catatan;
@@ -783,5 +789,51 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
     expect(tabPolygon?.baris[1]).toEqual(["Area Perkebunan Desa", 12.5, "Kebun pangan", "", "#000000", "#00B050"]);
     expect(tabLine?.baris[1]).toEqual(["Jalan Utama", 1250, "Akses jalan warga", "", "#FF0000"]);
     expect(tabPoint?.baris[1]).toEqual(["Masjid Raya", "Agama", "Tempat ibadah", "", "mosque.png"]);
+  });
+
+  it("memindahkan data yang dihapus ke folder Pencadangan_90_Hari, dapat memulihkan sebelum 90 hari, dan menghapus permanen setelah 90 hari", () => {
+    const L = buatLingkungan();
+    L.kirim(payload([rec("del-1", { wilayah: JAMBI, judul: "Titik Uji Hapus", namaBerkas: "budi_uji_hapus_november_2026" })]));
+    expect(L.tabData().baris.length).toBe(2);
+    expect(desaJambi(L)?.berkasAktif()).toHaveLength(1);
+
+    // 1. Pindah ke pencadangan 90 hari
+    const pindah = L.kirim({
+      token: "rahasia",
+      action: "move_to_backup",
+      idData: "del-1",
+      retensiHari: 90,
+      dipindahkanPada: "2026-11-01T00:00:00.000Z",
+      kedaluwarsaPada: "2027-01-30T00:00:00.000Z",
+      alasan: "Data belum memenuhi standar",
+      olehAdmin: "Admin Nopal"
+    });
+    expect(pindah.sukses).toBe(true);
+    // Sudah keluar dari tabel Data_Spasial dan folder aktif
+    expect(L.tabData().baris.length).toBe(1);
+    expect(desaJambi(L)?.berkasAktif()).toHaveLength(0);
+
+    // Terdaftar di folder & tab Pencadangan_90_Hari
+    const statusSetelahPindah = L.kirim({ token: "rahasia", action: "list_active_status", sekarangIso: "2026-11-10T00:00:00.000Z" });
+    expect(statusSetelahPindah.aktif).toEqual([]);
+    expect(statusSetelahPindah.pencadanganIds).toEqual(["del-1"]);
+
+    // 2. Pulihkan dari pencadangan sebelum 90 hari
+    const pulih = L.kirim({ token: "rahasia", action: "restore_from_backup", idData: "del-1" });
+    expect(pulih.sukses).toBe(true);
+    expect(L.tabData().baris.length).toBe(2);
+    expect(desaJambi(L)?.berkasAktif()).toHaveLength(1);
+
+    // 3. Pindah lagi lalu lewati 90 hari -> otomatis terhapus permanen saat purge/list
+    L.kirim({
+      token: "rahasia",
+      action: "move_to_backup",
+      idData: "del-1",
+      dipindahkanPada: "2026-08-01T00:00:00.000Z",
+      kedaluwarsaPada: "2026-10-30T00:00:00.000Z"
+    });
+    const statusSetelah90Hari = L.kirim({ token: "rahasia", action: "list_active_status", sekarangIso: "2026-11-16T00:00:00.000Z" });
+    expect(statusSetelah90Hari.aktif).toEqual([]);
+    expect(statusSetelah90Hari.pencadanganIds).toEqual([]);
   });
 });
