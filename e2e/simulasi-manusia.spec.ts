@@ -800,3 +800,58 @@ test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung 
   expect(galat).toEqual([]);
   await tutup();
 });
+
+test("tekan back 1 kali hanya menampilkan peringatan dan baru keluar pada tekan back ke-2", async ({ browser }) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  // Beri entri riwayat asal yang sah (same-origin) sebelum membuka aplikasi
+  await p.goto("http://localhost:4173/icon.svg");
+  const urlAsal = p.url();
+
+  // Uji pada halaman masuk setelah interaksi ringan (fokus kolom email) sebelum login:
+  // Back ke-1 harus tetap menahan di aplikasi & tampilkan peringatan; Back ke-2 baru keluar ke icon.svg
+  await p.goto("http://localhost:4173/");
+  const inputEmail = p.getByPlaceholder("Masukkan alamat email");
+  await expect(inputEmail).toBeVisible();
+  await inputEmail.click();
+  const urlAplikasi = p.url();
+  await p.goBack();
+  expect(p.url()).toBe(urlAplikasi);
+  await expect(p.locator(".avenza-toast")).toContainText("Tekan kembali sekali lagi untuk keluar dari aplikasi.");
+  await p.goBack();
+  expect(p.url()).toBe(urlAsal);
+
+  // Masuk sebagai admin (riwayat: [icon.svg, URL_APP]) lalu uji alur setelah masuk
+  await masukSebagaiAdmin(p);
+
+  // 1. Jika halaman Bantuan sedang terbuka, tekan Back menutup Bantuan tanpa keluar
+  await p.locator(".avenza-toolbar-toggle-btn").click();
+  await p.locator(".avenza-overflow-item", { hasText: "Bantuan" }).click();
+  await expect(p.locator(".bantuan-page")).toBeVisible();
+  await p.goBack();
+  await expect(p.locator(".bantuan-page")).toBeHidden();
+  expect(p.url()).toBe(urlAplikasi);
+
+  // 2. Tekan Back ke-1 di layar utama: tetap berada di aplikasi dan muncul toast peringatan
+  await p.goBack();
+  expect(p.url()).toBe(urlAplikasi);
+  await expect(p.locator(".avenza-toast")).toContainText("Tekan kembali sekali lagi untuk keluar dari aplikasi.");
+
+  // 3. Tunggu lewat 2 detik lalu tekan Back lagi: tetap dicegat ulang (bukan langsung keluar)
+  await p.waitForTimeout(2300);
+  await p.goBack();
+  expect(p.url()).toBe(urlAplikasi);
+  await expect(p.locator(".avenza-toast")).toContainText("Tekan kembali sekali lagi untuk keluar dari aplikasi.");
+
+  // 4. Tekan Back ke-2 dalam 2 detik: baru diizinkan keluar dari aplikasi ke halaman asal
+  await p.goBack();
+  expect(p.url()).toBe(urlAsal);
+
+  expect(galat).toEqual([]);
+  await tutup();
+});

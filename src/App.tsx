@@ -78,6 +78,7 @@ import { NavigasiBawah } from "./components/app/NavigasiBawah";
 import { LayarPembukaTaka, sudahTampilSplashTakaSesiIni } from "./components/LayarPembukaTaka";
 import { BantuanBugView } from "./components/BantuanBugView";
 import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug";
+import { pasangPenjagaKembali, PESAN_TEKAN_KEMBALI_LAGI } from "./lib/penjagaKembali";
 
 export const App: React.FC = () => {
   const desktop = useDesktop();
@@ -317,13 +318,62 @@ export const App: React.FC = () => {
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
   /** Toast singkat; dengan `urungkan`, toast memuat tombol Urungkan dan tampil lebih lama */
-  const tampilkanToast = (pesan: string, urungkan?: () => void) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1, urungkan }));
+  const tampilkanToast = useCallback(
+    (pesan: string, urungkan?: () => void) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1, urungkan })),
+    []
+  );
   // Toast hilang 3,2 detik setelah toast TERAKHIR (toast baru membatalkan hitung mundur yang lama)
   useEffect(() => {
     if (!notifToast) return;
     const t = window.setTimeout(() => setNotifToast(null), notifToast.urungkan ? 6000 : 3200);
     return () => window.clearTimeout(t);
   }, [notifToast]);
+
+  // Cegah keluar langsung pada tekanan tombol Back pertama: tutup panel anak jika ada,
+  // atau minta pengguna menekan Back 2 kali dalam 2 detik sebelum keluar dari aplikasi.
+  const tutupLapisanTeratasRef = useRef<() => boolean>(() => false);
+  tutupLapisanTeratasRef.current = () => {
+    if (!sesiPengguna || layarKunci !== null) return false;
+    if (bukaMenuTitikTiga) {
+      setBukaMenuTitikTiga(false);
+      return true;
+    }
+    if (bukaKeamanan) {
+      setBukaKeamanan(false);
+      return true;
+    }
+    if (bukaGantiSandi) {
+      setBukaGantiSandi(false);
+      return true;
+    }
+    if (bukaBantuan) {
+      setBukaBantuan(false);
+      return true;
+    }
+    if (bukaPengaturanEkspor) {
+      setBukaPengaturanEkspor(false);
+      setKonteksEkspor(null);
+      return true;
+    }
+    if (bukaPemberitahuan) {
+      setBukaPemberitahuan(false);
+      return true;
+    }
+    if (tabAktif === "pustaka" && modePilihPustaka) {
+      setModePilihPustaka(false);
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(
+    () =>
+      pasangPenjagaKembali({
+        onTutupLapisanTeratas: () => tutupLapisanTeratasRef.current(),
+        onPeringatanKeluar: () => tampilkanToast(PESAN_TEKAN_KEMBALI_LAGI)
+      }),
+    [tampilkanToast]
+  );
 
   // Handler Login Berhasil
   const handleLoginSukses = (akun: AkunSesi) => {
@@ -761,12 +811,39 @@ export const App: React.FC = () => {
     setPengumumanList((prev) => [notif, ...prev]);
   };
 
+  const renderToast = (global = false) => {
+    if (!notifToast) return null;
+    const kelasPeta = !global && tabAktif === "peta" ? "di-peta" : "";
+    const kelasGlobal = global ? "toast-global" : "";
+    const kelasAksi = notifToast.urungkan ? "ada-aksi" : "";
+    const toast = (
+      <div className={`avenza-toast ${kelasGlobal} ${kelasPeta} ${kelasAksi}`.trim()} role="status">
+        <span>{notifToast.pesan}</span>
+        {notifToast.urungkan && (
+          <button
+            type="button"
+            className="toast-urungkan"
+            onClick={() => {
+              notifToast.urungkan?.();
+              setNotifToast(null);
+            }}
+          >
+            Urungkan
+          </button>
+        )}
+      </div>
+    );
+    const wadahPeta = !global && tabAktif === "peta" ? document.querySelector(".avz-hud-tengah") : null;
+    return wadahPeta ? createPortal(toast, wadahPeta) : toast;
+  };
+
   // JIKA PENGGUNA BELUM LOGIN, TAMPILKAN PORTAL LOGIN & DAFTAR LENGKAP
   if (!sesiPengguna) {
     return (
       <>
         {tampilSplashTaka && <LayarPembukaTaka onSelesai={() => setTampilSplashTaka(false)} />}
         <AuthModal onLoginSukses={handleLoginSukses} onBukaSplashTaka={() => setTampilSplashTaka(true)} />
+        {renderToast(true)}
       </>
     );
   }
@@ -784,13 +861,14 @@ export const App: React.FC = () => {
       onKeluar={handleLogout}
     />
   );
-  const denganKunci = (isi: React.ReactNode) => (
+  const denganKunci = (isi: React.ReactNode, denganToastGlobal = false) => (
     <>
       {tampilSplashTaka && <LayarPembukaTaka onSelesai={() => setTampilSplashTaka(false)} />}
       <div ref={bungkusRef} className="bungkus-terkunci" aria-hidden={layarKunci ? true : undefined}>
         {isi}
       </div>
       {lapisKunci}
+      {(layarKunci !== null || denganToastGlobal) && renderToast(true)}
     </>
   );
 
@@ -802,7 +880,8 @@ export const App: React.FC = () => {
         onTutup={() => setBukaPemberitahuan(false)}
         onBukaTargetDiPeta={handleFokusKePeta}
         onTandaiTugasSelesai={handleTandaiTugasSelesai}
-      />
+      />,
+      true
     );
   }
 
@@ -816,7 +895,8 @@ export const App: React.FC = () => {
           setBukaPengaturanEkspor(false);
           setKonteksEkspor(null);
         }}
-      />
+      />,
+      true
     );
   }
 
@@ -827,7 +907,8 @@ export const App: React.FC = () => {
         namaPengguna={sesiPengguna.nama}
         onPesan={tampilkanToast}
         onTutup={() => setBukaBantuan(false)}
-      />
+      />,
+      true
     );
   }
 
@@ -900,28 +981,7 @@ export const App: React.FC = () => {
 
       {/* TOAST FEEDBACK */}
       {/* Di tab peta, toast tinggal di sel tengah grid HUD peta agar tidak menutupi kontrol peta (CLAUDE.md, Aturan UI) */}
-      {notifToast &&
-        (() => {
-          const toast = (
-            <div className={`avenza-toast ${tabAktif === "peta" ? "di-peta" : ""} ${notifToast.urungkan ? "ada-aksi" : ""}`} role="status">
-              <span>{notifToast.pesan}</span>
-              {notifToast.urungkan && (
-                <button
-                  type="button"
-                  className="toast-urungkan"
-                  onClick={() => {
-                    notifToast.urungkan?.();
-                    setNotifToast(null);
-                  }}
-                >
-                  Urungkan
-                </button>
-              )}
-            </div>
-          );
-          const wadahPeta = tabAktif === "peta" ? document.querySelector(".avz-hud-tengah") : null;
-          return wadahPeta ? createPortal(toast, wadahPeta) : toast;
-        })()}
+      {layarKunci === null && renderToast(false)}
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
