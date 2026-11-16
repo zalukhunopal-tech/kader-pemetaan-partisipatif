@@ -729,3 +729,74 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
   expect(galat).toEqual([]);
   await tutup();
 });
+
+test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung rapi, Bantuan di Menu, dan inventaris bug otomatis/manual", async ({
+  browser
+}) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  await masukSebagaiAdmin(p);
+
+  // 1. Layar pembuka mempertahankan simbol maskot tanpa label teks maskot
+  await p.locator(".taka-topbar-mascot").click();
+  const splash = p.locator("#layar-pembuka-taka");
+  await expect(splash).toBeVisible();
+  await expect(splash.locator(".taka-splash-avatar")).toBeVisible();
+  await expect(splash.getByText(/MASKOT RESMI|Setiap titik punya cerita/i)).toHaveCount(0);
+  await splash.locator("#lewati-splash-taka").click();
+  await expect(splash).toBeHidden();
+
+  // 2. Titik sentuh tombol dan item menu mengikuti sudut melengkung (bukan kotak kaku)
+  await p.locator(".avenza-toolbar-toggle-btn").click();
+  const itemMenu = p.locator(".avenza-overflow-item").first();
+  await expect(itemMenu).toBeVisible();
+  const radiusItemMenu = await itemMenu.evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+  expect(radiusItemMenu).toBeGreaterThanOrEqual(6);
+  const radiusNavBawah = await p.locator(".avenza-nav-item").first().evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+  expect(radiusNavBawah).toBeGreaterThanOrEqual(8);
+
+  // 3. Bug saat pemakaian terinventaris otomatis + Menu "Bantuan" ada dan bisa tulis bug manual
+  await p.locator(".avenza-toolbar-toggle-btn").click(); // tutup dulu menu agar bisa picu event
+  await p.evaluate(() => {
+    window.dispatchEvent(new ErrorEvent("error", { message: "Uji bug otomatis pada peta" }));
+  });
+
+  await p.locator(".avenza-toolbar-toggle-btn").click();
+  const btnBantuan = p.locator(".avenza-overflow-item", { hasText: "Bantuan" });
+  await expect(btnBantuan).toBeVisible();
+  await btnBantuan.click();
+
+  const halBantuan = p.locator(".bantuan-page");
+  await expect(halBantuan).toBeVisible();
+  await expect(halBantuan.locator(".bantuan-bug-judul", { hasText: "Uji bug otomatis pada peta" })).toBeVisible();
+  await expect(halBantuan.getByText("Otomatis", { exact: true }).first()).toBeVisible();
+
+  await halBantuan.locator('input[placeholder*="Tombol tidak merespons"]').fill("Tombol tidak mulus di layar kecil");
+  await halBantuan.locator(".bantuan-textarea").fill("Saat mengetuk menu pilihan di sudut kiri masih terasa kotak di tepi.");
+  await halBantuan.getByRole("button", { name: "Simpan Catatan Bug" }).click();
+  await expect(halBantuan.getByText("Tombol tidak mulus di layar kecil")).toBeVisible();
+  await expect(halBantuan.getByText("Manual", { exact: true }).first()).toBeVisible();
+
+  // Pastikan tersimpan di localStorage agar terbawa ke sesi perbaikan berikutnya
+  const tersimpan = await p.evaluate(() => localStorage.getItem("geokader_inventaris_bug_v1") || "");
+  expect(tersimpan).toContain("Uji bug otomatis pada peta");
+  expect(tersimpan).toContain("Tombol tidak mulus di layar kecil");
+
+  await halBantuan.locator('button[aria-label="Kembali"]').click();
+  await expect(halBantuan).toBeHidden();
+
+  // Cek item alat peta juga punya sudut melengkung
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.waitForSelector(".map-canvas-container");
+  await p.getByRole("button", { name: "Alat peta" }).click();
+  const radiusAlat = await p.locator(".avz-tool-popup-item").first().evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+  expect(radiusAlat).toBeGreaterThanOrEqual(6);
+
+  expect(galat).toEqual([]);
+  await tutup();
+});

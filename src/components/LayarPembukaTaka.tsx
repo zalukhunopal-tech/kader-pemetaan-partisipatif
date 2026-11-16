@@ -101,12 +101,7 @@ export const LayarPembukaTaka: React.FC<LayarPembukaTakaProps> = ({ onSelesai })
 
           <div className="taka-splash-hud">
             <div className="taka-splash-brand">
-              <img src="./taka/taka_avatar_256.png" alt="Taka" className="taka-splash-avatar" />
-              <div className="taka-splash-text">
-                <div className="taka-splash-badge">MASKOT RESMI • TAKA</div>
-                <h2>Titik Tapak</h2>
-                <p>Setiap titik punya cerita, setiap tapak punya makna.</p>
-              </div>
+              <img src="./taka/taka_avatar_256.png" alt="Simbol Taka" className="taka-splash-avatar" />
             </div>
 
             <button

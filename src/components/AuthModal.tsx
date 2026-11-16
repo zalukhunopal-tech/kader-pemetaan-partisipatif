@@ -405,22 +405,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   <p>Pemetaan Partisipatif</p>
                 </div>
               </div>
-              <div
+              <button
+                type="button"
                 className="taka-auth-mascot-card"
                 onClick={() => onBukaSplashTaka?.()}
                 style={{ cursor: onBukaSplashTaka ? "pointer" : "default" }}
-                title="Maskot Resmi Taka — Ketuk untuk memutar layar pembuka"
+                aria-label="Putar layar pembuka"
+                title="Ketuk untuk memutar layar pembuka"
               >
-                <img src="./taka/taka_master.png" alt="Maskot Taka" className="taka-auth-mascot-img" />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "0.78rem", fontWeight: 800, color: "#8fce43", letterSpacing: "0.02em" }}>
-                    Bersama TAKA • Penjelajah Lapangan
-                  </div>
-                  <div style={{ fontSize: "0.73rem", color: "#e7f4de", lineHeight: 1.35, marginTop: 2 }}>
-                    “Setiap titik punya cerita, setiap tapak punya makna.”
-                  </div>
-                </div>
-              </div>
+                <img src="./taka/taka_master.png" alt="" className="taka-auth-mascot-img" />
+              </button>
               <div className="auth-feature-list">
                 <div className="auth-feature-item">
                   <div className="auth-feature-title">🌿 Survei Keanekaragaman Hayati</div>
