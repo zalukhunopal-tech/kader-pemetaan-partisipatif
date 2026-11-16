@@ -185,8 +185,7 @@ const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "
                 ADMINISTRATOR GIS
               </span>
             </div>
-            <h2 style={{ margin: "6px 0 4px", color: "#ffffff", fontSize: "1.2rem", lineHeight: 1.3 }}>Kendali</h2>
-            <div style={{ fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
+            <div style={{ marginTop: 6, fontSize: "0.8rem", color: "#38bdf8", lineHeight: 1.4 }}>
               {jumlahKaderTercatat} kader • {dataSpasial.length} data di perangkat ini
             </div>
           </div>
