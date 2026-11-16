@@ -58,6 +58,8 @@ import { buatZonaGeofence, evaluasiGeofence, StatusGeofence, ZonaGeofence } from
 import {
   bacaSistemKoordinat,
   DAFTAR_SISTEM_KOORDINAT,
+  dariTm3,
+  dariUtm,
   formatKoordinat,
   keTm3,
   keUtm,
@@ -171,12 +173,79 @@ function hitungSkalaPeta(lat: number, zoom: number): { label: string; lebarPx: n
   return { label, lebarPx };
 }
 
-/** Uraikan masukan teks menjadi koordinat lat & lng yang valid (DD, kardinal LU/LS/BT/BB/N/S/E/W) */
+function parseBagianDmsAtauDdm(teks: string): number | null {
+  const mDms = teks.match(/([+-]?\d+(?:\.\d+)?)\s*°\s*(\d+(?:\.\d+)?)\s*[′']\s*(\d+(?:\.\d+)?)\s*(?:[″"]|'')?/);
+  if (mDms) {
+    const d = Math.abs(parseFloat(mDms[1]));
+    const m = parseFloat(mDms[2]);
+    const s = parseFloat(mDms[3]);
+    if (m >= 60 || s >= 60) return null;
+    const nilai = d + m / 60 + s / 3600;
+    return mDms[1].startsWith("-") ? -nilai : nilai;
+  }
+  const mDdm = teks.match(/([+-]?\d+(?:\.\d+)?)\s*°\s*(\d+(?:\.\d+)?)\s*[′']/);
+  if (mDdm) {
+    const d = Math.abs(parseFloat(mDdm[1]));
+    const m = parseFloat(mDdm[2]);
+    if (m >= 60) return null;
+    const nilai = d + m / 60;
+    return mDdm[1].startsWith("-") ? -nilai : nilai;
+  }
+  return null;
+}
+
+/** Uraikan masukan teks menjadi koordinat lat & lng yang valid (DD, DMS, DDM, UTM, TM-3) */
 export function uraikanTeksKoordinat(teks: string): { lat: number; lng: number } | null {
   const t = teks.trim();
   if (!t) return null;
 
-  // Format DD angka biasa: contoh "-6.1754, 106.8272" atau "2.857270 117.377476"
+  // 1. Format UTM: "UTM 50N 541932 315890" atau "50N 541 932 E 315 890 N"
+  const mUtm = t.match(/^(?:UTM\s+)?(\d{1,2})\s*([NS])\s+([\d\s.,]+?)\s*(?:m?E)?[,\s]+([\d\s.,]+?)\s*(?:m?N)?$/i);
+  if (mUtm) {
+    const x = parseFloat(mUtm[3].replace(/\s+/g, "").replace(",", "."));
+    const y = parseFloat(mUtm[4].replace(/\s+/g, "").replace(",", "."));
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const h = dariUtm(x, y, `${mUtm[1]}${mUtm[2].toUpperCase()}`);
+      if (h && Math.abs(h.lat) <= 90 && Math.abs(h.lng) <= 180) {
+        return { lat: Number(h.lat.toFixed(7)), lng: Number(h.lng.toFixed(7)) };
+      }
+    }
+  }
+
+  // 2. Format TM-3 Indonesia: "TM-3 50.1 381245.20 1815890.10" atau "50.1 X 381245.2 Y 1815890.1"
+  const mTm3 = t.match(/^(?:TM-?3\s+)?(\d{2}\.[12])\s+(?:X\s*)?([\d\s.,]+?)[,\s]+(?:Y\s*)?([\d\s.,]+)$/i);
+  if (mTm3) {
+    const x = parseFloat(mTm3[2].replace(/\s+/g, "").replace(",", "."));
+    const y = parseFloat(mTm3[3].replace(/\s+/g, "").replace(",", "."));
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const h = dariTm3(x, y, mTm3[1]);
+      if (h && Math.abs(h.lat) <= 90 && Math.abs(h.lng) <= 180) {
+        return { lat: Number(h.lat.toFixed(7)), lng: Number(h.lng.toFixed(7)) };
+      }
+    }
+  }
+
+  // 3. Format DMS / DDM dengan label arah (contoh: 2°51'26.2" LU, 117°22'38.9" BT atau 2°51.436' N, 117°22.649' E)
+  const polaSudutKardinal = /([+-]?\d+(?:\.\d+)?\s*°[^A-Za-z,]+?)\s*(LU|LS|BT|BB|N|S|E|W)\b/gi;
+  const temuanSudut = [...t.matchAll(polaSudutKardinal)];
+  if (temuanSudut.length === 2) {
+    let lat: number | null = null;
+    let lng: number | null = null;
+    for (const item of temuanSudut) {
+      const val = parseBagianDmsAtauDdm(item[1]);
+      if (val === null) continue;
+      const arah = item[2].toUpperCase();
+      if (arah === "LU" || arah === "N") lat = Math.abs(val);
+      else if (arah === "LS" || arah === "S") lat = -Math.abs(val);
+      else if (arah === "BT" || arah === "E") lng = Math.abs(val);
+      else if (arah === "BB" || arah === "W") lng = -Math.abs(val);
+    }
+    if (lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      return { lat: Number(lat.toFixed(7)), lng: Number(lng.toFixed(7)) };
+    }
+  }
+
+  // 4. Format DD angka biasa: contoh "-6.1754, 106.8272" atau "2.857270 117.377476"
   const mDD = t.match(/^([+-]?\d+(?:\.\d+)?)[,\s]+([+-]?\d+(?:\.\d+)?)$/);
   if (mDD) {
     const a = parseFloat(mDD[1]);
@@ -189,7 +258,7 @@ export function uraikanTeksKoordinat(teks: string): { lat: number; lng: number }
     }
   }
 
-  // Format kardinal: contoh "2.857270° LU, 117.377476° BT" atau "2.857270N 117.377476E"
+  // 5. Format kardinal DD: contoh "2.857270° LU, 117.377476° BT" atau "2.857270N 117.377476E"
   const polaKardinal = /([+-]?\d+(?:\.\d+)?)\s*°?\s*(LU|LS|BT|BB|N|S|E|W)/gi;
   const temuan = [...t.matchAll(polaKardinal)];
   if (temuan.length === 2) {
@@ -867,6 +936,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       gpsPos,
       kompasDerajat,
       petaKustomAktif,
+      statusGps: perangkat.statusGps,
+      bearingPeta: bearingAktif,
+      koordinatDipilih,
       saatGambarSiap: () => setRenderTick((t) => t + 1)
     });
   }, [
@@ -881,6 +953,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     modeRekam,
     gpsPos,
     kompasDerajat,
+    perangkat.statusGps,
+    bearingAktif,
+    koordinatDipilih,
     petaKustomAktif,
     objekTerpilih,
     targetGoTo,
@@ -1283,16 +1358,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setBukaMenuAlat(false);
     setObjekTerpilih(null);
     setModeRekam(jenis);
-    const ptAwal = titikDariBidikan(center, posisiNyata);
     if (jenis === "point") {
+      const ptAwal = titikDariBidikan(center, posisiNyata);
       setTitikDraft([ptAwal]);
       form.setKategoriInput("Biodiversitas");
       setBukaModalForm(false);
+    } else if (jenis === "line") {
+      // Pelacakan jalur GPS: awali dari posisi GPS nyata (bila sudah ada), bukan bidikan manual yang bisa jauh dari GPS
+      const awalJalur = posisiNyata ? [posisiNyata] : [];
+      setTitikDraft(awalJalur);
+      form.setKategoriInput("Biodiversitas");
+      perekamLatar.mulai("line", awalJalur);
     } else {
+      const ptAwal = titikDariBidikan(center, posisiNyata);
       setTitikDraft([ptAwal]);
-      form.setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Biodiversitas");
+      form.setKategoriInput("Wilayah Adat / Lahan");
       // Mulai perekaman di latar belakang agar tetap merekam walaupun pindah tab
-      perekamLatar.mulai(jenis, [ptAwal]);
+      perekamLatar.mulai("polygon", [ptAwal]);
     }
   };
 
@@ -1300,11 +1382,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     e.preventDefault();
     if (!modeRekam || titikDraft.length === 0 || validasiGeometri(modeRekam, titikDraft).length > 0) return;
     onSimpanDataBaru(form.susunItem(profil, modeRekam, titikDraft, kompasDerajat));
-    perekamLatar.selesai();
+    const rekamAktifLatar = modeRekam === "point" && rekamLatar.status !== "idle" && rekamLatar.jenis;
+    if (!rekamAktifLatar) {
+      perekamLatar.selesai();
+      setModeRekam(null);
+      setTitikDraft([]);
+    } else if (rekamLatar.jenis) {
+      // Kembalikan UI perekaman jalur/area latar belakang setelah menyimpan pin titik di tengah perjalanan
+      setModeRekam(rekamLatar.jenis);
+      setTitikDraft(rekamLatar.titik);
+    }
     setBukaModalForm(false);
     setAksiAwalForm(null);
-    setModeRekam(null);
-    setTitikDraft([]);
     form.kosongkan();
   };
 
@@ -1459,10 +1548,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const formatPill = daftarFormatSalin.find((f) => f.id === formatPillId) ?? daftarFormatSalin[0];
   const arahHadap = kompasDerajat ?? null;
   const posisiGpsTeks = posisiNyata ? formatKoordinat(posisiNyata.lat, posisiNyata.lng, sistemKoord).ringkas : "---";
-  const kecepatanKmj = gpsPos?.kecepatan !== undefined ? (gpsPos.kecepatan * 3.6).toFixed(2).replace(".", ",") : "0,00";
-  const durasiRekamTeks = rekamLatar.status !== "idle" ? formatDurasi(durasiRekamMs(rekamLatar)) : "---";
-  const jamRekam = rekamLatar.status !== "idle" ? durasiRekamMs(rekamLatar) / 3_600_000 : 0;
-  const kecepatanRataTeks = jamRekam > 0 && panjangDraftKm > 0 ? (panjangDraftKm / jamRekam).toFixed(2).replace(".", ",") : "---";
+  // Prioritaskan kecepatan dari fix GPS terkini; saat pelacakan aktif, pakai juga posisiTerakhir perekam
+  const kecepatanMpsAktif =
+    gpsPos?.kecepatan !== undefined
+      ? gpsPos.kecepatan
+      : rekamLatar.status === "merekam" && rekamLatar.posisiTerakhir?.kecepatan !== undefined
+        ? rekamLatar.posisiTerakhir.kecepatan
+        : 0;
+  const kecepatanKmj = (Math.max(0, kecepatanMpsAktif) * 3.6).toFixed(2).replace(".", ",");
+  const durasiMsRekam = rekamLatar.status !== "idle" ? durasiRekamMs(rekamLatar) : 0;
+  const durasiRekamTeks = rekamLatar.status !== "idle" ? formatDurasi(durasiMsRekam) : "---";
+  const jamRekam = durasiMsRekam / 3_600_000;
+  const kecepatanRataTeks =
+    durasiMsRekam >= 1000 && panjangDraftKm > 0
+      ? (panjangDraftKm / jamRekam).toFixed(2).replace(".", ",")
+      : rekamLatar.status !== "idle"
+        ? "0,00"
+        : "---";
   /** Pilihan peta dasar di lembar pemilih (Kontur Taktis tidak ditawarkan lagi) */
   const pilihanBasemap = URUTAN_BASEMAP.filter((id) => id !== "taktis" && basemapTersedia(id));
   const batalkanRekaman = () => {
@@ -2537,7 +2639,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     <span className="avz-metric-label">Akurasi Horizontal (M)</span>
                   </div>
                   <div className="avz-gps-metric-item">
-                    <strong className="avz-metric-val">---</strong>
+                    <strong className="avz-metric-val">
+                      {gpsPos?.akurasiVertikal !== undefined ? gpsPos.akurasiVertikal.toFixed(2).replace(".", ",") : "---"}
+                    </strong>
                     <span className="avz-metric-label">Akurasi Vertikal (M)</span>
                   </div>
                 </div>
@@ -2697,7 +2801,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                       </button>
                     ))}
                     {targetGoTo && (
-                      <button type="button" className="avz-nav-option-row" onClick={() => setTargetGoTo(null)}>
+                      <button
+                        type="button"
+                        className="avz-nav-option-row"
+                        onClick={() => {
+                          setTargetGoTo(null);
+                          tutupDrawerHalus();
+                        }}
+                      >
                         <span className="avz-nav-option-icon">
                           <X size={22} />
                         </span>
@@ -3146,10 +3257,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onTutup={() => {
             setBukaModalForm(false);
             setAksiAwalForm(null);
-            // Pin yang belum disimpan dibuang saat form ditutup (seperti Avenza)
+            // Pin yang belum disimpan dibuang saat form ditutup (tetap pulihkan perekaman latar jika sedang berjalan)
             if (modeRekam === "point") {
-              setModeRekam(null);
-              setTitikDraft([]);
+              if (rekamLatar.status !== "idle" && rekamLatar.jenis) {
+                setModeRekam(rekamLatar.jenis);
+                setTitikDraft(rekamLatar.titik);
+              } else {
+                setModeRekam(null);
+                setTitikDraft([]);
+              }
             }
           }}
           sistemKoordinat={sistemKoord}

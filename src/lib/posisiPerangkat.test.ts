@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JARAK_BIDIKAN_DEKAT_M, kompasDariOrientasi, selisihArah, titikDariBidikan } from "./posisiPerangkat";
+import { JARAK_BIDIKAN_DEKAT_M, hitungKecepatanMps, kompasDariOrientasi, selisihArah, titikDariBidikan } from "./posisiPerangkat";
 import { KoordinatTitik } from "../types";
 
 describe("kompasDariOrientasi", () => {
@@ -106,5 +106,51 @@ describe("titikDariBidikan (T1)", () => {
   it("fix tanpa waktu atau tanpa akurasi tidak dipakai", () => {
     expect(titikDariBidikan({ lat: -0.9, lng: 100.4 }, fix({ timestamp: undefined }), SEKARANG).akurasi).toBeUndefined();
     expect(titikDariBidikan({ lat: -0.9, lng: 100.4 }, fix({ akurasi: undefined }), SEKARANG).akurasi).toBeUndefined();
+  });
+});
+
+describe("hitungKecepatanMps (sensor speed dan fallback perpindahan)", () => {
+  const t0 = Date.parse("2026-11-16T08:00:00Z");
+  const titik = (lat: number, lng: number, dtMs: number, extra: Partial<KoordinatTitik> = {}): KoordinatTitik => ({
+    lat,
+    lng,
+    akurasi: 5,
+    timestamp: new Date(t0 + dtMs).toISOString(),
+    ...extra
+  });
+
+  it("memakai sensor speed perangkat saat tersedia (>= 0)", () => {
+    const a = titik(2.857, 117.377, 0);
+    const b = titik(2.857, 117.377, 1000);
+    expect(hitungKecepatanMps(b, a, 3.5)).toBe(3.5);
+    expect(hitungKecepatanMps(b, null, 0)).toBe(0);
+  });
+
+  it("menghitung kecepatan berjalan dan berkendara dari perpindahan saat coords.speed null", () => {
+    const a = titik(2.857, 117.377, 0);
+    // ±11.12 m ke utara dalam 2 detik ≈ 5.56 m/s (≈ 20 km/jam)
+    const b = titik(2.8571, 117.377, 2000);
+    const v = hitungKecepatanMps(b, a, null);
+    expect(v).toBeGreaterThan(5.2);
+    expect(v).toBeLessThan(5.9);
+
+    // Berhenti di titik sama 2 detik kemudian -> 0 m/s
+    const c = titik(2.8571, 117.377, 4000, { kecepatan: v });
+    expect(hitungKecepatanMps(c, b, null)).toBe(0);
+  });
+
+  it("meredam getaran diam berakurasi kasar, lonjakan mustahil, dan ledakan fix < 0.35 detik", () => {
+    const aKasar = titik(2.857, 117.377, 0, { akurasi: 45, kecepatan: 2.2 });
+    // Pergeseran kecil 4m saat gabungan akurasi 90m -> jitter diam -> 0
+    const bJitter = titik(2.857036, 117.377, 2000, { akurasi: 45 });
+    expect(hitungKecepatanMps(bJitter, aKasar, null)).toBe(0);
+
+    // Burst duplikat 100ms mempertahankan kecepatan sebelumnya tanpa membuang jadi 0
+    const burst = titik(2.857, 117.377, 100, { akurasi: 5 });
+    expect(hitungKecepatanMps(burst, aKasar, null)).toBe(2.2);
+
+    // Teleportasi 5 km dalam 1 detik (> 85 m/s) ditolak jadi 0
+    const teleport = titik(2.902, 117.377, 1000, { akurasi: 5 });
+    expect(hitungKecepatanMps(teleport, aKasar, null)).toBe(0);
   });
 });

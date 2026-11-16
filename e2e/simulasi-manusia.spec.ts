@@ -598,3 +598,134 @@ test("swipe ke atas buka drawer, kompas klik 3x pertahankan simbol, pelacakan ti
   expect(galat).toEqual([]);
   await tutup();
 });
+
+test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan saat bergerak, pin titik di tengah rute, cari koordinat UTM/DMS, navigasi, dan ukur poligon", async ({
+  browser
+}) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    {
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+      permissions: ["geolocation"],
+      geolocation: { latitude: 2.85727, longitude: 117.377476, accuracy: 5 }
+    },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  await masukSebagaiAdmin(p);
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.waitForSelector(".map-canvas-container");
+
+  // 1. Uji hitung kecepatan sesaat (Lokasi tab): bergerak 8.9 m dalam 1.2 detik -> kecepatan > 5 Km/j, lalu berhenti -> kembali 0,00
+  await p.locator('button[aria-label="Buka panel lokasi, pelacakan, dan navigasi"]').click();
+  const drawer = p.locator(".avz-gps-drawer");
+  await expect(drawer).toBeVisible();
+  const nilaiKecepatan = drawer.locator(".avz-gps-metric-item", { hasText: "Kecepatan (Km/j)" }).locator(".avz-metric-val");
+  await expect(nilaiKecepatan).toHaveText("0,00");
+
+  // Segarkan acuan waktu GPS di lokasi yang sama, tunggu 1.2 detik lalu pindah ~8.9m ke utara (~26 Km/j)
+  await p.context().setGeolocation({ latitude: 2.85727, longitude: 117.377476, accuracy: 5 });
+  await p.waitForTimeout(1200);
+  await p.context().setGeolocation({ latitude: 2.85735, longitude: 117.377476, accuracy: 5 });
+  await sampai(async () => {
+    const teks = (await nilaiKecepatan.textContent())?.trim() || "0,00";
+    return parseFloat(teks.replace(",", ".")) > 5;
+  }, 5000);
+  const vBergerak = parseFloat(((await nilaiKecepatan.textContent()) || "0").replace(",", "."));
+  expect(vBergerak).toBeGreaterThan(5);
+  expect(vBergerak).toBeLessThan(80);
+
+  await p.waitForTimeout(1200);
+  await p.context().setGeolocation({ latitude: 2.85735, longitude: 117.377476, accuracy: 5 });
+  await expect(nilaiKecepatan).toHaveText("0,00", { timeout: 5000 });
+
+  // 2. Uji tab Pelacakan: mulai rekam jalur, berjalan 2 segmen -> Jarak > 0, Kecepatan & Kecepatan Rata-rata > 0
+  await drawer.getByRole("tab", { name: "Pelacakan" }).click();
+  await drawer.getByRole("button", { name: "Mulai Pelacakan" }).click();
+  await expect(drawer.locator(".avz-gps-status-box.sedang-melacak")).toBeVisible();
+
+  await p.waitForTimeout(1200);
+  await p.context().setGeolocation({ latitude: 2.85743, longitude: 117.377476, accuracy: 5 });
+  await p.waitForTimeout(1200);
+  await p.context().setGeolocation({ latitude: 2.85751, longitude: 117.377476, accuracy: 5 });
+
+  const nilaiJarak = drawer.locator(".avz-gps-metric-item", { hasText: "Jarak: (Km)" }).locator(".avz-metric-val");
+  const nilaiRata = drawer.locator(".avz-gps-metric-item", { hasText: "Kecepatan Rata-rata" }).locator(".avz-metric-val");
+  await sampai(async () => {
+    const j = parseFloat(((await nilaiJarak.textContent()) || "0").replace(",", "."));
+    const r = parseFloat(((await nilaiRata.textContent()) || "0").replace(",", "."));
+    const k = parseFloat(((await nilaiKecepatan.textContent()) || "0").replace(",", "."));
+    return j > 0 && r > 0 && k > 0;
+  }, 5000);
+
+  // Tutup drawer dulu (perekaman tetap jalan di PanelPerekaman)
+  await drawer.locator('button[aria-label="Tutup panel"]').click();
+  await expect(drawer).toBeHidden();
+  await expect(p.locator(".avz-status-rekam")).toBeVisible();
+
+  // 3. Jatuhkan pin & simpan 1 titik di tengah pelacakan aktif -> pelacakan latar BELUM terhapus!
+  await p.locator(".avz-fab-pin").click();
+  await p.locator(".visual-category-grid button").first().click();
+  await p.locator('#form-survei-lapangan input[required]').fill("Patok Tengah Jalur");
+  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await expect(p.locator(".avz-status-rekam")).toBeVisible();
+
+  // Sekarang hentikan & simpan jalur yang terekam lewat PanelPerekaman
+  await p.locator(".avz-status-rekam .rec-btn-save").click();
+  await p.locator(".visual-category-grid button").first().click();
+  await p.locator('#form-survei-lapangan input[required]').fill("Jalur Patroli Terukur");
+  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await expect(p.locator(".avz-status-rekam")).toBeHidden();
+
+  // 4. Uji Gambar dan Ukur poligon (tambah sudut + urungkan + simpan poligon)
+  await p.getByRole("button", { name: "Alat peta" }).click();
+  await p.getByRole("menuitem", { name: "Gambar dan Ukur" }).click();
+  const canvasBox = (await p.locator(".map-canvas-viewport").boundingBox())!;
+  const geserPeta = async (dx: number, dy: number) => {
+    const cx = canvasBox.x + canvasBox.width / 2;
+    const cy = canvasBox.y + canvasBox.height / 2;
+    await p.mouse.move(cx, cy);
+    await p.mouse.down();
+    await p.mouse.move(cx + dx, cy + dy, { steps: 6 });
+    await p.mouse.up();
+  };
+  await geserPeta(80, 0);
+  await p.locator(".avz-status-rekam .rec-btn-add").click();
+  await geserPeta(0, 80);
+  await p.locator(".avz-status-rekam .rec-btn-add").click();
+  await geserPeta(-80, 0);
+  await p.locator(".avz-status-rekam .rec-btn-add").click();
+  await p.locator('.avz-status-rekam button[aria-label="Urungkan"]').click();
+  await p.locator(".avz-status-rekam .rec-btn-add").click();
+  await expect(p.locator(".avz-status-rekam .rec-btn-save")).toBeEnabled();
+  await p.locator(".avz-status-rekam .rec-btn-save").click();
+  await p.locator(".visual-category-grid button").first().click();
+  await p.locator('#form-survei-lapangan input[required]').fill("Petak Ukur Kebun");
+  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await expect(p.locator(".avz-status-rekam")).toBeHidden();
+
+  // 5. Uji Cari Koordinat dengan format UTM & Navigasi DMS -> banner Go-To aktif lalu Hentikan Navigasi
+  await p.getByRole("button", { name: "Cari di Peta" }).click();
+  await p.locator('input[aria-label="Titik koordinat atau nama objek"]').fill("UTM 50N 541932 315890");
+  await p.locator('input[aria-label="Titik koordinat atau nama objek"]').press("Enter");
+  await expect(p.locator(".field-map-message")).toContainText("Menuju ke koordinat");
+
+  await p.locator('button[aria-label="Buka panel lokasi, pelacakan, dan navigasi"]').click();
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("tab", { name: "Navigasi" }).click();
+  await drawer.getByRole("button", { name: "Masukkan Koordinat" }).click();
+  await drawer.locator('input[aria-label="Koordinat tujuan"]').fill("2°51'30.0\" LU, 117°22'40.0\" BT");
+  await drawer.getByRole("button", { name: "Navigasi", exact: true }).click();
+  await expect(p.locator(".goto-nav-banner")).toBeVisible();
+
+  await p.locator('button[aria-label="Buka panel lokasi, pelacakan, dan navigasi"]').click();
+  await drawer.getByRole("tab", { name: "Navigasi" }).click();
+  await drawer.getByRole("button", { name: "Hentikan Navigasi" }).click();
+  await expect(p.locator(".goto-nav-banner")).toBeHidden();
+
+  expect(galat).toEqual([]);
+  await tutup();
+});

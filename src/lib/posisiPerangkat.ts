@@ -26,6 +26,9 @@ const UMUR_POSISI_MAKS_MS = 60_000;
 /** Titik bidikan dianggap "di posisi saya" bila jaraknya ke fix GPS tidak lebih dari ini */
 export const JARAK_BIDIKAN_DEKAT_M = 15;
 const BATAS_TUNGGU_KOMPAS_MS = 3000;
+const BATAS_CEPAT_WAJAR_MPS = 85; // ~306 km/jam: lonjakan GPS mustahil diabaikan
+const INTERVAL_MIN_KECEPATAN_S = 0.35;
+const INTERVAL_MAKS_KECEPATAN_S = 30;
 
 const STATE_AWAL: StatePosisiPerangkat = {
   statusGps: "mencari",
@@ -99,9 +102,41 @@ export function titikDariBidikan(
   return titik;
 }
 
+/**
+ * Menghitung kecepatan sesaat (m/s): memprioritaskan sensor perangkat (coords.speed),
+ * lalu menghitung perpindahan/waktu dari dua fix GPS berturut-turut saat sensor speed kosong.
+ */
+export function hitungKecepatanMps(
+  posSekarang: KoordinatTitik,
+  posSebelumnya: KoordinatTitik | null | undefined,
+  speedSensorMps?: number | null
+): number {
+  if (typeof speedSensorMps === "number" && Number.isFinite(speedSensorMps) && speedSensorMps >= 0) {
+    return speedSensorMps <= BATAS_CEPAT_WAJAR_MPS ? Number(speedSensorMps.toFixed(2)) : 0;
+  }
+  if (!posSebelumnya) return 0;
+  const t0 = Date.parse(posSebelumnya.timestamp ?? "");
+  const t1 = Date.parse(posSekarang.timestamp ?? "");
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return 0;
+  const dtDetik = (t1 - t0) / 1000;
+  if (dtDetik <= 0) return posSebelumnya.kecepatan ?? 0;
+  if (dtDetik < INTERVAL_MIN_KECEPATAN_S) {
+    return posSebelumnya.kecepatan ?? 0;
+  }
+  if (dtDetik > INTERVAL_MAKS_KECEPATAN_S) return 0;
+  const jarakM = hitungJarakMeter(posSebelumnya, posSekarang);
+  const accGabung = (posSebelumnya.akurasi ?? 5) + (posSekarang.akurasi ?? 5);
+  const ambangDiamM = accGabung > 40 ? accGabung * 0.25 : 0.6;
+  if (jarakM < ambangDiamM) return 0;
+  const rawMps = jarakM / dtDetik;
+  if (rawMps > BATAS_CEPAT_WAJAR_MPS) return 0;
+  return Number(rawMps.toFixed(2));
+}
+
 /* ---------- GPS ---------- */
 
 let watchId: number | null = null;
+let posisiSebelumnya: KoordinatTitik | null = null;
 
 function mulaiGps() {
   if (watchId !== null) return;
@@ -111,20 +146,37 @@ function mulaiGps() {
   }
   try {
     watchId = navigator.geolocation.watchPosition(
-      (pos) =>
+      (pos) => {
+        const tsMs = pos.timestamp || Date.now();
+        const ptDasar: KoordinatTitik = {
+          lat: Number(pos.coords.latitude.toFixed(7)),
+          lng: Number(pos.coords.longitude.toFixed(7)),
+          elevasi: pos.coords.altitude != null && Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : undefined,
+          akurasi: pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy) ? Number(pos.coords.accuracy.toFixed(1)) : undefined,
+          akurasiVertikal:
+            pos.coords.altitudeAccuracy != null && Number.isFinite(pos.coords.altitudeAccuracy)
+              ? Number(pos.coords.altitudeAccuracy.toFixed(1))
+              : undefined,
+          timestamp: new Date(tsMs).toISOString()
+        };
+        const tPrev = posisiSebelumnya ? Date.parse(posisiSebelumnya.timestamp ?? "") : NaN;
+        const speedSensor = pos.coords.speed != null && Number.isFinite(pos.coords.speed) && pos.coords.speed >= 0 ? pos.coords.speed : null;
+        const kecepatan = hitungKecepatanMps(ptDasar, posisiSebelumnya, speedSensor);
+        const posisiBaru: KoordinatTitik = { ...ptDasar, kecepatan };
+        const selisihDetik = Number.isFinite(tPrev) ? (tsMs - tPrev) / 1000 : Infinity;
+        if (!posisiSebelumnya || speedSensor !== null || selisihDetik >= INTERVAL_MIN_KECEPATAN_S) {
+          posisiSebelumnya = posisiBaru;
+        }
         setState({
           statusGps: "aktif",
-          posisi: {
-            lat: Number(pos.coords.latitude.toFixed(7)),
-            lng: Number(pos.coords.longitude.toFixed(7)),
-            elevasi: pos.coords.altitude != null && Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : undefined,
-            akurasi: Number(pos.coords.accuracy.toFixed(1)),
-            timestamp: new Date(pos.timestamp).toISOString()
-          }
-        }),
+          posisi: posisiBaru
+        });
+      },
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) setState({ statusGps: "ditolak", posisi: null });
-        else if (err.code === err.POSITION_UNAVAILABLE) setState({ statusGps: "galat" });
+        if (err.code === err.PERMISSION_DENIED) {
+          posisiSebelumnya = null;
+          setState({ statusGps: "ditolak", posisi: null });
+        } else if (err.code === err.POSITION_UNAVAILABLE) setState({ statusGps: "galat" });
         else if (state.posisi) setState({ statusGps: "galat" });
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
@@ -140,6 +192,7 @@ function hentikanGps() {
     navigator.geolocation.clearWatch(watchId);
   }
   watchId = null;
+  posisiSebelumnya = null;
   state = { ...state, statusGps: "mencari", posisi: null };
 }
 
