@@ -42,7 +42,7 @@ import { InspektorObjek } from "./peta/InspektorObjek";
 import { namaBasemap, pratinjauBasemap } from "./peta/PanelLapisanPeta";
 import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
-import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
+import { kategoriProgressUnduh, UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
 import { daftarkanPenutupLapisan } from "../lib/penjagaKembali";
 import { kumpulkanKolamTematik } from "../lib/tematik";
@@ -2128,33 +2128,79 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         {/* HUD PETA: satu grid (atas · tengah · bawah · bilah bawah) sehingga kontrol tidak pernah bertumpuk */}
         <div className="avz-hud">
           <div className="avz-hud-atas">
-            <button
-              type="button"
-              className="avz-bulat avz-quick-basemap-btn"
-              title="Pilih peta dasar"
-              aria-label="Pilih peta dasar"
-              aria-expanded={bukaPilihBasemap}
-              onClick={() => {
-                setBukaMenuAlat(false);
-                setBukaSalinKoord(false);
-                setBukaPilihBasemap(true);
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="24"
-                height="24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinejoin="round"
+            <div className="avz-hud-kiri">
+              <button
+                type="button"
+                className="avz-bulat avz-quick-basemap-btn"
+                title="Pilih peta dasar"
+                aria-label="Pilih peta dasar"
+                aria-expanded={bukaPilihBasemap}
+                onClick={() => {
+                  setBukaMenuAlat(false);
+                  setBukaSalinKoord(false);
+                  setBukaPilihBasemap(true);
+                }}
               >
-                <rect x="8" y="3" width="13" height="13" rx="2.5" />
-                <path d="M16 19.5a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 3 19.5v-8A2.5 2.5 0 0 1 5.5 9" />
-                <path d="M11 13.5l7.5-7.5M11 9l3-3M15 13.5l3-3" strokeLinecap="round" />
-              </svg>
-            </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                >
+                  <rect x="8" y="3" width="13" height="13" rx="2.5" />
+                  <path d="M16 19.5a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 3 19.5v-8A2.5 2.5 0 0 1 5.5 9" />
+                  <path d="M11 13.5l7.5-7.5M11 9l3-3M15 13.5l3-3" strokeLinecap="round" />
+                </svg>
+              </button>
+              {unduh.statusHud &&
+                (() => {
+                  const { warna, tampilChecklist, fase } = kategoriProgressUnduh(
+                    unduh.statusHud.persen,
+                    unduh.statusHud.selesai
+                  );
+                  const r = 20;
+                  const keliling = 2 * Math.PI * r;
+                  const offset = keliling * (1 - Math.min(100, Math.max(1, unduh.statusHud.persen)) / 100);
+                  return (
+                    <button
+                      type="button"
+                      id="unduh-progress-hud"
+                      className={`avz-unduh-hud fase-${fase}`}
+                      aria-label={`Progres unduh peta offline ${unduh.statusHud.persen}%`}
+                      title={unduh.sedangMengunduhTile ? "Ketuk untuk batalkan unduhan" : "Unduhan selesai"}
+                      onClick={unduh.sedangMengunduhTile ? unduh.batalkanUnduhan : undefined}
+                    >
+                      <svg className="avz-unduh-hud-svg" viewBox="0 0 48 48" aria-hidden="true">
+                        <circle cx="24" cy="24" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r={r}
+                          fill="none"
+                          stroke={warna}
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          strokeDasharray={keliling}
+                          strokeDashoffset={offset}
+                          style={{
+                            transform: "rotate(-90deg)",
+                            transformOrigin: "center",
+                            transition: "stroke-dashoffset 0.2s ease, stroke 0.2s ease"
+                          }}
+                        />
+                      </svg>
+                      <span className="avz-unduh-hud-label" style={{ color: warna }}>
+                        {tampilChecklist && <Check size={10} strokeWidth={3.2} />}
+                        <span>{unduh.statusHud.persen}%</span>
+                      </span>
+                    </button>
+                  );
+                })()}
+            </div>
             <div className="avz-hud-kanan">
               <button
                 type="button"

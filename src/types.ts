@@ -56,6 +56,7 @@ export interface BuktiFotoLapangan {
   diambilPada: string;
   idKader: string;
   desa: string;
+  tematik?: string;
   /** Stamp visual tidak sama dengan metadata EXIF atau bukti bebas manipulasi. */
   stampVisual: boolean;
 }

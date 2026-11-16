@@ -1045,26 +1045,26 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     onChange={handlePilihBerkasPeta}
                   />
                   <div className="peta-upload-icon-wrap">
-                    <FileUp size={24} />
+                    <FileUp size={22} />
                   </div>
                   <div className="peta-upload-text-wrap">
-                    <strong>Pilih Berkas Peta dari Perangkat</strong>
-                    <span>PMTiles, MBTiles, GeoPDF, atau GeoTIFF georeferensi. Maksimum 100 MB.</span>
+                    <strong>Pilih Berkas</strong>
+                    <span>PMTiles, MBTiles, GeoPDF, GeoTIFF</span>
                   </div>
-                  <span className="peta-upload-btn-chip">Pilih Berkas</span>
+                  <span className="peta-upload-btn-chip">Buka</span>
                 </label>
                 {sedangMemprosesBerkas && (
                   <div className="peta-upload-status loading">
-                    <span>Mendeteksi sistem koordinat dan batas peta…</span>
+                    <span>Membaca batas peta…</span>
                   </div>
                 )}
                 {!sedangMemprosesBerkas && metadataPetaBaru && (
                   <div className="peta-upload-status success">
-                    <Check size={14} /> Berkas dipilih:{" "}
+                    <Check size={14} />{" "}
                     <b className="peta-upload-nama-berkas" title={metadataPetaBaru.namaArea}>
                       {singkatkanLabelPeta(metadataPetaBaru.namaArea, 30)}
                     </b>{" "}
-                    ({metadataPetaBaru.ukuranMbTeks} MB • Jarak {metadataPetaBaru.jarakKmTeks} km)
+                    <span>({metadataPetaBaru.ukuranMbTeks} MB)</span>
                   </div>
                 )}
               </div>
@@ -1105,48 +1105,28 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               {metadataPetaBaru && (
                 <div className="avenza-spatial-meta-card">
                   <div className="avenza-spatial-header">
-                    <span className="avenza-spatial-title">🌐 Georeferensi</span>
+                    <span className="avenza-spatial-title">Georeferensi</span>
                     <span className="avenza-spatial-badge">
-                      <Check size={12} /> Terisi Otomatis
+                      <Check size={12} /> Otomatis
                     </span>
                   </div>
                   <div className="avenza-spatial-grid">
                     <div className="avenza-spatial-item full-width">
-                      <span className="spatial-label">Sistem Koordinat Acuan (CRS):</span>
+                      <span className="spatial-label">CRS:</span>
                       <strong className="spatial-value crs-name" title={metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}>
                         {ringkasLabelCrs(metadataPetaBaru.crs || "EPSG:4326 (WGS 84)", 36)}
                       </strong>
-                      {metadataPetaBaru.crsDeskripsi && <span className="spatial-desc">{metadataPetaBaru.crsDeskripsi}</span>}
                     </div>
                     <div className="avenza-spatial-item">
-                      <span className="spatial-label">Batas Lintang (Lat):</span>
+                      <span className="spatial-label">Lintang:</span>
                       <span className="spatial-value">
-                        {metadataPetaBaru.minLat.toFixed(4)}° s/d {metadataPetaBaru.maxLat.toFixed(4)}°
+                        {metadataPetaBaru.minLat.toFixed(4)}° – {metadataPetaBaru.maxLat.toFixed(4)}°
                       </span>
                     </div>
                     <div className="avenza-spatial-item">
-                      <span className="spatial-label">Batas Bujur (Lng):</span>
+                      <span className="spatial-label">Bujur:</span>
                       <span className="spatial-value">
-                        {metadataPetaBaru.minLng.toFixed(4)}° s/d {metadataPetaBaru.maxLng.toFixed(4)}°
-                      </span>
-                    </div>
-                    {metadataPetaBaru.pusatLat !== undefined && metadataPetaBaru.pusatLng !== undefined && (
-                      <div className="avenza-spatial-item">
-                        <span className="spatial-label">Titik Pusat Referensi:</span>
-                        <span className="spatial-value">
-                          {metadataPetaBaru.pusatLat.toFixed(4)}°, {metadataPetaBaru.pusatLng.toFixed(4)}°
-                        </span>
-                      </div>
-                    )}
-                    <div className="avenza-spatial-item">
-                      <span className="spatial-label">Metode Deteksi Otomatis:</span>
-                      <span className="spatial-value text-emerald font-semibold">
-                        {metadataPetaBaru.sumberDeteksi === "pmtiles" && "PMTiles Header Vektor/Raster"}
-                        {metadataPetaBaru.sumberDeteksi === "geotiff" && "Header Biner GeoTIFF (tag 33550, 33922)"}
-                        {metadataPetaBaru.sumberDeteksi === "mbtiles" && "SQLite MBTiles Metadata (EPSG:3857/4326)"}
-                        {metadataPetaBaru.sumberDeteksi === "geopdf" && "Struktur Vektor GeoPDF /GPTS"}
-                        {metadataPetaBaru.sumberDeteksi === "teks" && "Ekstraksi Metadata String"}
-                        {metadataPetaBaru.sumberDeteksi === "bawaan" && "Koordinat Definitif Wilayah"}
+                        {metadataPetaBaru.minLng.toFixed(4)}° – {metadataPetaBaru.maxLng.toFixed(4)}°
                       </span>
                     </div>
                   </div>
@@ -1160,13 +1140,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   if (mb > 100) {
                     return (
                       <div className="peta-warning-banner danger">
-                        <AlertOctagon size={22} className="warning-banner-icon" />
+                        <AlertOctagon size={20} className="warning-banner-icon" />
                         <div className="warning-banner-content">
-                          <strong>🚨 Perhatian: Ukuran Berkas Sangat Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
-                          <p>
-                            Ukuran berkas melebihi 100 MB. Berkas sebesar ini berisiko membebani memori ponsel atau membuat peramban
-                            melambat saat membuka lembar peta di lapangan. Disarankan mengompresi gambar atau menggunakan format MBTiles.
-                          </p>
+                          <strong>Ukuran sangat besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
+                          <p>Disarankan memakai berkas terkompresi atau MBTiles.</p>
                         </div>
                       </div>
                     );
@@ -1174,38 +1151,29 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   if (mb > 50) {
                     return (
                       <div className="peta-warning-banner caution">
-                        <AlertTriangle size={22} className="warning-banner-icon" />
+                        <AlertTriangle size={20} className="warning-banner-icon" />
                         <div className="warning-banner-content">
-                          <strong>⚠️ Pengingat: Ukuran Berkas Cukup Besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
-                          <p>
-                            Berkas di atas 50 MB memerlukan kapasitas memori cache lebih banyak di HP. Pastikan sisa penyimpanan ponsel Anda
-                            mencukupi agar render peta tetap cepat secara offline.
-                          </p>
+                          <strong>Ukuran cukup besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
                         </div>
                       </div>
                     );
                   }
-                  return (
-                    <div className="peta-size-optimal-badge">
-                      <Check size={14} className="text-emerald" />
-                      <span>Ukuran berkas optimal untuk perangkat seluler ({metadataPetaBaru.ukuranMbTeks} MB)</span>
-                    </div>
-                  );
+                  return null;
                 })()}
               <div>
-                <label>Nama File Peta Kerja (GeoPDF / GeoTIFF / MBTiles)</label>
+                <label>Nama Peta</label>
                 <input
                   type="text"
                   required
                   className="form-input"
-                  placeholder="Masukkan nama peta kerja"
+                  placeholder="Nama peta"
                   value={namaPetaBaru}
                   onChange={(e) => setNamaPetaBaru(e.target.value)}
                 />
               </div>
               <div className="form-row-2">
                 <div>
-                  <label>Ukuran File (MB)</label>
+                  <label>Ukuran (MB)</label>
                   <input
                     type="text"
                     className="form-input"
@@ -1215,7 +1183,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label>Jarak Referensi (km)</label>
+                  <label>Jarak (km)</label>
                   <input
                     type="text"
                     className="form-input"
@@ -1234,7 +1202,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   className="btn-primary"
                   disabled={!namaPetaBaru.trim() || !metadataPetaBaru || (!petaKustomDataUrlBaru && !berkasPetaMentah) || sedangMemprosesBerkas || !!galatImpor}
                 >
-                  Simpan ke Pustaka Peta
+                  Simpan
                 </button>
               </div>
             </form>

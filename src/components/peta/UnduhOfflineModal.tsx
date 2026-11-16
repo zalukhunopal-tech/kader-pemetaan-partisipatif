@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Check, Download, X } from "lucide-react";
 import { AreaPetaOffline, BasemapType } from "../../types";
 import { buatId } from "../../lib/id";
+import { hitungKotakKm } from "../../lib/cachePetaOtomatis";
 import {
   BATAS_TILE_PER_AREA,
   KotakWilayah,
-  NAMA_ENV_SUMBER,
   SUMBER_TILE,
   daftarTile,
   hapusTile,
@@ -13,14 +13,41 @@ import {
   isiTemplateTile,
   penyimpananTileDidukung,
   perkiraanUkuranMb,
-  ukuranPenyimpanan,
   unduhTile,
   unduhanLayak
 } from "../../lib/petaOffline";
 
+export const DURASI_TAHAN_UNDUH_MS = 3000;
+export const ZOOM_MAKS_UNDUH_OFFLINE = 18;
+export const ZOOM_MIN_UNDUH_OFFLINE = 14;
+
+export interface StatusHudUnduh {
+  persen: number;
+  selesai: boolean;
+}
+
+/** Menentukan warna lingkaran & visibilitas checklist sesuai rentang persen (1-30 merah, 30-60 kuning, 60-90 hijau muda, 90-100 hijau + checklist). */
+export function kategoriProgressUnduh(persen: number, selesai = false): {
+  warna: string;
+  tampilChecklist: boolean;
+  fase: "merah" | "kuning" | "hijau-muda" | "hijau";
+} {
+  const p = Math.max(1, Math.min(100, Math.round(persen)));
+  if (selesai || p >= 90) {
+    return { warna: "#16a34a", tampilChecklist: true, fase: "hijau" };
+  }
+  if (p >= 60) {
+    return { warna: "#4ade80", tampilChecklist: false, fase: "hijau-muda" };
+  }
+  if (p >= 30) {
+    return { warna: "#eab308", tampilChecklist: false, fase: "kuning" };
+  }
+  return { warna: "#ef4444", tampilChecklist: false, fase: "merah" };
+}
+
 /**
  * Keadaan pengunduh peta offline. Dipegang oleh peta (bukan oleh modal) supaya unduhan tetap berjalan
- * walau modal ditutup, dan dihentikan bila peta ditutup.
+ * setelah modal ditutup dan progres lingkaran tampil langsung di peta interaktif.
  */
 export function useUnduhAreaOffline(
   basemap: BasemapType,
@@ -31,36 +58,50 @@ export function useUnduhAreaOffline(
   const [namaAreaOfflineBaru, setNamaAreaOfflineBaru] = useState<string>("");
   const [sedangMengunduhTile, setSedangMengunduhTile] = useState<boolean>(false);
   const [kotakUnduh, setKotakUnduh] = useState<KotakWilayah | null>(null);
-  const [zoomMinUnduh, setZoomMinUnduh] = useState<number>(13);
-  const [zoomMaksUnduh, setZoomMaksUnduh] = useState<number>(17);
+  const [zoomMinUnduh, setZoomMinUnduh] = useState<number>(ZOOM_MIN_UNDUH_OFFLINE);
+  const [zoomMaksUnduh, setZoomMaksUnduh] = useState<number>(ZOOM_MAKS_UNDUH_OFFLINE);
   const [kemajuanUnduh, setKemajuanUnduh] = useState<{ selesai: number; total: number; gagal: number } | null>(null);
+  const [statusHud, setStatusHud] = useState<StatusHudUnduh | null>(null);
   const [galatUnduh, setGalatUnduh] = useState<string | null>(null);
-  const [ruangPenyimpanan, setRuangPenyimpanan] = useState<{ pakaiMb: number; kuotaMb: number } | null>(null);
   const batalUnduhRef = useRef<AbortController | null>(null);
+  const timerTutupHudRef = useRef<number | null>(null);
 
-  // Unduhan yang sedang berjalan dihentikan bila peta ditutup (tile yang sudah masuk dibersihkan)
-  useEffect(() => () => batalUnduhRef.current?.abort(), []);
+  useEffect(
+    () => () => {
+      batalUnduhRef.current?.abort();
+      if (timerTutupHudRef.current !== null) window.clearTimeout(timerTutupHudRef.current);
+    },
+    []
+  );
 
-  /** Membuka modal untuk kotak wilayah yang sedang tampil; rentang zoom bawaan ±2 dari zoom peta */
-  const bukaModalUnduh = (kotak: KotakWilayah, zoom: number) => {
-    setKotakUnduh(kotak);
-    setZoomMinUnduh(Math.max(10, Math.round(zoom) - 2));
-    setZoomMaksUnduh(Math.min(18, Math.round(zoom) + 2));
+  /** Membuka panel unduh untuk kotak 1 km x 1 km tepat di pusat layar peta dengan presisi sampai zoom 18. */
+  const bukaModalUnduh = (kotak: KotakWilayah, _zoom?: number) => {
+    const latPusat = (kotak.minLat + kotak.maxLat) / 2;
+    const lngPusat = (kotak.minLng + kotak.maxLng) / 2;
+    const kotak1Km = hitungKotakKm(latPusat, lngPusat, 1);
+    const sumberAktif = basemap === "taktis" ? null : SUMBER_TILE[basemap];
+    const zMax = sumberAktif ? Math.min(ZOOM_MAKS_UNDUH_OFFLINE, Math.max(ZOOM_MAKS_UNDUH_OFFLINE, sumberAktif.zoomMaks)) : ZOOM_MAKS_UNDUH_OFFLINE;
+    const zMin = Math.max(13, zMax - 4);
+    setKotakUnduh(kotak1Km);
+    setZoomMinUnduh(zMin);
+    setZoomMaksUnduh(zMax);
     setGalatUnduh(null);
     setKemajuanUnduh(null);
-    void ukuranPenyimpanan().then(setRuangPenyimpanan);
     setBukaModalOffline(true);
   };
 
-  const [tetapUnduh, setTetapUnduh] = useState(false);
   const sumberUnduh = basemap === "taktis" ? null : SUMBER_TILE[basemap];
-  const bolehUnduhFinal = Boolean(sumberUnduh && (sumberUnduh.bolehUnduh || tetapUnduh));
   const jumlahTileUnduh = kotakUnduh && basemap !== "taktis" ? hitungJumlahTile(kotakUnduh, zoomMinUnduh, zoomMaksUnduh) : 0;
   const kelebihanTile = jumlahTileUnduh > BATAS_TILE_PER_AREA;
-  const bisaUnduh = sumberUnduh !== null && bolehUnduhFinal && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
+  const bisaUnduh = sumberUnduh !== null && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
 
   const handleUnduhAreaOffline = async () => {
-    if (!bisaUnduh || !kotakUnduh || !sumberUnduh || basemap === "taktis") return;
+    if (!bisaUnduh || !kotakUnduh || !sumberUnduh || basemap === "taktis" || sedangMengunduhTile) return;
+    if (timerTutupHudRef.current !== null) {
+      window.clearTimeout(timerTutupHudRef.current);
+      timerTutupHudRef.current = null;
+    }
+
     const daftarUrl = daftarTile(kotakUnduh, zoomMinUnduh, zoomMaksUnduh)
       .map((t) => isiTemplateTile(sumberUnduh.template, t.z, t.x, t.y))
       .filter((u): u is string => u !== null);
@@ -70,25 +111,33 @@ export function useUnduhAreaOffline(
     setSedangMengunduhTile(true);
     setGalatUnduh(null);
     setKemajuanUnduh({ selesai: 0, total: daftarUrl.length, gagal: 0 });
+    setStatusHud({ persen: 1, selesai: false });
+    setBukaModalOffline(false);
+
     try {
       const hasil = await unduhTile(daftarUrl, {
         sinyal: pengendali.signal,
-        onKemajuan: (selesai, total, gagal) => setKemajuanUnduh({ selesai, total, gagal })
+        onKemajuan: (selesai, total, gagal) => {
+          setKemajuanUnduh({ selesai, total, gagal });
+          const persen = total > 0 ? Math.max(1, Math.min(99, Math.round((selesai / total) * 100))) : 1;
+          setStatusHud({ persen, selesai: false });
+        }
       });
       if (!unduhanLayak(hasil, daftarUrl.length)) {
-        await hapusTile(hasil.urlBaru); // kembalikan penyimpanan seperti semula
+        await hapusTile(hasil.urlBaru);
+        setStatusHud(null);
         setGalatUnduh(
           hasil.dihentikan
-            ? "Unduhan dibatalkan. Tile yang sudah masuk dibersihkan."
+            ? "Unduhan dibatalkan."
             : hasil.kuotaPenuh
-              ? "Penyimpanan HP penuh. Kosongkan ruang atau pilih area dan zoom yang lebih kecil."
-              : `Unduhan gagal: ${hasil.gagal + hasil.tidakAda} dari ${daftarUrl.length} tile tidak dapat diambil. Periksa koneksi dan sumber tile, lalu coba lagi.`
+              ? "Penyimpanan perangkat penuh."
+              : "Unduhan gagal. Periksa koneksi lalu coba lagi."
         );
         return;
       }
       onSimpanAreaOffline({
         id: buatId("OFF"),
-        namaArea: namaAreaOfflineBaru.trim() || `Peta Offline ${areaOffline.length + 1}`,
+        namaArea: namaAreaOfflineBaru.trim() || `Area 1x1 km #${areaOffline.length + 1}`,
         basemapId: basemap,
         ...kotakUnduh,
         zoomMin: zoomMinUnduh,
@@ -102,9 +151,14 @@ export function useUnduhAreaOffline(
         templateTile: sumberUnduh.template
       });
       setNamaAreaOfflineBaru("");
-      setBukaModalOffline(false);
+      setStatusHud({ persen: 100, selesai: true });
+      timerTutupHudRef.current = window.setTimeout(() => {
+        setStatusHud(null);
+        timerTutupHudRef.current = null;
+      }, 5000);
     } catch {
-      setGalatUnduh("Unduhan terhenti karena galat tak terduga. Coba lagi.");
+      setStatusHud(null);
+      setGalatUnduh("Unduhan gagal. Coba lagi.");
     } finally {
       setSedangMengunduhTile(false);
       setKemajuanUnduh(null);
@@ -120,17 +174,13 @@ export function useUnduhAreaOffline(
     setNamaAreaOfflineBaru,
     sedangMengunduhTile,
     zoomMinUnduh,
-    setZoomMinUnduh,
     zoomMaksUnduh,
-    setZoomMaksUnduh,
     kemajuanUnduh,
+    statusHud,
     galatUnduh,
-    ruangPenyimpanan,
     sumberUnduh,
     jumlahTileUnduh,
     kelebihanTile,
-    bolehUnduhFinal,
-    setTetapUnduh,
     bisaUnduh,
     handleUnduhAreaOffline,
     batalkanUnduhan: () => batalUnduhRef.current?.abort()
@@ -141,251 +191,146 @@ interface UnduhOfflineModalProps {
   basemap: BasemapType;
   areaOffline: AreaPetaOffline[];
   unduh: ReturnType<typeof useUnduhAreaOffline>;
-  /** Memusatkan peta ke area offline yang dipilih */
   onBukaArea: (pusat: { lat: number; lng: number }) => void;
 }
 
-/** Modal pengunduh tile peta (Satelit/Topografi/OSM) untuk dipakai tanpa internet */
+const RADIUS_HOLD = 58;
+const KELILING_HOLD = 2 * Math.PI * RADIUS_HOLD;
+
 export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, areaOffline, unduh, onBukaArea }) => {
-  const [calibNwLat, setCalibNwLat] = useState("");
-  const [calibNwLng, setCalibNwLng] = useState("");
-  const [calibSeLat, setCalibSeLat] = useState("");
-  const [calibSeLng, setCalibSeLng] = useState("");
   const {
     setBukaModalOffline,
     namaAreaOfflineBaru,
     setNamaAreaOfflineBaru,
     sedangMengunduhTile,
-    zoomMinUnduh,
-    setZoomMinUnduh,
     zoomMaksUnduh,
-    setZoomMaksUnduh,
-    kemajuanUnduh,
     galatUnduh,
-    ruangPenyimpanan,
     sumberUnduh,
     jumlahTileUnduh,
-    kelebihanTile,
-    bolehUnduhFinal,
-    setTetapUnduh,
     bisaUnduh,
     handleUnduhAreaOffline,
     batalkanUnduhan
   } = unduh;
 
+  const [holdRasio, setHoldRasio] = useState(0);
+  const [sedangTahan, setSedangTahan] = useState(false);
+  const timerHoldRef = useRef<number | null>(null);
+  const mulaiHoldRef = useRef<number>(0);
+  const terpicuRef = useRef<boolean>(false);
+
+  const hentikanTahan = () => {
+    if (timerHoldRef.current !== null) {
+      window.clearInterval(timerHoldRef.current);
+      timerHoldRef.current = null;
+    }
+    setSedangTahan(false);
+    setHoldRasio(0);
+  };
+
+  useEffect(() => () => hentikanTahan(), []);
+
+  const mulaiTahan = () => {
+    if (!bisaUnduh || sedangMengunduhTile || timerHoldRef.current !== null) return;
+    terpicuRef.current = false;
+    mulaiHoldRef.current = Date.now();
+    setSedangTahan(true);
+    setHoldRasio(0.02);
+    timerHoldRef.current = window.setInterval(() => {
+      const berlalu = Date.now() - mulaiHoldRef.current;
+      const rasio = Math.min(1, berlalu / DURASI_TAHAN_UNDUH_MS);
+      setHoldRasio(rasio);
+      if (rasio >= 1 && !terpicuRef.current) {
+        terpicuRef.current = true;
+        hentikanTahan();
+        void handleUnduhAreaOffline();
+      }
+    }, 30);
+  };
+
+  const detikTersisa = Math.max(1, Math.ceil(((1 - holdRasio) * DURASI_TAHAN_UNDUH_MS) / 1000));
+  const perkiraanMb = basemap !== "taktis" ? perkiraanUkuranMb(jumlahTileUnduh, basemap) : 0;
+
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
+    <div className="modal-backdrop" onClick={() => setBukaModalOffline(false)}>
+      <div className="modal-card unduh-offline-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>📥 Unduh Peta Offline</h3>
-          <button type="button" className="btn-icon-close" onClick={() => setBukaModalOffline(false)}>
+          <h3>Unduh Peta Offline</h3>
+          <button type="button" className="btn-icon-close" aria-label="Tutup" onClick={() => setBukaModalOffline(false)}>
             <X size={18} />
           </button>
         </div>
 
-        <div className="modal-form">
-          {basemap === "taktis" || sumberUnduh === null ? (
-            <p className="text-muted" style={{ fontSize: "0.84rem", margin: 0 }}>
-              Peta Kontur digambar langsung oleh aplikasi dan sudah tersedia tanpa internet. Pilih Satelit, Topografi, atau OSM bila ingin
-              mengunduh tile.
-            </p>
-          ) : (
-            <>
-              <p style={{ margin: 0, fontSize: "0.84rem" }}>
-                Area: bagian peta yang terlihat sekarang. Sumber: <strong>{sumberUnduh.nama}</strong>.
-              </p>
+        <div className="unduh-offline-body">
+          <div className="unduh-chip-ringkas">
+            <span>{basemap === "taktis" ? "Peta Taktis" : sumberUnduh?.nama}</span>
+            <span>·</span>
+            <strong>1 × 1 km</strong>
+            <span>·</span>
+            <span id="perkiraan-unduh">
+              Zoom {zoomMaksUnduh}x ({jumlahTileUnduh} tile · ~{perkiraanMb.toFixed(1)} MB)
+            </span>
+          </div>
 
-              {!bolehUnduhFinal && (
-                <div
-                  className="alert-banner-success"
-                  style={{ margin: 0, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
-                >
-                  {sumberUnduh.alasanTidakBoleh}{" "}
-                  {basemap === "google" || basemap === "esri" ? (
-                    <>Untuk peta offline, pilih Satelit Sentinel-2, Topografi, atau OSM dengan penyedia tile yang mengizinkan unduhan.</>
-                  ) : (
-                    <>
-                      Untuk mengunduh, pasang penyedia tile yang lisensinya mengizinkan lewat{" "}
-                      <code>VITE_TILE_URL_{NAMA_ENV_SUMBER[basemap]}</code> dan <code>VITE_TILE_UNDUH_{NAMA_ENV_SUMBER[basemap]}=true</code>{" "}
-                      di berkas <code>.env</code>, lalu bangun ulang aplikasi.
-                    </>
-                  )}
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      type="button"
-                      className="btn-outline-sm"
-                      style={{ fontSize: "0.8rem", padding: "4px 8px" }}
-                      onClick={() => setTetapUnduh(true)}
-                    >
-                      Tetap Izinkan Unduh untuk Wilayah Lapangan
-                    </button>
-                  </div>
-                </div>
-              )}
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Masukkan nama area"
+            value={namaAreaOfflineBaru}
+            onChange={(e) => setNamaAreaOfflineBaru(e.target.value)}
+          />
 
-              {!penyimpananTileDidukung() && (
-                <div
-                  className="alert-banner-success"
-                  style={{ margin: 0, background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}
-                >
-                  Penyimpanan offline membutuhkan HTTPS atau localhost. Buka aplikasi lewat alamat aman.
-                </div>
-              )}
+          <div className="unduh-hold-stage">
+            <button
+              type="button"
+              className={`unduh-hold-circle ${sedangTahan ? "sedang-tahan" : ""} ${!bisaUnduh ? "nonaktif" : ""}`}
+              disabled={!bisaUnduh || sedangMengunduhTile}
+              aria-label="Tahan 3 detik untuk unduh peta 1x1 km"
+              onPointerDown={mulaiTahan}
+              onPointerUp={hentikanTahan}
+              onPointerLeave={hentikanTahan}
+              onPointerCancel={hentikanTahan}
+              onTouchStart={mulaiTahan}
+              onTouchEnd={hentikanTahan}
+              onTouchCancel={hentikanTahan}
+            >
+              <svg className="unduh-hold-svg" viewBox="0 0 140 140" aria-hidden="true">
+                <circle className="unduh-hold-track" cx="70" cy="70" r={RADIUS_HOLD} />
+                <circle
+                  className="unduh-hold-arc"
+                  cx="70"
+                  cy="70"
+                  r={RADIUS_HOLD}
+                  strokeDasharray={KELILING_HOLD}
+                  strokeDashoffset={KELILING_HOLD * (1 - holdRasio)}
+                />
+              </svg>
+              <div className="unduh-hold-core">
+                <Download size={26} />
+                <strong>{sedangTahan ? `${detikTersisa}d` : "Tahan 3 Detik"}</strong>
+              </div>
+            </button>
+          </div>
 
-              {bolehUnduhFinal && penyimpananTileDidukung() && (
-                <>
-                  <div>
-                    <label>Nama Area Peta Offline</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Masukkan nama area"
-                      value={namaAreaOfflineBaru}
-                      disabled={sedangMengunduhTile}
-                      onChange={(e) => setNamaAreaOfflineBaru(e.target.value)}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div>
-                      <label htmlFor="zoom-min-unduh">Zoom terjauh</label>
-                      <select
-                        id="zoom-min-unduh"
-                        className="form-input"
-                        value={zoomMinUnduh}
-                        disabled={sedangMengunduhTile}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          setZoomMinUnduh(v);
-                          if (v > zoomMaksUnduh) setZoomMaksUnduh(v);
-                        }}
-                      >
-                        {Array.from({ length: 9 }, (_, i) => 10 + i).map((z) => (
-                          <option key={z} value={z}>
-                            {z}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="zoom-maks-unduh">Zoom terdekat</label>
-                      <select
-                        id="zoom-maks-unduh"
-                        className="form-input"
-                        value={zoomMaksUnduh}
-                        disabled={sedangMengunduhTile}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          setZoomMaksUnduh(v);
-                          if (v < zoomMinUnduh) setZoomMinUnduh(v);
-                        }}
-                      >
-                        {Array.from({ length: 9 }, (_, i) => 10 + i).map((z) => (
-                          <option key={z} value={z}>
-                            {z}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <p id="perkiraan-unduh" style={{ margin: 0, fontSize: "0.84rem", color: kelebihanTile ? "#b91c1c" : undefined }}>
-                    {kelebihanTile
-                      ? `${jumlahTileUnduh.toLocaleString("id-ID")} tile melebihi batas ${BATAS_TILE_PER_AREA.toLocaleString("id-ID")} per area. Perbesar peta (zoom in) atau kurangi zoom terdekat.`
-                      : `${jumlahTileUnduh.toLocaleString("id-ID")} tile, perkiraan ±${perkiraanUkuranMb(jumlahTileUnduh, basemap).toFixed(1)} MB.`}
-                    {ruangPenyimpanan &&
-                      ` Penyimpanan HP: ${ruangPenyimpanan.pakaiMb.toFixed(0)} MB terpakai dari ${ruangPenyimpanan.kuotaMb.toFixed(0)} MB.`}
-                  </p>
-                </>
-              )}
-            </>
+          {sedangMengunduhTile && (
+            <button type="button" className="btn-outline-sm" onClick={batalkanUnduhan}>
+              Batalkan
+            </button>
           )}
 
           {galatUnduh && (
-            <div className="alert-banner-success" style={{ margin: 0, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }}>
+            <p className="field-error" role="alert" style={{ margin: 0, textAlign: "center" }}>
               {galatUnduh}
-            </div>
-          )}
-
-          {kemajuanUnduh && (
-            <div>
-              <progress value={kemajuanUnduh.selesai} max={Math.max(1, kemajuanUnduh.total)} style={{ width: "100%" }} />
-              <small className="text-muted" id="kemajuan-unduh">
-                {kemajuanUnduh.selesai.toLocaleString("id-ID")} dari {kemajuanUnduh.total.toLocaleString("id-ID")} tile
-                {kemajuanUnduh.gagal > 0 ? `, ${kemajuanUnduh.gagal} gagal` : ""}. Biarkan layar ini terbuka.
-              </small>
-            </div>
-          )}
-
-          
-          {/* KALIBRASI MANUAL 2-TITIK / 4-SUDUT FALLBACK DOKUMEN CETAK NON-GEOPDF */}
-          <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
-            <details style={{ fontSize: "0.82rem" }}>
-              <summary style={{ cursor: "pointer", fontWeight: 700, color: "#0d7344" }}>
-                📐 Kalibrasi Manual Dokumen PDF / Peta Cetak (2-Titik / 4-Sudut)
-              </summary>
-              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ margin: 0, color: "#64748b", fontSize: "0.76rem" }}>
-                  Bila dokumen PDF Anda tidak memiliki metadata GeoPDF bawaan, masukkan koordinat sudut Barat Laut (NW) dan Tenggara (SE) untuk menggeoreferensikan lembar peta.
-                </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                  <div>
-                    <label style={{ fontSize: "0.72rem" }}>Barat Laut (NW) Lat</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 3.05" className="form-input" id="calib-nw-lat" value={calibNwLat} onChange={(e) => setCalibNwLat(e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "0.72rem" }}>Barat Laut (NW) Lng</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 117.15" className="form-input" id="calib-nw-lng" value={calibNwLng} onChange={(e) => setCalibNwLng(e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "0.72rem" }}>Tenggara (SE) Lat</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 2.65" className="form-input" id="calib-se-lat" value={calibSeLat} onChange={(e) => setCalibSeLat(e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "0.72rem" }}>Tenggara (SE) Lng</label>
-                    <input type="number" step="0.0001" placeholder="Misal: 117.65" className="form-input" id="calib-se-lng" value={calibSeLng} onChange={(e) => setCalibSeLng(e.target.value)} />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  style={{ alignSelf: "flex-start", marginTop: 4 }}
-                  onClick={() => {
-                    const nwLat = parseFloat(calibNwLat);
-                    const nwLng = parseFloat(calibNwLng);
-                    const seLat = parseFloat(calibSeLat);
-                    const seLng = parseFloat(calibSeLng);
-                    if (!isNaN(nwLat) && !isNaN(nwLng) && !isNaN(seLat) && !isNaN(seLng)) {
-                      onBukaArea?.({ lat: (nwLat + seLat) / 2, lng: (nwLng + seLng) / 2 });
-                    }
-                  }}
-                >
-                  Terapkan Kalibrasi
-                </button>
-              </div>
-            </details>
-          </div>
-
-          {sedangMengunduhTile ? (
-            <button type="button" className="btn-outline-sm" onClick={batalkanUnduhan}>
-              Batalkan Unduhan
-            </button>
-          ) : (
-            <button type="button" className="btn-primary" disabled={!bisaUnduh} onClick={() => void handleUnduhAreaOffline()}>
-              ⬇️ Unduh Sekarang
-            </button>
+            </p>
           )}
 
           {areaOffline.length > 0 && (
-            <div className="offline-list" style={{ marginTop: 8 }}>
+            <div className="offline-list" style={{ marginTop: 4 }}>
               {areaOffline.map((a) => (
                 <div key={a.id} className="offline-item">
                   <div>
                     <strong>{a.namaArea}</strong>
                     <small>
-                      {a.unduhanNyata
-                        ? `${a.jumlahTile.toLocaleString("id-ID")} tile • ${a.ukuranMb} MB`
-                        : "Catatan saja, tile tidak tersimpan"}
+                      {a.jumlahTile.toLocaleString("id-ID")} tile · {a.ukuranMb} MB
                     </small>
                   </div>
                   <button
@@ -410,3 +355,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
     </div>
   );
 };
+
+export function ikonSelesaiUnduh() {
+  return <Check size={12} strokeWidth={3} />;
+}

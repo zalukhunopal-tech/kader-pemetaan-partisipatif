@@ -107,9 +107,9 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.locator(".avz-tool-popup-item", { hasText: "Rata-rata Plot GPS" }).click();
     await expect(p.locator(".visual-category-grid")).toHaveCount(0);
-    await expect(p.locator("button", { hasText: /Mengukur|Ulangi rata-rata GPS/ })).toBeVisible();
+    await expect(p.locator('button[aria-label="Hentikan GPS"], button[aria-label="Ukur GPS"]').first()).toBeVisible();
     await p.locator('input[placeholder="Masukkan nama objek"]').fill("Pohon Meranti Simulasi");
-    const btnBatalGps = p.locator("button", { hasText: /Mengukur ·/ });
+    const btnBatalGps = p.locator('button[aria-label="Hentikan GPS"]');
     if ((await btnBatalGps.count()) > 0) {
       await btnBatalGps.click();
     }
@@ -911,6 +911,14 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   expect(boxBadge).toBeTruthy();
   expect(boxBadge!.x + boxBadge!.width).toBeLessThanOrEqual(boxKartu!.x + boxKartu!.width + 1);
 
+  // 1b. Cek label modal Impor Peta Kerja (Simpan & Batal, tulisan ringkas)
+  await p.locator('button[title="Tambah / Impor Peta Kerja Baru"]').click();
+  await expect(p.locator(".peta-upload-text-wrap strong")).toHaveText("Pilih Berkas");
+  await expect(p.locator(".modal-footer button", { hasText: /^Simpan$/ })).toBeVisible();
+  await expect(p.locator(".modal-footer button", { hasText: /^Batal$/ })).toBeVisible();
+  await expect(p.getByText("Simpan ke Pustaka Peta")).toHaveCount(0);
+  await p.locator(".modal-footer button", { hasText: /^Batal$/ }).click();
+
   // 2. Uji Formulir Langsung pada Point: tambah kolam tematik baru "Kolam Flora" (Biodiversitas)
   await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
   await p.waitForSelector(".map-canvas-container");
@@ -918,6 +926,20 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await p.locator(".avz-fab-pin").click();
   await expect(p.locator('#form-survei-lapangan input[required]')).toBeVisible();
   await expect(p.locator('select[aria-label="Pilih Peta Tematik"]')).toBeVisible();
+  // Verifikasi kotak koordinat 1 baris + 3 titik swipeable & tombol simbol foto/suara
+  await expect(p.locator(".loc-swipe-box .loc-swipe-dot")).toHaveCount(3);
+  const teksAwalKoord = await p.locator(".loc-swipe-badge").innerText();
+  const boxNilai = await p.locator(".loc-swipe-value").boundingBox();
+  expect(boxNilai).not.toBeNull();
+  await p.mouse.move(boxNilai!.x + boxNilai!.width * 0.85, boxNilai!.y + boxNilai!.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(boxNilai!.x + boxNilai!.width * 0.1, boxNilai!.y + boxNilai!.height / 2, { steps: 6 });
+  await p.mouse.up();
+  await expect(p.locator(".loc-swipe-badge")).not.toHaveText(teksAwalKoord);
+  await expect(p.locator(".form-media-panel .btn-media-simbol")).toHaveCount(2);
+  await expect(p.locator(".survey-photo-preview")).toHaveCount(0);
+  await expect(p.locator(".field-audio-pill")).toHaveCount(0);
+
   await p.locator('#form-survei-lapangan input[required]').fill("Meranti Kolam Satu");
   await p.locator(".form-kategori-grid button", { hasText: "Biodiversitas" }).click();
   await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("__BARU__");
@@ -933,12 +955,12 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await expect(p.locator(".form-tematik-info.peringatan")).toContainText("Kolam Flora (Mata Air)");
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
 
-  // 4. Uji Point ke-3 dengan mengosongkan tematik -> masuk ke peta biasa (non-tematik)
+  // 4. Uji Point ke-3 dengan mengosongkan tematik -> keterangan non-tematik dihapus dan data masuk ke peta biasa
   await p.locator(".avz-fab-pin").click();
   await p.locator('#form-survei-lapangan input[required]').fill("Patok Biasa");
   await p.locator(".form-kategori-grid button", { hasText: "Batas" }).click();
   await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("");
-  await expect(p.locator(".form-tematik-info")).toContainText("non-tematik");
+  await expect(p.locator(".form-tematik-info")).toHaveCount(0);
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
 
   // Verifikasi filter kolam tematik vs non-tematik di halaman Lapisan Peta

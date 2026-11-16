@@ -12522,3 +12522,360 @@ html[data-field-theme="matahari"] .section-card h2 {
   text-align: center;
   line-height: 1.45;
 }
+
+/* KARTU KOORDINAT TITIK 1 BARIS + 3 DOTS SWIPE */
+.loc-card-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loc-swipe-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.loc-swipe-box:focus-visible {
+  outline: 2px solid #0d7344;
+  outline-offset: 2px;
+}
+
+.loc-swipe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.loc-swipe-badge {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.loc-swipe-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loc-swipe-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.loc-mini-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.loc-mini-icon-btn.aktif {
+  border-color: #0d7344;
+  background: #ecfdf5;
+  color: #0d7344;
+}
+
+.loc-swipe-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.loc-swipe-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 99px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.loc-swipe-dot.aktif {
+  width: 18px;
+  background: #0d7344;
+}
+
+.loc-hint {
+  font-size: 0.74rem;
+  color: #475569;
+}
+
+.loc-manual-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.loc-manual-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* FORM MEDIA SIMBOL RINGKAS (FOTO & SUARA) */
+.form-media-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.form-media-panel .form-photo-box,
+.form-media-panel .field-audio {
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.form-media-panel .form-photo-box.punya-foto,
+.form-media-panel .field-audio.punya-memo {
+  flex: 1 1 100%;
+}
+
+.btn-media-simbol {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  border: 1.5px dashed #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+
+.btn-media-simbol:hover {
+  background: #dcfce7;
+}
+
+.btn-media-simbol.merekam {
+  border-style: solid;
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #dc2626;
+  animation: pulsaMedia 1.1s infinite ease-in-out;
+}
+
+@keyframes pulsaMedia {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+
+.form-media-status {
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.form-foto-preview-card {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 8px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-foto-preview-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.field-audio-rekam-status {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.field-audio-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.field-audio-pill {
+  margin-top: 0;
+  padding: 5px 8px;
+  border-radius: 99px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-audio-play {
+  width: 32px;
+  height: 32px;
+  border-radius: 99px;
+  border: none;
+  background: #0d7344;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.btn-audio-play.sedang-putar {
+  background: #0f172a;
+}
+
+.field-audio-durasi {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+/* UNDUH OFFLINE LINGKARAN TAHAN 3 DETIK */
+.unduh-offline-card {
+  max-width: 380px;
+}
+
+.unduh-offline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.unduh-chip-ringkas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 99px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.78rem;
+}
+
+.unduh-hold-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+
+.unduh-hold-circle {
+  position: relative;
+  width: 144px;
+  height: 144px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: radial-gradient(circle at center, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 26px rgba(13, 115, 68, 0.16);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.unduh-hold-circle:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.unduh-hold-circle.sedang-tahan {
+  transform: scale(0.96);
+  box-shadow: 0 6px 24px rgba(13, 115, 68, 0.34);
+}
+
+.unduh-hold-circle.nonaktif,
+.unduh-hold-circle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.unduh-hold-svg {
+  position: absolute;
+  inset: 0;
+  width: 144px;
+  height: 144px;
+  pointer-events: none;
+}
+
+.unduh-hold-track {
+  fill: none;
+  stroke: rgba(13, 115, 68, 0.16);
+  stroke-width: 7;
+}
+
+.unduh-hold-arc {
+  fill: none;
+  stroke: #0d7344;
+  stroke-width: 7;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.unduh-hold-core {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.unduh-hold-core strong {
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
