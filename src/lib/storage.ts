@@ -57,7 +57,7 @@ export const PROFIL_BAWAAN: ProfilKader = {
   modeKombinasiTarget: "per_kategori",
   namaPenandatanganSertifikat: "Adi Junedi",
   jabatanPenandatanganSertifikat: "Direktur",
-  temaKegiatanSertifikat: "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau"
+  temaKegiatanSertifikat: "Survei dan Pemetaan Wilayah Partisipatif"
 };
 
 // Seluruh data awal dimulai kosong (tanpa data contoh/dummy)

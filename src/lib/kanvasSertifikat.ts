@@ -587,7 +587,9 @@ export function lukisSertifikatKeCanvas(
 
   // 11. Deskripsi Peran & Tema Kegiatan (Dapat Diubah oleh Admin)
   const peranTeks = "Sebagai Kader Desa";
-  const temaRaw = sert.temaKegiatanSertifikat?.trim() || "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+  const temaLama = "Inventarisasi dan Verifikasi Data Geospasial Wilayah Desa Rimba Hijau";
+  const temaKandidat = sert.temaKegiatanSertifikat?.trim();
+  const temaRaw = !temaKandidat || temaKandidat === temaLama ? "Survei dan Pemetaan Wilayah Partisipatif" : temaKandidat;
 
   const temaKegiatan = temaRaw.startsWith('"') && temaRaw.endsWith('"') ? temaRaw : `"${temaRaw}"`;
 
