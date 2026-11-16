@@ -5168,6 +5168,17 @@ label {
   vertical-align: middle;
 }
 
+#verifikasi-cepat form {
+  gap: 6px;
+}
+
+#verifikasi-cepat #pin-buka {
+  margin: 0 auto 4px;
+  line-height: 1;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 0 0 4px 0.5em;
+}
+
 .pin-input:focus,
 .kode-verifikasi-input:focus {
   outline: none;
@@ -7474,6 +7485,8 @@ button:disabled {
 .field-form-grid label,
 .field-survey-form label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 6px;
   color: var(--field-ink);
   font-size: 13px;
@@ -7553,6 +7566,7 @@ button:disabled {
 .field-sheet .modal-form {
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .field-sheet .modal-footer {
@@ -12310,10 +12324,25 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 12px;
   border: 1px solid #dce5de;
   border-radius: 12px;
   background: #ffffff;
+}
+
+.form-tematik-box select.form-input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding-right: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .form-tematik-label {

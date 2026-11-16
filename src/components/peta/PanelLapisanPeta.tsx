@@ -8,9 +8,9 @@ import { URUTAN_BASEMAP, basemapTersedia } from "../../lib/petaOffline";
 export function namaBasemap(id: BasemapType): string {
   switch (id) {
     case "esri":
-      return "Satelit Esri HD";
+      return "Satelit Esri";
     case "google":
-      return "Google Satelit HD";
+      return "Google Satelit";
     case "satelit":
       return "Citra Satelit";
     case "osm":

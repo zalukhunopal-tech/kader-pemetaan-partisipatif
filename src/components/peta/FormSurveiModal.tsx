@@ -413,12 +413,15 @@ export function FormSurveiModal({
                 }
               }}
             >
-              <option value="">Kosongkan (Bukan Peta Tematik / Peta Biasa)</option>
-              {kolamTematikList.map((k) => (
-                <option key={k.nama} value={k.nama}>
-                  {k.nama} ({k.kategori} · {k.jumlahObjek} data)
-                </option>
-              ))}
+              <option value="">Kosongkan (Peta Biasa)</option>
+              {kolamTematikList.map((k) => {
+                const teksOpsi = `${k.nama} (${k.kategori} · ${k.jumlahObjek})`;
+                return (
+                  <option key={k.nama} value={k.nama} title={teksOpsi}>
+                    {teksOpsi.length > 36 ? `${teksOpsi.slice(0, 33).trimEnd()}…` : teksOpsi}
+                  </option>
+                );
+              })}
               <option value="__BARU__">+ Buat Peta Tematik Baru…</option>
             </select>
           </label>
