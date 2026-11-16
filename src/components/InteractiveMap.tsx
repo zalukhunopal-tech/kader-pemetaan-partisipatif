@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AreaPetaOffline, BasemapType, DataSpasialItem, JenisGeometri, KoordinatTitik, ProfilKader } from "../types";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AreaPetaOffline, BasemapType, DataSpasialItem, JenisGeometri, KoordinatTitik, LapisanSpasial, ProfilKader } from "../types";
 import { singkatkanLabelPeta } from "../lib/labelPeta";
 import {
   eksporKeGeoJSON,
@@ -44,6 +44,8 @@ import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
+import { daftarkanPenutupLapisan } from "../lib/penjagaKembali";
+import { kumpulkanKolamTematik } from "../lib/tematik";
 import {
   SampelSentuh,
   TahapDrawerGps,
@@ -107,6 +109,7 @@ export function formatArahKardinal(deg: number): string {
 
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
+  lapisanList?: LapisanSpasial[];
   profil: ProfilKader;
   areaOffline: AreaPetaOffline[];
   petaKustomAktif?: AreaPetaOffline | null;
@@ -293,6 +296,7 @@ function titikDalamPoligon(t: { lat: number; lng: number }, poly: { lat: number;
 
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   dataSpasial,
+  lapisanList = [],
   profil,
   areaOffline,
   petaKustomAktif,
@@ -320,6 +324,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [cariKoordTerbuka, setCariKoordTerbuka] = useState<boolean>(false);
   const [galatPencarian, setGalatPencarian] = useState("");
   const [koordinatDipilih, setKoordinatDipilih] = useState<{ lat: number; lng: number; label?: string } | null>(null);
+  const [filterTematik, setFilterTematik] = useState<string | null>(null);
+  const kolamTematikList = useMemo(() => kumpulkanKolamTematik(lapisanList, dataSpasial), [lapisanList, dataSpasial]);
+  const dataTampil = useMemo(() => {
+    if (!filterTematik) return dataSpasial;
+    if (filterTematik === "__NON_TEMATIK__") return dataSpasial.filter((d) => !d.tematik);
+    const kunci = filterTematik.trim().toLowerCase();
+    return dataSpasial.filter((d) => (d.tematik || "").trim().toLowerCase() === kunci);
+  }, [dataSpasial, filterTematik]);
 
   const cariKoordinat = (teksKhusus?: string) => {
     setGalatPencarian("");
@@ -928,7 +940,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       H,
       zoom,
       keLayar: (lat, lng) => latLngToPixel(lat, lng, W, H),
-      dataSpasial,
+      dataSpasial: dataTampil,
       idTerpilih: objekTerpilih?.id,
       modeRekam,
       titikDraft,
@@ -948,7 +960,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     tinggiPeta,
     versiGoogle,
     basemap,
-    dataSpasial,
+    dataTampil,
     titikDraft,
     modeRekam,
     gpsPos,
@@ -1281,7 +1293,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         };
 
         let objekKena = false;
-        for (const item of dataSpasial) {
+        for (const item of dataTampil) {
           const pikselCoords = item.koordinat.map((k) => latLngToPixel(k.lat, k.lng, cW, cH));
           // 1. Cek semua vertex (<= 28px)
           for (const p of pikselCoords) {
@@ -1381,7 +1393,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const handleSimpanForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modeRekam || titikDraft.length === 0 || validasiGeometri(modeRekam, titikDraft).length > 0) return;
-    onSimpanDataBaru(form.susunItem(profil, modeRekam, titikDraft, kompasDerajat));
+    onSimpanDataBaru(form.susunItem(profil, modeRekam, titikDraft, kompasDerajat, { lapisanList, dataSpasial }));
     const rekamAktifLatar = modeRekam === "point" && rekamLatar.status !== "idle" && rekamLatar.jenis;
     if (!rekamAktifLatar) {
       perekamLatar.selesai();
@@ -1880,7 +1892,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       };
     }
   };
-  // Esc menutup lapisan paling atas milik peta: menu titik tiga → halaman → lembar → menu kecil
+  // Esc dan tombol Back perangkat menutup lapisan paling atas milik peta lebih dulu
   const adaLapisanTerbuka =
     menuLapisan !== null ||
     bukaHalamanLapisan ||
@@ -1890,6 +1902,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     bukaPilihBasemap ||
     bukaSalinKoord ||
     bukaMenuAlat;
+  const tutupOverlayPetaRef = useRef<() => boolean>(() => false);
+  tutupOverlayPetaRef.current = () => {
+    if (bukaModalForm) {
+      setBukaModalForm(false);
+      setAksiAwalForm(null);
+      return true;
+    }
+    if (objekTerpilih) {
+      setObjekTerpilih(null);
+      return true;
+    }
+    if (menuLapisan !== null) {
+      setMenuLapisan(null);
+      return true;
+    }
+    if (bukaHalamanLapisan) {
+      setBukaHalamanLapisan(false);
+      return true;
+    }
+    if (bukaInfoPetaModal) {
+      setBukaInfoPetaModal(false);
+      return true;
+    }
+    if (cariKoordTerbuka) {
+      setCariKoordTerbuka(false);
+      return true;
+    }
+    if (bukaDrawerGps) {
+      tutupDrawerHalus();
+      return true;
+    }
+    if (bukaPilihBasemap || bukaSalinKoord || bukaMenuAlat) {
+      tutupSemuaPanel();
+      return true;
+    }
+    return false;
+  };
+  useEffect(() => daftarkanPenutupLapisan(() => tutupOverlayPetaRef.current()), []);
   useTombolEsc(adaLapisanTerbuka, () => {
     if (menuLapisan !== null) setMenuLapisan(null);
     else if (bukaHalamanLapisan) setBukaHalamanLapisan(false);
@@ -1916,11 +1966,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return true;
   };
   const daftarCari = cariKoordInput.trim()
-    ? dataSpasial.filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase())).slice(0, 30)
-    : dataSpasial.slice(0, 30);
+    ? dataTampil.filter((d) => d.judul.toLowerCase().includes(cariKoordInput.trim().toLowerCase())).slice(0, 30)
+    : dataTampil.slice(0, 30);
   const objekLapisan = cariLapisanInput.trim()
-    ? dataSpasial.filter((d) => d.judul.toLowerCase().includes(cariLapisanInput.trim().toLowerCase()))
-    : dataSpasial;
+    ? dataTampil.filter((d) => d.judul.toLowerCase().includes(cariLapisanInput.trim().toLowerCase()))
+    : dataTampil;
   const kompasRose = (ukuran: number) => {
     const arah = arahHadap ?? putaran;
     return (
@@ -3006,6 +3056,33 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </div>
           </div>
           <div className="avz-halaman-isi">
+            <h3 className="avz-seksi-judul">Kolam Peta Tematik</h3>
+            <div className="avz-tematik-filter-bar" role="group" aria-label="Filter peta tematik">
+              <button
+                type="button"
+                className={`avz-tematik-chip ${filterTematik === null ? "aktif" : ""}`}
+                onClick={() => setFilterTematik(null)}
+              >
+                Semua ({dataSpasial.length})
+              </button>
+              <button
+                type="button"
+                className={`avz-tematik-chip ${filterTematik === "__NON_TEMATIK__" ? "aktif" : ""}`}
+                onClick={() => setFilterTematik("__NON_TEMATIK__")}
+              >
+                Non-Tematik ({dataSpasial.filter((d) => !d.tematik).length})
+              </button>
+              {kolamTematikList.map((k) => (
+                <button
+                  type="button"
+                  key={k.nama}
+                  className={`avz-tematik-chip ${filterTematik?.toLowerCase() === k.nama.toLowerCase() ? "aktif" : ""}`}
+                  onClick={() => setFilterTematik(k.nama)}
+                >
+                  {k.nama} · {k.kategori} ({k.jumlahObjek})
+                </button>
+              ))}
+            </div>
             <h3 className="avz-seksi-judul">Lapisan tertaut</h3>
             <div className="avz-lapisan-baris">
               <button
@@ -3018,8 +3095,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   <Layers size={24} />
                 </span>
                 <span className="avz-lapisan-teks">
-                  <strong>Data lapangan</strong>
-                  <small>Objek {dataSpasial.length}</small>
+                  <strong>{filterTematik === "__NON_TEMATIK__" ? "Data Non-Tematik" : filterTematik || "Data lapangan"}</strong>
+                  <small>Objek {dataTampil.length}</small>
                   <em>Aktif</em>
                 </span>
               </button>
@@ -3055,7 +3132,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     <span>
                       <strong>{d.judul}</strong>
                       <small>
-                        {d.kategori}
+                        {d.kategori} · {d.tematik ? `Tematik: ${d.tematik}` : "Non-Tematik"}
                         {d.jenisGeometri === "line" ? ` · ${d.panjangKm} km` : d.jenisGeometri === "polygon" ? ` · ${d.luasHa} Ha` : ""}
                       </small>
                     </span>
@@ -3270,6 +3347,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           }}
           sistemKoordinat={sistemKoord}
           onGantiSistemKoordinat={setSistemKoord}
+          kolamTematikList={kolamTematikList}
           onUbahKoordinat={(titikBaru: KoordinatTitik) => {
             setTitikDraft([titikBaru]);
             setCenter(titikBaru);

@@ -72,3 +72,24 @@ export function singkatkanLabelPeta(nama: string, maxLen = 30): string {
 
   return bersih;
 }
+
+/**
+ * Meringkas string CRS/WKT panjang (mis. PROJCS["WGS_1984_UTM_Zone_50N",...])
+ * agar muat rapi di badge/chip kartu peta tanpa meluap keluar layar.
+ */
+export function ringkasLabelCrs(crs?: string | null, maxLen = 26): string {
+  const awal = (crs || "").trim();
+  if (!awal) return "";
+
+  let ringkas = awal;
+  const wktMatch = awal.match(/^(?:PROJCS|GEOGCS|COMPD_CS|VERT_CS)\["([^"]+)"/i);
+  if (wktMatch?.[1]) {
+    ringkas = wktMatch[1].replace(/^GCS_/i, "").replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  } else {
+    ringkas = awal.replace(/\s*\(.*\)$/, "").trim();
+  }
+
+  ringkas = ringkas.replace(/\bWGS[\s_]?1984\b/gi, "WGS84").replace(/\s+/g, " ").trim();
+  if (ringkas.length <= maxLen) return ringkas;
+  return `${ringkas.slice(0, Math.max(4, maxLen - 3)).trimEnd()}...`;
+}

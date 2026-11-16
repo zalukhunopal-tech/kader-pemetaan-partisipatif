@@ -4,6 +4,7 @@ import {
   BATAS_WAKTU_KEMBALI_MS,
   KUNCI_STATE_DASAR,
   KUNCI_STATE_PENJAGA,
+  daftarkanPenutupLapisan,
   pasangPenjagaKembali,
   pastikanRiwayatPenjaga
 } from "./penjagaKembali";
@@ -22,6 +23,7 @@ describe("penjagaKembali", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("memasang entri riwayat penjaga secara idempoten (aman untuk React StrictMode)", () => {
@@ -34,6 +36,28 @@ describe("penjagaKembali", () => {
     // Pemanggilan kedua tidak menambah entri ganda
     expect(pastikanRiwayatPenjaga()).toBe(false);
     expect(pushSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("menunda pushState sampai ada interaksi pengguna jika userActivation belum aktif agar Chromium tidak melewati entri dasar", () => {
+    const uaMock = { hasBeenActive: false, isActive: false };
+    Object.defineProperty(window.navigator, "userActivation", {
+      value: uaMock,
+      configurable: true
+    });
+
+    const lepas = pasangPenjagaKembali({ onPeringatanKeluar: vi.fn() });
+    // Saat mount tanpa aktivasi pengguna: tidak merusak entri dasar dengan pushState dini
+    expect(pushSpy).not.toHaveBeenCalled();
+
+    // Pengguna mengetuk layar -> userActivation menjadi aktif -> penjaga langsung dipasang
+    uaMock.hasBeenActive = true;
+    uaMock.isActive = true;
+    window.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+    expect(window.history.state).toEqual({ [KUNCI_STATE_PENJAGA]: true });
+
+    lepas();
+    delete (window.navigator as unknown as { userActivation?: unknown }).userActivation;
   });
 
   it("menampilkan peringatan pada Back ke-1, membiarkan keluar pada Back ke-2 dalam 2 detik, dan mereset setelah lewat 2 detik", () => {
@@ -69,13 +93,19 @@ describe("penjagaKembali", () => {
     lepas();
   });
 
-  it("menutup panel anak terlebih dahulu jika masih terbuka lalu memasang ulang penjaga", () => {
-    let modalTerbuka = true;
+  it("menutup panel anak terlebih dahulu (termasuk tumpukan LIFO) lalu memasang ulang penjaga", () => {
+    let formTerbuka = true;
+    let modalAppTerbuka = true;
     const peringatan = vi.fn();
+    const lepasAnak = daftarkanPenutupLapisan(() => {
+      if (!formTerbuka) return false;
+      formTerbuka = false;
+      return true;
+    });
     const lepas = pasangPenjagaKembali({
       onTutupLapisanTeratas: () => {
-        if (!modalTerbuka) return false;
-        modalTerbuka = false;
+        if (!modalAppTerbuka) return false;
+        modalAppTerbuka = false;
         return true;
       },
       onPeringatanKeluar: peringatan
@@ -83,19 +113,27 @@ describe("penjagaKembali", () => {
 
     pushSpy.mockClear();
 
-    // Tekan Back saat modal terbuka -> tutup modal, pasang ulang penjaga, tanpa peringatan keluar
+    // Back 1: tutup lapisan anak (FormSurveiModal) terlebih dahulu
     window.history.replaceState({ [KUNCI_STATE_DASAR]: true }, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate", { state: { [KUNCI_STATE_DASAR]: true } }));
-    expect(modalTerbuka).toBe(false);
+    expect(formTerbuka).toBe(false);
+    expect(modalAppTerbuka).toBe(true);
     expect(peringatan).not.toHaveBeenCalled();
     expect(pushSpy).toHaveBeenCalledTimes(1);
-    expect(window.history.state).toEqual({ [KUNCI_STATE_PENJAGA]: true });
 
-    // Tekan Back setelah modal tertutup -> baru tampilkan peringatan keluar
+    // Back 2: tutup modal App
+    window.history.replaceState({ [KUNCI_STATE_DASAR]: true }, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate", { state: { [KUNCI_STATE_DASAR]: true } }));
+    expect(modalAppTerbuka).toBe(false);
+    expect(peringatan).not.toHaveBeenCalled();
+    expect(pushSpy).toHaveBeenCalledTimes(2);
+
+    // Back 3: semua lapisan sudah tertutup -> baru tampilkan peringatan keluar
     window.history.replaceState({ [KUNCI_STATE_DASAR]: true }, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate", { state: { [KUNCI_STATE_DASAR]: true } }));
     expect(peringatan).toHaveBeenCalledTimes(1);
 
+    lepasAnak();
     lepas();
   });
 });

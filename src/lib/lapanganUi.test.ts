@@ -51,7 +51,7 @@ describe("UI lapangan", () => {
     act(() => panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
     expect(tutup).toHaveBeenCalledOnce();
   });
-  it("memilih kategori visual membuka atribut batas beserta saksi, bukan kategori lain", () => {
+  it("menampilkan formulir langsung beserta pilihan kategori dan peta tematik tanpa langkah terpisah", () => {
     function Form() {
       const form = useFormSurvei("A");
       return React.createElement(FormSurveiModal, {
@@ -63,16 +63,17 @@ describe("UI lapangan", () => {
         luasDraftHa: 0,
         onSimpan: vi.fn(),
         onTutup: vi.fn(),
-        onHasilAveraging: vi.fn()
+        onHasilAveraging: vi.fn(),
+        kolamTematikList: [{ nama: "Patok Adat", kategori: "Tanda Batas", jumlahObjek: 2 }]
       });
     }
     render(React.createElement(Form));
-    expect(el.querySelector("input[required]")).toBeNull();
-    act(() => button("Batas").click());
+    // Formulir langsung tampil beserta input wajib dan pilihan Peta Tematik
     expect(el.querySelector("input[required]")).not.toBeNull();
+    expect(el.querySelector('select[aria-label="Pilih Peta Tematik"]')).not.toBeNull();
+    act(() => button("Batas").click());
     expect(el.textContent).toContain("Saksi Lapangan / Tokoh Desa");
     expect(bacaDraftSurvei("A").kategori).toBe("Tanda Batas");
-    act(() => button("Ganti kategori").click());
     act(() => button("Biodiversitas").click());
     expect(el.textContent).not.toContain("Saksi Lapangan / Tokoh Desa");
   });

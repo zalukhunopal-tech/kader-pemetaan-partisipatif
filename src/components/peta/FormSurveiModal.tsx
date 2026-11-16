@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Check, Leaf, PawPrint, Droplets, Flag, Flame, Trees, Landmark, House, MapPin, MoreHorizontal } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Check, Leaf, Droplets, Flag, Flame, Layers, Trees, Landmark, House, MoreHorizontal } from "lucide-react";
 import {
   BuktiFotoLapangan,
   DataSpasialItem,
@@ -7,6 +7,7 @@ import {
   JenisGeometri,
   KategoriSurvei,
   KoordinatTitik,
+  LapisanSpasial,
   MemoSuara,
   ProfilKader
 } from "../../types";
@@ -18,6 +19,7 @@ import { bacaDraftSurvei, DraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from ".
 import { ambilRataRataGps } from "../../lib/posisiPerangkat";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { susunAtributPolygonPrmAid, susunAtributLinePrmAid, susunAtributPointPrmAid } from "../../lib/atributPrmAid";
+import { KolamTematik, selesaikanKolamTematik } from "../../lib/tematik";
 import { BottomSheet } from "./BottomSheet";
 import { PerekamMemoSuara } from "./PerekamMemoSuara";
 import { KartuLokasiTitik } from "./KartuLokasiTitik";
@@ -67,8 +69,20 @@ export function useFormSurvei(idKader: string) {
         input.value = "";
       });
   };
-  const susunItem = (profil: ProfilKader, jenis: JenisGeometri, titik: KoordinatTitik[], kompas?: number): DataSpasialItem => {
+  const susunItem = (
+    profil: ProfilKader,
+    jenis: JenisGeometri,
+    titik: KoordinatTitik[],
+    kompas?: number,
+    konteksKolam?: { lapisanList?: LapisanSpasial[]; dataSpasial?: DataSpasialItem[] }
+  ): DataSpasialItem => {
     const waktu = new Date().toISOString();
+    const hasilTematik = selesaikanKolamTematik({
+      namaTematik: isian.tematik,
+      kategori: isian.kategori,
+      lapisanList: konteksKolam?.lapisanList ?? [],
+      dataSpasial: konteksKolam?.dataSpasial ?? []
+    });
     const item: DataSpasialItem = {
       id: buatId("SPS"),
       idKader: profil.idKader,
@@ -76,7 +90,8 @@ export function useFormSurvei(idKader: string) {
       desaWilayah: profil.desaWilayah,
       ...capWilayah(profil.idKader),
       jenisGeometri: jenis,
-      kategori: isian.kategori,
+      kategori: hasilTematik.kategori,
+      tematik: hasilTematik.tematik,
       judul: isian.judul.trim(),
       namaLokal: isian.namaLokal.trim() || undefined,
       namaIlmiah: isian.namaIlmiah.trim() || undefined,
@@ -189,6 +204,7 @@ interface FormSurveiModalProps {
   onGantiSistemKoordinat?: (s: SistemKoordinat) => void;
   onUbahKoordinat?: (titik: KoordinatTitik) => void;
   aksiAwal?: "averaging" | "foto" | null;
+  kolamTematikList?: KolamTematik[];
 }
 export function FormSurveiModal({
   form,
@@ -204,24 +220,50 @@ export function FormSurveiModal({
   sistemKoordinat,
   onGantiSistemKoordinat,
   onUbahKoordinat,
-  aksiAwal = null
+  aksiAwal = null,
+  kolamTematikList = []
 }: FormSurveiModalProps) {
   const [sistemAktif, setSistemAktif] = useState<SistemKoordinat>(() => sistemKoordinat || bacaSistemKoordinat());
   useEffect(() => {
     if (sistemKoordinat) setSistemAktif(sistemKoordinat);
   }, [sistemKoordinat]);
-  const [detail, setDetail] = useState(Boolean(form.isian.judul || aksiAwal)),
-    [stamp, setStamp] = useState(true),
+  const [stamp, setStamp] = useState(true),
     [memoSibuk, setMemoSibuk] = useState(false),
     [gpsSibuk, setGpsSibuk] = useState(false),
     [sampel, setSampel] = useState(0),
     [galatGps, setGalatGps] = useState(""),
-    [sorotFoto, setSorotFoto] = useState(false);
+    [sorotFoto, setSorotFoto] = useState(false),
+    [modeTematikBaru, setModeTematikBaru] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const fotoBoxRef = useRef<HTMLDivElement | null>(null);
   const sudahAksiAwalRef = useRef<"averaging" | "foto" | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   const { isian, ubah } = form;
+
+  const nilaiTematikSekarang = (isian.tematik || "").trim();
+  const kolamCocokSelect = useMemo(
+    () => kolamTematikList.find((k) => k.nama.toLowerCase() === nilaiTematikSekarang.toLowerCase()),
+    [kolamTematikList, nilaiTematikSekarang]
+  );
+  const opsiSelectTematik = !nilaiTematikSekarang ? (modeTematikBaru ? "__BARU__" : "") : kolamCocokSelect ? kolamCocokSelect.nama : "__BARU__";
+  const resolusiPratinjau = useMemo(
+    () =>
+      selesaikanKolamTematik({
+        namaTematik: nilaiTematikSekarang,
+        kategori: isian.kategori,
+        lapisanList: kolamTematikList.map((k, idx) => ({
+          id: k.lapisanId || `POOL-${idx}`,
+          nama: k.nama,
+          jumlahPeta: k.jumlahObjek,
+          kategoriDefault: k.kategori,
+          adalahTematik: true,
+          createdAt: ""
+        })),
+        dataSpasial: []
+      }),
+    [nilaiTematikSekarang, isian.kategori, kolamTematikList]
+  );
+
   const rataGps = async () => {
     abort.current?.abort();
     const kontrol = new AbortController();
@@ -248,7 +290,6 @@ export function FormSurveiModal({
     }
     if (sudahAksiAwalRef.current === aksiAwal) return;
     sudahAksiAwalRef.current = aksiAwal;
-    setDetail(true);
     if (aksiAwal === "averaging") {
       void rataGps();
     } else if (aksiAwal === "foto") {
@@ -293,65 +334,141 @@ export function FormSurveiModal({
       className="field-survey-sheet"
       halaman
       aksiKanan={
-        detail ? (
-          <button
-            type="submit"
-            form="form-survei-lapangan"
-            className="avenza-head-btn avz-centang"
-            aria-label="Simpan"
-            disabled={gpsSibuk || memoSibuk || form.memprosesFoto || Boolean(galatGeometri)}
-          >
-            <Check size={26} />
-          </button>
-        ) : undefined
+        <button
+          type="submit"
+          form="form-survei-lapangan"
+          className="avenza-head-btn avz-centang"
+          aria-label="Simpan"
+          disabled={gpsSibuk || memoSibuk || form.memprosesFoto || Boolean(galatGeometri)}
+        >
+          <Check size={26} />
+        </button>
       }
     >
       <p className="draft-status" role="status">
         Draf otomatis disimpan pada akun ini.
       </p>
-      {!detail ? (
-        <>
-          <h4>Apa yang Anda temukan?</h4>
-          <p className="field-help">Pilih kategori, lalu ceritakan temuan Anda.</p>
-          <div className="visual-category-grid">
-            {KATEGORI_VISUAL.map(({ kategori, judul, contoh, Ikon }) => (
-              <button
-                type="button"
-                key={kategori}
-                onClick={() => {
-                  ubah("kategori", kategori);
-                  setDetail(true);
-                }}
-              >
-                <Ikon size={30} />
-                <strong>{judul}</strong>
-                <small>{contoh}</small>
-              </button>
-            ))}
+      <form
+        id="form-survei-lapangan"
+        className="modal-form field-survey-form"
+        onSubmit={(e) => {
+          if (gpsSibuk || memoSibuk || form.memprosesFoto) {
+            e.preventDefault();
+            return;
+          }
+          onSimpan(e);
+        }}
+      >
+        {galatGeometri && (
+          <p role="alert" className="field-error">
+            {galatGeometri}
+          </p>
+        )}
+
+        {field("judul", "Nama Objek *", true)}
+
+        <fieldset className="form-kategori-box">
+          <legend>Kategori Data *</legend>
+          <div className="form-kategori-grid" role="group" aria-label="Pilihan kategori survei">
+            {KATEGORI_VISUAL.map(({ kategori, judul, Ikon }) => {
+              const aktif = isian.kategori === kategori;
+              return (
+                <button
+                  type="button"
+                  key={kategori}
+                  className={`form-kategori-chip ${aktif ? "aktif" : ""}`}
+                  aria-pressed={aktif}
+                  title={kategori}
+                  onClick={() => ubah("kategori", kategori)}
+                >
+                  <Ikon size={15} />
+                  <span>{judul}</span>
+                </button>
+              );
+            })}
           </div>
-        </>
-      ) : (
-        <form
-          id="form-survei-lapangan"
-          className="modal-form field-survey-form"
-          onSubmit={(e) => {
-            if (gpsSibuk || memoSibuk || form.memprosesFoto) {
-              e.preventDefault();
-              return;
-            }
-            onSimpan(e);
-          }}
-        >
-          <button type="button" className="field-category-selected" onClick={() => setDetail(false)}>
-            {isian.kategori}
-            <span>Ganti kategori</span>
-          </button>
-          {galatGeometri && (
-            <p role="alert" className="field-error">
-              {galatGeometri}
+          <span className="form-kategori-terpilih">Kategori terpilih: {isian.kategori}</span>
+        </fieldset>
+
+        <div className="form-tematik-box">
+          <label>
+            <span className="form-tematik-label">
+              <Layers size={15} /> Peta Tematik (Kolam Data)
+            </span>
+            <select
+              className="form-input"
+              aria-label="Pilih Peta Tematik"
+              value={opsiSelectTematik}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") {
+                  setModeTematikBaru(false);
+                  ubah("tematik", "");
+                } else if (v === "__BARU__") {
+                  setModeTematikBaru(true);
+                  if (kolamCocokSelect) ubah("tematik", "");
+                } else {
+                  setModeTematikBaru(false);
+                  ubah("tematik", v);
+                }
+              }}
+            >
+              <option value="">Kosongkan (Bukan Peta Tematik / Peta Biasa)</option>
+              {kolamTematikList.map((k) => (
+                <option key={k.nama} value={k.nama}>
+                  {k.nama} ({k.kategori} · {k.jumlahObjek} data)
+                </option>
+              ))}
+              <option value="__BARU__">+ Buat Peta Tematik Baru…</option>
+            </select>
+          </label>
+
+          {opsiSelectTematik === "__BARU__" && (
+            <label>
+              Nama Peta Tematik Baru
+              <input
+                type="text"
+                className="form-input"
+                maxLength={80}
+                placeholder="Misal: Sebaran Meranti, Batas Adat (kosongkan = peta biasa)"
+                value={isian.tematik || ""}
+                onChange={(e) => ubah("tematik", e.target.value)}
+              />
+            </label>
+          )}
+
+          {resolusiPratinjau.status === "non_tematik" && (
+            <p className="form-tematik-info">
+              Tanpa peta tematik: data disimpan ke peta seperti biasa (non-tematik).
             </p>
           )}
-          {field("judul", "Nama Objek *", true)}
+          {resolusiPratinjau.status === "gabung_kolam" && (
+            <p className="form-tematik-info sukses">
+              Kategori cocok: masuk ke kolam tematik <strong>{resolusiPratinjau.tematik}</strong> ({isian.kategori}).
+            </p>
+          )}
+          {resolusiPratinjau.status === "kolam_baru" && (
+            <p className="form-tematik-info sukses">
+              Kolam tematik baru <strong>{resolusiPratinjau.tematik}</strong> untuk kategori {isian.kategori}.
+            </p>
+          )}
+          {resolusiPratinjau.status === "tematik_tersendiri" && kolamCocokSelect && (
+            <div className="form-tematik-info peringatan">
+              <span>
+                Kolam <strong>{kolamCocokSelect.nama}</strong> berkategori <strong>{kolamCocokSelect.kategori}</strong>, sedangkan kategori
+                isian ini <strong>{isian.kategori}</strong>. Jika tidak disamakan, data akan dibuatkan tematik tersendiri:{" "}
+                <strong>{resolusiPratinjau.tematik}</strong>.
+              </span>
+              <button
+                type="button"
+                className="btn-outline-sm form-tematik-samakan-btn"
+                onClick={() => ubah("kategori", kolamCocokSelect.kategori)}
+              >
+                Samakan ke {kolamCocokSelect.kategori}
+              </button>
+            </div>
+          )}
+        </div>
           {modeRekam === "point" && (
             <KartuLokasiTitik
               titik={koordinat[0]}
@@ -488,7 +605,6 @@ export function FormSurveiModal({
             </button>
           </footer>
         </form>
-      )}
     </BottomSheet>
   );
 }

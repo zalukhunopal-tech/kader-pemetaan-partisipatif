@@ -196,6 +196,8 @@ export interface DataSpasialItem {
   tepi?: string;
   warna?: string;
   simbol?: string;
+  /** Nama kolam peta tematik (kosong/undefined = data peta biasa / non-tematik) */
+  tematik?: string;
   statusSinkron: StatusSinkron;
   diimpor?: boolean; // true = berasal dari berkas luar, bukan rekaman lapangan kader
   catatanAdmin?: string;
@@ -252,6 +254,8 @@ export interface LapisanSpasial {
   nama: string;
   jumlahPeta: number;
   kategoriDefault?: KategoriSurvei;
+  /** true = kolam data peta tematik yang terbentuk dari pengisian survei */
+  adalahTematik?: boolean;
   createdAt: string;
 }
 

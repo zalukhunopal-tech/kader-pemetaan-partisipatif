@@ -668,14 +668,14 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
 
   // 3. Jatuhkan pin & simpan 1 titik di tengah pelacakan aktif -> pelacakan latar BELUM terhapus!
   await p.locator(".avz-fab-pin").click();
-  await p.locator(".visual-category-grid button").first().click();
+  await p.locator(".form-kategori-grid button").first().click();
   await p.locator('#form-survei-lapangan input[required]').fill("Patok Tengah Jalur");
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
   await expect(p.locator(".avz-status-rekam")).toBeVisible();
 
   // Sekarang hentikan & simpan jalur yang terekam lewat PanelPerekaman
   await p.locator(".avz-status-rekam .rec-btn-save").click();
-  await p.locator(".visual-category-grid button").first().click();
+  await p.locator(".form-kategori-grid button").first().click();
   await p.locator('#form-survei-lapangan input[required]').fill("Jalur Patroli Terukur");
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
   await expect(p.locator(".avz-status-rekam")).toBeHidden();
@@ -702,7 +702,7 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
   await p.locator(".avz-status-rekam .rec-btn-add").click();
   await expect(p.locator(".avz-status-rekam .rec-btn-save")).toBeEnabled();
   await p.locator(".avz-status-rekam .rec-btn-save").click();
-  await p.locator(".visual-category-grid button").first().click();
+  await p.locator(".form-kategori-grid button").first().click();
   await p.locator('#form-survei-lapangan input[required]').fill("Petak Ukur Kebun");
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
   await expect(p.locator(".avz-status-rekam")).toBeHidden();
@@ -851,6 +851,103 @@ test("tekan back 1 kali hanya menampilkan peringatan dan baru keluar pada tekan 
   // 4. Tekan Back ke-2 dalam 2 detik: baru diizinkan keluar dari aplikasi ke halaman asal
   await p.goBack();
   expect(p.url()).toBe(urlAsal);
+
+  expect(galat).toEqual([]);
+  await tutup();
+});
+
+test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik vs non-tematik serta anti-overlap label CRS WKT di Pustaka", async ({
+  browser
+}) => {
+  const { p, galat, tutup } = await halamanBaru(
+    browser,
+    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+    false
+  );
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+
+  // Semai peta ber-CRS WKT panjang seperti CT Lung Mekatif1 final untuk memastikan badge CRS tidak meluap keluar kartu
+  await p.context().addInitScript(() => {
+    const ada = localStorage.getItem("geokader_offline_maps_v5");
+    if (!ada || ada === "[]") {
+      localStorage.setItem(
+        "geokader_offline_maps_v5",
+        JSON.stringify([
+          {
+            id: "AREA-WKT-UJI",
+            namaArea: "CT Lung Mekatif1 final",
+            basemapId: "esri",
+            minLat: 2.84,
+            maxLat: 2.86,
+            minLng: 117.36,
+            maxLng: 117.39,
+            zoomMin: 12,
+            zoomMax: 16,
+            jumlahTile: 0,
+            ukuranMb: 12.7,
+            jarakKm: 183.4,
+            jenisFile: "GeoPDF / GeoTIFF",
+            unduhanNyata: true,
+            statusTeks: "Pada peta",
+            crs: 'PROJCS["WGS_1984_UTM_Zone_50N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984"]]]',
+            diunduhPada: "2026-11-16T00:00:00Z"
+          }
+        ])
+      );
+    }
+  });
+
+  await masukSebagaiAdmin(p);
+  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
+
+  // 1. Cek badge CRS WKT di Pustaka ringkas & muat di dalam kotak kartu
+  const kartuWkt = p.locator(".avenza-map-row", { hasText: "CT Lung Mekatif1 final" }).first();
+  await expect(kartuWkt).toBeVisible();
+  const badgeCrs = kartuWkt.locator(".avenza-crs-badge");
+  await expect(badgeCrs).toContainText("WGS84 UTM Zone 50N");
+  const boxKartu = await kartuWkt.boundingBox();
+  const boxBadge = await badgeCrs.boundingBox();
+  expect(boxKartu).toBeTruthy();
+  expect(boxBadge).toBeTruthy();
+  expect(boxBadge!.x + boxBadge!.width).toBeLessThanOrEqual(boxKartu!.x + boxKartu!.width + 1);
+
+  // 2. Uji Formulir Langsung pada Point: tambah kolam tematik baru "Kolam Flora" (Biodiversitas)
+  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.waitForSelector(".map-canvas-container");
+
+  await p.locator(".avz-fab-pin").click();
+  await expect(p.locator('#form-survei-lapangan input[required]')).toBeVisible();
+  await expect(p.locator('select[aria-label="Pilih Peta Tematik"]')).toBeVisible();
+  await p.locator('#form-survei-lapangan input[required]').fill("Meranti Kolam Satu");
+  await p.locator(".form-kategori-grid button", { hasText: "Biodiversitas" }).click();
+  await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("__BARU__");
+  await p.locator('input[placeholder*="Misal: Sebaran Meranti"]').fill("Kolam Flora");
+  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await expect(p.locator(".avenza-toast")).toContainText("Kolam Flora");
+
+  // 3. Uji Point ke-2 dengan tematik "Kolam Flora" TETAPI kategori berbeda ("Air" -> "Mata Air") -> jadi tematik tersendiri!
+  await p.locator(".avz-fab-pin").click();
+  await p.locator('#form-survei-lapangan input[required]').fill("Mata Air Terpisah");
+  await p.locator(".form-kategori-grid button", { hasText: "Air" }).click();
+  await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("Kolam Flora");
+  await expect(p.locator(".form-tematik-info.peringatan")).toContainText("Kolam Flora (Mata Air)");
+  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+
+  // 4. Uji Point ke-3 dengan mengosongkan tematik -> masuk ke peta biasa (non-tematik)
+  await p.locator(".avz-fab-pin").click();
+  await p.locator('#form-survei-lapangan input[required]').fill("Patok Biasa");
+  await p.locator(".form-kategori-grid button", { hasText: "Batas" }).click();
+  await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("");
+  await expect(p.locator(".form-tematik-info")).toContainText("non-tematik");
+  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+
+  // Verifikasi filter kolam tematik vs non-tematik di halaman Lapisan Peta
+  await p.getByRole("button", { name: "Lapisan" }).click();
+  await expect(p.locator(".avz-tematik-chip", { hasText: "Kolam Flora · Biodiversitas (1)" })).toBeVisible();
+  await expect(p.locator(".avz-tematik-chip", { hasText: "Kolam Flora (Mata Air) · Mata Air (1)" })).toBeVisible();
+  await expect(p.locator(".avz-tematik-chip", { hasText: "Non-Tematik (1)" })).toBeVisible();
+
+  await p.getByRole("dialog", { name: "Lapisan Peta" }).getByRole("button", { name: "Kembali" }).click();
 
   expect(galat).toEqual([]);
   await tutup();

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Download, Eye, FileUp, Layers, X, MapPin, Trash2, Check } from "lucide-react";
 import { AreaPetaOffline, BasemapType } from "../../types";
+import { ringkasLabelCrs } from "../../lib/labelPeta";
 import { URUTAN_BASEMAP, basemapTersedia } from "../../lib/petaOffline";
 
 /** Nama peta dasar yang tampil di bilah judul peta dan daftar Lapisan */
@@ -255,7 +256,11 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
                   {/* BARIS TENGAH: METADATA PILLS HORIZONTAL */}
                   <div className="pustaka-card-meta-pills">
                     <span className="pustaka-meta-pill">{item.ukuranMb.toFixed(1).replace(".", ",")} MB</span>
-                    {item.crs && <span className="pustaka-meta-pill crs-pill">{item.crs.replace(/\s*\(.*\)$/, "")}</span>}
+                    {item.crs && (
+                      <span className="pustaka-meta-pill crs-pill" title={item.crsDeskripsi || item.crs}>
+                        {ringkasLabelCrs(item.crs, 20)}
+                      </span>
+                    )}
                     {diDalam ? (
                       <span className="pustaka-meta-pill on-map-pill">
                         <Check size={11} /> Di Dalam Peta

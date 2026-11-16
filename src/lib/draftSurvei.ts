@@ -20,6 +20,7 @@ export interface DraftSurvei {
   tepi?: string;
   warna?: string;
   simbol?: string;
+  tematik?: string;
 }
 export const DRAFT_KOSONG: DraftSurvei = {
   kategori: "Biodiversitas",
@@ -36,7 +37,8 @@ export const DRAFT_KOSONG: DraftSurvei = {
   url: "",
   tepi: "",
   warna: "",
-  simbol: ""
+  simbol: "",
+  tematik: ""
 };
 function semuaDraft(): Record<string, DraftSurvei> {
   try {

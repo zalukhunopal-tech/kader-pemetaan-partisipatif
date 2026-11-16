@@ -457,7 +457,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                     <td>
                       <span className="badge-kategori">{d.kategori}</span>
                       <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                        {d.jenisGeometri.toUpperCase()}
+                        {d.jenisGeometri.toUpperCase()} · {d.tematik ? `Tematik: ${d.tematik}` : "Non-Tematik"}
                       </div>
                     </td>
                     <td>

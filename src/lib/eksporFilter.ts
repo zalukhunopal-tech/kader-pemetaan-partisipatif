@@ -1,6 +1,7 @@
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
 import { eksporKeGeoJSON, eksporKeKML } from "./geoUtils";
 import { titikDiDalamBatasArea } from "./geofence";
+import { objekCocokLapisan } from "./tematik";
 
 export type JenisDataEkspor = "Hanya lapisan" | "Lapisan dan peta" | "Semua fitur terpilih";
 
@@ -48,17 +49,14 @@ export function filterDataUntukEkspor(dataSpasial: DataSpasialItem[], opsi: Opsi
     const idSet = new Set(konteks.fiturTerpilihIds);
     hasil = hasil.filter((d) => idSet.has(d.id));
   } else {
-    const lapisanKategori = (konteks?.lapisanDipilih ?? [])
-      .map((l) => l.kategoriDefault)
-      .filter((k): k is NonNullable<typeof k> => Boolean(k));
+    const lapisanDipilih = konteks?.lapisanDipilih ?? [];
     const petaDipilih = konteks?.petaDipilih ?? [];
 
-    const terapkanFilterKategori = lapisanKategori.length > 0 && (jenisData === "Semua fitur terpilih" || jenisData === "Hanya lapisan");
+    const terapkanFilterLapisan = lapisanDipilih.length > 0 && (jenisData === "Semua fitur terpilih" || jenisData === "Hanya lapisan");
     const terapkanFilterPeta = petaDipilih.length > 0;
 
-    if (terapkanFilterKategori) {
-      const katSet = new Set(lapisanKategori);
-      hasil = hasil.filter((d) => katSet.has(d.kategori));
+    if (terapkanFilterLapisan) {
+      hasil = hasil.filter((d) => lapisanDipilih.some((l) => objekCocokLapisan(d, l)));
     }
 
     if (terapkanFilterPeta && jenisData === "Semua fitur terpilih") {
