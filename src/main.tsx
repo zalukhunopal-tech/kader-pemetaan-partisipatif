@@ -6,13 +6,15 @@ import { PenangkapErrorBoundary } from "./components/PenangkapErrorBoundary";
 import { siapkanAutentikasi } from "./lib/auth";
 import { siapkanStorage } from "./lib/storage";
 import { pasangPendengarInstal } from "./lib/instal";
+import { daftarkanAutoUpdatePwa } from "./lib/pwaUpdate";
 import { pasangPolyfillPdfJs } from "./lib/geoPdf";
 import "./styles/app.css";
 import "./styles/petaAvenza.css";
 
-// Tangkap event pemasangan PWA sedini mungkin agar tombol "Instal" bisa memakainya
+// Tangkap event pemasangan PWA sedini mungkin dan aktifkan auto-update setiap kali republish
 pasangPolyfillPdfJs();
 pasangPendengarInstal();
+daftarkanAutoUpdatePwa();
 
 // Migrasi akun lama (sandi teks polos -> hash) dan pemuatan data dari IndexedDB selesai
 // sebelum aplikasi membaca sesi dan data

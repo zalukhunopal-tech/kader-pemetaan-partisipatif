@@ -318,3 +318,110 @@ export function parseIsianManual(
   if (!Number.isFinite(hasil.lat) || Math.abs(hasil.lat) > 90) return { galat: "Nilai koordinat di luar jangkauan." };
   return { lat: Number(hasil.lat.toFixed(7)), lng: Number(hasil.lng.toFixed(7)) };
 }
+
+function parseBagianDmsAtauDdm(teks: string): number | null {
+  const mDms = teks.match(/([+-]?\d+(?:\.\d+)?)\s*°\s*(\d+(?:\.\d+)?)\s*[′']\s*(\d+(?:\.\d+)?)\s*(?:[″"]|'')?/);
+  if (mDms) {
+    const d = Math.abs(parseFloat(mDms[1]));
+    const m = parseFloat(mDms[2]);
+    const s = parseFloat(mDms[3]);
+    if (m >= 60 || s >= 60) return null;
+    const nilai = d + m / 60 + s / 3600;
+    return mDms[1].startsWith("-") ? -nilai : nilai;
+  }
+  const mDdm = teks.match(/([+-]?\d+(?:\.\d+)?)\s*°\s*(\d+(?:\.\d+)?)\s*[′']/);
+  if (mDdm) {
+    const d = Math.abs(parseFloat(mDdm[1]));
+    const m = parseFloat(mDdm[2]);
+    if (m >= 60) return null;
+    const nilai = d + m / 60;
+    return mDdm[1].startsWith("-") ? -nilai : nilai;
+  }
+  return null;
+}
+
+/** Uraikan masukan teks menjadi koordinat lat & lng yang valid (DD, DMS, DDM, UTM, TM-3) */
+export function uraikanTeksKoordinat(teks: string): { lat: number; lng: number } | null {
+  const t = teks.trim();
+  if (!t) return null;
+
+  // 1. Format UTM: "UTM 50N 541932 315890" atau "50N 541 932 E 315 890 N"
+  const mUtm = t.match(/^(?:UTM\s+)?(\d{1,2})\s*([NS])\s+([\d\s.,]+?)\s*(?:m?E)?[,\s]+([\d\s.,]+?)\s*(?:m?N)?$/i);
+  if (mUtm) {
+    const x = parseFloat(mUtm[3].replace(/\s+/g, "").replace(",", "."));
+    const y = parseFloat(mUtm[4].replace(/\s+/g, "").replace(",", "."));
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const h = dariUtm(x, y, `${mUtm[1]}${mUtm[2].toUpperCase()}`);
+      if (h && Math.abs(h.lat) <= 90 && Math.abs(h.lng) <= 180) {
+        return { lat: Number(h.lat.toFixed(7)), lng: Number(h.lng.toFixed(7)) };
+      }
+    }
+  }
+
+  // 2. Format TM-3 Indonesia: "TM-3 50.1 381245.20 1815890.10" atau "50.1 X 381245.2 Y 1815890.1"
+  const mTm3 = t.match(/^(?:TM-?3\s+)?(\d{2}\.[12])\s+(?:X\s*)?([\d\s.,]+?)[,\s]+(?:Y\s*)?([\d\s.,]+)$/i);
+  if (mTm3) {
+    const x = parseFloat(mTm3[2].replace(/\s+/g, "").replace(",", "."));
+    const y = parseFloat(mTm3[3].replace(/\s+/g, "").replace(",", "."));
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const h = dariTm3(x, y, mTm3[1]);
+      if (h && Math.abs(h.lat) <= 90 && Math.abs(h.lng) <= 180) {
+        return { lat: Number(h.lat.toFixed(7)), lng: Number(h.lng.toFixed(7)) };
+      }
+    }
+  }
+
+  // 3. Format DMS / DDM dengan label arah (contoh: 2°51'26.2" LU, 117°22'38.9" BT atau 2°51.436' N, 117°22.649' E)
+  const polaSudutKardinal = /([+-]?\d+(?:\.\d+)?\s*°[^A-Za-z,]+?)\s*(LU|LS|BT|BB|N|S|E|W)\b/gi;
+  const temuanSudut = [...t.matchAll(polaSudutKardinal)];
+  if (temuanSudut.length === 2) {
+    let lat: number | null = null;
+    let lng: number | null = null;
+    for (const item of temuanSudut) {
+      const val = parseBagianDmsAtauDdm(item[1]);
+      if (val === null) continue;
+      const arah = item[2].toUpperCase();
+      if (arah === "LU" || arah === "N") lat = Math.abs(val);
+      else if (arah === "LS" || arah === "S") lat = -Math.abs(val);
+      else if (arah === "BT" || arah === "E") lng = Math.abs(val);
+      else if (arah === "BB" || arah === "W") lng = -Math.abs(val);
+    }
+    if (lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      return { lat: Number(lat.toFixed(7)), lng: Number(lng.toFixed(7)) };
+    }
+  }
+
+  // 4. Format DD angka biasa: contoh "-6.1754, 106.8272" atau "2.857270 117.377476"
+  const mDD = t.match(/^([+-]?\d+(?:\.\d+)?)[,\s]+([+-]?\d+(?:\.\d+)?)$/);
+  if (mDD) {
+    const a = parseFloat(mDD[1]);
+    const b = parseFloat(mDD[2]);
+    if (Math.abs(a) <= 90 && Math.abs(b) <= 180) {
+      return { lat: a, lng: b };
+    }
+    if (Math.abs(b) <= 90 && Math.abs(a) <= 180) {
+      return { lat: b, lng: a };
+    }
+  }
+
+  // 5. Format kardinal DD: contoh "2.857270° LU, 117.377476° BT" atau "2.857270N 117.377476E"
+  const polaKardinal = /([+-]?\d+(?:\.\d+)?)\s*°?\s*(LU|LS|BT|BB|N|S|E|W)/gi;
+  const temuan = [...t.matchAll(polaKardinal)];
+  if (temuan.length === 2) {
+    let lat: number | null = null;
+    let lng: number | null = null;
+    for (const item of temuan) {
+      const val = parseFloat(item[1]);
+      const arah = item[2].toUpperCase();
+      if (arah === "LU" || arah === "N") lat = Math.abs(val);
+      else if (arah === "LS" || arah === "S") lat = -Math.abs(val);
+      else if (arah === "BT" || arah === "E") lng = Math.abs(val);
+      else if (arah === "BB" || arah === "W") lng = -Math.abs(val);
+    }
+    if (lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+}

@@ -202,12 +202,12 @@ test("unduh area offline dari penyedia tile berlisensi: tile tersimpan dan area 
   await p.getByRole("menuitem", { name: "Unduh area offline" }).click();
 
   await p.getByPlaceholder("Masukkan nama area").fill("Wilayah Uji Offline");
-  const perkiraan = await p.locator("#perkiraan-unduh").innerText();
-  const jumlah = Number(perkiraan.match(/\((\d+) tile/)![1]);
+  const perkiraan = await p.locator("#perkiraan-unduh strong").innerText();
+  const jumlah = Number(perkiraan.match(/(\d+)\s*tile/)![1]);
   expect(jumlah).toBeGreaterThan(0);
   const sebelum = dimintaJaringan;
-  // Tahan lingkaran selama 3 detik untuk otomatis mulai unduh 1x1 km zoom sampai 18x
-  const tombolTahan = p.getByRole("button", { name: "Tahan 3 detik untuk unduh peta 1x1 km" });
+  // Tahan lingkaran selama 3 detik untuk otomatis mulai unduh 10x10 km zoom sampai 20x
+  const tombolTahan = p.getByRole("button", { name: "Tahan 3 detik untuk unduh peta 10x10 km" });
   const kotakTombol = await tombolTahan.boundingBox();
   expect(kotakTombol).not.toBeNull();
   await p.mouse.move(kotakTombol!.x + kotakTombol!.width / 2, kotakTombol!.y + kotakTombol!.height / 2);
@@ -216,7 +216,7 @@ test("unduh area offline dari penyedia tile berlisensi: tile tersimpan dan area 
   await p.mouse.up();
   expect(await sampai(async () => (await p.getByText("Unduh Peta Offline").count()) === 0, 15_000)).toBe(true);
   // Verifikasi indikator progres lingkaran di peta interaktif mencapai hijau + checklist (100%)
-  expect(await sampai(async () => (await p.locator("#unduh-progress-hud.fase-hijau").count()) === 1, 30_000)).toBe(true);
+  expect(await sampai(async () => (await p.locator("#unduh-progress-hud.fase-hijau").count()) === 1, 45_000)).toBe(true);
   await expect(p.locator("#unduh-progress-hud")).toContainText("100%");
   expect(dimintaJaringan - sebelum).toBeGreaterThanOrEqual(1);
   const tersimpan = await p.evaluate(async () => (await (await caches.open("geokader-tiles-v1")).keys()).length);

@@ -1,14 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Crosshair, Loader2, Pencil } from "lucide-react";
+import { Crosshair, Loader2 } from "lucide-react";
 import { KoordinatTitik } from "../../types";
-import {
-  formatKoordinat,
-  isianDariTitik,
-  IsianKoordinatManual,
-  parseIsianManual,
-  sistemInput,
-  SistemKoordinat
-} from "../../lib/sistemKoordinat";
+import { formatKoordinat, SistemKoordinat, uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
 
 interface KartuLokasiTitikProps {
   titik?: KoordinatTitik;
@@ -23,15 +16,23 @@ interface KartuLokasiTitikProps {
   galatGps?: string;
 }
 
-/** Tiga sistem koordinat utama yang dapat di-swipe secara berurutan pada kartu titik. */
+/** Tiga sistem koordinat utama yang dapat diganti lewat tiga titik atau swipe. */
 export const SISTEM_SWIPE: SistemKoordinat[] = ["DD", "DMS", "UTM"];
 
-const LABEL_DOT: Record<SistemKoordinat, string> = {
+const LABEL_SISTEM: Record<SistemKoordinat, string> = {
   DD: "DD",
   DMS: "DMS",
   DDM: "DDM",
   UTM: "UTM",
   TM3: "TM-3"
+};
+
+const CONTOH_SISTEM: Record<SistemKoordinat, string> = {
+  DD: "Contoh: 2.857472, 117.377476",
+  DMS: `Contoh: 2°51'26.9" LU, 117°22'38.9" BT`,
+  DDM: "Contoh: 2°51.448' LU, 117°22.649' BT",
+  UTM: "Contoh: UTM 50N 541982 315849",
+  TM3: "Contoh: TM-3 50.1 381245 1815890"
 };
 
 export function KartuLokasiTitik({
@@ -46,27 +47,32 @@ export function KartuLokasiTitik({
   infoAveraging,
   galatGps
 }: KartuLokasiTitikProps) {
-  const [manual, setManual] = useState(false);
-  const [isian, setIsian] = useState<IsianKoordinatManual>({ a: "", b: "", zona: "" });
-  const [galat, setGalat] = useState("");
+  const [teksEdit, setTeksEdit] = useState("");
+  const [sedangEdit, setSedangEdit] = useState(false);
+  const [galatEdit, setGalatEdit] = useState("");
   const startXRef = useRef<number | null>(null);
   const lastSwipeMsRef = useRef<number>(0);
-  const mode = sistemInput(sistem);
+
+  const terformat = titik ? formatKoordinat(titik.lat, titik.lng, sistem) : null;
+  const teksNilai = terformat ? terformat.salin : "";
 
   useEffect(() => {
-    if (titik) setIsian(isianDariTitik(titik.lat, titik.lng, sistem));
-    setGalat("");
-  }, [titik?.lat, titik?.lng, sistem]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!sedangEdit) {
+      setTeksEdit(teksNilai);
+      setGalatEdit("");
+    }
+  }, [teksNilai, sedangEdit]);
 
   if (!titik) {
     return <p className="field-error">Belum ada titik.</p>;
   }
 
-  const terformat = formatKoordinat(titik.lat, titik.lng, sistem);
   const idxAktifRaw = SISTEM_SWIPE.indexOf(sistem);
   const idxAktif = idxAktifRaw >= 0 ? idxAktifRaw : 0;
 
   const geserSistem = (arah: 1 | -1) => {
+    setSedangEdit(false);
+    setGalatEdit("");
     const selanjutnya = SISTEM_SWIPE[(idxAktif + arah + SISTEM_SWIPE.length) % SISTEM_SWIPE.length];
     onGantiSistem(selanjutnya);
   };
@@ -84,165 +90,137 @@ export function KartuLokasiTitik({
     }
   };
 
-    const terapkan = () => {
-    const hasil = parseIsianManual(isian, sistem);
+  const terapkanKoordinatLangsung = (teks: string, validasiAkhir: boolean) => {
+    const hasil = uraikanTeksKoordinat(teks);
     if (!hasil) {
-      setGalat(
-        mode === "DD"
-          ? "Contoh: -2.5124, 102.9876"
-          : mode === "UTM"
-            ? "Contoh: 541982, 315849, zona 50N"
-            : "Contoh: 2 51 26.2 LU, 117 22 38.9 BT"
-      );
-      return;
+      if (validasiAkhir && teks.trim() !== teksNilai.trim()) {
+        setGalatEdit(CONTOH_SISTEM[sistem]);
+      }
+      return false;
     }
-    setGalat("");
-    setManual(false);
-    onUbahKoordinat?.({ ...titik, ...hasil, akurasi: undefined });
+    setGalatEdit("");
+    onUbahKoordinat?.({ ...titik, lat: hasil.lat, lng: hasil.lng, akurasi: undefined });
+    return true;
   };
 
   return (
-    <div className="loc-card loc-card-compact">
-      <div
-        className="loc-swipe-box"
-        role="region"
-        aria-label={`Koordinat Titik (${LABEL_DOT[sistem]})`}
-        tabIndex={0}
-        onTouchStart={(e) => {
-          startXRef.current = e.touches[0]?.clientX ?? null;
-        }}
-        onTouchEnd={(e) => selesaiSentuh(e.changedTouches[0]?.clientX)}
-        onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest("button")) return;
-          startXRef.current = e.clientX;
-        }}
-        onPointerUp={(e) => {
-          if ((e.target as HTMLElement).closest("button")) {
-            startXRef.current = null;
-            return;
-          }
-          selesaiSentuh(e.clientX);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowRight") {
-            e.preventDefault();
-            geserSistem(1);
-          } else if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            geserSistem(-1);
-          }
-        }}
-      >
-        <div className="loc-swipe-row">
-          <span className="loc-swipe-badge" aria-hidden="true">
-            {LABEL_DOT[sistem]}
+    <div
+      className="loc-card loc-card-field"
+      role="region"
+      aria-label={`Koordinat Titik (${LABEL_SISTEM[sistem]})`}
+      onTouchStart={(e) => {
+        if ((e.target as HTMLElement).closest("input, button")) return;
+        startXRef.current = e.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(e) => selesaiSentuh(e.changedTouches[0]?.clientX)}
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest("input, button")) return;
+        startXRef.current = e.clientX;
+      }}
+      onPointerUp={(e) => selesaiSentuh(e.clientX)}
+    >
+      <label className="loc-coord-label">
+        <span className="loc-coord-label-row">
+          <span>
+            Koordinat <strong className="loc-swipe-badge">{LABEL_SISTEM[sistem]}</strong>
           </span>
-          <strong className="loc-swipe-value" title={terformat.ringkas}>
-            {terformat.ringkas}
-          </strong>
-          <div className="loc-swipe-actions">
-            {gpsSibuk ? (
-              <button
-                type="button"
-                className="loc-mini-icon-btn aktif"
-                onClick={onBatalUkur}
-                aria-label="Hentikan GPS"
-                title={`Mengukur GPS (${sampel}/10)`}
-              >
-                <Loader2 size={15} className="spin" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="loc-mini-icon-btn"
-                onClick={onUkurGps}
-                aria-label="Ukur GPS"
-                title="Ukur GPS rata-rata"
-              >
-                <Crosshair size={15} />
-              </button>
-            )}
-            {onUbahKoordinat && (
-              <button
-                type="button"
-                className={`loc-mini-icon-btn ${manual ? "aktif" : ""}`}
-                onClick={() => setManual((v) => !v)}
-                aria-label="Ubah koordinat manual"
-                title="Ubah manual"
-              >
-                <Pencil size={14} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="loc-swipe-dots" role="tablist" aria-label="Pilih format koordinat">
-          {SISTEM_SWIPE.map((idSistem, idx) => (
+          {gpsSibuk ? (
             <button
-              key={idSistem}
               type="button"
-              role="tab"
-              aria-selected={idx === idxAktif}
-              aria-label={`Format ${idSistem}`}
-              title={idSistem}
-              className={`loc-swipe-dot ${idx === idxAktif ? "aktif" : ""}`}
-              onClick={() => onGantiSistem(idSistem)}
-            />
-          ))}
-        </div>
+              className="loc-mini-icon-btn aktif"
+              onClick={(e) => {
+                e.preventDefault();
+                onBatalUkur();
+              }}
+              aria-label="Hentikan GPS"
+              title={`Mengukur GPS (${sampel}/10)`}
+            >
+              <Loader2 size={14} className="spin" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="loc-mini-icon-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                onUkurGps();
+              }}
+              aria-label="Ukur GPS"
+              title="Ukur ulang GPS rata-rata"
+            >
+              <Crosshair size={14} />
+            </button>
+          )}
+        </span>
+        <input
+          type="text"
+          className="form-input loc-coord-input"
+          aria-label="Koordinat Titik"
+          readOnly={!onUbahKoordinat}
+          value={sedangEdit ? teksEdit : teksNilai}
+          placeholder={CONTOH_SISTEM[sistem]}
+          onFocus={() => {
+            setSedangEdit(true);
+            setTeksEdit(teksNilai);
+          }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setTeksEdit(val);
+            terapkanKoordinatLangsung(val, false);
+          }}
+          onBlur={() => {
+            if (!terapkanKoordinatLangsung(teksEdit, true)) {
+              setTeksEdit(teksNilai);
+            }
+            setSedangEdit(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (terapkanKoordinatLangsung(teksEdit, true)) {
+                setSedangEdit(false);
+                e.currentTarget.blur();
+              }
+            } else if (e.key === "ArrowLeft" && !sedangEdit) {
+              e.preventDefault();
+              geserSistem(-1);
+            } else if (e.key === "ArrowRight" && !sedangEdit) {
+              e.preventDefault();
+              geserSistem(1);
+            }
+          }}
+        />
+      </label>
+
+      <div className="loc-swipe-dots" role="tablist" aria-label="Pilih format koordinat">
+        {SISTEM_SWIPE.map((idSistem, idx) => (
+          <button
+            key={idSistem}
+            type="button"
+            role="tab"
+            aria-selected={idx === idxAktif}
+            aria-label={`Format ${idSistem}`}
+            title={`Ganti ke ${idSistem}`}
+            className={`loc-swipe-dot ${idx === idxAktif ? "aktif" : ""}`}
+            onClick={() => {
+              setSedangEdit(false);
+              setGalatEdit("");
+              onGantiSistem(idSistem);
+            }}
+          />
+        ))}
       </div>
 
       {gpsSibuk && (
         <span className="loc-hint" role="status">
-          GPS {sampel}/10…
+          Mengukur GPS {sampel}/10…
         </span>
       )}
       {!gpsSibuk && infoAveraging && <span className="loc-hint">{infoAveraging}</span>}
-      {galatGps && (
+      {(galatEdit || galatGps) && (
         <span className="field-error" role="alert">
-          {galatGps}
+          {galatEdit || galatGps}
         </span>
-      )}
-
-      {manual && onUbahKoordinat && (
-        <div className="loc-manual-grid">
-          {(mode === "UTM" || mode === "TM3") && (
-            <input
-              aria-label="Zona"
-              className="form-input"
-              placeholder={mode === "UTM" ? "Zona (50N)" : "Zona TM-3"}
-              value={isian.zona}
-              onChange={(e) => setIsian((s) => ({ ...s, zona: e.target.value }))}
-            />
-          )}
-          <input
-            aria-label={mode === "UTM" ? "Timur" : mode === "TM3" ? "X" : "Lintang"}
-            className="form-input"
-            placeholder={mode === "UTM" ? "Timur (E)" : mode === "TM3" ? "Koordinat X" : "Lintang"}
-            value={isian.a}
-            onChange={(e) => setIsian((s) => ({ ...s, a: e.target.value }))}
-          />
-          <input
-            aria-label={mode === "UTM" ? "Utara" : mode === "TM3" ? "Y" : "Bujur"}
-            className="form-input"
-            placeholder={mode === "UTM" ? "Utara (N)" : mode === "TM3" ? "Koordinat Y" : "Bujur"}
-            value={isian.b}
-            onChange={(e) => setIsian((s) => ({ ...s, b: e.target.value }))}
-          />
-          {galat && (
-            <p className="field-error" role="alert">
-              {galat}
-            </p>
-          )}
-          <div className="loc-manual-aksi">
-            <button type="button" className="btn-outline-sm" onClick={() => setManual(false)}>
-              Batal
-            </button>
-            <button type="button" className="btn-primary" onClick={terapkan}>
-              Terapkan
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

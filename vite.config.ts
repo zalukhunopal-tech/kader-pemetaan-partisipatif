@@ -70,7 +70,17 @@ export default defineConfig({
         globPatterns: ["**/*.{js,mjs,css,html,svg,png,ico,json,webp,mp4,gif}"],
         // Tangkapan layar hanya untuk dialog pemasangan, tidak perlu disimpan untuk offline
         globIgnores: ["**/screenshot-*"],
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "halaman-aplikasi-v1",
+              networkTimeoutSeconds: 3
+            }
+          }
+        ]
       }
     }),
     pwaMobileRefreshPlugin()

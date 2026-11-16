@@ -347,7 +347,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(htmlChip).toContain("50N");
     expect(htmlChip).toContain("UTM");
 
-    // B. Kartu Lokasi Titik di dalam Form Survei (1 baris koordinat + 3 titik swipeable di dalam kotak)
+    // B. Kartu Lokasi Titik di dalam Form Survei (input koordinat ala Nama Lokal + 3 titik ganti sistem)
     const htmlKartu = renderToString(
       <KartuLokasiTitik
         titik={dummyPos}
@@ -361,12 +361,12 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
       />
     );
     expect(htmlKartu).toContain("loc-card");
-    expect(htmlKartu).toContain("loc-swipe-box");
+    expect(htmlKartu).toContain("loc-coord-input");
     expect(htmlKartu).toContain("loc-swipe-dots");
     expect(htmlKartu).toContain("Format DD");
     expect(htmlKartu).toContain("Format DMS");
     expect(htmlKartu).toContain("Format UTM");
-    expect(htmlKartu).toContain("2.85747");
+    expect(htmlKartu).toContain("2.857472, 117.377476");
   });
 
   it("Simulasi 9b: kategoriProgressUnduh memetakan warna lingkaran 1-30 merah, 30-60 kuning, 60-90 hijau muda, 90-100 hijau plus checklist", () => {
