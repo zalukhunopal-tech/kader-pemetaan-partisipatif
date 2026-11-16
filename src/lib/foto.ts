@@ -56,6 +56,22 @@ async function bukaGambar(file: File): Promise<SumberGambar> {
   }
 }
 
+/** Susun baris teks stamp visual (koordinat, waktu pengambilan, dan label tematik bila ada). */
+export function susunBarisStampFoto(bukti: BuktiFotoLapangan): string[] {
+  const tematik = bukti.tematik?.trim();
+  const baris = [
+    formatKoordinatTeks(bukti.posisi.lat, bukti.posisi.lng, "DD"),
+    formatKoordinatTeks(bukti.posisi.lat, bukti.posisi.lng, "UTM"),
+    `Elevasi ${bukti.posisi.elevasi ?? "?"} m | Akurasi ±${bukti.posisi.akurasi ?? "?"} m`,
+    new Date(bukti.diambilPada).toLocaleString("id-ID"),
+    `${bukti.desa} | ${bukti.idKader}`
+  ];
+  if (tematik) {
+    baris.push(`Tematik: ${tematik}`);
+  }
+  return baris;
+}
+
 /** Mengecilkan foto menjadi JPEG berukuran wajar. Melempar Error berpesan Indonesia bila gagal. */
 export async function kompresFoto(
   file: File,
@@ -82,13 +98,7 @@ export async function kompresFoto(
       ctx.drawImage(sumber.gambar, 0, 0, lebar, tinggi);
       if (bukti?.stampVisual) {
         const font = Math.max(12, Math.round(lebar / 65));
-        const baris = [
-          formatKoordinatTeks(bukti.posisi.lat, bukti.posisi.lng, "DD"),
-          formatKoordinatTeks(bukti.posisi.lat, bukti.posisi.lng, "UTM"),
-          `Elevasi ${bukti.posisi.elevasi ?? "?"} m | Akurasi ±${bukti.posisi.akurasi ?? "?"} m`,
-          new Date(bukti.diambilPada).toLocaleString("id-ID"),
-          `${bukti.desa} | ${bukti.idKader}`
-        ];
+        const baris = susunBarisStampFoto(bukti);
         const tinggiStamp = font * 1.5 * baris.length + 16;
         ctx.fillStyle = "rgba(0,0,0,.82)";
         ctx.fillRect(0, Math.max(0, tinggi - tinggiStamp), lebar, tinggiStamp);

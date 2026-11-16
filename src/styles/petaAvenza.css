@@ -179,6 +179,53 @@
   padding: 34px 16px 0;
 }
 
+.avz-peta .avz-hud-kiri {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.avz-peta .avz-hud-kiri > * {
+  pointer-events: auto;
+}
+
+.avz-peta .avz-unduh-hud {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--avz-bayang);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.avz-peta .avz-unduh-hud-svg {
+  position: absolute;
+  inset: 0;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+}
+
+.avz-peta .avz-unduh-hud-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 .avz-peta .avz-hud-kanan {
   display: flex;
   flex-direction: column;
@@ -2096,7 +2143,11 @@
 }
 
 .form-photo-box.sorot-aksi-foto {
+  border-radius: 14px;
+}
+
+.form-photo-box.sorot-aksi-foto .btn-media-simbol {
   border-color: #2185e6;
   background: #eff6ff;
-  box-shadow: 0 0 0 3px rgba(33, 133, 230, 0.2);
+  box-shadow: 0 0 0 3px rgba(33, 133, 230, 0.25);
 }

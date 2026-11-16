@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square, Trash2 } from "lucide-react";
+import { Mic, Pause, Play, Square, Trash2 } from "lucide-react";
 import { MemoSuara } from "../../types";
 import { checksumSha256 } from "../../lib/gdriveBertahap";
 import { buatId } from "../../lib/id";
@@ -16,10 +16,12 @@ export function PerekamMemoSuara({
   onSibuk: (sibuk: boolean) => void;
 }) {
   const [merekam, setMerekam] = useState(false),
-    [galat, setGalat] = useState("");
+    [galat, setGalat] = useState(""),
+    [sedangPutarId, setSedangPutarId] = useState<string | null>(null);
   const ref = useRef<MediaRecorder | null>(null),
     stream = useRef<MediaStream | null>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null),
+    audioRef = useRef<HTMLAudioElement | null>(null),
     hidup = useRef(true),
     meminta = useRef(false);
   const callbacks = useRef({ onTambah, onSibuk });
@@ -34,6 +36,7 @@ export function PerekamMemoSuara({
       if (timer.current) clearTimeout(timer.current);
       if (ref.current?.state === "recording") ref.current.stop();
       stream.current?.getTracks().forEach((t) => t.stop());
+      audioRef.current?.pause();
     };
   }, []);
   const rekam = async () => {
@@ -112,29 +115,82 @@ export function PerekamMemoSuara({
       if (hidup.current) setGalat(e instanceof Error ? e.message : "Izin mikrofon ditolak.");
     }
   };
+  const togglePutar = (m: MemoSuara) => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (sedangPutarId === m.id) {
+      el.pause();
+      setSedangPutarId(null);
+      return;
+    }
+    el.pause();
+    el.src = m.dataUrl;
+    el.currentTime = 0;
+    setSedangPutarId(m.id);
+    void el.play().catch(() => {
+      if (hidup.current) setSedangPutarId(null);
+    });
+  };
+
   return (
-    <section className="field-audio">
-      <h4>Cerita tempat</h4>
-      <p className="field-help">Rekam suara hingga 30 detik. Tersimpan bersama survei di perangkat.</p>
+    <section className={`field-audio ${memo.length > 0 ? "punya-memo" : ""}`}>
       <button
         type="button"
-        className={merekam ? "btn-danger-sm" : "btn-outline-sm"}
+        className={`btn-media-simbol ${merekam ? "merekam" : ""}`}
+        aria-label={merekam ? "Hentikan rekaman suara" : "Rekam memo suara"}
+        title={merekam ? "Hentikan rekaman" : "Rekam suara"}
         onClick={() => (merekam ? ref.current?.stop() : void rekam())}
       >
-        {merekam ? <Square size={18} /> : <Mic size={18} />} {merekam ? "Hentikan rekaman" : "Rekam memo suara"}
+        {merekam ? <Square size={20} /> : <Mic size={22} />}
       </button>
+      {merekam && (
+        <span className="field-audio-rekam-status" role="status">
+          Merekam…
+        </span>
+      )}
       {galat && <p role="alert">{galat}</p>}
-      {memo.map((m, i) => (
-        <div className="field-audio-item" key={m.id}>
-          <label>
-            Memo {i + 1} · {Math.round(m.durasiDetik)} detik
-            <audio controls preload="none" src={m.dataUrl} />
-          </label>
-          <button type="button" className="btn-icon-close" aria-label={`Hapus memo ${i + 1}`} onClick={() => onHapus(m.id)}>
-            <Trash2 size={18} />
-          </button>
+      <audio
+        ref={audioRef}
+        onEnded={() => setSedangPutarId(null)}
+        onPause={() => setSedangPutarId(null)}
+        style={{ display: "none" }}
+      />
+      {memo.length > 0 && (
+        <div className="field-audio-list">
+          {memo.map((m, i) => {
+            const aktifPutar = sedangPutarId === m.id;
+            return (
+              <div className="field-audio-item field-audio-pill" key={m.id}>
+                <button
+                  type="button"
+                  className={`btn-audio-play ${aktifPutar ? "sedang-putar" : ""}`}
+                  aria-label={aktifPutar ? `Jeda rekaman suara ${i + 1}` : `Putar rekaman suara ${i + 1}`}
+                  title={aktifPutar ? "Jeda" : "Putar"}
+                  onClick={() => togglePutar(m)}
+                >
+                  {aktifPutar ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <span className="field-audio-durasi">{Math.max(1, Math.round(m.durasiDetik))} dtk</span>
+                <button
+                  type="button"
+                  className="btn-icon-close"
+                  aria-label={`Hapus memo ${i + 1}`}
+                  title="Hapus rekaman"
+                  onClick={() => {
+                    if (aktifPutar) {
+                      audioRef.current?.pause();
+                      setSedangPutarId(null);
+                    }
+                    onHapus(m.id);
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </section>
   );
 }

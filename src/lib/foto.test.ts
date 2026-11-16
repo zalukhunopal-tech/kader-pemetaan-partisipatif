@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitungUkuranFoto, perkiraBytesDataUrl } from "./foto";
+import { hitungUkuranFoto, perkiraBytesDataUrl, susunBarisStampFoto } from "./foto";
 
 describe("hitungUkuranFoto", () => {
   it("mengecilkan sisi terpanjang sambil menjaga rasio", () => {
@@ -24,5 +24,31 @@ describe("perkiraBytesDataUrl", () => {
   });
   it("0 untuk teks yang bukan data URL", () => {
     expect(perkiraBytesDataUrl("bukan data url")).toBe(0);
+  });
+});
+
+describe("susunBarisStampFoto", () => {
+  it("menyertakan koordinat, waktu pengambilan, serta label tematik bila ada", () => {
+    const umum = susunBarisStampFoto({
+      posisi: { lat: 2.857472, lng: 117.377476, akurasi: 5 },
+      diambilPada: "2026-11-16T12:00:00.000Z",
+      idKader: "KDR-1",
+      desa: "Desa Contoh",
+      stampVisual: true
+    });
+    expect(umum.some((b) => b.includes("2.85747"))).toBe(true);
+    expect(umum.some((b) => b.includes("50N"))).toBe(true);
+    expect(umum.some((b) => b.includes("2026"))).toBe(true);
+    expect(umum.some((b) => b.startsWith("Tematik:"))).toBe(false);
+
+    const tematik = susunBarisStampFoto({
+      posisi: { lat: 2.857472, lng: 117.377476, akurasi: 5 },
+      diambilPada: "2026-11-16T12:00:00.000Z",
+      idKader: "KDR-1",
+      desa: "Desa Contoh",
+      tematik: "Kolam Flora",
+      stampVisual: true
+    });
+    expect(tematik[tematik.length - 1]).toBe("Tematik: Kolam Flora");
   });
 });

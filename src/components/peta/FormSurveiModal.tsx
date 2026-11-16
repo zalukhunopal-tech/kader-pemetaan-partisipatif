@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Check, Leaf, Droplets, Flag, Flame, Layers, Trees, Landmark, House, MoreHorizontal } from "lucide-react";
+import { Camera, Check, Leaf, Droplets, Flag, Flame, Layers, Trees, Landmark, House, MoreHorizontal, Trash2 } from "lucide-react";
 import {
   BuktiFotoLapangan,
   DataSpasialItem,
@@ -227,8 +227,7 @@ export function FormSurveiModal({
   useEffect(() => {
     if (sistemKoordinat) setSistemAktif(sistemKoordinat);
   }, [sistemKoordinat]);
-  const [stamp, setStamp] = useState(true),
-    [memoSibuk, setMemoSibuk] = useState(false),
+  const [memoSibuk, setMemoSibuk] = useState(false),
     [gpsSibuk, setGpsSibuk] = useState(false),
     [sampel, setSampel] = useState(0),
     [galatGps, setGalatGps] = useState(""),
@@ -440,11 +439,6 @@ export function FormSurveiModal({
             </label>
           )}
 
-          {resolusiPratinjau.status === "non_tematik" && (
-            <p className="form-tematik-info">
-              Tanpa peta tematik: data disimpan ke peta seperti biasa (non-tematik).
-            </p>
-          )}
           {resolusiPratinjau.status === "gabung_kolam" && (
             <p className="form-tematik-info sukses">
               Kategori cocok: masuk ke kolam tematik <strong>{resolusiPratinjau.tematik}</strong> ({isian.kategori}).
@@ -540,65 +534,70 @@ export function FormSurveiModal({
               onChange={(e) => ubah("url", e.target.value)}
             />
           </label>
-          <div ref={fotoBoxRef} className={`form-photo-box ${sorotFoto ? "sorot-aksi-foto" : ""}`}>
-            <label className="btn-upload-photo">
-              <Camera size={18} /> Lampirkan Foto
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                disabled={form.memprosesFoto}
-                onChange={(e) =>
-                  form.handlePilihFoto(
-                    e,
-                    koordinat[0]
-                      ? {
-                          posisi: koordinat[0],
-                          idKader: profil.idKader,
-                          desa: profil.desaWilayah,
-                          diambilPada: new Date().toISOString(),
-                          stampVisual: stamp
-                        }
-                      : undefined
-                  )
-                }
-              />
-            </label>
-            <label className="field-checkbox">
-              <input type="checkbox" checked={stamp} onChange={(e) => setStamp(e.target.checked)} /> Tambahkan stamp lokasi survei pada foto
-              berikutnya
-            </label>
-            <small>Stamp visual memakai lokasi survei, bukan EXIF asli kamera.</small>
-            {form.memprosesFoto && <span role="status">Memproses foto…</span>}
-            {isian.foto && (
-              <>
-                <img className="survey-photo-preview" src={isian.foto} alt="Bukti foto survei" />
-                <span>Foto siap · {Math.round(perkiraBytesDataUrl(isian.foto) / 1024)} KB</span>
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  onClick={() => {
-                    ubah("foto", "");
-                    ubah("buktiFoto", undefined);
+          <div className="form-media-panel">
+            <div ref={fotoBoxRef} className={`form-photo-box ${isian.foto ? "punya-foto" : ""} ${sorotFoto ? "sorot-aksi-foto" : ""}`}>
+              <label className="btn-media-simbol" aria-label="Ambil atau pilih foto" title="Ambil atau pilih foto">
+                <Camera size={22} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={form.memprosesFoto}
+                  onChange={(e) => {
+                    const labelTematik =
+                      resolusiPratinjau.status !== "non_tematik"
+                        ? resolusiPratinjau.tematik
+                        : isian.tematik?.trim() || undefined;
+                    form.handlePilihFoto(e, {
+                      posisi: koordinat[0] ?? { lat: 0, lng: 0 },
+                      idKader: profil.idKader,
+                      desa: profil.desaWilayah,
+                      diambilPada: new Date().toISOString(),
+                      tematik: labelTematik,
+                      stampVisual: true
+                    });
                   }}
-                >
-                  Hapus foto
-                </button>
-              </>
-            )}
-            {form.galatFoto && <p role="alert">{form.galatFoto}</p>}
+                />
+              </label>
+              {form.memprosesFoto && (
+                <span className="form-media-status" role="status">
+                  Memproses foto…
+                </span>
+              )}
+              {isian.foto && (
+                <div className="form-foto-preview-card">
+                  <img className="survey-photo-preview" src={isian.foto} alt="Bukti foto survei" />
+                  <div className="form-foto-preview-foot">
+                    <span>{Math.round(perkiraBytesDataUrl(isian.foto) / 1024)} KB</span>
+                    <button
+                      type="button"
+                      className="btn-icon-close"
+                      aria-label="Hapus foto"
+                      title="Hapus foto"
+                      onClick={() => {
+                        ubah("foto", "");
+                        ubah("buktiFoto", undefined);
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {form.galatFoto && <p role="alert">{form.galatFoto}</p>}
+            </div>
+            <PerekamMemoSuara
+              memo={isian.memo}
+              onTambah={form.tambahMemo}
+              onHapus={(id) =>
+                ubah(
+                  "memo",
+                  isian.memo.filter((m) => m.id !== id)
+                )
+              }
+              onSibuk={setMemoSibuk}
+            />
           </div>
-          <PerekamMemoSuara
-            memo={isian.memo}
-            onTambah={form.tambahMemo}
-            onHapus={(id) =>
-              ubah(
-                "memo",
-                isian.memo.filter((m) => m.id !== id)
-              )
-            }
-            onSibuk={setMemoSibuk}
-          />
           <footer className="modal-footer">
             <button type="button" className="btn-outline-sm" onClick={onTutup}>
               Tutup, simpan draf

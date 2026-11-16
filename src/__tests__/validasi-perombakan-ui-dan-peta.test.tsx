@@ -19,6 +19,7 @@ import { PanelDataUserLevel, hitungLevelKaderOtomatis } from "../components/Pane
 import { RailAlatPeta } from "../components/peta/RailAlatPeta";
 import { ChipKoordinatPeta } from "../components/peta/ChipKoordinatPeta";
 import { KartuLokasiTitik } from "../components/peta/KartuLokasiTitik";
+import { kategoriProgressUnduh } from "../components/peta/UnduhOfflineModal";
 import { PanelPerekaman } from "../components/peta/PanelPerekaman";
 import { StatePerekamLatar } from "../lib/perekamLatar";
 import { formatKoordinat } from "../lib/sistemKoordinat";
@@ -346,7 +347,7 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(htmlChip).toContain("50N");
     expect(htmlChip).toContain("UTM");
 
-    // B. Kartu Lokasi Titik di dalam Form Survei
+    // B. Kartu Lokasi Titik di dalam Form Survei (1 baris koordinat + 3 titik swipeable di dalam kotak)
     const htmlKartu = renderToString(
       <KartuLokasiTitik
         titik={dummyPos}
@@ -360,11 +361,20 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
       />
     );
     expect(htmlKartu).toContain("loc-card");
-    expect(htmlKartu).toContain("Koordinat Titik");
-    expect(htmlKartu).toContain("Lintang");
-    expect(htmlKartu).toContain("Bujur");
-    expect(htmlKartu).toContain("Ukur GPS 10 detik");
-    expect(htmlKartu).toContain("Ketik manual");
+    expect(htmlKartu).toContain("loc-swipe-box");
+    expect(htmlKartu).toContain("loc-swipe-dots");
+    expect(htmlKartu).toContain("Format DD");
+    expect(htmlKartu).toContain("Format DMS");
+    expect(htmlKartu).toContain("Format UTM");
+    expect(htmlKartu).toContain("2.85747");
+  });
+
+  it("Simulasi 9b: kategoriProgressUnduh memetakan warna lingkaran 1-30 merah, 30-60 kuning, 60-90 hijau muda, 90-100 hijau plus checklist", () => {
+    expect(kategoriProgressUnduh(15)).toEqual({ warna: "#ef4444", tampilChecklist: false, fase: "merah" });
+    expect(kategoriProgressUnduh(45)).toEqual({ warna: "#eab308", tampilChecklist: false, fase: "kuning" });
+    expect(kategoriProgressUnduh(75)).toEqual({ warna: "#4ade80", tampilChecklist: false, fase: "hijau-muda" });
+    expect(kategoriProgressUnduh(92)).toEqual({ warna: "#16a34a", tampilChecklist: true, fase: "hijau" });
+    expect(kategoriProgressUnduh(100, true)).toEqual({ warna: "#16a34a", tampilChecklist: true, fase: "hijau" });
   });
   it("Validasi PanelPerekaman mobile/desktop dan gestur rotasi dua jari searah putaran", () => {
     const mockRekamLatar: StatePerekamLatar = {
