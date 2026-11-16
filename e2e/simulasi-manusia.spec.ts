@@ -152,20 +152,31 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.locator("button", { hasText: /^Buat Lapisan$/ }).click();
     await expect(p.locator(".avenza-pustaka-container")).toContainText("Lapisan Survei Simulasi");
 
+    // Buka menu overflow -> cek kotak chip Online & User berukuran seragam -> aktifkan mode Pilih & Pengaturan Ekspor
     await p.locator('button.avenza-toolbar-toggle-btn[title="Buka Toolbar"]').click();
+    const chipConn = p.locator(".toolbar-popover-chips .avenza-conn-chip");
+    const chipRole = p.locator(".toolbar-popover-chips .avenza-role-chip");
+    const boxConn = await chipConn.boundingBox();
+    const boxRole = await chipRole.boundingBox();
+    expect(boxConn).not.toBeNull();
+    expect(boxRole).not.toBeNull();
+    expect(Math.abs(boxConn!.height - boxRole!.height)).toBeLessThanOrEqual(2);
+    expect(Math.abs(boxConn!.width - boxRole!.width)).toBeLessThanOrEqual(4);
     await p.locator(".avenza-overflow-item", { hasText: "Pilih" }).click();
     await expect(p.locator(".avenza-selection-banner")).toBeVisible();
     await p.locator('input[type="checkbox"]').first().check();
     await p.locator(".avenza-selection-banner button", { hasText: "Pengaturan Ekspor" }).click();
 
-    await expect(p.locator(".avenza-subpage-header")).toContainText("Ekspor");
+    await expect(p.locator(".avenza-subpage-header")).toContainText(/Pengaturan ekspor/i);
     await p.locator("select").first().selectOption("Lapisan dan peta");
 
-    // Pastikan chip format hanya menyediakan GeoJSON, KML, dan SHP
+    // Pastikan chip format menyediakan GeoJSON, KML, GPX, CSV, dan SHP
     const grupFormat = p.getByRole("group", { name: "Pilih format ekspor" });
-    await expect(grupFormat.locator("button")).toHaveCount(3);
+    await expect(grupFormat.locator("button")).toHaveCount(5);
     await expect(grupFormat.getByRole("button", { name: "GeoJSON (.geojson)" })).toBeVisible();
     await expect(grupFormat.getByRole("button", { name: "KML (.kml)" })).toBeVisible();
+    await expect(grupFormat.getByRole("button", { name: "GPX (.gpx)" })).toBeVisible();
+    await expect(grupFormat.getByRole("button", { name: "CSV (.csv)" })).toBeVisible();
     await expect(grupFormat.getByRole("button", { name: "Shapefile (.shp)" })).toBeVisible();
 
     // Toggle switch Foto ditautkan
@@ -174,7 +185,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await switchFoto.click();
     await expect(switchFoto).toHaveAttribute("aria-checked", "false");
 
-    // 3a. Ekspor GeoJSON dan verifikasi isi FeatureCollection
+    // 3a. Ekspor GeoJSON -> cek dialog Bagikan Data Ekspor muncul dengan multi-platform, lalu tutup
     await grupFormat.getByRole("button", { name: "GeoJSON (.geojson)" }).click();
     const tungguGeoJson = p.waitForEvent("download");
     await p.locator('button[title="Ekspor sekarang"]').click();
@@ -190,6 +201,12 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
         (f) => f.properties?.judul === "Pohon Meranti Simulasi" || f.properties?.label === "Pohon Meranti Simulasi"
       )
     ).toBe(true);
+    const dialogBagikan = p.getByRole("dialog", { name: "Bagikan Data Ekspor" });
+    await expect(dialogBagikan).toBeVisible();
+    await expect(dialogBagikan.getByRole("button", { name: "WhatsApp", exact: true })).toBeVisible();
+    await expect(dialogBagikan.getByRole("button", { name: "Drive", exact: true })).toBeVisible();
+    await expect(dialogBagikan.getByRole("button", { name: "OneDrive", exact: true })).toBeVisible();
+    await p.getByRole("button", { name: "Tutup bagikan" }).click();
 
     // 3b. Ekspor KML dan verifikasi struktur XML Placemark
     await grupFormat.getByRole("button", { name: "KML (.kml)" }).click();
@@ -200,6 +217,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     const isiKml = readFileSync((await unduhanKml.path())!, "utf8");
     expect(isiKml).toContain("<kml");
     expect(isiKml).toContain("Pohon Meranti Simulasi");
+    await p.getByRole("button", { name: "Tutup bagikan" }).click();
 
     // 3c. Ekspor SHP (.shp) dan verifikasi biner header ESRI 9994 + panjang + versi + shapeType
     await grupFormat.getByRole("button", { name: "Shapefile (.shp)" }).click();
@@ -213,6 +231,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     expect(dvShp.getInt32(24, false) * 2).toBe(bufShp.byteLength);
     expect(dvShp.getInt32(28, true)).toBe(1000);
     expect([1, 3, 5]).toContain(dvShp.getInt32(32, true));
+    await p.getByRole("button", { name: "Tutup bagikan" }).click();
 
     // 3d. Ekspor Paket Lengkap SHP (.zip: .shp, .shx, .dbf, .prj)
     const tungguZip = p.waitForEvent("download");
@@ -223,6 +242,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     const dvZip = new DataView(bufZip.buffer, bufZip.byteOffset, bufZip.byteLength);
     expect(dvZip.getUint32(0, true)).toBe(0x04034b50);
     expect(dvZip.getUint32(bufZip.byteLength - 22, true)).toBe(0x06054b50);
+    await p.getByRole("button", { name: "Tutup bagikan" }).click();
 
     await p.locator(".avenza-back-btn").click();
   });
@@ -926,16 +946,28 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await p.locator(".avz-fab-pin").click();
   await expect(p.locator('#form-survei-lapangan input[required]')).toBeVisible();
   await expect(p.locator('select[aria-label="Pilih Peta Tematik"]')).toBeVisible();
-  // Verifikasi kotak koordinat 1 baris + 3 titik swipeable & tombol simbol foto/suara
-  await expect(p.locator(".loc-swipe-box .loc-swipe-dot")).toHaveCount(3);
+  // Verifikasi kotak koordinat seragam (input edit langsung) + 3 titik ganti sistem & tombol simbol kamera simetris
+  await expect(p.locator(".loc-card-field .loc-swipe-dot")).toHaveCount(3);
+  await expect(p.locator(".loc-coord-input")).toBeVisible();
   const teksAwalKoord = await p.locator(".loc-swipe-badge").innerText();
-  const boxNilai = await p.locator(".loc-swipe-value").boundingBox();
-  expect(boxNilai).not.toBeNull();
-  await p.mouse.move(boxNilai!.x + boxNilai!.width * 0.85, boxNilai!.y + boxNilai!.height / 2);
-  await p.mouse.down();
-  await p.mouse.move(boxNilai!.x + boxNilai!.width * 0.1, boxNilai!.y + boxNilai!.height / 2, { steps: 6 });
-  await p.mouse.up();
+  await p.locator('.loc-swipe-dot[aria-label="Format DMS"]').click();
   await expect(p.locator(".loc-swipe-badge")).not.toHaveText(teksAwalKoord);
+  await expect(p.locator(".loc-swipe-badge")).toHaveText("DMS");
+  await p.locator('.loc-swipe-dot[aria-label="Format DD"]').click();
+  await p.locator(".loc-coord-input").fill("2.858111, 117.378222");
+  await p.locator(".loc-coord-input").blur();
+  await expect(p.locator(".loc-coord-input")).toHaveValue("2.8581110, 117.3782220");
+  // Uji ikon kamera tepat di tengah kotak (.btn-media-simbol)
+  const kotakKamera = await p.locator('.btn-media-simbol[aria-label="Ambil atau pilih foto"]').boundingBox();
+  const ikonKamera = await p.locator('.btn-media-simbol[aria-label="Ambil atau pilih foto"] svg').boundingBox();
+  expect(kotakKamera).not.toBeNull();
+  expect(ikonKamera).not.toBeNull();
+  const pusatKotakX = kotakKamera!.x + kotakKamera!.width / 2;
+  const pusatKotakY = kotakKamera!.y + kotakKamera!.height / 2;
+  const pusatIkonX = ikonKamera!.x + ikonKamera!.width / 2;
+  const pusatIkonY = ikonKamera!.y + ikonKamera!.height / 2;
+  expect(Math.abs(pusatKotakX - pusatIkonX)).toBeLessThanOrEqual(2.5);
+  expect(Math.abs(pusatKotakY - pusatIkonY)).toBeLessThanOrEqual(2.5);
   await expect(p.locator(".form-media-panel .btn-media-simbol")).toHaveCount(2);
   await expect(p.locator(".survey-photo-preview")).toHaveCount(0);
   await expect(p.locator(".field-audio-pill")).toHaveCount(0);

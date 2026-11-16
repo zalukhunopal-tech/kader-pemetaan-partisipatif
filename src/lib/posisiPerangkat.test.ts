@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { JARAK_BIDIKAN_DEKAT_M, hitungKecepatanMps, kompasDariOrientasi, selisihArah, titikDariBidikan } from "./posisiPerangkat";
+import {
+  JARAK_BIDIKAN_DEKAT_M,
+  hitungKecepatanMps,
+  kompasDariOrientasi,
+  optimasiFixGnss,
+  selisihArah,
+  titikDariBidikan
+} from "./posisiPerangkat";
 import { KoordinatTitik } from "../types";
 
 describe("kompasDariOrientasi", () => {
@@ -152,5 +159,33 @@ describe("hitungKecepatanMps (sensor speed dan fallback perpindahan)", () => {
     // Teleportasi 5 km dalam 1 detik (> 85 m/s) ditolak jadi 0
     const teleport = titik(2.902, 117.377, 1000, { akurasi: 5 });
     expect(hitungKecepatanMps(teleport, aKasar, null)).toBe(0);
+  });
+});
+
+describe("optimasiFixGnss (online dan offline)", () => {
+  it("menolak fix kasar/lonjakan multipath saat kunci satelit rapat sudah terbentuk dan meratakan terbobot 1/acc^2", () => {
+    const t0 = Date.parse("2026-11-16T10:00:00Z");
+    const kunci1: KoordinatTitik = { lat: 2.857, lng: 117.377, akurasi: 8, timestamp: new Date(t0).toISOString() };
+    const r1 = optimasiFixGnss(kunci1, []);
+    expect(r1.modeSinyal).toBe("gnss_optimal");
+
+    // Fix kedua dengan sinyal lemah/kanopi (> 15m) meratakan terbobot dengan sampel lebih rapat (8m vs 22m)
+    const kunciLemah: KoordinatTitik = { lat: 2.85704, lng: 117.37704, akurasi: 22, timestamp: new Date(t0 + 2000).toISOString() };
+    const r2 = optimasiFixGnss(kunciLemah, r1.buffer);
+    expect(r2.posisi.lat).toBeGreaterThan(2.857);
+    expect(r2.posisi.lat).toBeLessThan(2.85704);
+    expect(r2.posisi.akurasi).toBe(8);
+
+    // Fix offline nyasar/cell-tower (akurasi 180m) muncul sesudah kunci ketat -> ditolak dan posisi terjaga
+    const nyasar: KoordinatTitik = { lat: 2.9, lng: 117.42, akurasi: 180, timestamp: new Date(t0 + 3000).toISOString() };
+    const r3 = optimasiFixGnss(nyasar, r2.buffer);
+    expect(r3.posisi.lat).toBeCloseTo(r2.posisi.lat, 6);
+    expect(r3.buffer.length).toBe(2);
+
+    // Fix rapat (<= 15m) responsif instan tanpa inertia lag
+    const kunciRapat: KoordinatTitik = { lat: 2.85705, lng: 117.37705, akurasi: 5, timestamp: new Date(t0 + 4000).toISOString() };
+    const r4 = optimasiFixGnss(kunciRapat, r2.buffer);
+    expect(r4.posisi.lat).toBe(2.85705);
+    expect(r4.modeSinyal).toBe("gnss_optimal");
   });
 });

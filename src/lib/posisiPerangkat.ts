@@ -133,9 +133,108 @@ export function hitungKecepatanMps(
   return Number(rawMps.toFixed(2));
 }
 
+export type ModeSinyalGnss = "gnss_optimal" | "gnss_standar" | "pencarian_satelit";
+
+const JENDELA_BUFFER_GNSS_MS = 12_000;
+const MAKS_BUFFER_GNSS = 5;
+const BATAS_RADIUS_SMOOTH_M = 28;
+
+function hitungRataTerbobotGnss(buffer: KoordinatTitik[], acuan: KoordinatTitik): KoordinatTitik {
+  let sumW = 0;
+  let sumLat = 0;
+  let sumLng = 0;
+  let bestAcc = Infinity;
+  for (const s of buffer) {
+    const acc = Math.max(1.5, s.akurasi ?? 25);
+    const w = 1 / (acc * acc);
+    sumW += w;
+    sumLat += s.lat * w;
+    sumLng += s.lng * w;
+    if (s.akurasi !== undefined && s.akurasi < bestAcc) bestAcc = s.akurasi;
+  }
+  if (sumW <= 0) return acuan;
+  return {
+    ...acuan,
+    lat: Number((sumLat / sumW).toFixed(7)),
+    lng: Number((sumLng / sumW).toFixed(7)),
+    akurasi: Number.isFinite(bestAcc) ? Number(bestAcc.toFixed(1)) : acuan.akurasi
+  };
+}
+
+/**
+ * Optimasi tangkapan satelit GNSS (efektif terutama saat offline tanpa A-GPS jaringan):
+ * 1. Menolak fix kasar (> 65 m) apabila sudah mengunci satelit rapat (<= 35 m).
+ * 2. Menolak lonjakan multipath ekstrem (> 250 m dalam <= 2 dtk dengan akurasi memburuk).
+ * 3. Meratakan 2-5 sampel GNSS berdekatan dengan pembobotan 1 / akurasi^2 untuk meredam jitter kanopi.
+ */
+export function optimasiFixGnss(
+  kandidat: KoordinatTitik,
+  bufferSebelumnya: KoordinatTitik[]
+): {
+  posisi: KoordinatTitik;
+  buffer: KoordinatTitik[];
+  modeSinyal: ModeSinyalGnss;
+} {
+  const akurasiBaru = kandidat.akurasi ?? 50;
+  const adaKunciKetat = bufferSebelumnya.some((b) => (b.akurasi ?? 999) <= 35);
+  const terakhir = bufferSebelumnya[bufferSebelumnya.length - 1];
+
+  // Abaikan fix Wi-Fi/seluler/multipath yang tiba-tiba melonggar jauh setelah satelit terkunci
+  if (adaKunciKetat && akurasiBaru > 65) {
+    const posTetap = terakhir ? hitungRataTerbobotGnss(bufferSebelumnya, terakhir) : kandidat;
+    const ak = posTetap.akurasi ?? 50;
+    return {
+      posisi: posTetap,
+      buffer: bufferSebelumnya,
+      modeSinyal: ak <= 15 ? "gnss_optimal" : ak <= 35 ? "gnss_standar" : "pencarian_satelit"
+    };
+  }
+
+  // Deteksi lonjakan kecepatan tidak masuk akal pada bacaan buruk
+  if (terakhir) {
+    const t0 = Date.parse(terakhir.timestamp ?? "");
+    const t1 = Date.parse(kandidat.timestamp ?? "");
+    const dtS = Number.isFinite(t0) && Number.isFinite(t1) ? Math.max(0.1, (t1 - t0) / 1000) : 1;
+    const jarak = hitungJarakMeter(terakhir, kandidat);
+    if (dtS <= 2 && jarak > 250 && akurasiBaru > (terakhir.akurasi ?? 20)) {
+      const posTetap = hitungRataTerbobotGnss(bufferSebelumnya, terakhir);
+      const ak = posTetap.akurasi ?? 50;
+      return {
+        posisi: posTetap,
+        buffer: bufferSebelumnya,
+        modeSinyal: ak <= 15 ? "gnss_optimal" : ak <= 35 ? "gnss_standar" : "pencarian_satelit"
+      };
+    }
+  }
+
+  const tsBaru = Date.parse(kandidat.timestamp ?? "") || Date.now();
+  // Jika bergerak > BATAS_RADIUS_SMOOTH_M atau akurasi membaik drastis, mulai jendela rata-rata baru agar tidak tertinggal (lag)
+  const jauhDariTerakhir = terakhir ? hitungJarakMeter(terakhir, kandidat) > BATAS_RADIUS_SMOOTH_M : false;
+  const membaikDrastis = terakhir && (terakhir.akurasi ?? 999) > 65 && akurasiBaru <= 25;
+
+  const bufferDasar =
+    jauhDariTerakhir || membaikDrastis
+      ? []
+      : bufferSebelumnya.filter((b) => {
+          const tb = Date.parse(b.timestamp ?? "");
+          return Number.isFinite(tb) && tsBaru - tb <= JENDELA_BUFFER_GNSS_MS && (b.akurasi ?? 999) <= Math.max(65, akurasiBaru * 2.5);
+        });
+
+  const bufferBaru = [...bufferDasar, kandidat].slice(-MAKS_BUFFER_GNSS);
+  // Ketika kunci satelit sudah ketat (<= 15 m), pertahankan koordinat terbaru tanpa inertia lag agar deteksi gerak & berhenti instan.
+  // Ketika sinyal lebih lemah (> 15 m, mis. kanopi rapat/cold-start offline), gunakan rata-rata terbobot 1/akurasi^2 untuk meredam jitter.
+  const posisiOptimal = akurasiBaru <= 15 ? kandidat : hitungRataTerbobotGnss(bufferBaru, kandidat);
+
+  const akAkhir = posisiOptimal.akurasi ?? 99;
+  const modeSinyal: ModeSinyalGnss = akAkhir <= 15 ? "gnss_optimal" : akAkhir <= 35 ? "gnss_standar" : "pencarian_satelit";
+  return { posisi: posisiOptimal, buffer: bufferBaru, modeSinyal };
+}
+
 /* ---------- GPS ---------- */
 
 let watchId: number | null = null;
+let timerWarmupOffline: number | null = null;
+let bufferGnss: KoordinatTitik[] = [];
 let posisiSebelumnya: KoordinatTitik | null = null;
 
 function mulaiGps() {
@@ -144,43 +243,69 @@ function mulaiGps() {
     setState({ statusGps: "tidak_tersedia" });
     return;
   }
+  const prosesPosisiMentah = (pos: GeolocationPosition) => {
+    const tsMs = pos.timestamp || Date.now();
+    const ptDasar: KoordinatTitik = {
+      lat: Number(pos.coords.latitude.toFixed(7)),
+      lng: Number(pos.coords.longitude.toFixed(7)),
+      elevasi: pos.coords.altitude != null && Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : undefined,
+      akurasi: pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy) ? Number(pos.coords.accuracy.toFixed(1)) : undefined,
+      akurasiVertikal:
+        pos.coords.altitudeAccuracy != null && Number.isFinite(pos.coords.altitudeAccuracy)
+          ? Number(pos.coords.altitudeAccuracy.toFixed(1))
+          : undefined,
+      timestamp: new Date(tsMs).toISOString()
+    };
+    const hasilGnss = optimasiFixGnss(ptDasar, bufferGnss);
+    bufferGnss = hasilGnss.buffer;
+    const ptOptimal = hasilGnss.posisi;
+
+    const tPrev = posisiSebelumnya ? Date.parse(posisiSebelumnya.timestamp ?? "") : NaN;
+    const speedSensor = pos.coords.speed != null && Number.isFinite(pos.coords.speed) && pos.coords.speed >= 0 ? pos.coords.speed : null;
+    const kecepatan = hitungKecepatanMps(ptOptimal, posisiSebelumnya, speedSensor);
+    const posisiBaru: KoordinatTitik = { ...ptOptimal, kecepatan };
+    const selisihDetik = Number.isFinite(tPrev) ? (tsMs - tPrev) / 1000 : Infinity;
+    if (!posisiSebelumnya || speedSensor !== null || selisihDetik >= INTERVAL_MIN_KECEPATAN_S) {
+      posisiSebelumnya = posisiBaru;
+    }
+    setState({
+      statusGps: "aktif",
+      posisi: posisiBaru
+    });
+  };
+
   try {
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
     watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const tsMs = pos.timestamp || Date.now();
-        const ptDasar: KoordinatTitik = {
-          lat: Number(pos.coords.latitude.toFixed(7)),
-          lng: Number(pos.coords.longitude.toFixed(7)),
-          elevasi: pos.coords.altitude != null && Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : undefined,
-          akurasi: pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy) ? Number(pos.coords.accuracy.toFixed(1)) : undefined,
-          akurasiVertikal:
-            pos.coords.altitudeAccuracy != null && Number.isFinite(pos.coords.altitudeAccuracy)
-              ? Number(pos.coords.altitudeAccuracy.toFixed(1))
-              : undefined,
-          timestamp: new Date(tsMs).toISOString()
-        };
-        const tPrev = posisiSebelumnya ? Date.parse(posisiSebelumnya.timestamp ?? "") : NaN;
-        const speedSensor = pos.coords.speed != null && Number.isFinite(pos.coords.speed) && pos.coords.speed >= 0 ? pos.coords.speed : null;
-        const kecepatan = hitungKecepatanMps(ptDasar, posisiSebelumnya, speedSensor);
-        const posisiBaru: KoordinatTitik = { ...ptDasar, kecepatan };
-        const selisihDetik = Number.isFinite(tPrev) ? (tsMs - tPrev) / 1000 : Infinity;
-        if (!posisiSebelumnya || speedSensor !== null || selisihDetik >= INTERVAL_MIN_KECEPATAN_S) {
-          posisiSebelumnya = posisiBaru;
-        }
-        setState({
-          statusGps: "aktif",
-          posisi: posisiBaru
-        });
-      },
+      prosesPosisiMentah,
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
           posisiSebelumnya = null;
+          bufferGnss = [];
           setState({ statusGps: "ditolak", posisi: null });
         } else if (err.code === err.POSITION_UNAVAILABLE) setState({ statusGps: "galat" });
         else if (state.posisi) setState({ statusGps: "galat" });
       },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: offline ? 30000 : 18000 }
     );
+
+    // Pancingan warm-up GNSS khusus kondisi luring agar hardware cepat mengunci satelit tanpa A-GPS jaringan
+    if (typeof window !== "undefined") {
+      timerWarmupOffline = window.setTimeout(() => {
+        const akurasiKini = state.posisi?.akurasi ?? 999;
+        if (akurasiKini > 35 && typeof navigator !== "undefined" && navigator.geolocation) {
+          try {
+            navigator.geolocation.getCurrentPosition(prosesPosisiMentah, () => undefined, {
+              enableHighAccuracy: true,
+              maximumAge: 0,
+              timeout: 25000
+            });
+          } catch {
+            // abaikan bila panggilan tambahan ditolak
+          }
+        }
+      }, 6000);
+    }
   } catch {
     watchId = null;
     setState({ statusGps: "tidak_tersedia" });
@@ -188,11 +313,16 @@ function mulaiGps() {
 }
 
 function hentikanGps() {
+  if (timerWarmupOffline !== null && typeof window !== "undefined") {
+    window.clearTimeout(timerWarmupOffline);
+  }
+  timerWarmupOffline = null;
   if (watchId !== null && typeof navigator !== "undefined" && "geolocation" in navigator) {
     navigator.geolocation.clearWatch(watchId);
   }
   watchId = null;
   posisiSebelumnya = null;
+  bufferGnss = [];
   state = { ...state, statusGps: "mencari", posisi: null };
 }
 
@@ -389,7 +519,10 @@ export async function ambilRataRataGps(
         return;
       }
       try {
-        resolve(hitungRataRataGps(sampel));
+        // Prioritaskan sampel satelit ketat bila jumlahnya mencukupi (mencegah bias fix awal offline)
+        const sampelKetat = sampel.filter((s) => (s.akurasi ?? 99) <= 28);
+        const pilihan = sampelKetat.length >= minimum ? sampelKetat : sampel;
+        resolve(hitungRataRataGps(pilihan));
       } catch (e) {
         reject(e);
       }

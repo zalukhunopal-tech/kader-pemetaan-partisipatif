@@ -16,6 +16,10 @@ export interface OpsiFilterEkspor {
   jenisData: JenisDataEkspor;
   konteks?: KonteksEkspor;
   sertakanFoto?: boolean;
+  sertakanMemo?: boolean;
+  sertakanTematik?: boolean;
+  filterTematik?: string;
+  filterKategori?: string;
 }
 
 function escapeXml(str: string): string {
@@ -42,7 +46,15 @@ function bersihkanFotoItem(item: DataSpasialItem): DataSpasialItem {
  * dari Pustaka (peta/lapisan), serta opsi penyertaan foto dokumentasi.
  */
 export function filterDataUntukEkspor(dataSpasial: DataSpasialItem[], opsi: OpsiFilterEkspor): DataSpasialItem[] {
-  const { jenisData, konteks, sertakanFoto = true } = opsi;
+  const {
+    jenisData,
+    konteks,
+    sertakanFoto = true,
+    sertakanMemo = true,
+    sertakanTematik = true,
+    filterTematik = "",
+    filterKategori = ""
+  } = opsi;
   let hasil = dataSpasial;
 
   if (konteks?.fiturTerpilihIds && konteks.fiturTerpilihIds.length > 0 && jenisData === "Semua fitur terpilih") {
@@ -64,7 +76,26 @@ export function filterDataUntukEkspor(dataSpasial: DataSpasialItem[], opsi: Opsi
     }
   }
 
-  return sertakanFoto ? hasil : hasil.map(bersihkanFotoItem);
+  if (filterTematik === "__NON_TEMATIK__") {
+    hasil = hasil.filter((d) => !d.tematik?.trim());
+  } else if (filterTematik) {
+    hasil = hasil.filter((d) => (d.tematik ?? "").toLowerCase() === filterTematik.toLowerCase());
+  }
+
+  if (filterKategori) {
+    hasil = hasil.filter((d) => d.kategori === filterKategori);
+  }
+
+  return hasil.map((item) => {
+    let salinan = sertakanFoto ? item : bersihkanFotoItem(item);
+    if (!sertakanMemo && salinan.memoSuara) {
+      salinan = { ...salinan, memoSuara: undefined };
+    }
+    if (!sertakanTematik && salinan.tematik) {
+      salinan = { ...salinan, tematik: undefined };
+    }
+    return salinan;
+  });
 }
 
 /** Mengekspor GeoJSON berikut poligon batas lembar peta bila diminta. */

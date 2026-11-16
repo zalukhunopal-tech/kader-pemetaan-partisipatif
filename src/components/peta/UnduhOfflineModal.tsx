@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Check, Download, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Compass, Download, HardDrive, Layers, Maximize2, X, ZoomIn } from "lucide-react";
 import { AreaPetaOffline, BasemapType } from "../../types";
 import { buatId } from "../../lib/id";
 import { hitungKotakKm } from "../../lib/cachePetaOtomatis";
@@ -7,9 +7,9 @@ import {
   BATAS_TILE_PER_AREA,
   KotakWilayah,
   SUMBER_TILE,
+  TileXYZ,
   daftarTile,
   hapusTile,
-  hitungJumlahTile,
   isiTemplateTile,
   penyimpananTileDidukung,
   perkiraanUkuranMb,
@@ -18,12 +18,44 @@ import {
 } from "../../lib/petaOffline";
 
 export const DURASI_TAHAN_UNDUH_MS = 3000;
-export const ZOOM_MAKS_UNDUH_OFFLINE = 18;
-export const ZOOM_MIN_UNDUH_OFFLINE = 14;
+export const JANGKAUAN_UNDUH_KM = 10;
+export const ZOOM_MAKS_UNDUH_OFFLINE = 20;
+export const ZOOM_MIN_UNDUH_OFFLINE = 12;
 
 export interface StatusHudUnduh {
   persen: number;
   selesai: boolean;
+}
+
+/**
+ * Menyusun piramida tile berpusat di titik bidik untuk area 10 x 10 km sampai ketelitian zoom 20x:
+ * - 10 x 10 km penuh pada zoom 12..15 (orientasi & navigasi koridor luas)
+ * - 4 x 4 km menengah pada zoom 16..17
+ * - 1.5 x 1.5 km detail pada zoom 18
+ * - 0.5 x 0.5 km presisi tinggi di pusat area pada zoom 19..20 (atau batas zoom penyedia)
+ */
+export function daftarTilePiramida10KmZoom20(latPusat: number, lngPusat: number, zoomMaksSumber: number): TileXYZ[] {
+  const zMaxEfektif = Math.min(ZOOM_MAKS_UNDUH_OFFLINE, Math.max(18, zoomMaksSumber));
+  const lapisan: { sisiKm: number; zMin: number; zMax: number }[] = [
+    { sisiKm: 10, zMin: 12, zMax: Math.min(15, zMaxEfektif) },
+    { sisiKm: 4, zMin: 16, zMax: Math.min(17, zMaxEfektif) },
+    { sisiKm: 1.5, zMin: 18, zMax: Math.min(18, zMaxEfektif) },
+    { sisiKm: 0.5, zMin: 19, zMax: zMaxEfektif }
+  ];
+  const hasil: TileXYZ[] = [];
+  const dilihat = new Set<string>();
+  for (const lap of lapisan) {
+    if (lap.zMin > lap.zMax) continue;
+    const kotak = hitungKotakKm(latPusat, lngPusat, lap.sisiKm);
+    for (const t of daftarTile(kotak, lap.zMin, lap.zMax)) {
+      const k = `${t.z}/${t.x}/${t.y}`;
+      if (!dilihat.has(k)) {
+        dilihat.add(k);
+        hasil.push(t);
+      }
+    }
+  }
+  return hasil;
 }
 
 /** Menentukan warna lingkaran & visibilitas checklist sesuai rentang persen (1-30 merah, 30-60 kuning, 60-90 hijau muda, 90-100 hijau + checklist). */
@@ -46,8 +78,8 @@ export function kategoriProgressUnduh(persen: number, selesai = false): {
 }
 
 /**
- * Keadaan pengunduh peta offline. Dipegang oleh peta (bukan oleh modal) supaya unduhan tetap berjalan
- * setelah modal ditutup dan progres lingkaran tampil langsung di peta interaktif.
+ * Keadaan pengunduh peta offline. Dipegang oleh peta agar unduhan berjalan
+ * di latar belakang setelah modal ditutup dan progres tampil langsung di HUD peta.
  */
 export function useUnduhAreaOffline(
   basemap: BasemapType,
@@ -58,6 +90,7 @@ export function useUnduhAreaOffline(
   const [namaAreaOfflineBaru, setNamaAreaOfflineBaru] = useState<string>("");
   const [sedangMengunduhTile, setSedangMengunduhTile] = useState<boolean>(false);
   const [kotakUnduh, setKotakUnduh] = useState<KotakWilayah | null>(null);
+  const [pusatUnduh, setPusatUnduh] = useState<{ lat: number; lng: number } | null>(null);
   const [zoomMinUnduh, setZoomMinUnduh] = useState<number>(ZOOM_MIN_UNDUH_OFFLINE);
   const [zoomMaksUnduh, setZoomMaksUnduh] = useState<number>(ZOOM_MAKS_UNDUH_OFFLINE);
   const [kemajuanUnduh, setKemajuanUnduh] = useState<{ selesai: number; total: number; gagal: number } | null>(null);
@@ -74,24 +107,27 @@ export function useUnduhAreaOffline(
     []
   );
 
-  /** Membuka panel unduh untuk kotak 1 km x 1 km tepat di pusat layar peta dengan presisi sampai zoom 18. */
+  /** Membuka panel unduh untuk jangkauan 10 x 10 km di pusat area peta hingga zoom 20x. */
   const bukaModalUnduh = (kotak: KotakWilayah, _zoom?: number) => {
     const latPusat = (kotak.minLat + kotak.maxLat) / 2;
     const lngPusat = (kotak.minLng + kotak.maxLng) / 2;
-    const kotak1Km = hitungKotakKm(latPusat, lngPusat, 1);
-    const sumberAktif = basemap === "taktis" ? null : SUMBER_TILE[basemap];
-    const zMax = sumberAktif ? Math.min(ZOOM_MAKS_UNDUH_OFFLINE, Math.max(ZOOM_MAKS_UNDUH_OFFLINE, sumberAktif.zoomMaks)) : ZOOM_MAKS_UNDUH_OFFLINE;
-    const zMin = Math.max(13, zMax - 4);
-    setKotakUnduh(kotak1Km);
-    setZoomMinUnduh(zMin);
-    setZoomMaksUnduh(zMax);
+    const kotak10Km = hitungKotakKm(latPusat, lngPusat, JANGKAUAN_UNDUH_KM);
+    setKotakUnduh(kotak10Km);
+    setPusatUnduh({ lat: latPusat, lng: lngPusat });
+    setZoomMinUnduh(ZOOM_MIN_UNDUH_OFFLINE);
+    setZoomMaksUnduh(ZOOM_MAKS_UNDUH_OFFLINE);
     setGalatUnduh(null);
     setKemajuanUnduh(null);
     setBukaModalOffline(true);
   };
 
   const sumberUnduh = basemap === "taktis" ? null : SUMBER_TILE[basemap];
-  const jumlahTileUnduh = kotakUnduh && basemap !== "taktis" ? hitungJumlahTile(kotakUnduh, zoomMinUnduh, zoomMaksUnduh) : 0;
+  const daftarTileTarget = useMemo(() => {
+    if (!pusatUnduh || !sumberUnduh) return [];
+    return daftarTilePiramida10KmZoom20(pusatUnduh.lat, pusatUnduh.lng, sumberUnduh.zoomMaks);
+  }, [pusatUnduh, sumberUnduh]);
+
+  const jumlahTileUnduh = daftarTileTarget.length;
   const kelebihanTile = jumlahTileUnduh > BATAS_TILE_PER_AREA;
   const bisaUnduh = sumberUnduh !== null && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
 
@@ -102,7 +138,7 @@ export function useUnduhAreaOffline(
       timerTutupHudRef.current = null;
     }
 
-    const daftarUrl = daftarTile(kotakUnduh, zoomMinUnduh, zoomMaksUnduh)
+    const daftarUrl = daftarTileTarget
       .map((t) => isiTemplateTile(sumberUnduh.template, t.z, t.x, t.y))
       .filter((u): u is string => u !== null);
 
@@ -137,7 +173,7 @@ export function useUnduhAreaOffline(
       }
       onSimpanAreaOffline({
         id: buatId("OFF"),
-        namaArea: namaAreaOfflineBaru.trim() || `Area 1x1 km #${areaOffline.length + 1}`,
+        namaArea: namaAreaOfflineBaru.trim() || `Area 10x10 km #${areaOffline.length + 1}`,
         basemapId: basemap,
         ...kotakUnduh,
         zoomMin: zoomMinUnduh,
@@ -173,6 +209,7 @@ export function useUnduhAreaOffline(
     namaAreaOfflineBaru,
     setNamaAreaOfflineBaru,
     sedangMengunduhTile,
+    pusatUnduh,
     zoomMinUnduh,
     zoomMaksUnduh,
     kemajuanUnduh,
@@ -194,7 +231,7 @@ interface UnduhOfflineModalProps {
   onBukaArea: (pusat: { lat: number; lng: number }) => void;
 }
 
-const RADIUS_HOLD = 58;
+const RADIUS_HOLD = 62;
 const KELILING_HOLD = 2 * Math.PI * RADIUS_HOLD;
 
 export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, areaOffline, unduh, onBukaArea }) => {
@@ -203,6 +240,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
     namaAreaOfflineBaru,
     setNamaAreaOfflineBaru,
     sedangMengunduhTile,
+    pusatUnduh,
     zoomMaksUnduh,
     galatUnduh,
     sumberUnduh,
@@ -253,27 +291,48 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
   return (
     <div className="modal-backdrop" onClick={() => setBukaModalOffline(false)}>
       <div className="modal-card unduh-offline-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+        <div className="unduh-hero-banner">
+          <div className="unduh-hero-top">
+            <span className="unduh-hero-badge">
+              <Layers size={13} /> {basemap === "taktis" ? "Peta Taktis" : sumberUnduh?.nama}
+            </span>
+            <button type="button" className="unduh-close-btn" aria-label="Tutup" onClick={() => setBukaModalOffline(false)}>
+              <X size={18} />
+            </button>
+          </div>
           <h3>Unduh Peta Offline</h3>
-          <button type="button" className="btn-icon-close" aria-label="Tutup" onClick={() => setBukaModalOffline(false)}>
-            <X size={18} />
-          </button>
+          {pusatUnduh && (
+            <div className="unduh-hero-coord">
+              <Compass size={13} />
+              <span>
+                {pusatUnduh.lat.toFixed(5)}°, {pusatUnduh.lng.toFixed(5)}°
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="unduh-offline-body">
-          <div className="unduh-chip-ringkas">
-            <span>{basemap === "taktis" ? "Peta Taktis" : sumberUnduh?.nama}</span>
-            <span>·</span>
-            <strong>1 × 1 km</strong>
-            <span>·</span>
-            <span id="perkiraan-unduh">
-              Zoom {zoomMaksUnduh}x ({jumlahTileUnduh} tile · ~{perkiraanMb.toFixed(1)} MB)
-            </span>
+          <div className="unduh-stats-grid">
+            <div className="unduh-stat-tile">
+              <Maximize2 size={16} />
+              <strong>10 × 10 km</strong>
+              <small>Jangkauan</small>
+            </div>
+            <div className="unduh-stat-tile">
+              <ZoomIn size={16} />
+              <strong>{zoomMaksUnduh}x</strong>
+              <small>Ketelitian</small>
+            </div>
+            <div className="unduh-stat-tile" id="perkiraan-unduh">
+              <HardDrive size={16} />
+              <strong>{jumlahTileUnduh} tile</strong>
+              <small>~{perkiraanMb.toFixed(1)} MB</small>
+            </div>
           </div>
 
           <input
             type="text"
-            className="form-input"
+            className="form-input unduh-nama-input"
             placeholder="Masukkan nama area"
             value={namaAreaOfflineBaru}
             onChange={(e) => setNamaAreaOfflineBaru(e.target.value)}
@@ -284,7 +343,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
               type="button"
               className={`unduh-hold-circle ${sedangTahan ? "sedang-tahan" : ""} ${!bisaUnduh ? "nonaktif" : ""}`}
               disabled={!bisaUnduh || sedangMengunduhTile}
-              aria-label="Tahan 3 detik untuk unduh peta 1x1 km"
+              aria-label="Tahan 3 detik untuk unduh peta 10x10 km"
               onPointerDown={mulaiTahan}
               onPointerUp={hentikanTahan}
               onPointerLeave={hentikanTahan}
@@ -293,20 +352,21 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
               onTouchEnd={hentikanTahan}
               onTouchCancel={hentikanTahan}
             >
-              <svg className="unduh-hold-svg" viewBox="0 0 140 140" aria-hidden="true">
-                <circle className="unduh-hold-track" cx="70" cy="70" r={RADIUS_HOLD} />
+              <svg className="unduh-hold-svg" viewBox="0 0 152 152" aria-hidden="true">
+                <circle className="unduh-hold-track" cx="76" cy="76" r={RADIUS_HOLD} />
                 <circle
                   className="unduh-hold-arc"
-                  cx="70"
-                  cy="70"
+                  cx="76"
+                  cy="76"
                   r={RADIUS_HOLD}
                   strokeDasharray={KELILING_HOLD}
                   strokeDashoffset={KELILING_HOLD * (1 - holdRasio)}
                 />
               </svg>
               <div className="unduh-hold-core">
-                <Download size={26} />
+                <Download size={28} />
                 <strong>{sedangTahan ? `${detikTersisa}d` : "Tahan 3 Detik"}</strong>
+                <span>{sedangTahan ? "Mengunci…" : "10×10 km · 20x"}</span>
               </div>
             </button>
           </div>

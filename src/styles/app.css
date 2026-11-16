@@ -194,19 +194,24 @@ body {
   text-overflow: ellipsis;
 }
 
-.avenza-conn-chip {
+.avenza-conn-chip,
+.avenza-role-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 12px;
   border-radius: 99px;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .avenza-conn-chip.online {
@@ -228,18 +233,8 @@ body {
   flex-shrink: 0;
 }
 
-.avenza-role-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 99px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  cursor: pointer;
-  margin-right: 2px;
-  white-space: nowrap;
-  border: 1px solid #86efac;
+.avenza-role-chip.kader {
+  border-color: #86efac;
   background: #e8f5ee;
   color: #0d7344;
 }
@@ -3064,14 +3059,11 @@ label {
     font-size: 1.05rem;
   }
 
-  .avenza-conn-chip {
-    padding: 2px 6px;
-    font-size: 0.64rem;
-  }
-
+  .avenza-conn-chip,
   .avenza-role-chip {
-    padding: 3px 7px;
-    font-size: 0.65rem;
+    padding: 4px 10px;
+    font-size: 0.68rem;
+    min-height: 30px;
   }
 
   .avenza-icon-btn {
@@ -3843,6 +3835,15 @@ label {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 14px 10px;
+}
+
+.toolbar-popover-chips .avenza-conn-chip,
+.toolbar-popover-chips .avenza-role-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 10px;
+  justify-content: center;
 }
 
 .toolbar-popover .avenza-overflow-item {
@@ -7181,7 +7182,8 @@ label {
   min-height: 48px;
 }
 
-.avenza-conn-chip {
+.avenza-conn-chip,
+.avenza-role-chip {
   min-height: 32px;
   padding: 4px 12px;
 }
@@ -12676,18 +12678,60 @@ html[data-field-theme="matahari"] .section-card h2 {
   flex: 1 1 100%;
 }
 
+.field-survey-form label.btn-media-simbol,
 .btn-media-simbol {
   width: 50px;
   height: 50px;
+  min-height: 50px;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  line-height: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   border-radius: 14px;
   border: 1.5px dashed #16a34a;
   background: #f0fdf4;
   color: #15803d;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
+  box-sizing: border-box;
   transition: transform 0.14s ease, background 0.14s ease;
+}
+
+.btn-media-simbol svg {
+  display: block;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* KOORDINAT TITIK ALA KOLAM TEMATIK / NAMA LOKAL + 3 TITIK */
+.loc-card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loc-coord-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+}
+
+.loc-coord-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.loc-coord-input {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .btn-media-simbol:hover {
@@ -12779,42 +12823,119 @@ html[data-field-theme="matahari"] .section-card h2 {
   font-variant-numeric: tabular-nums;
 }
 
-/* UNDUH OFFLINE LINGKARAN TAHAN 3 DETIK */
+/* UNDUH OFFLINE ESTETIK 10x10 KM + TAHAN 3 DETIK */
 .unduh-offline-card {
-  max-width: 380px;
+  max-width: 390px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.unduh-hero-banner {
+  background: linear-gradient(135deg, #064e3b 0%, #0d7344 58%, #047857 100%);
+  color: #ffffff;
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unduh-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.unduh-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.unduh-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 99px;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.unduh-hero-banner h3 {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.unduh-hero-coord {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  opacity: 0.9;
+  font-variant-numeric: tabular-nums;
 }
 
 .unduh-offline-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-top: 4px;
+  gap: 12px;
+  padding: 14px 16px 16px;
 }
 
-.unduh-chip-ringkas {
+.unduh-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unduh-stat-tile {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: 99px;
-  background: #f1f5f9;
-  color: #334155;
+  text-align: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #065f46;
+}
+
+.unduh-stat-tile strong {
   font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.unduh-stat-tile small {
+  font-size: 0.68rem;
+  color: #475569;
 }
 
 .unduh-hold-stage {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 8px 0 4px;
+  padding: 6px 0 2px;
 }
 
 .unduh-hold-circle {
   position: relative;
-  width: 144px;
-  height: 144px;
+  width: 152px;
+  height: 152px;
   border-radius: 999px;
   border: none;
   padding: 0;
@@ -12826,7 +12947,7 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 26px rgba(13, 115, 68, 0.16);
+  box-shadow: 0 12px 28px rgba(13, 115, 68, 0.2);
   transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
 
@@ -12836,7 +12957,7 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 .unduh-hold-circle.sedang-tahan {
   transform: scale(0.96);
-  box-shadow: 0 6px 24px rgba(13, 115, 68, 0.34);
+  box-shadow: 0 8px 26px rgba(13, 115, 68, 0.36);
 }
 
 .unduh-hold-circle.nonaktif,
@@ -12848,8 +12969,8 @@ html[data-field-theme="matahari"] .section-card h2 {
 .unduh-hold-svg {
   position: absolute;
   inset: 0;
-  width: 144px;
-  height: 144px;
+  width: 152px;
+  height: 152px;
   pointer-events: none;
 }
 
@@ -12874,12 +12995,146 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   pointer-events: none;
 }
 
 .unduh-hold-core strong {
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 800;
   letter-spacing: 0.01em;
+}
+
+.unduh-hold-core span {
+  font-size: 0.68rem;
+  color: #047857;
+  font-weight: 600;
+}
+
+/* PENGATURAN EKSPOR FILTER + HALAMAN BAGIKAN MULTI-PLATFORM */
+.avenza-export-filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.avz-share-backdrop {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.avz-share-sheet {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 22px 22px 0 0;
+  padding: 16px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.18);
+}
+
+.avz-share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.avz-share-file-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.avz-share-file-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #0d7344;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avz-share-file-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.avz-share-file-meta strong {
+  font-size: 0.88rem;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avz-share-file-meta span {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.avz-share-native-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.avz-share-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 6px;
+}
+
+.avz-share-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 6px 2px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.avz-share-app-ico {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.avz-share-app-ico.wa { background: #16a34a; }
+.avz-share-app-ico.drive { background: #0284c7; }
+.avz-share-app-ico.mail { background: #dc2626; }
+.avz-share-app-ico.tg { background: #0ea5e9; }
+.avz-share-app-ico.cloud { background: #2563eb; }
+.avz-share-app-ico.dl { background: #0f766e; }
+.avz-share-app-ico.cp { background: #475569; }
+
+.avz-share-msg {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0d7344;
+  text-align: center;
 }

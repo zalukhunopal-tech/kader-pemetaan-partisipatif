@@ -14,7 +14,7 @@ export { registrasiProtokolPmtiles, registrasiProtokolMbtiles };
 
 export const NAMA_CACHE_TILE = "geokader-tiles-v1";
 /** Batas tile per area agar unduhan tidak membebani penyedia tile maupun penyimpanan HP */
-export const BATAS_TILE_PER_AREA = 2500;
+export const BATAS_TILE_PER_AREA = 6000;
 /** Batas kapasitas penyimpanan cache tile otomatis saat browsing peta luring (4.000 tile / ±120 MB) */
 export const BATAS_MAKS_AUTO_TILE_CACHE = 4000;
 
