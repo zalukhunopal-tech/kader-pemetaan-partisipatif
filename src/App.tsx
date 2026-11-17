@@ -136,7 +136,7 @@ export const App: React.FC = () => {
         : null;
   const [bukaKeamanan, setBukaKeamanan] = useState<boolean>(false);
   const [tabAktif, setTabAktif] = useState<MenuTab>(() => {
-    const bawaan: MenuTab = sesiPengguna && sesiPengguna.peran === "admin" ? "admin" : "pustaka";
+    const bawaan: MenuTab = "peta";
     // Pintasan aplikasi terpasang (mis. tekan lama ikon > "Peta") membuka ?tab=...
     try {
       const diminta = new URLSearchParams(window.location.search).get("tab");
@@ -390,6 +390,10 @@ export const App: React.FC = () => {
       setModePilihPustaka(false);
       return true;
     }
+    if (tabAktif !== "peta") {
+      setTabAktif("peta");
+      return true;
+    }
     return false;
   };
 
@@ -415,11 +419,7 @@ export const App: React.FC = () => {
       kelompokMasyarakat: akun.kelompokMasyarakat,
       namaOrganisasi: akun.namaOrganisasi
     }));
-    if (akun.peran === "admin") {
-      setTabAktif("admin");
-    } else {
-      setTabAktif("pustaka");
-    }
+    setTabAktif("peta");
     tampilkanToast(`✓ Selamat datang, ${akun.nama} (${akun.peran === "admin" ? "Admin GIS" : "Kader Lapangan"})!`);
   };
 
@@ -430,6 +430,7 @@ export const App: React.FC = () => {
     kunciAplikasi();
     simpanSesiPengguna(null);
     setSesiPengguna(null);
+    setTabAktif("peta");
     setBukaKeamanan(false);
     tampilkanToast("Anda telah keluar dari aplikasi Titik Tapak.");
   };
@@ -447,7 +448,7 @@ export const App: React.FC = () => {
       setTabAktif("admin");
       tampilkanToast("🛡️ Beralih ke Akun Administrator GIS.");
     } else {
-      setTabAktif("pustaka");
+      setTabAktif("peta");
       tampilkanToast("👤 Beralih ke Akun Kader Lapangan (User).");
     }
   };
@@ -599,6 +600,7 @@ export const App: React.FC = () => {
         h.jalankan();
       });
       hapusPetaTertunda.current.clear();
+      setTabAktif("peta");
     };
     window.addEventListener("pagehide", jalankanSemua);
     return () => window.removeEventListener("pagehide", jalankanSemua);
@@ -1001,6 +1003,7 @@ export const App: React.FC = () => {
       sedangMerekam={rekamLatar.status !== "idle"}
       onTerbuka={(pesan) => {
         segarkanKeamanan();
+        setTabAktif("peta");
         tampilkanToast(pesan.startsWith("🔒") ? pesan : `🔓 ${pesan}`);
       }}
       onKeluar={handleLogout}
