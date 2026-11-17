@@ -91,6 +91,7 @@ import {
   Route,
   Satellite,
   Search,
+  Settings,
   Share,
   Sliders,
   X
@@ -387,6 +388,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }, [pesanSalin]);
   const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() =>
     rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : (form.rekaman?.jenis ?? null)
+  );
+  const [modeGambarUkur, setModeGambarUkur] = useState<boolean>(() =>
+    rekamLatar.status !== "idle" ? rekamLatar.jenis === "polygon" : form.rekaman?.jenis === "polygon"
   );
   const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() =>
     rekamLatar.status !== "idle" ? rekamLatar.titik : (form.rekaman?.titik ?? [])
@@ -846,6 +850,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       statusGps: perangkat.statusGps,
       bearingPeta: bearingAktif,
       koordinatDipilih,
+      titikBidikanUkur: modeGambarUkur ? center : null,
       saatGambarSiap: () => setRenderTick((t) => t + 1)
     });
   }, [
@@ -858,6 +863,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     dataTampil,
     titikDraft,
     modeRekam,
+    modeGambarUkur,
     gpsPos,
     kompasDerajat,
     perangkat.statusGps,
@@ -1261,15 +1267,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
-  const mulaiModeRekam = (jenis: JenisGeometri) => {
+  const mulaiModeRekam = (jenis: JenisGeometri, adalahUkur = jenis === "polygon") => {
     setBukaMenuAlat(false);
     setObjekTerpilih(null);
+    setModeGambarUkur(adalahUkur);
     setModeRekam(jenis);
     if (jenis === "point") {
       const ptAwal = titikDariBidikan(center, posisiNyata);
       setTitikDraft([ptAwal]);
       form.setKategoriInput("Biodiversitas");
       setBukaModalForm(false);
+    } else if (adalahUkur) {
+      // Mode Gambar dan Ukur: mulai dengan 0 titik agar pengguna membidik lewat "+ Tambahkan titik"
+      setTitikDraft([]);
+      form.setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Biodiversitas");
+      perekamLatar.mulai(jenis, []);
+      perekamLatar.jeda();
     } else if (jenis === "line") {
       // Pelacakan jalur GPS: awali dari posisi GPS nyata (bila sudah ada), bukan bidikan manual yang bisa jauh dari GPS
       const awalJalur = posisiNyata ? [posisiNyata] : [];
@@ -1285,6 +1298,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
+  const pilihJenisUkur = (jenisBaru: "line" | "polygon") => {
+    setModeGambarUkur(true);
+    setModeRekam(jenisBaru);
+    form.setKategoriInput(jenisBaru === "polygon" ? "Wilayah Adat / Lahan" : "Biodiversitas");
+    const titikSaatIni = perekamLatar.getState().titik;
+    perekamLatar.mulai(jenisBaru, titikSaatIni);
+    perekamLatar.jeda();
+  };
+
   const handleSimpanForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modeRekam || titikDraft.length === 0 || validasiGeometri(modeRekam, titikDraft).length > 0) return;
@@ -1292,6 +1314,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const rekamAktifLatar = modeRekam === "point" && rekamLatar.status !== "idle" && rekamLatar.jenis;
     if (!rekamAktifLatar) {
       perekamLatar.selesai();
+      setModeGambarUkur(false);
       setModeRekam(null);
       setTitikDraft([]);
     } else if (rekamLatar.jenis) {
@@ -1476,6 +1499,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const pilihanBasemap = URUTAN_BASEMAP.filter((id) => id !== "taktis" && basemapTersedia(id));
   const batalkanRekaman = () => {
     perekamLatar.batal();
+    setModeGambarUkur(false);
     setModeRekam(null);
     setTitikDraft([]);
   };
@@ -1910,48 +1934,81 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   return (
     <div
-      className={`map-module-wrapper avz-peta clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""} ${modeRekam && modeRekam !== "point" ? "sedang-merekam" : ""}`}
+      className={`map-module-wrapper avz-peta clean-map-mode temukan-field ${petaKustomAktif ? "avenza-custom-active" : ""} ${modePetaBersih ? "clean-map-immersion" : ""} ${modeRekam && modeRekam !== "point" ? "sedang-merekam" : ""} ${modeGambarUkur && modeRekam && modeRekam !== "point" ? "sedang-gambar-ukur" : ""}`}
     >
       {/* BILAH JUDUL (Avenza Maps): kembali · nama peta (atau arah putaran, mis. "265° B") · info · cari */}
-      <header className={`avz-titlebar ${petaKustomAktif ? "avenza-map-header-bar" : ""}`}>
-        <button
-          type="button"
-          className="avenza-head-btn"
-          onClick={() => (petaKustomAktif ? onTutupPetaKustom?.() : onKembali?.())}
-          title={petaKustomAktif ? "Kembali ke Pustaka Peta" : "Kembali"}
-          aria-label="Kembali"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <h2 className="avenza-head-title avz-titlebar-teks" title={petaKustomAktif ? petaKustomAktif.namaArea : namaBasemap(basemap)}>
-          {judulPeta}
-        </h2>
-        <div className="avenza-head-actions">
-          <button
-            type="button"
-            className="avenza-head-btn"
-            title="Info peta"
-            aria-label="Info Peta"
-            onClick={() => {
-              tutupSemuaPanel();
-              setBukaInfoPetaModal(true);
-            }}
-          >
-            <Info size={23} />
-          </button>
-          <button
-            type="button"
-            className="avenza-head-btn"
-            title="Cari Koordinat / Nama Objek"
-            aria-label="Cari di Peta"
-            onClick={() => {
-              tutupSemuaPanel();
-              setCariKoordTerbuka(true);
-            }}
-          >
-            <Search size={23} />
-          </button>
-        </div>
+      <header className={`avz-titlebar ${petaKustomAktif ? "avenza-map-header-bar" : ""} ${modeGambarUkur && modeRekam && modeRekam !== "point" ? "avz-titlebar-ukur" : ""}`}>
+        {modeGambarUkur && modeRekam && modeRekam !== "point" ? (
+          <>
+            <button
+              type="button"
+              className="avenza-head-btn rec-cancel-btn"
+              onClick={batalkanRekaman}
+              title="Batalkan Gambar dan Ukur"
+              aria-label="Batalkan perekaman"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="avenza-head-title avz-titlebar-teks">
+              {petaKustomAktif ? formatJudulAvenza(petaKustomAktif.namaArea) : "Peta dasar"}
+            </h2>
+            <div className="avenza-head-actions">
+              <button
+                type="button"
+                className="avenza-head-btn"
+                title="Pengaturan koordinat ukur"
+                aria-label="Pengaturan ukur"
+                onClick={() => {
+                  setBukaMenuAlat(false);
+                  setBukaSalinKoord((v) => !v);
+                }}
+              >
+                <Settings size={23} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="avenza-head-btn"
+              onClick={() => (petaKustomAktif ? onTutupPetaKustom?.() : onKembali?.())}
+              title={petaKustomAktif ? "Kembali ke Pustaka Peta" : "Kembali"}
+              aria-label="Kembali"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h2 className="avenza-head-title avz-titlebar-teks" title={petaKustomAktif ? petaKustomAktif.namaArea : namaBasemap(basemap)}>
+              {judulPeta}
+            </h2>
+            <div className="avenza-head-actions">
+              <button
+                type="button"
+                className="avenza-head-btn"
+                title="Info peta"
+                aria-label="Info Peta"
+                onClick={() => {
+                  tutupSemuaPanel();
+                  setBukaInfoPetaModal(true);
+                }}
+              >
+                <Info size={23} />
+              </button>
+              <button
+                type="button"
+                className="avenza-head-btn"
+                title="Cari Koordinat / Nama Objek"
+                aria-label="Cari di Peta"
+                onClick={() => {
+                  tutupSemuaPanel();
+                  setCariKoordTerbuka(true);
+                }}
+              >
+                <Search size={23} />
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* NAVIGASI KE TUJUAN */}
@@ -2230,10 +2287,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               <PanelPerekaman
                 rekamLatar={rekamLatar}
                 modeRekam={modeRekam}
+                modeGambarUkur={modeGambarUkur}
                 jumlahTitik={titikDraft.length}
                 panjangDraftKm={panjangDraftKm}
                 luasDraftHa={luasDraftHa}
                 detikTick={detikTick}
+                titikBidikan={center}
+                teksTitikBidikan={formatPill.nilai}
+                elevasiMeter={gpsPos?.elevasi ?? null}
                 onTambahTitik={tambahTitikBidikan}
                 onBukaPanel={() => {
                   bukaDrawerLokasi("pelacakan", "sedang");
@@ -2243,6 +2304,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   setBukaModalForm(true);
                 }}
                 onBatal={batalkanRekaman}
+                onPusatkanGps={onGps}
+                onPilihJenisUkur={pilihJenisUkur}
               />
             )}
             {/* BILAH BAWAH: alat · koordinat bidikan · lapisan; ketuk pegangan atau usap ke atas membuka panel GPS */}
@@ -2334,10 +2397,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <>
             <div className="avz-tutup-transparan" onClick={() => setBukaMenuAlat(false)} aria-hidden="true" />
             <div className="avz-tool-popup-menu" role="menu">
-              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("polygon")}>
+              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("polygon", true)}>
                 Gambar dan Ukur
               </button>
-              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("line")}>
+              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("line", false)}>
                 Rekam Jalur GPS
               </button>
               <button

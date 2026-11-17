@@ -693,8 +693,9 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
   await expect(p.locator(".avz-status-rekam")).toBeVisible();
 
-  // Sekarang hentikan & simpan jalur yang terekam lewat PanelPerekaman
-  await p.locator(".avz-status-rekam .rec-btn-save").click();
+  // Sekarang hentikan & simpan jalur yang terekam lewat panel Pelacakan
+  await p.locator(".avz-status-rekam .avz-status-rekam-info").click();
+  await p.locator(".avz-gps-btn-hentikan").click();
   await p.locator(".form-kategori-grid button").first().click();
   await p.locator('#form-survei-lapangan input[required]').fill("Jalur Patroli Terukur");
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
