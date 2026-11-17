@@ -6,6 +6,7 @@ import {
   JenisGeometri,
   KaderAktifPresence,
   KategoriSurvei,
+  PenandatanganSertifikatItem,
   PengumumanBroadcast,
   ProfilKader,
   SertifikatKader,
@@ -13,14 +14,16 @@ import {
   TugasPemetaan
 } from "../types";
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
+import { kompresFotoKeDataUrl } from "../lib/foto";
 import { sisaHariPencadangan } from "../lib/pencadanganData";
 import { AkunSesi } from "../lib/auth";
 import { AkunAdminPanel } from "./AkunAdminPanel";
 import { CatatanPerangkat } from "./CatatanPerangkat";
 import { PanelDataUserLevel } from "./PanelDataUserLevel";
-import { Archive, RefreshCw, RotateCcw, Users } from "lucide-react";
+import { Archive, PenTool, RefreshCw, RotateCcw, Users } from "lucide-react";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
+import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "../lib/sertifikatBawaan";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
 import { Check, ChevronDown, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
 import { useTombolEsc } from "../lib/useTombolEsc";
@@ -41,7 +44,11 @@ interface AdminDashboardViewProps {
   onRekonsiliasiGDrive?: () => Promise<void> | void;
   sedangRekonsiliasi?: boolean;
   onTerbitkanSertifikat: (sert: SertifikatKader) => void;
-  onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
+  onUbahPenandatanganSertifikat?: (
+    nama: string,
+    jabatan: string,
+    daftarPenandatangan?: PenandatanganSertifikatItem[]
+  ) => void;
   onTambahPengumuman: (p: PengumumanBroadcast) => void;
   onTambahTugas: (t: TugasPemetaan) => void;
   onVerifikasiTugas?: (id: string) => void;
@@ -115,10 +122,41 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
     nomorDiketik && nomorDiketik.untukJumlah === sertifikatList.length ? nomorDiketik.nilai : nomorSertifikatBerikut(sertifikatList);
   const setNomorSertBaru = (nilai: string) => setNomorDiketik({ untukJumlah: sertifikatList.length, nilai });
   const [pesanTerbit, setPesanTerbit] = useState<{ teks: string; ok: boolean } | null>(null);
-  const [penandatangan, setPenandatangan] = useState(profilKader.namaPenandatanganSertifikat || "Adi Junedi");
-  const [jabatanPenandatangan, setJabatanPenandatangan] = useState(
-    profilKader.jabatanPenandatanganSertifikat || "Direktur"
-  );
+  const susunEmpatPenandatangan = (): PenandatanganSertifikatItem[] => {
+    const tersimpan = profilKader.penandatanganList ?? [];
+    return DEFAULT_PENANDATANGAN_SERTIFIKAT.map((bawaan, idx) => {
+      const ada = tersimpan[idx];
+      if (ada) return { ...bawaan, ...ada };
+      if (idx === 0) {
+        return {
+          ...bawaan,
+          nama: profilKader.namaPenandatanganSertifikat || bawaan.nama,
+          jabatan: profilKader.jabatanPenandatanganSertifikat || bawaan.jabatan
+        };
+      }
+      return { ...bawaan };
+    });
+  };
+  const [daftarPenandatangan, setDaftarPenandatangan] = useState<PenandatanganSertifikatItem[]>(susunEmpatPenandatangan);
+  const penandatangan = daftarPenandatangan[0]?.nama || "Adi Junedi";
+  const jabatanPenandatangan = daftarPenandatangan[0]?.jabatan || "Direktur";
+
+  const ubahSatuPenandatangan = (idx: number, patch: Partial<PenandatanganSertifikatItem>) => {
+    const baru = daftarPenandatangan.map((item, i) => (i === idx ? { ...item, ...patch } : item));
+    setDaftarPenandatangan(baru);
+  };
+
+  const unggahTtdAdmin = async (idx: number, file?: File) => {
+    if (!file) return;
+    try {
+      const dataUrl = await kompresFotoKeDataUrl(file, 360);
+      const baru = daftarPenandatangan.map((item, i) => (i === idx ? { ...item, tandaTanganBase64: dataUrl } : item));
+      setDaftarPenandatangan(baru);
+      onUbahPenandatanganSertifikat?.(baru[0]?.nama || "Adi Junedi", baru[0]?.jabatan || "Direktur", baru);
+    } catch {
+      // Abaikan bila berkas gambar gagal dimuat
+    }
+  };
 
   const handleBuatTugas = (e: React.FormEvent) => {
     e.preventDefault();
@@ -866,39 +904,83 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               <LogoSertifikatResmiSvg size={20} variant="zamrud" /> Sertifikat
             </h3>
 
-            <div className="form-row-3">
-              <div>
-                <label>Nomor sertifikat berikutnya</label>
-                <input type="text" className="form-input" value={nomorSertBaru} onChange={(e) => setNomorSertBaru(e.target.value)} />
-              </div>
-              <div>
-                <label>Nama Penandatangan</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Nama yang menandatangani sertifikat"
-                  value={penandatangan}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPenandatangan(val);
-                    onUbahPenandatanganSertifikat?.(val, jabatanPenandatangan);
-                  }}
-                />
-              </div>
-              <div>
-                <label>Jabatan Penandatangan</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Jabatan pejabat penandatangan"
-                  value={jabatanPenandatangan}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setJabatanPenandatangan(val);
-                    onUbahPenandatanganSertifikat?.(penandatangan, val);
-                  }}
-                />
-              </div>
+            <div style={{ marginBottom: 12 }}>
+              <label>Nomor sertifikat berikutnya</label>
+              <input type="text" className="form-input" value={nomorSertBaru} onChange={(e) => setNomorSertBaru(e.target.value)} />
+            </div>
+
+            <div className="admin-signers-grid">
+              {daftarPenandatangan.map((sig, idx) => (
+                <div key={sig.id} className="admin-signer-box">
+                  <div className="admin-signer-box-head">
+                    <strong>
+                      Penandatangan #{idx + 1} · {sig.jabatan || `Posisi ${idx + 1}`}
+                    </strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <label className="btn-outline-sm admin-ttd-btn" style={{ margin: 0, cursor: "pointer" }} title="Unggah gambar tanda tangan">
+                        <PenTool size={12} /> {sig.tandaTanganBase64 ? "Ganti TTD" : "Unggah TTD"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            void unggahTtdAdmin(idx, e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {sig.tandaTanganBase64 && (
+                        <button
+                          type="button"
+                          className="btn-outline-sm admin-ttd-btn"
+                          onClick={() => {
+                            const baru = daftarPenandatangan.map((item, i) =>
+                              i === idx ? { ...item, tandaTanganBase64: undefined } : item
+                            );
+                            setDaftarPenandatangan(baru);
+                            onUbahPenandatanganSertifikat?.(baru[0]?.nama || "Adi Junedi", baru[0]?.jabatan || "Direktur", baru);
+                          }}
+                          title="Hapus gambar tanda tangan"
+                        >
+                          Hapus TTD
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="form-row-3">
+                    <div>
+                      <label>Nama Penandatangan</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Nama yang menandatangani sertifikat"
+                        value={sig.nama}
+                        onChange={(e) => ubahSatuPenandatangan(idx, { nama: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label>Jabatan Penandatangan</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Jabatan pejabat penandatangan"
+                        value={sig.jabatan}
+                        onChange={(e) => ubahSatuPenandatangan(idx, { jabatan: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label>Instansi</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Instansi penandatangan"
+                        value={sig.instansi}
+                        onChange={(e) => ubahSatuPenandatangan(idx, { instansi: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
@@ -906,8 +988,14 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                 type="button"
                 className="btn-outline"
                 style={{ flex: "1 1 200px" }}
-                onClick={() => onUbahPenandatanganSertifikat?.(penandatangan, jabatanPenandatangan)}
-                title="Simpan penandatangan sertifikat"
+                onClick={() =>
+                  onUbahPenandatanganSertifikat?.(
+                    daftarPenandatangan[0]?.nama || "Adi Junedi",
+                    daftarPenandatangan[0]?.jabatan || "Direktur",
+                    daftarPenandatangan
+                  )
+                }
+                title="Simpan keempat penandatangan sertifikat"
               >
                 ✍️ Simpan
               </button>
@@ -980,6 +1068,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                                 namaOrganisasi: profilKader.namaOrganisasi,
                                 ditandatanganiOleh: penandatangan,
                                 jabatanPenandatangan,
+                                penandatanganList: daftarPenandatangan,
                                 fotoKaderBase64: k.idKader === profilKader.idKader ? profilKader.fotoKaderBase64 : undefined
                               });
                               setPesanTerbit({ teks: hasil.pesan, ok: hasil.ok });
@@ -1017,7 +1106,16 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                     <div>
                       <strong>{s.nomorSertifikat}</strong> — {s.namaKader}
                       <div style={{ color: "#047857", fontSize: "0.78rem" }}>
-                        Penandatangan: <strong>{s.ditandatanganiOleh}</strong> ({s.jabatanPenandatangan})
+                        Penandatangan:{" "}
+                        {(s.penandatanganList && s.penandatanganList.length > 0
+                          ? s.penandatanganList
+                          : [{ nama: s.ditandatanganiOleh, jabatan: s.jabatanPenandatangan }]
+                        ).map((p, i) => (
+                          <span key={i}>
+                            {i > 0 ? " • " : ""}
+                            <strong>{p.nama}</strong> ({p.jabatan})
+                          </span>
+                        ))}
                       </div>
                     </div>
                     <span className="badge-sync status-terverifikasi">TERBIT</span>

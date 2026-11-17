@@ -215,4 +215,65 @@ describe("Daftar Penandatangan KKI Warsi pada Sertifikat", () => {
       })
     ).toBe("Desa Long Loreh");
   });
+
+  it("menyertakan seluruh 4 penandatangan saat sertifikat diterbitkan dari menu Admin", () => {
+    const dataSiti: DataSpasialItem[] = [
+      ...titik("KDR-2", "Siti", 50, "terverifikasi"),
+      {
+        id: "L-Siti",
+        idKader: "KDR-2",
+        namaKader: "Siti",
+        desaWilayah: "Desa A",
+        judul: "Jalur Patroli",
+        kategori: "Biodiversitas",
+        jenisGeometri: "line",
+        koordinat: [
+          { lat: -0.9, lng: 100.4 },
+          { lat: -0.95, lng: 100.45 }
+        ],
+        panjangKm: 5.5,
+        luasHa: 0,
+        statusSinkron: "terverifikasi",
+        createdAt: "2026-10-28T09:00:00.000Z",
+        updatedAt: "",
+        deskripsi: "",
+        riwayatPembaruan: []
+      },
+      {
+        id: "P-Siti",
+        idKader: "KDR-2",
+        namaKader: "Siti",
+        desaWilayah: "Desa A",
+        judul: "Lahan Adat",
+        kategori: "Wilayah Adat / Lahan",
+        jenisGeometri: "polygon",
+        koordinat: [
+          { lat: -0.9, lng: 100.4 },
+          { lat: -0.95, lng: 100.4 },
+          { lat: -0.95, lng: 100.45 },
+          { lat: -0.9, lng: 100.4 }
+        ],
+        luasHa: 5.2,
+        panjangKm: 0,
+        statusSinkron: "terverifikasi",
+        createdAt: "2026-10-28T09:00:00.000Z",
+        updatedAt: "",
+        deskripsi: "",
+        riwayatPembaruan: []
+      }
+    ];
+    const siti = ringkasanKader(dataSiti, []).find((k) => k.namaKader === "Siti")!;
+    const hasil = siapkanSertifikat(siti, "0001/SKPP-GIS/WILAYAH/XI/2026", [], {
+      ...info,
+      penandatanganList: DEFAULT_PENANDATANGAN_SERTIFIKAT
+    });
+    expect(hasil.ok).toBe(true);
+    expect(hasil.sertifikat?.penandatanganList).toHaveLength(4);
+    expect(hasil.sertifikat?.penandatanganList?.map((p) => p.jabatan)).toEqual([
+      "Direktur",
+      "Manajer Program",
+      "Koordinator Proyek Kayan Mentarang",
+      "GIS dan IT"
+    ]);
+  });
 });

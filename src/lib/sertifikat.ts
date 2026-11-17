@@ -1,4 +1,4 @@
-import { DataSpasialItem, ProfilKader, SertifikatKader } from "../types";
+import { DataSpasialItem, PenandatanganSertifikatItem, ProfilKader, SertifikatKader } from "../types";
 import { HasilPerhitunganCapaian, hitungCapaianKader } from "./rewardEngine";
 import { buatId } from "./id";
 
@@ -77,6 +77,7 @@ export function siapkanSertifikat(
     namaOrganisasi: string;
     ditandatanganiOleh: string;
     jabatanPenandatangan: string;
+    penandatanganList?: PenandatanganSertifikatItem[];
     fotoKaderBase64?: string;
     sekarang?: Date;
   }
@@ -107,6 +108,7 @@ export function siapkanSertifikat(
     status: "diterbitkan",
     ditandatanganiOleh: info.ditandatanganiOleh,
     jabatanPenandatangan: info.jabatanPenandatangan,
+    penandatanganList: info.penandatanganList,
     fotoKaderBase64: info.fotoKaderBase64
   };
   return { ok: true, pesan: `Sertifikat ${nomorBersih} diterbitkan untuk ${kader.namaKader}.`, sertifikat };
