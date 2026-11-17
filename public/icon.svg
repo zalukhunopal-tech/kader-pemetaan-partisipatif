@@ -1,11 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
-<defs>
-<linearGradient id="bg2A3" x1="0%" y1="0%" x2="100%" y2="100%">
-<stop offset="0%" stop-color="#042F2E" />
-<stop offset="100%" stop-color="#0F172A" />
-</linearGradient>
-</defs>
-<rect width="512" height="512" rx="115" fill="url(#bg2A3)" />
+<rect width="512" height="512" fill="#000000" />
+<g transform="translate(256 256) scale(0.84) translate(-256 -256)">
 <path d="M96 348 L256 422 L416 348 L416 374 L256 448 L96 374 Z" fill="#0284C7" />
 <path d="M96 302 L256 376 L416 302 L416 328 L256 402 L96 328 Z" fill="#14B8A6" />
 <path d="M96 256 L256 330 L256 356 L96 282 Z" fill="#059669" />
@@ -15,6 +10,7 @@
 <path d="M256 256 Q216 204 195 168 A68 68 0 0 1 256 66 Z" fill="#FB923C" />
 <!-- Right Half of Pin -->
 <path d="M256 256 Q296 204 317 168 A68 68 0 0 0 256 66 Z" fill="#EA580C" />
-<circle cx="256" cy="134" r="28" fill="#0F172A" />
+<circle cx="256" cy="134" r="28" fill="#000000" />
 <circle cx="256" cy="134" r="14" fill="#FDE047" />
+</g>
 </svg>
