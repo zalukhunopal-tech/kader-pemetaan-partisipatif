@@ -143,8 +143,8 @@ describe("Menu tindakan akun di Admin > Akun & penanda GPS tidak menutupi pereka
   it("kalimat penanda izin GPS dipersingkat dan kotak kendali perekaman jalur/poligon tidak tertutupi", () => {
     expect(sumberLatar).toContain('"GPS belum diizinkan"');
     expect(sumberLatar).not.toContain("GPS perangkat belum diizinkan. Izinkan akses lokasi di pengaturan browser.");
-    expect(sumberRekam).toContain("rec-error-alert");
-    expect(sumberRekam).toContain("rec-error-dismiss");
+    expect(sumberRekam).toContain("avz-status-rekam-tengah");
+    expect(sumberRekam).toContain("avz-ukur-panel");
     expect(css).toContain(".rec-error-alert");
     expect(css).toContain(".rec-error-dismiss");
   });

@@ -56,6 +56,17 @@ for (const u of UKURAN) {
     const peta = await p.locator(".map-canvas-container").boundingBox();
     expect(alat!.y + alat!.height).toBeLessThanOrEqual(peta!.y + peta!.height + 0.5);
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await p.locator(".avz-status-rekam-info").click();
+    await p.locator(".avz-gps-btn-hentikan").click();
+
+    // Uji tata letak Gambar dan Ukur (kartu ukur atas, pil aksi, dan bilah alat bawah tidak bertumpuk)
+    await p.getByRole("button", { name: "Alat peta" }).click();
+    await p.getByRole("menuitem", { name: "Gambar dan Ukur" }).click();
+    await expect(p.locator(".avz-ukur-panel")).toBeVisible();
+    expect(
+      await kontrolBertumpuk(p, [".avz-ukur-panel", ".avz-ukur-btn-urungkan", ".avz-ukur-btn-tambah", ".avz-ukur-toolbar"]),
+      "gambar dan ukur"
+    ).toEqual([]);
     await p.locator(".rec-cancel-btn").click();
     expect(galat).toEqual([]);
     await tutup();

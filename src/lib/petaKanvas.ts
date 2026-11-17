@@ -91,6 +91,7 @@ export interface LapisanPeta {
   statusGps?: StatusGps;
   bearingPeta?: number;
   koordinatDipilih?: { lat: number; lng: number; label?: string } | null;
+  titikBidikanUkur?: KoordinatTitik | null;
 }
 
 const cacheGambarPetaKustom = new Map<string, HTMLImageElement | "loading" | "error">();
@@ -269,7 +270,8 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     waktuMs,
     statusGps,
     bearingPeta,
-    koordinatDipilih
+    koordinatDipilih,
+    titikBidikanUkur
   } = lapisan;
 
   // 1. Gambar Lembar Peta GeoPDF Georeferensi (Jika sedang membuka peta kustom/GeoPDF)
@@ -351,9 +353,15 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
   // 5. Gambar Draft Sedang Direkam (Garis lurus solid tanpa titik-titik untuk jalur & poligon)
   if (modeRekam && titikDraft.length > 0) {
     ctx.save();
-    if (titikDraft.length === 1) {
+    const titikGambar =
+      titikBidikanUkur &&
+      (titikDraft[titikDraft.length - 1].lat !== titikBidikanUkur.lat ||
+        titikDraft[titikDraft.length - 1].lng !== titikBidikanUkur.lng)
+        ? [...titikDraft, titikBidikanUkur]
+        : titikDraft;
+    if (titikGambar.length === 1) {
       // Jika baru ada 1 titik awal (belum membentuk garis), tandai lokasi awal
-      const p = keLayar(titikDraft[0].lat, titikDraft[0].lng);
+      const p = keLayar(titikGambar[0].lat, titikGambar[0].lng);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
       ctx.fillStyle = WARNA_JALUR_AVENZA;
@@ -364,12 +372,12 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     } else {
       // 2 titik atau lebih: gambar garis lurus solid dan bersih (bukan rangkaian titik-titik)
       ctx.beginPath();
-      titikDraft.forEach((k, idx) => {
+      titikGambar.forEach((k, idx) => {
         const p = keLayar(k.lat, k.lng);
         if (idx === 0) ctx.moveTo(p.x, p.y);
         else ctx.lineTo(p.x, p.y);
       });
-      if (modeRekam === "polygon" && titikDraft.length >= 3) {
+      if (modeRekam === "polygon" && titikGambar.length >= 3) {
         ctx.closePath();
         ctx.fillStyle = "rgba(247, 134, 31, 0.22)";
         ctx.fill();
@@ -380,6 +388,14 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
       ctx.lineJoin = "round";
       ctx.setLineDash([]);
       ctx.stroke();
+    }
+    if (titikBidikanUkur && titikDraft[0]) {
+      const pAwal = keLayar(titikDraft[0].lat, titikDraft[0].lng);
+      ctx.save();
+      ctx.translate(pAwal.x, pAwal.y);
+      if (bearingPeta) ctx.rotate((bearingPeta * Math.PI) / 180);
+      gambarPinMerah(ctx);
+      ctx.restore();
     }
     ctx.restore();
   }

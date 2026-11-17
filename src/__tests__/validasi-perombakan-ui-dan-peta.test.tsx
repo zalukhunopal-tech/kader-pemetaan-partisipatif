@@ -409,14 +409,39 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
       />
     );
 
-    // Status rekam ala Avenza: pita oranye di atas bilah koordinat, bukan kotak dialog
-    expect(htmlPanel).toContain("recording-active-bar avz-status-rekam");
-    expect(htmlPanel).toContain("Gambar area");
+    // Mode Gambar dan Ukur: kartu informasi pengukuran di atas (Jarak total, Segmen, Arah titik, Elevasi, Titik) + tombol pil
+    expect(htmlPanel).toContain("recording-active-bar avz-status-rekam avz-ukur-mode");
+    expect(htmlPanel).toContain("Jarak total: 0,85 km");
     expect(htmlPanel).toContain("1,24 Ha");
+    expect(htmlPanel).toContain("Segmen");
+    expect(htmlPanel).toContain("Arah titik");
+    expect(htmlPanel).toContain("Elevasi");
     expect(htmlPanel).toContain("Titik");
     expect(htmlPanel).toContain("Urungkan");
-    expect(htmlPanel).toContain("Jeda");
-    expect(htmlPanel).toContain("Hentikan");
+    expect(htmlPanel).toContain("Tambahkan titik");
+
+    // Mode Pelacakan GPS (Rekam Jalur GPS): hanya notifikasi pelacakan rata tengah tanpa jarak, waktu, atau tombol close
+    const htmlPelacakan = renderToString(
+      <PanelPerekaman
+        rekamLatar={{ ...mockRekamLatar, jenis: "line" }}
+        modeRekam="line"
+        modeGambarUkur={false}
+        jumlahTitik={3}
+        panjangDraftKm={0.85}
+        luasDraftHa={0}
+        detikTick={65}
+        onTambahTitik={vi.fn()}
+        onBukaPanel={vi.fn()}
+        onSimpan={vi.fn()}
+        onBatal={vi.fn()}
+      />
+    );
+    expect(htmlPelacakan).toContain("avz-status-rekam-sederhana");
+    expect(htmlPelacakan).toContain("avz-status-rekam-tengah");
+    expect(htmlPelacakan).toContain("Melacak");
+    expect(htmlPelacakan).not.toContain("0,85 km");
+    expect(htmlPelacakan).not.toContain("01:05");
+    expect(htmlPelacakan).not.toContain("rec-cancel-btn");
 
     // Uji arah rotasi dua jari:
     // Jika dua jari berputar searah jarum jam (deltaSudut > 0), bearing baru harus berkurang

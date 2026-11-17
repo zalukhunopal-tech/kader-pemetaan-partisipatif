@@ -1741,7 +1741,7 @@
   border-color: var(--avz-hijau) !important;
 }
 
-/* ---------- 10. Status rekam (jalur/area): pita oranye tembus pandang di atas bilah koordinat ---------- */
+/* ---------- 10. Status rekam (jalur/area): pita oranye rata tengah (Pelacakan) & panel Gambar dan Ukur ---------- */
 .avz-peta .avz-hud-kaki {
   display: flex;
   flex-direction: column;
@@ -1778,30 +1778,33 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 48px;
-  padding: 0 6px 0 12px;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
 }
 
 .avz-peta .avz-status-rekam-info {
   flex: 1 1 auto;
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
+  display: flex;
   align-items: center;
-  column-gap: 8px;
-  row-gap: 0;
+  justify-content: center;
+  gap: 8px;
   min-height: 44px;
-  padding: 4px 8px;
+  padding: 4px 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 0;
   background: transparent;
   color: #ffffff;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.avz-peta .avz-status-rekam-tengah {
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 .avz-peta .avz-status-rekam .rec-dot {
@@ -1824,10 +1827,6 @@
   }
 }
 
-.avz-peta .avz-status-rekam .rec-dot {
-  grid-row: 1 / span 2;
-}
-
 .avz-peta .avz-status-rekam .rec-status-label {
   min-width: 0;
   overflow: hidden;
@@ -1837,112 +1836,206 @@
   font-size: 0.95rem;
 }
 
-.avz-peta .avz-status-rekam .rec-geom-summary {
-  grid-column: 2;
-  line-height: 1.2;
-  color: #ffffff !important;
-  white-space: nowrap;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.88rem;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.95;
+/* Mode Gambar dan Ukur (sesuai referensi Avenza Maps) */
+.avz-peta .avz-titlebar.avz-titlebar-ukur {
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: none;
 }
 
-.avz-peta .avz-status-rekam .rec-timer-chip {
+.avz-peta.sedang-gambar-ukur .avz-hud-atas,
+.avz-peta.sedang-gambar-ukur .avz-hud-bawah,
+.avz-peta.sedang-gambar-ukur .avz-bottom-pill-bar {
+  display: none !important;
+}
+
+.avz-peta.sedang-gambar-ukur .avz-hud-kaki {
+  grid-row: 1 / -1;
+  height: 100%;
+  pointer-events: none;
+  justify-content: space-between;
+}
+
+.avz-peta.sedang-gambar-ukur .avz-bidikan.aktif .avz-reticle-circle {
+  border-color: #020001;
+}
+
+.avz-peta.sedang-gambar-ukur .avz-bidikan.aktif .avz-bidikan-h {
+  background: linear-gradient(90deg, #020001 0 12px, transparent 12px calc(100% - 12px), #020001 calc(100% - 12px));
+}
+
+.avz-peta.sedang-gambar-ukur .avz-bidikan.aktif .avz-bidikan-v {
+  background: linear-gradient(180deg, #020001 0 12px, transparent 12px calc(100% - 12px), #020001 calc(100% - 12px));
+}
+
+.avz-peta.sedang-gambar-ukur .avz-bidikan.aktif .avz-bidikan-titik {
+  background: #020001;
+}
+
+.avz-peta .avz-hud .avz-status-rekam.avz-ukur-mode {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  justify-content: space-between !important;
   background: transparent !important;
-  color: inherit !important;
-  padding: 0 !important;
+  color: var(--avz-teks) !important;
+  backdrop-filter: none !important;
+  pointer-events: none !important;
 }
 
-.avz-peta .avz-status-rekam-aksi {
-  flex: none;
+.avz-peta .avz-ukur-panel {
+  pointer-events: auto;
+  background: var(--avz-putih);
+  color: var(--avz-teks);
+  padding: 10px 14px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.avz-peta .avz-ukur-total-baris {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
 }
 
-.avz-peta .avz-status-rekam-aksi > button {
+.avz-peta .avz-ukur-total-teks {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--avz-teks);
+  font-variant-numeric: tabular-nums;
+}
+
+.avz-peta .avz-ukur-info-ikon {
+  display: inline-flex;
+  align-items: center;
+  color: #424242;
+}
+
+.avz-peta .avz-ukur-kotak-tiga {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.avz-peta .avz-ukur-kotak {
+  position: relative;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 9px 10px 7px;
+  background: var(--avz-putih);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.avz-peta .avz-ukur-kotak-label {
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  padding: 0 4px;
+  background: var(--avz-putih);
+  font-size: 0.74rem;
+  line-height: 1;
+  color: var(--avz-teks-2);
+  white-space: nowrap;
+}
+
+.avz-peta .avz-ukur-kotak-nilai {
+  display: block;
+  font-size: 1.02rem;
+  font-weight: 400;
+  color: var(--avz-teks);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avz-peta .avz-ukur-bawah {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.avz-peta .avz-ukur-pil-baris {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.avz-peta .avz-ukur-pil-btn {
+  pointer-events: auto;
+  width: auto !important;
+  min-width: 136px !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 0 18px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--avz-putih) !important;
+  color: var(--avz-hijau) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: auto !important;
-  min-width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  padding: 0 8px !important;
-  border: 0;
-  border-radius: 22px;
-  background: transparent;
-  color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 700;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
-}
-
-.avz-peta .avz-status-rekam-aksi > .rec-cancel-btn {
-  background: transparent !important;
-  color: #ffffff !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-.avz-peta .avz-status-rekam-aksi > button:active {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.avz-peta .avz-status-rekam-aksi > button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.avz-peta .avz-status-rekam-aksi .rec-btn-save {
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.avz-peta .avz-status-rekam .rec-error-alert {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 6px 0 12px;
-  font-size: 0.82rem;
-}
-
-.avz-peta .avz-status-rekam .rec-error-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.avz-peta .avz-status-rekam .rec-error-dismiss {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
+.avz-peta .avz-ukur-pil-btn:active:not(:disabled) {
+  background: #eef5f1 !important;
 }
 
-/* Di layar sempit, label tombol disembunyikan (ikon saja) agar status tetap terbaca */
-@media (max-width: 420px) {
-  .avz-peta .avz-status-rekam-aksi > button span {
-    display: none;
-  }
+.avz-peta .avz-ukur-pil-btn:disabled {
+  color: #b0b0b0 !important;
+  opacity: 1 !important;
+  cursor: default;
+}
 
-  .avz-peta .avz-status-rekam .rec-geom-summary {
-    font-size: 0.8rem;
-  }
+.avz-peta .avz-ukur-toolbar {
+  pointer-events: auto;
+  height: 52px;
+  min-height: 52px;
+  background: var(--avz-putih);
+  border-top: 1px solid #e5e7eb;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.avz-peta .avz-ukur-tool-btn {
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: #6c877b !important;
+  display: inline-grid !important;
+  place-items: center;
+  padding: 0 !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.avz-peta .avz-ukur-tool-btn:first-child,
+.avz-peta .avz-ukur-tool-btn.aktif,
+.avz-peta .avz-ukur-btn-simpan:not(:disabled) {
+  color: var(--avz-hijau) !important;
+}
+
+.avz-peta .avz-ukur-tool-btn:disabled {
+  color: #a8b8b0 !important;
+  opacity: 0.65;
+  cursor: default;
 }
 
 /* Opsi tambahan rekaman di panel Pelacakan */
