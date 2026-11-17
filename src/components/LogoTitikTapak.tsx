@@ -30,9 +30,9 @@ export const LogoTitikTapak: React.FC<LogoTitikTapakProps> = ({
         </linearGradient>
       </defs>
 
-      {/* Background (rounded rect) */}
+      {/* Background (hitam pekat tanpa garis putih) */}
       {withBackground && (
-        <rect width="512" height="512" rx="115" fill="url(#bgTitikTapak)" />
+        <rect width="512" height="512" rx="115" fill="#000000" />
       )}
 
       {/* Layer 3: Chevron Base (Blue) */}

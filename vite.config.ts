@@ -33,14 +33,14 @@ export default defineConfig({
       includeAssets: ["icon.svg", "favicon-48.png", "apple-touch-icon.png"],
       manifest: {
         id: "./",
-        name: "Titik Tapak: Survei & Pemetaan Partisipatif",
+        name: "Titik Tapak",
         short_name: "Titik Tapak",
         description:
-          "Aplikasi survei keanekaragaman hayati & pemetaan partisipatif kader masyarakat (Offline-First GIS, Google Drive Sync, Sertifikat Kader)",
+          "Aplikasi survei keanekaragaman hayati dan pemetaan partisipatif kader masyarakat (Offline-First GIS, Google Drive Sync, Sertifikat Kader)",
         lang: "id",
         dir: "ltr",
-        theme_color: "#042f2e",
-        background_color: "#061411",
+        theme_color: "#000000",
+        background_color: "#000000",
         display: "standalone",
         display_override: ["standalone", "minimal-ui"],
         orientation: "portrait",

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { LogoTitikTapak } from "./LogoTitikTapak";
 
 interface LayarPembukaTakaProps {
   onSelesai: () => void;
@@ -29,22 +30,20 @@ function deteksiModeLayarLandscape(): boolean {
 }
 
 /**
- * Layar Pembuka (Splash Screen) Interaktif Maskot TAKA
- * Menyesuaikan video secara otomatis:
- * - Mobile / HP (Portrait): `./taka/taka_splash_portrait.mp4`
- * - PC / Tablet / Landscape: `./taka/taka_splash_landscape.mp4`
+ * Layar Pembuka (Splash Screen) Aplikasi Titik Tapak
+ * Latar hitam pekat keseluruhan (#000000) dengan logo aplikasi di tengah tanpa garis tepi putih
+ * dan label tunggal "Titik Tapak" dengan tipografi tebal dan estetik.
  */
 export const LayarPembukaTaka: React.FC<LayarPembukaTakaProps> = ({ onSelesai }) => {
   const [landscape, setLandscape] = useState<boolean>(() => deteksiModeLayarLandscape());
   const [keluar, setKeluar] = useState<boolean>(false);
-  const [videoGagal, setVideoGagal] = useState<boolean>(false);
 
   const tutupSplash = React.useCallback(() => {
     tandaiSplashTakaSudahTampil();
     setKeluar(true);
     window.setTimeout(() => {
       onSelesai();
-    }, 280);
+    }, 260);
   }, [onSelesai]);
 
   useEffect(() => {
@@ -58,11 +57,11 @@ export const LayarPembukaTaka: React.FC<LayarPembukaTakaProps> = ({ onSelesai })
     return undefined;
   }, []);
 
-  // Batas waktu aman otomatis agar layar pembuka tidak pernah menahan pengguna terlalu lama
+  // Otomatis masuk ke aplikasi setelah layar pembuka tampil singkat
   useEffect(() => {
     const timer = window.setTimeout(() => {
       tutupSplash();
-    }, 5500);
+    }, 1800);
     return () => window.clearTimeout(timer);
   }, [tutupSplash]);
 
@@ -73,45 +72,25 @@ export const LayarPembukaTaka: React.FC<LayarPembukaTakaProps> = ({ onSelesai })
       id="layar-pembuka-taka"
       className={`taka-splash-overlay ${landscape ? "mode-pc" : "mode-mobile"} ${keluar ? "fade-out" : ""}`}
       role="dialog"
-      aria-label="Layar Pembuka Titik Tapak bersama Maskot Taka"
+      aria-label="Layar Pembuka Titik Tapak"
+      onClick={tutupSplash}
     >
       <div className="taka-splash-stage">
         <div className="taka-splash-video-frame">
-          {!videoGagal ? (
-            <video
-              key={sumberVideo}
-              id="video-splash-taka"
-              className="taka-splash-video"
-              src={sumberVideo}
-              poster="./taka/taka_avatar_512.png"
-              autoPlay
-              muted
-              playsInline
-              preload="auto"
-              onEnded={tutupSplash}
-              onError={() => setVideoGagal(true)}
-            />
-          ) : (
-            <div className="taka-splash-fallback">
-              <img src="./taka/taka_master.png" alt="Maskot Taka Titik Tapak" className="taka-splash-fallback-img" />
-            </div>
-          )}
+          <video
+            key={sumberVideo}
+            id="video-splash-taka"
+            className="taka-splash-video"
+            src={sumberVideo}
+            muted
+            playsInline
+            preload="none"
+            aria-hidden="true"
+          />
 
-          <div className="taka-splash-gradient" />
-
-          <div className="taka-splash-hud">
-            <div className="taka-splash-brand">
-              <img src="./taka/taka_avatar_256.png" alt="Simbol Taka" className="taka-splash-avatar" />
-            </div>
-
-            <button
-              type="button"
-              id="lewati-splash-taka"
-              className="taka-splash-skip-btn"
-              onClick={tutupSplash}
-            >
-              Lanjut ▸
-            </button>
+          <div className="taka-splash-center-brand">
+            <LogoTitikTapak size={112} withBackground={false} className="taka-splash-logo" />
+            <h1 className="taka-splash-title brand-title-estetik">Titik Tapak</h1>
           </div>
         </div>
       </div>
