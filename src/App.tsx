@@ -10,6 +10,7 @@ import {
   LapisanSpasial,
   MenuTab,
   PembaruanObjek,
+  PenandatanganSertifikatItem,
   PengumumanBroadcast,
   PeranPengguna,
   PesanKomunikasi,
@@ -525,17 +526,23 @@ export const App: React.FC = () => {
   });
 
   // Handler Ubah Nama & Jabatan Penandatangan Sertifikat oleh Admin
-  const handleUbahPenandatanganSertifikat = (namaPenandatangan: string, jabatanPenandatangan: string) => {
+  const handleUbahPenandatanganSertifikat = (
+    namaPenandatangan: string,
+    jabatanPenandatangan: string,
+    daftarPenandatangan?: PenandatanganSertifikatItem[]
+  ) => {
     setProfil((prev) => ({
       ...prev,
-      namaPenandatanganSertifikat: namaPenandatangan,
-      jabatanPenandatanganSertifikat: jabatanPenandatangan
+      namaPenandatanganSertifikat: daftarPenandatangan?.[0]?.nama || namaPenandatangan,
+      jabatanPenandatanganSertifikat: daftarPenandatangan?.[0]?.jabatan || jabatanPenandatangan,
+      ...(daftarPenandatangan && daftarPenandatangan.length > 0 ? { penandatanganList: daftarPenandatangan } : {})
     }));
     setSertifikatList((prev) =>
       prev.map((s) => ({
         ...s,
-        ditandatanganiOleh: namaPenandatangan,
-        jabatanPenandatangan
+        ditandatanganiOleh: daftarPenandatangan?.[0]?.nama || namaPenandatangan,
+        jabatanPenandatangan: daftarPenandatangan?.[0]?.jabatan || jabatanPenandatangan,
+        ...(daftarPenandatangan && daftarPenandatangan.length > 0 ? { penandatanganList: daftarPenandatangan } : {})
       }))
     );
   };
@@ -1302,10 +1309,16 @@ export const App: React.FC = () => {
                   setSertifikatList((prev) => [sert, ...prev]);
                   tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
                 })}
-                onUbahPenandatanganSertifikat={wajibAdmin((nama: string, jabatan: string) => {
-                  handleUbahPenandatanganSertifikat(nama, jabatan);
-                  tampilkanToast(`✓ Penandatangan sertifikat diubah menjadi: ${nama}`);
-                })}
+                onUbahPenandatanganSertifikat={wajibAdmin(
+                  (nama: string, jabatan: string, daftarPenandatangan?: PenandatanganSertifikatItem[]) => {
+                    handleUbahPenandatanganSertifikat(nama, jabatan, daftarPenandatangan);
+                    tampilkanToast(
+                      daftarPenandatangan && daftarPenandatangan.length > 1
+                        ? `✓ Keempat penandatangan sertifikat berhasil disimpan.`
+                        : `✓ Penandatangan sertifikat diubah menjadi: ${nama}`
+                    );
+                  }
+                )}
                 onTambahPengumuman={wajibAdmin((p: PengumumanBroadcast) => setPengumumanList((prev) => [p, ...prev]))}
                 onTambahTugas={wajibAdmin(handleTambahTugas)}
                 onVerifikasiTugas={wajibAdmin((id: string) => {

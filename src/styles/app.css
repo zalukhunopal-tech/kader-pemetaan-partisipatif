@@ -8821,19 +8821,21 @@ html[data-field-theme="malam"] :is(.btn-outline-sm, .btn-tool, .btn-icon-close, 
     width: var(--sidebar-w);
     max-width: none;
     height: 100dvh;
-    padding: 24px 10px;
+    padding: 20px 10px 20px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 10px;
     border: 0;
     border-right: 1px solid var(--field-line);
     background: var(--field-surface);
   }
   .desktop-nav-brand {
     display: block;
+    flex: none;
     color: var(--field-ink);
-    padding: 0 8px 24px;
+    padding: 0 8px 12px;
   }
   .desktop-nav-brand strong {
     font-size: 20px;
@@ -8852,12 +8854,17 @@ html[data-field-theme="malam"] :is(.btn-outline-sm, .btn-tool, .btn-icon-close, 
     color: var(--field-muted);
   }
   .avenza-bottom-nav .avenza-nav-item {
-    flex: none;
+    flex: 1 1 0;
     width: 100%;
     min-height: 68px;
-    border-radius: 12px;
-    gap: 6px;
+    border-radius: 14px;
+    gap: 8px;
+    font-size: 0.84rem;
     color: var(--field-muted);
+  }
+  .avenza-bottom-nav .avenza-nav-item svg {
+    width: 22px;
+    height: 22px;
   }
   .avenza-bottom-nav .avenza-nav-item.active {
     background: var(--field-canvas);
@@ -11211,8 +11218,55 @@ html[data-field-theme="matahari"] .section-card h2 {
 .aksi-data-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px !important;
+  height: 30px !important;
+  min-width: 0 !important;
+  padding: 0 11px !important;
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600;
+  line-height: 1 !important;
   white-space: nowrap;
+}
+
+.admin-signers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.admin-signer-box {
+  background: #f8faf9;
+  border: 1px solid #d5dcd8;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-signer-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-signer-box-head strong {
+  font-size: 0.86rem;
+  color: #0f172a;
+}
+
+.admin-ttd-btn {
+  min-height: 28px !important;
+  height: 28px !important;
+  min-width: 0 !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.75rem !important;
 }
 
 .aksi-sheet-backdrop {
