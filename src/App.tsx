@@ -106,7 +106,7 @@ import { NavigasiBawah } from "./components/app/NavigasiBawah";
 import { LayarPembukaTaka, sudahTampilSplashTakaSesiIni } from "./components/LayarPembukaTaka";
 import { BantuanBugView } from "./components/BantuanBugView";
 import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug";
-import { pasangPenjagaKembali, PESAN_TEKAN_KEMBALI_LAGI } from "./lib/penjagaKembali";
+import { pasangPenjagaKembali, pastikanRiwayatPenjaga, PESAN_TEKAN_KEMBALI_LAGI, userSudahAktif } from "./lib/penjagaKembali";
 import { sinkronkanLapisanDenganItem } from "./lib/tematik";
 import { sinkronkanLapisanDariTugas } from "./lib/skemaTugas";
 import { PullToRefresh } from "./components/common/PullToRefresh";
@@ -447,6 +447,22 @@ export const App: React.FC = () => {
       }),
     [tampilkanToast]
   );
+
+  // Pastikan riwayat penjaga tombol Back terpasang setiap kali pindah dari tab home (Peta Interaktif) atau membuka sub-halaman
+  useEffect(() => {
+    if (!userSudahAktif()) return;
+    if (
+      tabAktif !== "peta" ||
+      bukaPemberitahuan ||
+      bukaPengaturanEkspor ||
+      bukaBantuan ||
+      bukaGantiSandi ||
+      bukaKeamanan ||
+      bukaMenuTitikTiga
+    ) {
+      pastikanRiwayatPenjaga();
+    }
+  }, [tabAktif, bukaPemberitahuan, bukaPengaturanEkspor, bukaBantuan, bukaGantiSandi, bukaKeamanan, bukaMenuTitikTiga]);
 
   // Handler Login Berhasil
   const handleLoginSukses = (akun: AkunSesi) => {
@@ -884,11 +900,11 @@ export const App: React.FC = () => {
     });
   };
 
-  // Handler Klaim / Verifikasi Penyelesaian Tugas (Kader mengajukan -> Admin mengesahkan untuk +60 poin)
+  // Handler Klaim / Verifikasi Penyelesaian Tugas (Kader mengajukan -> Admin memverifikasi untuk +60 poin)
   const handleTandaiTugasSelesai = (id: string) => {
     if (aksesAdmin && aksesAdminSah(sesiPengguna)) {
       setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)));
-      tampilkanToast("✓ Tugas pemetaan disahkan selesai oleh Admin.");
+      tampilkanToast("✓ Tugas pemetaan diverifikasi selesai oleh Admin.");
       return;
     }
     setTugasList((prev) => prev.map((t) => (t.id === id && t.status === "aktif" ? { ...t, status: "menunggu_verifikasi" } : t)));
@@ -1451,7 +1467,7 @@ export const App: React.FC = () => {
                 onUbahTugas={wajibAdmin(handleUbahTugas)}
                 onVerifikasiTugas={wajibAdmin((id: string) => {
                   setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)));
-                  tampilkanToast("✓ Penyelesaian tugas disahkan oleh Admin (+60 poin level).");
+                  tampilkanToast("✓ Penyelesaian tugas diverifikasi oleh Admin (+60 poin level).");
                 })}
                 onHapusTugas={wajibAdmin(handleHapusTugas)}
                 onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}

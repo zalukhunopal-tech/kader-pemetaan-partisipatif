@@ -408,16 +408,36 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
       />
     );
 
-    // Mode Gambar dan Ukur: kartu informasi pengukuran di atas (Jarak total, Segmen, Arah titik, Elevasi, Titik) + tombol pil
+    // Mode Gambar dan Ukur Area (polygon): Area total, Perimeter, Arah titik, Elevasi, Titik + tombol pil
     expect(htmlPanel).toContain("recording-active-bar avz-status-rekam avz-ukur-mode");
-    expect(htmlPanel).toContain("Jarak total: 0,85 km");
-    expect(htmlPanel).toContain("1,24 Ha");
-    expect(htmlPanel).toContain("Segmen");
+    expect(htmlPanel).toContain("Area total: 1,24 Ha");
+    expect(htmlPanel).toContain("Perimeter");
     expect(htmlPanel).toContain("Arah titik");
     expect(htmlPanel).toContain("Elevasi");
     expect(htmlPanel).toContain("Titik");
     expect(htmlPanel).toContain("Urungkan");
     expect(htmlPanel).toContain("Tambahkan titik");
+
+    // Mode Gambar dan Ukur Garis (line): Jarak total, Segmen, dan pilihan Konversi ke Area
+    const htmlLineUkur = renderToString(
+      <PanelPerekaman
+        rekamLatar={{ ...mockRekamLatar, jenis: "line" }}
+        modeRekam="line"
+        modeGambarUkur={true}
+        jumlahTitik={3}
+        panjangDraftKm={0.85}
+        luasDraftHa={0}
+        detikTick={65}
+        onTambahTitik={vi.fn()}
+        onBukaPanel={vi.fn()}
+        onSimpan={vi.fn()}
+        onBatal={vi.fn()}
+        onPilihJenisUkur={vi.fn()}
+      />
+    );
+    expect(htmlLineUkur).toContain("Jarak total: 0,85 km");
+    expect(htmlLineUkur).toContain("Segmen");
+    expect(htmlLineUkur).toContain("Konversi ke Area");
 
     // Mode Pelacakan GPS (Rekam Jalur GPS): hanya notifikasi pelacakan rata tengah tanpa jarak, waktu, atau tombol close
     const htmlPelacakan = renderToString(

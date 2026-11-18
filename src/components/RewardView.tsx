@@ -952,29 +952,102 @@ export const RewardView: React.FC<RewardViewProps> = ({
                 {penandatanganListAktif.map((sig, idx) => (
                   <div key={sig.id} className="cert-signer-editor-card">
                     <div className="cert-signer-card-top">
-                      <strong>Posisi #{idx + 1}: {sig.jabatan}</strong>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                      <div className="cert-signer-card-heading">
+                        <span className="cert-signer-rank-badge">#{idx + 1}</span>
+                        <strong className="cert-signer-card-title">{sig.jabatan || `Posisi ${idx + 1}`}</strong>
+                      </div>
+                      <div className="cert-signer-action-group">
                         <button
                           type="button"
-                          className="btn-outline-sm"
+                          className="btn-outline-sm cert-signer-act-btn"
                           disabled={idx === 0}
                           onClick={() => handlePindahUrutanPenandatangan(idx, "atas")}
-                          title="Geser posisi ke atas / ke kiri"
+                          title="Geser posisi ke atas"
                         >
                           <ArrowUp size={12} /> Naik
                         </button>
                         <button
                           type="button"
-                          className="btn-outline-sm"
+                          className="btn-outline-sm cert-signer-act-btn"
                           disabled={idx === penandatanganListAktif.length - 1}
                           onClick={() => handlePindahUrutanPenandatangan(idx, "bawah")}
-                          title="Geser posisi ke bawah / ke kanan"
+                          title="Geser posisi ke bawah"
                         >
                           <ArrowDown size={12} /> Turun
                         </button>
+                        {penandatanganListAktif.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn-danger-sm cert-signer-act-btn"
+                            onClick={() => handleHapusPenandatangan(sig.id)}
+                            title="Hapus Penandatangan"
+                            aria-label={`Hapus penandatangan ${idx + 1}`}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="cert-signer-fields-grid">
+                      <div className="cert-signer-field-col">
+                        <label htmlFor={`cert-jabatan-${sig.id}`}>Jabatan</label>
+                        <input
+                          id={`cert-jabatan-${sig.id}`}
+                          type="text"
+                          className="form-input"
+                          placeholder="Mis. Dekan / Ketua Umum"
+                          value={sig.jabatan}
+                          onChange={(e) =>
+                            handleUbahPenandatanganItem(sig.id, {
+                              jabatan: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="cert-signer-field-col">
+                        <label htmlFor={`cert-instansi-${sig.id}`}>Instansi</label>
+                        <input
+                          id={`cert-instansi-${sig.id}`}
+                          type="text"
+                          className="form-input"
+                          placeholder="Mis. Indonesia Mapping Community"
+                          value={sig.instansi}
+                          onChange={(e) =>
+                            handleUbahPenandatanganItem(sig.id, {
+                              instansi: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="cert-signer-field-col">
+                        <label htmlFor={`cert-nama-${sig.id}`}>Nama Bergelar</label>
+                        <input
+                          id={`cert-nama-${sig.id}`}
+                          type="text"
+                          className="form-input"
+                          placeholder="Nama lengkap beserta gelar"
+                          value={sig.nama}
+                          onChange={(e) =>
+                            handleUbahPenandatanganItem(sig.id, {
+                              nama: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="admin-signer-ttd-row">
+                      <div className="admin-signer-ttd-preview">
+                        {sig.tandaTanganBase64 ? (
+                          <img src={sig.tandaTanganBase64} alt={`Tanda tangan ${sig.nama || `Posisi ${idx + 1}`}`} />
+                        ) : (
+                          <span className="admin-signer-ttd-empty">Belum ada TTD</span>
+                        )}
+                      </div>
+                      <div className="admin-signer-ttd-actions">
                         <label
-                          className="btn-outline-sm"
-                          style={{ margin: 0, cursor: "pointer", whiteSpace: "nowrap" }}
+                          className="btn-outline-sm admin-ttd-btn"
                           title="Unggah Gambar Tanda Tangan / Stempel"
                         >
                           <PenTool size={12} /> {sig.tandaTanganBase64 ? "Ganti TTD" : "Unggah TTD"}
@@ -991,7 +1064,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
                         {sig.tandaTanganBase64 && (
                           <button
                             type="button"
-                            className="btn-outline-sm"
+                            className="btn-danger-sm admin-ttd-btn"
                             onClick={() =>
                               handleUbahPenandatanganItem(sig.id, {
                                 tandaTanganBase64: undefined
@@ -999,64 +1072,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
                             }
                             title="Hapus gambar TTD"
                           >
-                            Hapus TTD
+                            Hapus
                           </button>
                         )}
-                        {penandatanganListAktif.length > 1 && (
-                          <button
-                            type="button"
-                            className="btn-danger-sm"
-                            onClick={() => handleHapusPenandatangan(sig.id)}
-                            title="Hapus Penandatangan"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="form-row-3">
-                      <div>
-                        <label>Jabatan</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Mis. Dekan / Ketua Umum"
-                          value={sig.jabatan}
-                          onChange={(e) =>
-                            handleUbahPenandatanganItem(sig.id, {
-                              jabatan: e.target.value
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label>Instansi / Lembaga</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Mis. Indonesia Mapping Community"
-                          value={sig.instansi}
-                          onChange={(e) =>
-                            handleUbahPenandatanganItem(sig.id, {
-                              instansi: e.target.value
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label>Nama bergelar</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Nama lengkap beserta gelar"
-                          value={sig.nama}
-                          onChange={(e) =>
-                            handleUbahPenandatanganItem(sig.id, {
-                              nama: e.target.value
-                            })
-                          }
-                        />
                       </div>
                     </div>
                   </div>

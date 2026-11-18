@@ -10,10 +10,10 @@
  * ada interaksi nyata pengguna.
  */
 
-export const BATAS_WAKTU_KEMBALI_MS = 2000;
+export const BATAS_WAKTU_KEMBALI_MS = 2500;
 export const KUNCI_STATE_PENJAGA = "__titikTapakPenjaga";
 export const KUNCI_STATE_DASAR = "__titikTapakDasar";
-export const PESAN_TEKAN_KEMBALI_LAGI = "Tekan kembali sekali lagi untuk keluar dari aplikasi.";
+export const PESAN_TEKAN_KEMBALI_LAGI = "Tekan back 2 kali untuk keluar dari aplikasi.";
 
 export interface OpsiPenjagaKembali {
   /** Tutup menu/modal/halaman anak teratas bila ada; kembalikan true jika ada yang ditutup */
@@ -121,7 +121,7 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
     }
   };
 
-  const acaraInteraksi: (keyof WindowEventMap)[] = ["pointerup", "touchend", "click", "keydown"];
+  const acaraInteraksi: (keyof WindowEventMap)[] = ["pointerdown", "touchstart", "pointerup", "touchend", "click", "keydown"];
   for (const ev of acaraInteraksi) {
     window.addEventListener(ev, saatInteraksi, { capture: true, passive: true });
   }
@@ -134,10 +134,10 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
       return;
     }
 
-    // Tutup panel/modal aktif (dari tumpukan anak dulu, lalu dari App)
+    // Tutup panel/modal aktif atau kembali ke Peta Interaktif (home) terlebih dahulu
     if (panggilPenutupLapisanTeratas() || opsi.onTutupLapisanTeratas?.()) {
       batalkanSiapKeluar();
-      sinkronkanPenjagaJikaAktif();
+      pastikanRiwayatPenjaga();
       return;
     }
 
@@ -147,13 +147,13 @@ export function pasangPenjagaKembali(opsi: OpsiPenjagaKembali): () => void {
       return;
     }
 
-    // Tekan Back ke-1: aktifkan jendela siap keluar dan beri tahu pengguna.
+    // Tekan Back ke-1 di Peta Interaktif (home): aktifkan jendela siap keluar dan beri tahu pengguna.
     // Jangan dorong entri penjaga baru selama jendela ini agar Back ke-2 langsung keluar.
     siapKeluar = true;
     timerReset = window.setTimeout(() => {
       timerReset = null;
       siapKeluar = false;
-      sinkronkanPenjagaJikaAktif();
+      pastikanRiwayatPenjaga();
     }, batasWaktuMs);
     opsi.onPeringatanKeluar();
   };

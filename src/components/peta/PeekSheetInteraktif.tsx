@@ -1,20 +1,15 @@
 import React, { useRef, useState, useEffect } from "react";
 import {
   ChevronDown,
-  ChevronUp,
   ChevronRight,
   MapPin,
   Route,
-  Hexagon,
   Layers,
-  Trash2,
-  Navigation,
-  Share2,
   Lock,
-  Check,
-  Edit3
+  Check
 } from "lucide-react";
 import { DataSpasialItem, KoordinatTitik, LapisanSpasial } from "../../types";
+import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
 
 export type TahapPeek = "ringkas" | "sedang" | "penuh";
 
@@ -23,9 +18,32 @@ const PILIHAN_WARNA_CORAK = [
   { id: "biru", warna: "#0284c7", label: "Pin Biru" },
   { id: "zamrud", warna: "#0d7344", label: "Pin Hijau" },
   { id: "jingga", warna: "#f26101", label: "Jingga jejak" },
+  { id: "jingga_area", warna: "#f26101", label: "Jingga area" },
   { id: "kuning", warna: "#eab308", label: "Pin Kuning" },
   { id: "ungu", warna: "#a855f7", label: "Pin Ungu" }
 ];
+
+function hitungPerimeterPoligonKm(titik: KoordinatTitik[]): number {
+  if (titik.length < 2) return 0;
+  let totalM = 0;
+  for (let i = 0; i < titik.length - 1; i++) {
+    totalM += hitungJarakMeter(titik[i], titik[i + 1]);
+  }
+  if (titik.length >= 3) {
+    totalM += hitungJarakMeter(titik[titik.length - 1], titik[0]);
+  }
+  return totalM / 1000;
+}
+
+function formatLuasArea(luasHa: number): string {
+  if (luasHa >= 100) {
+    return `${(luasHa / 100).toFixed(2).replace(".", ",")} km²`;
+  }
+  if (luasHa > 0 && luasHa < 0.01) {
+    return `${Math.round(luasHa * 10_000)} m²`;
+  }
+  return `${luasHa.toFixed(2).replace(".", ",")} Ha`;
+}
 
 export interface PeekSheetInteraktifProps {
   mode: "draft_pin" | "objek_terpilih";
@@ -50,10 +68,68 @@ export interface PeekSheetInteraktifProps {
   onSimpanLangsung?: (nama: string, simbol?: string, warna?: string) => void;
 }
 
+/** Ikon kotak berarsir diagonal (Area) sesuai tampilan ringkas Avenza */
+const IkonAreaBerarsir: React.FC<{ size?: number }> = ({ size = 18 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="#475569"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="4.5" y="4.5" width="15" height="15" rx="1" />
+    <circle cx="4.5" cy="4.5" r="1.5" fill="#475569" stroke="none" />
+    <circle cx="19.5" cy="4.5" r="1.5" fill="#475569" stroke="none" />
+    <circle cx="4.5" cy="19.5" r="1.5" fill="#475569" stroke="none" />
+    <circle cx="19.5" cy="19.5" r="1.5" fill="#475569" stroke="none" />
+    <path d="M8.5 15.5l7-7M7 11l4-4M13 17l4-4" />
+  </svg>
+);
+
+/** Ikon kotak perimeter bersudut sesuai tampilan ringkas Avenza */
+const IkonPerimeterKotak: React.FC<{ size?: number }> = ({ size = 18 }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="#475569"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="4.5" y="4.5" width="15" height="15" rx="1" />
+    <circle cx="4.5" cy="4.5" r="1.5" fill="#475569" stroke="none" />
+    <circle cx="19.5" cy="4.5" r="1.5" fill="#475569" stroke="none" />
+    <circle cx="4.5" cy="19.5" r="1.5" fill="#475569" stroke="none" />
+    <circle cx="19.5" cy="19.5" r="1.5" fill="#475569" stroke="none" />
+  </svg>
+);
+
+/** Ikon corak area jingga trapesium (persis tampilan detail Area) */
+const IkonCorakAreaJingga: React.FC<{ warna?: string }> = ({ warna = "#f26101" }) => (
+  <svg viewBox="0 0 24 24" width={22} height={22} aria-hidden="true">
+    <polygon
+      points="6,4 19,7 17,20 3,16"
+      fill={warna}
+      fillOpacity="0.42"
+      stroke={warna}
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 /**
- * Komponen Peek Card interaktif bawah peta (ala Avenza Maps)
- * dengan fitur swap ke atas bertahap (ringkas -> sedang -> penuh)
- * yang halus di mode HP maupun PC dan memenuhi layar interaktif pada PC.
+ * Komponen Peek Card interaktif bawah peta (ala Avenza Maps):
+ * - Saat titik/garis/area diklik di peta, tampil dalam mode ringkas sederhana.
+ * - Geser (swipe) ke atas -> berubah halus ke tampilan detail lengkap.
+ * - Geser (swipe) ke bawah -> kembali halus ke tampilan sederhana (atau menutup bila sudah ringkas).
  */
 export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   mode,
@@ -83,13 +159,18 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   const [sedangEditNama, setSedangEditNama] = useState(false);
   const [bukaEditLapisan, setBukaEditLapisan] = useState(false);
   const [bukaPilihCorak, setBukaPilihCorak] = useState(false);
-  const [corakTerpilih, setCorakTerpilih] = useState(
-    mode === "objek_terpilih" && objekTerpilih?.jenisGeometri === "line"
-      ? PILIHAN_WARNA_CORAK[3]
-      : PILIHAN_WARNA_CORAK[0]
-  );
+  const [corakTerpilih, setCorakTerpilih] = useState(() => {
+    if (mode === "objek_terpilih" && objekTerpilih?.jenisGeometri === "polygon") {
+      return PILIHAN_WARNA_CORAK[4];
+    }
+    if (mode === "objek_terpilih" && objekTerpilih?.jenisGeometri === "line") {
+      return PILIHAN_WARNA_CORAK[3];
+    }
+    return PILIHAN_WARNA_CORAK[0];
+  });
 
   const sheetRef = useRef<HTMLElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const seretAwalRef = useRef<{ y: number; time: number; tinggiAwal: number } | null>(null);
   const totalGeserRef = useRef(0);
 
@@ -99,16 +180,9 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
 
   const gantiTahap = (tahapBaru: TahapPeek) => {
     setTahap(tahapBaru);
-    if (tahapBaru === "penuh") {
-      if (mode === "draft_pin") {
-        onBukaFormLengkap();
-      } else {
-        onBukaDetailLengkap();
-      }
-    }
   };
 
-  // Handler Drag halus Touch dan Pointer (berlaku di HP dan PC)
+  // Handler Drag halus Touch dan Pointer (berlaku di HP dan PC, baik naik maupun turun)
   const mulaiSeret = (clientY: number) => {
     const tinggiSaatIni = sheetRef.current?.offsetHeight || 160;
     seretAwalRef.current = { y: clientY, time: Date.now(), tinggiAwal: tinggiSaatIni };
@@ -121,8 +195,10 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     const dy = clientY - seretAwalRef.current.y;
     totalGeserRef.current = dy;
 
-    // Batasi translasi agar tidak melompat liar
-    const clampedDy = Math.max(-360, Math.min(180, dy));
+    // Di mode detail, batasi geser ke atas agar terasa kokoh dan responsif saat digeser ke bawah
+    const minY = tahap === "ringkas" ? -320 : -24;
+    const maxY = tahap === "ringkas" ? 180 : 320;
+    const clampedDy = Math.max(minY, Math.min(maxY, dy));
     sheetRef.current.style.transform = `translateY(${clampedDy}px)`;
   };
 
@@ -132,25 +208,23 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     const dt = Math.max(20, Date.now() - seretAwalRef.current.time);
     const v = dy / dt; // negatif = naik, positif = turun
 
-    // Bersihkan inline style transform dengan transisi halus
     sheetRef.current.style.transform = "";
     setSedangSeret(false);
     seretAwalRef.current = null;
 
-    // Ambang gestur swipe naik atau turun
-    const naik = dy < -30 || v < -0.38;
-    const turun = dy > 30 || v > 0.38;
+    const naik = dy < -28 || v < -0.32;
+    const turun = dy > 28 || v > 0.32;
 
     if (naik) {
       if (tahap === "ringkas") {
-        gantiTahap("sedang");
+        gantiTahap("penuh");
       } else if (tahap === "sedang") {
         gantiTahap("penuh");
       }
     } else if (turun) {
-      if (tahap === "sedang") {
+      if (tahap === "penuh" || tahap === "sedang") {
         gantiTahap("ringkas");
-      } else if (tahap === "ringkas" && dy > 80) {
+      } else if (tahap === "ringkas" && (dy > 65 || v > 0.45)) {
         onTutup();
       }
     }
@@ -164,23 +238,49 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       : objekTerpilih?.lapisanNama || objekTerpilih?.tematik || "Lapisan 1";
 
   const jenisGeo = mode === "draft_pin" ? "point" : objekTerpilih?.jenisGeometri || "point";
-  const judulTipe = jenisGeo === "point" ? "Pin dijatuhkan" : jenisGeo === "line" ? "Trek" : "Area";
+  const judulTipe =
+    mode === "draft_pin"
+      ? "Pin dijatuhkan"
+      : jenisGeo === "point"
+        ? "Titik"
+        : jenisGeo === "line"
+          ? "Jalur"
+          : "Area";
   const judulRingkas = mode === "draft_pin" ? "Pin dijatuhkan" : objekTerpilih?.judul || "Objek Peta";
+
+  const panjangLineKm =
+    objekTerpilih?.panjangKm !== undefined && objekTerpilih.panjangKm > 0
+      ? objekTerpilih.panjangKm
+      : hitungPanjangGarisKm(objekTerpilih?.koordinat ?? []);
+  const luasAreaHa =
+    objekTerpilih?.luasHa !== undefined && objekTerpilih.luasHa > 0
+      ? objekTerpilih.luasHa
+      : hitungLuasPoligonHa(objekTerpilih?.koordinat ?? []);
+  const perimeterAreaKm =
+    jenisGeo === "polygon"
+      ? hitungPerimeterPoligonKm(objekTerpilih?.koordinat ?? [])
+      : 0;
+
+  const teksArea = formatLuasArea(luasAreaHa);
+  const teksPerimeter = `${perimeterAreaKm.toFixed(2).replace(".", ",")} km`;
+  const teksJarak = `${panjangLineKm.toFixed(2).replace(".", ",")} km`;
 
   const ukuranTeks =
     jenisGeo === "point"
       ? teksKoordinat
       : jenisGeo === "line"
-        ? `${(objekTerpilih?.panjangKm || 120.17).toFixed(2).replace(".", ",")} km`
-        : `${(objekTerpilih?.luasHa || 0).toFixed(2).replace(".", ",")} Ha`;
+        ? teksJarak
+        : teksArea;
 
   const elevasiVal =
     mode === "draft_pin"
-      ? (elevasiMeter ?? titikUtama?.elevasi ?? 640.23)
+      ? (elevasiMeter ?? titikUtama?.elevasi)
       : (objekTerpilih?.elevasi ?? titikUtama?.elevasi);
 
   const tglDibuat = objekTerpilih?.createdAt ? new Date(objekTerpilih.createdAt) : new Date();
   const formatTgl = `${String(tglDibuat.getDate()).padStart(2, "0")}/${String(tglDibuat.getMonth() + 1).padStart(2, "0")}/${String(tglDibuat.getFullYear()).slice(-2)} pada ${String(tglDibuat.getHours()).padStart(2, "0")}.${String(tglDibuat.getMinutes()).padStart(2, "0")}`;
+
+  const atributEntries = Object.entries(objekTerpilih?.atributKustom ?? {}).filter(([, val]) => String(val ?? "").trim() !== "");
 
   const handleSimpanAksi = () => {
     if (onSimpanLangsung) {
@@ -190,71 +290,112 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     }
   };
 
+  // Handler swipe seragam untuk handle ringkas maupun header detail
+  const propsSeretHeader = {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      // Jangan cegat klik tombol di dalam header
+      if ((e.target as HTMLElement).closest("button")) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      mulaiSeret(e.clientY);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (seretAwalRef.current) lakukanSeret(e.clientY);
+    },
+    onPointerUp: () => selesaikanSeret(),
+    onPointerCancel: () => selesaikanSeret(),
+    onTouchStart: (e: React.TouchEvent<HTMLElement>) => {
+      if ((e.target as HTMLElement).closest("button")) return;
+      if (e.touches[0]) mulaiSeret(e.touches[0].clientY);
+    },
+    onTouchMove: (e: React.TouchEvent<HTMLElement>) => {
+      if (seretAwalRef.current && e.touches[0]) lakukanSeret(e.touches[0].clientY);
+    },
+    onTouchEnd: () => selesaikanSeret()
+  };
+
+  const handleBodyTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (tahap === "ringkas") {
+      if (e.touches[0]) mulaiSeret(e.touches[0].clientY);
+      return;
+    }
+    // Saat di mode detail dan scroll berada di paling atas, izinkan swipe ke bawah untuk kembali ke mode ringkas
+    if (bodyRef.current && bodyRef.current.scrollTop <= 2 && e.touches[0]) {
+      mulaiSeret(e.touches[0].clientY);
+    }
+  };
+
+  const handleBodyTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!seretAwalRef.current || !e.touches[0]) return;
+    const dy = e.touches[0].clientY - seretAwalRef.current.y;
+    // Pada mode detail, hanya tarik sheet ke bawah jika user menggeser ke bawah di posisi paling atas scroll
+    if (tahap !== "ringkas" && dy < 0) {
+      seretAwalRef.current = null;
+      setSedangSeret(false);
+      if (sheetRef.current) sheetRef.current.style.transform = "";
+      return;
+    }
+    lakukanSeret(e.touches[0].clientY);
+  };
+
+  const handleBodyTouchEnd = () => {
+    if (seretAwalRef.current) selesaikanSeret();
+  };
+
   return (
     <section
       ref={sheetRef}
       className={`avz-peek-card tahap-${tahap} ${sedangSeret ? "sedang-seret" : ""} ${mode === "objek_terpilih" ? "field-inspector-sheet" : ""}`}
       role="dialog"
       aria-label={judulRingkas}
+      data-tahap={tahap}
     >
-      {/* Tampilan Kepala Mode Detail (Sedang atau Penuh) */}
+      {/* Kepala Mode Detail (Swipe ke bawah atau tekan chevron untuk kembali ke mode sederhana) */}
       {tahap !== "ringkas" ? (
-        <header className="avz-peek-full-header" onClick={(e) => e.stopPropagation()}>
+        <header
+          className="avz-peek-full-header"
+          {...propsSeretHeader}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             className="avz-peek-btn-kembali"
             aria-label="Ciutkan kartu ke mode ringkas"
             onClick={() => gantiTahap("ringkas")}
           >
-            <ChevronDown size={26} color="#1e293b" />
+            <ChevronDown size={24} color="#0d7344" />
           </button>
           <h2 className="avz-peek-header-title">{judulTipe}</h2>
-          {mode === "draft_pin" || jenisGeo === "point" ? (
+          {mode === "draft_pin" ? (
             <button
               type="button"
               className="avz-peek-btn-centang"
               aria-label="Simpan pin tanda tempat"
               onClick={handleSimpanAksi}
             >
-              <Check size={26} color="#0d7344" />
+              <Check size={24} color="#0d7344" />
             </button>
           ) : (
             <div style={{ width: 36 }} aria-hidden="true" />
           )}
         </header>
       ) : (
-        /* Handle Pegangan dengan Gestur Swipe Ke Atas / Bawah pada Mode Ringkas */
+        /* Handle Pegangan Ringkas Bersih (Swipe ke atas untuk detail, swipe ke bawah untuk tutup) */
         <div
           className="avz-peek-handle"
           tabIndex={0}
           role="button"
           aria-label={`Tahap panel ${tahap}. Geser ke atas untuk detail, geser ke bawah untuk menutup.`}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            mulaiSeret(e.clientY);
-          }}
-          onPointerMove={(e) => {
-            if (seretAwalRef.current) lakukanSeret(e.clientY);
-          }}
-          onPointerUp={() => selesaikanSeret()}
-          onPointerCancel={() => selesaikanSeret()}
-          onTouchStart={(e) => {
-            if (e.touches[0]) mulaiSeret(e.touches[0].clientY);
-          }}
-          onTouchMove={(e) => {
-            if (e.touches[0]) lakukanSeret(e.touches[0].clientY);
-          }}
-          onTouchEnd={() => selesaikanSeret()}
+          {...propsSeretHeader}
           onClick={(e) => {
             if (Math.abs(totalGeserRef.current) < 10) {
               e.stopPropagation();
-              gantiTahap("sedang");
+              gantiTahap("penuh");
             }
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowUp") {
               e.preventDefault();
-              gantiTahap("sedang");
+              gantiTahap("penuh");
             } else if (e.key === "ArrowDown") {
               e.preventDefault();
               onTutup();
@@ -262,50 +403,57 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
           }}
         >
           <span className="avz-peek-grip-bar" aria-hidden="true" />
-          <div className="avz-peek-hint-row">
-            <span className="avz-peek-hint-text">
-              <ChevronUp size={14} aria-hidden="true" /> Geser ke atas untuk keterangan lainnya
-            </span>
-            <div className="avz-peek-dots" aria-hidden="true">
-              <span className="dot aktif" />
-              <span className="dot" />
-              <span className="dot" />
-            </div>
-          </div>
         </div>
       )}
 
       {/* Bagian Isi Utama */}
       <div
+        ref={bodyRef}
         className="avz-peek-body"
+        onTouchStart={handleBodyTouchStart}
+        onTouchMove={handleBodyTouchMove}
+        onTouchEnd={handleBodyTouchEnd}
         onClick={() => {
-          if (tahap === "ringkas") gantiTahap("sedang");
+          if (tahap === "ringkas" && Math.abs(totalGeserRef.current) < 10) {
+            gantiTahap("penuh");
+          }
         }}
       >
-        {/* Ringkasan Mode Ringkas (Sesuai Screenshot 2 dan 4) */}
+        {/* MODE RINGKAS SEDERHANA (Sesuai Screenshot Area, Pin, dan Trek) */}
         {tahap === "ringkas" && (
           <div className="avz-peek-header-summary">
             <h2 className="avz-peek-title">{judulRingkas}</h2>
 
-            <div className="avz-peek-meta-row">
-              {jenisGeo === "point" ? (
-                <MapPin size={18} color="#5f6368" aria-hidden="true" />
-              ) : jenisGeo === "line" ? (
-                <Route size={18} color="#5f6368" aria-hidden="true" />
-              ) : (
-                <Hexagon size={18} color="#5f6368" aria-hidden="true" />
-              )}
-              <span className="tabular-nums">{ukuranTeks}</span>
-            </div>
+            {jenisGeo === "polygon" ? (
+              <div className="avz-peek-meta-row avz-peek-meta-dual">
+                <span className="avz-peek-meta-item">
+                  <IkonAreaBerarsir size={18} />
+                  <span className="tabular-nums">{teksArea}</span>
+                </span>
+                <span className="avz-peek-meta-item">
+                  <IkonPerimeterKotak size={18} />
+                  <span className="tabular-nums">{teksPerimeter}</span>
+                </span>
+              </div>
+            ) : (
+              <div className="avz-peek-meta-row">
+                {jenisGeo === "point" ? (
+                  <MapPin size={18} color="#475569" aria-hidden="true" />
+                ) : (
+                  <Route size={18} color="#475569" aria-hidden="true" />
+                )}
+                <span className="tabular-nums">{ukuranTeks}</span>
+              </div>
+            )}
 
             <div className="avz-peek-meta-row">
-              <Layers size={18} color="#5f6368" aria-hidden="true" />
+              <Layers size={18} color="#475569" aria-hidden="true" />
               <span>{namaLapisan}</span>
             </div>
           </div>
         )}
 
-        {/* Keterangan Lainnya Lengkap (Sesuai Screenshot 1 dan 3 saat Diswap ke Atas) */}
+        {/* MODE DETAIL LENGKAP SAAT DISWAP KE ATAS (Sesuai Screenshot Detail Area/Titik/Jalur) */}
         {tahap !== "ringkas" && (
           <div className="avz-peek-detail-content" onClick={(e) => e.stopPropagation()}>
             <div className="avz-peek-detail-grid">
@@ -350,8 +498,8 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                 )}
               </div>
 
-              {/* 2. Baris Koordinat (Titik) atau Jarak (Trek) */}
-              {jenisGeo === "point" ? (
+              {/* 2. Metrik Geometri (Koordinat / Jarak / Area + Perimeter) */}
+              {jenisGeo === "point" && (
                 <div className="avz-isian-baris">
                   <div className="avz-isian-kepala">
                     <strong>Koordinat</strong>
@@ -363,21 +511,46 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                         onPesan?.("Koordinat disalin: " + teksKoordinat);
                       }}
                     >
-                      Edit
+                      Salin
                     </button>
                   </div>
                   <span className="tabular-nums">{teksKoordinat}</span>
                 </div>
-              ) : (
+              )}
+
+              {jenisGeo === "line" && (
                 <div className="avz-isian-baris">
                   <div className="avz-isian-kepala">
                     <strong>Jarak</strong>
                   </div>
                   <div className="avz-isian-nilai-panah">
-                    <span className="tabular-nums">{ukuranTeks}</span>
+                    <span className="tabular-nums">{teksJarak}</span>
                     <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
                   </div>
                 </div>
+              )}
+
+              {jenisGeo === "polygon" && (
+                <>
+                  <div className="avz-isian-baris">
+                    <div className="avz-isian-kepala">
+                      <strong>Area</strong>
+                    </div>
+                    <div className="avz-isian-nilai-panah">
+                      <span className="tabular-nums">{teksArea}</span>
+                      <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
+                    </div>
+                  </div>
+                  <div className="avz-isian-baris">
+                    <div className="avz-isian-kepala">
+                      <strong>Perimeter</strong>
+                    </div>
+                    <div className="avz-isian-nilai-panah">
+                      <span className="tabular-nums">{teksPerimeter}</span>
+                      <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* 3. Baris Lapisan saat ini */}
@@ -472,12 +645,16 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   onClick={() => setBukaPilihCorak((v) => !v)}
                 >
                   <span>
-                    {jenisGeo === "line"
-                      ? "Jingga jejak"
-                      : corakTerpilih.label}
+                    {jenisGeo === "polygon"
+                      ? objekTerpilih?.simbol || "Jingga area"
+                      : jenisGeo === "line"
+                        ? objekTerpilih?.simbol || "Jingga jejak"
+                        : corakTerpilih.label}
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {jenisGeo === "line" ? (
+                    {jenisGeo === "polygon" ? (
+                      <IkonCorakAreaJingga warna={objekTerpilih?.warna || corakTerpilih.warna} />
+                    ) : jenisGeo === "line" ? (
                       <span className="avz-corak-trek-badge" aria-label="Simbol trek jingga">
                         S
                       </span>
@@ -507,99 +684,97 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                 )}
               </div>
 
-              {/* 7. Baris Elevasi / Perolehan elevasi total */}
-              <div className="avz-isian-baris">
-                <div className="avz-isian-kepala">
-                  <strong>{jenisGeo === "point" ? "Elevasi" : "Perolehan elevasi total"}</strong>
-                  {jenisGeo === "point" && (
-                    <button
-                      type="button"
-                      className="avz-aksi-hijau"
-                      onClick={() => onAmbilElevasiGps?.()}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
-                <span className="tabular-nums">
-                  {elevasiVal !== undefined && elevasiVal !== null
-                    ? `${Number(elevasiVal).toFixed(2).replace(".", ",")} m`
-                    : "- - -"}
-                </span>
-                <button
-                  type="button"
-                  className="avz-tombol-garis"
-                  disabled={sedangUkurGps}
-                  onClick={onAmbilElevasiGps}
-                >
-                  {sedangUkurGps ? "Mengukur..." : "Ambil elevasi"}
-                </button>
-              </div>
-
-              {/* 8. Khusus Titik: Baris Dibuat dan Skema Atribut */}
-              {jenisGeo === "point" && (
-                <>
-                  <div className="avz-isian-baris">
-                    <div className="avz-isian-kepala">
-                      <strong>Dibuat</strong>
-                    </div>
-                    <span className="tabular-nums">{formatTgl}</span>
-                  </div>
-
-                  <div className="avz-isian-baris">
-                    <div className="avz-isian-kepala">
-                      <strong>Skema atribut</strong>
+              {/* 7. Baris Elevasi (untuk Titik dan Jalur) */}
+              {jenisGeo !== "polygon" && (
+                <div className="avz-isian-baris">
+                  <div className="avz-isian-kepala">
+                    <strong>{jenisGeo === "point" ? "Elevasi" : "Perolehan elevasi total"}</strong>
+                    {jenisGeo === "point" && onAmbilElevasiGps && (
                       <button
                         type="button"
                         className="avz-aksi-hijau"
-                        onClick={() => onBukaFormLengkap()}
+                        onClick={() => onAmbilElevasiGps()}
                       >
                         Edit
                       </button>
-                    </div>
-                    <span className="avz-isian-kecil">
-                      Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {/* 9. Khusus Trek: Tampilkan Grafik dan Operasi Konversi */}
-              {jenisGeo === "line" && (
-                <>
-                  <div className="avz-isian-baris">
-                    <div className="avz-isian-kepala">
-                      <strong>Tampilkan Grafik</strong>
-                    </div>
-                    <div className="avz-isian-nilai-panah">
-                      <span className="tabular-nums">Dist: {ukuranTeks} | 00:39:59</span>
-                      <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
-                    </div>
-                  </div>
-
-                  <div className="avz-isian-baris">
-                    <div className="avz-isian-kepala">
-                      <strong>Operasi</strong>
-                      <span className="avz-lock-yellow" aria-label="Fitur terkunci">
-                        <Lock size={13} color="#ffffff" aria-hidden="true" />
-                      </span>
-                    </div>
-                    {onKonversiKeArea && (
-                      <button type="button" className="avz-tombol-garis" onClick={onKonversiKeArea}>
-                        Konversikan ke Area
-                      </button>
                     )}
                   </div>
-                </>
+                  <span className="tabular-nums">
+                    {elevasiVal !== undefined && elevasiVal !== null
+                      ? `${Number(elevasiVal).toFixed(2).replace(".", ",")} m`
+                      : "- - -"}
+                  </span>
+                  {onAmbilElevasiGps && (
+                    <button
+                      type="button"
+                      className="avz-tombol-garis"
+                      disabled={sedangUkurGps}
+                      onClick={onAmbilElevasiGps}
+                    >
+                      {sedangUkurGps ? "Mengukur..." : "Ambil elevasi"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* 8. Baris Dibuat (tampil untuk semua jenis: Point, Line, dan Area) */}
+              <div className="avz-isian-baris">
+                <div className="avz-isian-kepala">
+                  <strong>Dibuat</strong>
+                </div>
+                <span className="tabular-nums">{formatTgl}</span>
+              </div>
+
+              {/* 9. Baris Skema Atribut (tampil untuk semua jenis: Point, Line, dan Area) */}
+              <div className="avz-isian-baris">
+                <div className="avz-isian-kepala">
+                  <strong>Skema atribut</strong>
+                  <button
+                    type="button"
+                    className="avz-aksi-hijau"
+                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                  >
+                    Edit
+                  </button>
+                </div>
+                {atributEntries.length > 0 ? (
+                  <div className="avz-atribut-daftar">
+                    {atributEntries.map(([kunci, nilai]) => (
+                      <div key={kunci} className="avz-atribut-baris">
+                        <span className="avz-atribut-kunci">{kunci}</span>
+                        <span className="avz-atribut-nilai">{String(nilai)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="avz-isian-kecil">
+                    Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
+                  </span>
+                )}
+              </div>
+
+              {/* 10. Khusus Jalur (Line): Operasi Konversi ke Area */}
+              {jenisGeo === "line" && onKonversiKeArea && (
+                <div className="avz-isian-baris">
+                  <div className="avz-isian-kepala">
+                    <strong>Operasi</strong>
+                    <span className="avz-lock-yellow" aria-hidden="true">
+                      <Lock size={13} color="#ffffff" />
+                    </span>
+                  </div>
+                  <button type="button" className="avz-tombol-garis" onClick={onKonversiKeArea}>
+                    Konversikan ke Area
+                  </button>
+                </div>
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Bilah Tombol Aksi Kaki (Sesuai Screenshot 1, 2, 3, dan 4) */}
+      {/* Bilah Tombol Aksi Bawah (Sesuai Screenshot Area, Pin, dan Trek) */}
       <div className="avz-peek-actions" onClick={(e) => e.stopPropagation()}>
-        {titikUtama && (
+        {jenisGeo !== "polygon" && titikUtama && (
           <button
             type="button"
             className="avz-pill-outline-btn"
@@ -608,7 +783,6 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
               onTutup();
             }}
           >
-            <Navigation size={15} style={{ marginRight: 4 }} />
             Navigasi
           </button>
         )}
@@ -617,16 +791,17 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
           type="button"
           className="avz-pill-outline-btn"
           onClick={() => {
-            const teks = `${judulRingkas} — ${teksKoordinat}`;
+            const teks =
+              jenisGeo === "polygon"
+                ? `${judulRingkas} — Area ${teksArea}, Perimeter ${teksPerimeter} (${teksKoordinat})`
+                : `${judulRingkas} — ${teksKoordinat}`;
             onBagikan(teks);
           }}
         >
-          <Share2 size={15} style={{ marginRight: 4 }} />
-          {jenisGeo === "line" ? "Beri tahu" : "Bagikan"}
+          {jenisGeo === "point" ? "Bagikan" : "Beri tahu"}
         </button>
 
-        {/* Di mode ringkas pin: Navigasi, Bagikan, Simpan. Di mode detail pin: hanya Navigasi dan Bagikan */}
-        {tahap === "ringkas" && mode === "draft_pin" && (
+        {mode === "draft_pin" && tahap === "ringkas" && (
           <button
             type="button"
             className="avz-pill-outline-btn"
@@ -636,14 +811,12 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
           </button>
         )}
 
-        {/* Pada Trek: tombol Hapus jika callback tersedia */}
-        {jenisGeo === "line" && onHapus && (
+        {mode === "objek_terpilih" && onHapus && (
           <button
             type="button"
             className="avz-pill-outline-btn"
             onClick={() => onHapus(objekTerpilih?.id || "")}
           >
-            <Trash2 size={15} style={{ marginRight: 4 }} />
             Hapus
           </button>
         )}

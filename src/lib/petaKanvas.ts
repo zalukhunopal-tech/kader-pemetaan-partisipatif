@@ -350,8 +350,8 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     }
   });
 
-  // 5. Gambar Draft Sedang Direkam (Garis lurus solid tanpa titik-titik untuk jalur & poligon)
-  if (modeRekam && titikDraft.length > 0) {
+  // 5. Gambar Draft Sedang Direkam (khusus jalur dan poligon; titik pin sementara memakai penanda pin merah sendiri)
+  if (modeRekam && modeRekam !== "point" && titikDraft.length > 0) {
     ctx.save();
     const titikGambar =
       titikBidikanUkur &&

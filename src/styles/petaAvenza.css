@@ -2573,8 +2573,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 0 8px;
+  padding: 6px 0 10px;
   border-bottom: 1px solid #e2e8f0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.avz-peta .avz-peek-full-header:active {
+  cursor: grabbing;
 }
 
 .avz-peta .avz-peek-btn-kembali,
@@ -2678,6 +2685,69 @@
   gap: 8px;
   color: #475569;
   font-size: 0.92rem;
+}
+
+.avz-peta .avz-peek-meta-dual {
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.avz-peta .avz-peek-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avz-peta .avz-atribut-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.avz-peta .avz-atribut-baris {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.86rem;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.avz-peta .avz-atribut-kunci {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.avz-peta .avz-atribut-nilai {
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+}
+
+.avz-peta .avz-ukur-konversi-chip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  min-height: 30px;
+  border-radius: 999px;
+  border: 1.5px solid #0d7344;
+  background: #ecfdf5;
+  color: #0d7344;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.avz-peta .avz-ukur-konversi-chip:hover {
+  background: #0d7344;
+  color: #ffffff;
 }
 
 .avz-peta .avz-peek-detail-content {

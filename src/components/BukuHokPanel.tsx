@@ -233,7 +233,7 @@ export function BukuHokPanel({ data, profil, admin = false }: { data: DataSpasia
                   }
                 }}
               >
-                Sahkan sesi
+                Verifikasi sesi
               </button>
             )}
           </div>
