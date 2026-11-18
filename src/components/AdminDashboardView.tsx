@@ -20,7 +20,7 @@ import { AkunSesi } from "../lib/auth";
 import { AkunAdminPanel } from "./AkunAdminPanel";
 import { CatatanPerangkat } from "./CatatanPerangkat";
 import { PanelDataUserLevel } from "./PanelDataUserLevel";
-import { Archive, PenTool, RefreshCw, RotateCcw, Users } from "lucide-react";
+import { Archive, ClipboardList, PenTool, RefreshCw, RotateCcw, Users } from "lucide-react";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "../lib/sertifikatBawaan";
@@ -807,7 +807,10 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
           </form>
 
           <div className="section-card">
-            <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>📋 Daftar Tugas ({tugasList.length})</h3>
+            <h3 style={{ margin: "0 0 10px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <ClipboardList size={17} color="#0B6E4F" aria-hidden="true" />
+              Daftar Tugas ({tugasList.length})
+            </h3>
             {tugasList.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                 {tugasList.map((t) => (

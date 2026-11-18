@@ -9,6 +9,7 @@ import { teksWilayah, wilayahLengkap } from "../lib/wilayah";
 import {
   CloudUpload,
   CheckCircle2,
+  Smartphone,
   Clock,
   Download,
   Folder,
@@ -236,32 +237,58 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         </div>
 
         <div className="stat-grid-3" style={{ marginTop: 14 }}>
-          <div
-            className={`stat-box clickable ${filterStatus === "lokal" ? "active-border" : ""}`}
-            onClick={() => setFilterStatus(filterStatus === "lokal" ? "semua" : "lokal")}
-          >
-            <span className="stat-label">📱 Tersimpan di HP (Lokal)</span>
-            <strong className="stat-num text-amber">{jmlLokal} Data</strong>
-            <small>Menunggu koneksi internet</small>
-          </div>
-
-          <div
-            className={`stat-box clickable ${filterStatus === "tersinkron" ? "active-border" : ""}`}
-            onClick={() => setFilterStatus(filterStatus === "tersinkron" ? "semua" : "tersinkron")}
-          >
-            <span className="stat-label">☁️ Tersinkron ke Drive</span>
-            <strong className="stat-num text-sky">{jmlTersinkron} Data</strong>
-            <small>Tersimpan di Master Sheets</small>
-          </div>
-
-          <div
-            className={`stat-box clickable ${filterStatus === "terverifikasi" ? "active-border" : ""}`}
-            onClick={() => setFilterStatus(filterStatus === "terverifikasi" ? "semua" : "terverifikasi")}
-          >
-            <span className="stat-label">✅ Terverifikasi Admin</span>
-            <strong className="stat-num text-emerald">{jmlVerif} Data</strong>
-            <small>Dihitung sah untuk Sertifikat</small>
-          </div>
+          {[
+            {
+              status: "lokal" as const,
+              label: "Tersimpan di HP (Lokal)",
+              jumlah: jmlLokal,
+              ket: "Menunggu koneksi internet",
+              clsNum: "text-amber",
+              ikon: <Smartphone size={14} aria-hidden="true" />,
+            },
+            {
+              status: "tersinkron" as const,
+              label: "Tersinkron ke Drive",
+              jumlah: jmlTersinkron,
+              ket: "Tersimpan di Master Sheets",
+              clsNum: "text-sky",
+              ikon: <CloudUpload size={14} aria-hidden="true" />,
+            },
+            {
+              status: "terverifikasi" as const,
+              label: "Terverifikasi Admin",
+              jumlah: jmlVerif,
+              ket: "Dihitung sah untuk Sertifikat",
+              clsNum: "text-emerald",
+              ikon: <CheckCircle2 size={14} aria-hidden="true" />,
+            },
+          ].map((kartu) => {
+            const aktif = filterStatus === kartu.status;
+            const toggleFilter = () => setFilterStatus(aktif ? "semua" : kartu.status);
+            return (
+              <div
+                key={kartu.status}
+                role="button"
+                tabIndex={0}
+                aria-pressed={aktif}
+                className={`stat-box clickable ${aktif ? "active-border" : ""}`}
+                onClick={toggleFilter}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleFilter();
+                  }
+                }}
+              >
+                <span className="stat-label" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {kartu.ikon}
+                  {kartu.label}
+                </span>
+                <strong className={`stat-num ${kartu.clsNum}`}>{kartu.jumlah} Data</strong>
+                <small>{kartu.ket}</small>
+              </div>
+            );
+          })}
         </div>
       </div>
 

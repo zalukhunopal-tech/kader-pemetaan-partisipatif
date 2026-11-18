@@ -52,6 +52,20 @@
   /* Touch Targets */
   --min-touch-size: 48px;
 
+  /* Radius, Elevation & Motion Tokens (UI/UX Pro Max) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 20px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+
   /* Shell Width & Nav Height */
   --app-w: 100%;
   --tinggi-nav: 64px;
@@ -60,6 +74,26 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+select,
+input,
+textarea,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 
 body {
@@ -787,21 +821,25 @@ body {
     padding: 0 20px 90px;
     margin: 0 auto;
     width: 100%;
-    max-width: 760px;
+    max-width: 880px;
   }
 
   .avenza-map-row {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     padding: 14px 16px;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-xs);
+    transition:
+      border-color var(--dur-fast) ease,
+      box-shadow var(--dur-base) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
   }
 
   .avenza-map-row:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
   }
 }
 
@@ -1940,12 +1978,12 @@ body {
 }
 
 .section-card {
-  background: #ffffff;
-  border: 1px solid #d5dcd8;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: clamp(12px, 1.3vw, 16px);
   padding: clamp(14px, 1.6vw, 22px);
   min-width: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .section-card h2,
@@ -1974,14 +2012,46 @@ body {
 }
 
 .stat-box {
-  background: #f8faf9;
-  border: 1px solid #d5dcd8;
-  border-radius: 12px;
-  padding: 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) ease;
+}
+
+.stat-box.clickable {
+  cursor: pointer;
+}
+
+.stat-box.clickable:hover {
+  border-color: var(--brand-primary);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.stat-box.clickable:active {
+  transform: scale(0.985);
+}
+
+.stat-box.active-border {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  box-shadow: 0 0 0 2px rgba(11, 110, 79, 0.14);
+}
+
+.stat-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .stat-box.clickable {
@@ -6497,19 +6567,14 @@ label {
 .pustaka-field .avenza-basemap-banner-wrap {
   padding: 0 14px;
   width: 100%;
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
   box-sizing: border-box;
-}
-@media (min-width: 1200px) {
-  .pustaka-field .avenza-basemap-banner-wrap {
-    max-width: 880px;
-  }
 }
 .pustaka-field .avenza-basemap-banner {
   border-radius: 14px;
   min-height: 160px;
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
@@ -6535,27 +6600,22 @@ label {
   justify-content: center;
   gap: 8px;
   backdrop-filter: blur(4px);
-  transition: background 0.2s ease;
+  transition: background var(--dur-base) ease;
 }
 .pustaka-field .avenza-buka-peta-btn:hover {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(13, 115, 68, 0.85) 30%, rgba(13, 115, 68, 0.96) 100%);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(11, 110, 79, 0.85) 30%, rgba(11, 110, 79, 0.96) 100%);
 }
 .pustaka-list-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
   padding: 20px 14px 8px;
   font-size: 14px;
   font-weight: 650;
   box-sizing: border-box;
-}
-@media (min-width: 1200px) {
-  .pustaka-list-heading {
-    max-width: 880px;
-  }
 }
 .pustaka-list-heading b {
   margin-left: 6px;
@@ -6576,48 +6636,50 @@ label {
   height: 36px;
   border: 0;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #788176;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.pustaka-list-heading button:active {
+  transform: scale(0.94);
 }
 .pustaka-list-heading button[aria-pressed="true"] {
-  color: #277745;
-  background: #eaf2e9;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
 }
 
-/* VIEW LIST (TENGAKHAN SEMUA KARTU DAFTAR) */
+/* VIEW LIST (TENGAHKAN SEMUA KARTU DAFTAR) */
 .pustaka-field .avenza-map-list:not(.pustaka-grid) {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
   padding: 0 14px 100px;
   box-sizing: border-box;
 }
 .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
   width: 100%;
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto 12px;
   display: flex;
   align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 14px 18px;
-  background: #ffffff;
+  background: var(--bg-card);
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: all 0.15s ease;
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-@media (min-width: 1200px) {
-  .pustaka-field .avenza-map-list:not(.pustaka-grid),
-  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
-    max-width: 880px;
-  }
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 .pustaka-field .avenza-map-thumb-wrap {
   width: 64px;
@@ -13102,4 +13164,209 @@ html[data-field-theme="matahari"] .section-card h2 {
   font-weight: 600;
   color: #0d7344;
   text-align: center;
+}
+
+/* ==========================================================================
+   UI/UX Pro Max Audit Polish: Visual Hierarchy, Spacing, Micro-interactions
+   ========================================================================== */
+
+@keyframes uiModalPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes uiSheetSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Topbar & Mobile Navigation: frosted glass depth + crisp active pill */
+.avenza-topbar {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom-color: var(--border);
+}
+
+.avenza-bottom-nav {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top-color: var(--border);
+}
+
+.avenza-nav-item {
+  border-radius: 12px;
+  transition:
+    background-color var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.avenza-nav-item:active {
+  transform: scale(0.95);
+}
+
+.avenza-nav-item.active {
+  background: rgba(11, 110, 79, 0.08);
+}
+
+/* Desktop Sidebar Rail: pertahankan sebaran vertikal ke bawah (#81), rapikan tipografi & kontras */
+@media (min-width: 768px) {
+  .desktop-nav-brand {
+    padding: 4px 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .desktop-nav-brand strong {
+    font-size: 1.12rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .avenza-nav-item:hover:not(.active) {
+    background: var(--bg-dark);
+    color: var(--text-main);
+  }
+
+  .avenza-nav-item.active {
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
+    box-shadow: inset 3px 0 0 var(--brand-primary);
+  }
+
+  /* Align Pustaka controls & grid container width consistently on desktop */
+  .pustaka-field .avenza-segmented-control,
+  .pustaka-field .avenza-filter-row,
+  .pustaka-field .avenza-search-bar {
+    max-width: 880px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .pustaka-field .pustaka-grid {
+    max-width: 880px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .pustaka-field .pustaka-grid {
+    max-width: 960px;
+  }
+}
+
+/* Form Controls: comfortable touch height (>=44px) + clear emerald focus ring */
+.form-input,
+.form-select,
+.form-textarea {
+  min-height: 44px;
+  border-radius: 10px;
+  border-color: var(--border-strong);
+  transition:
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease,
+    background-color var(--dur-fast) ease;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(11, 110, 79, 0.14);
+}
+
+/* Unified Button Hierarchy & Tactile Micro-interactions */
+.btn-primary,
+.btn-primary-sm,
+.btn-outline,
+.btn-outline-sm,
+.btn-danger-sm,
+.btn-tool {
+  border-radius: 10px;
+  transition:
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-primary-sm:hover:not(:disabled) {
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:active:not(:disabled),
+.btn-primary-sm:active:not(:disabled),
+.btn-outline:active:not(:disabled),
+.btn-outline-sm:active:not(:disabled),
+.btn-danger-sm:active:not(:disabled),
+.btn-tool:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled,
+.btn-primary-sm:disabled,
+.btn-outline:disabled,
+.btn-outline-sm:disabled,
+.btn-danger-sm:disabled,
+.btn-tool:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Modal & Bottom Sheet Entrance Animations + Depth */
+.modal-card {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  animation: uiModalPopIn var(--dur-base) var(--ease-out);
+}
+
+.avz-share-sheet {
+  animation: uiSheetSlideUp var(--dur-base) var(--ease-out);
+}
+
+.avz-share-app .avz-share-app-ico {
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) ease;
+}
+
+.avz-share-app:hover .avz-share-app-ico {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.avz-share-app:active .avz-share-app-ico {
+  transform: scale(0.94);
+}
+
+/* Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .modal-card,
+  .avz-share-sheet,
+  .avenza-map-row,
+  .stat-box,
+  .avenza-nav-item,
+  .btn-primary,
+  .btn-primary-sm,
+  .btn-outline,
+  .btn-outline-sm,
+  .btn-danger-sm,
+  .btn-tool,
+  .avz-share-app-ico {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
 }
