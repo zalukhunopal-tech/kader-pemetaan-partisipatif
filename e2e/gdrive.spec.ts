@@ -56,7 +56,7 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
 
   // Rekam titik di Mode User
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.locator(".avz-fab-pin").click();
   await p.getByRole("button", { name: /^Biodiversitas/ }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Sebaran Anggrek");

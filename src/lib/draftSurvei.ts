@@ -21,6 +21,10 @@ export interface DraftSurvei {
   warna?: string;
   simbol?: string;
   tematik?: string;
+  lapisanId?: string;
+  lapisanNama?: string;
+  elevasi?: string;
+  atributKustom?: Record<string, string>;
 }
 export const DRAFT_KOSONG: DraftSurvei = {
   kategori: "Biodiversitas",
@@ -38,7 +42,11 @@ export const DRAFT_KOSONG: DraftSurvei = {
   tepi: "",
   warna: "",
   simbol: "",
-  tematik: ""
+  tematik: "",
+  lapisanId: "",
+  lapisanNama: "",
+  elevasi: "",
+  atributKustom: {}
 };
 function semuaDraft(): Record<string, DraftSurvei> {
   try {

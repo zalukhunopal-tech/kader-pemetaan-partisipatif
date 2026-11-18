@@ -113,6 +113,8 @@ export function formatArahKardinal(deg: number): string {
 interface InteractiveMapProps {
   dataSpasial: DataSpasialItem[];
   lapisanList?: LapisanSpasial[];
+  lapisanAktifId?: string | null;
+  onPilihLapisanAktif?: (id: string | null) => void;
   profil: ProfilKader;
   areaOffline: AreaPetaOffline[];
   petaKustomAktif?: AreaPetaOffline | null;
@@ -193,6 +195,8 @@ function titikDalamPoligon(t: { lat: number; lng: number }, poly: { lat: number;
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   dataSpasial,
   lapisanList = [],
+  lapisanAktifId = null,
+  onPilihLapisanAktif,
   profil,
   areaOffline,
   petaKustomAktif,
@@ -1307,10 +1311,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     perekamLatar.jeda();
   };
 
+  const lapisanAktif = lapisanAktifId ? lapisanList.find((l) => l.id === lapisanAktifId) ?? null : null;
+
   const handleSimpanForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modeRekam || titikDraft.length === 0 || validasiGeometri(modeRekam, titikDraft).length > 0) return;
-    onSimpanDataBaru(form.susunItem(profil, modeRekam, titikDraft, kompasDerajat, { lapisanList, dataSpasial }));
+    onSimpanDataBaru(
+      form.susunItem(profil, modeRekam, titikDraft, kompasDerajat, {
+        lapisanList,
+        dataSpasial,
+        lapisanAktif
+      })
+    );
     const rekamAktifLatar = modeRekam === "point" && rekamLatar.status !== "idle" && rekamLatar.jenis;
     if (!rekamAktifLatar) {
       perekamLatar.selesai();
@@ -3352,6 +3364,25 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           sistemKoordinat={sistemKoord}
           onGantiSistemKoordinat={setSistemKoord}
           kolamTematikList={kolamTematikList}
+          lapisanList={lapisanList}
+          lapisanAktif={lapisanAktif}
+          onPilihLapisanAktif={onPilihLapisanAktif}
+          onKonversiKeArea={
+            modeRekam === "line" && titikDraft.length >= 3
+              ? () => {
+                  setModeRekam("polygon");
+                  perekamLatar.mulai("polygon", titikDraft);
+                  perekamLatar.jeda();
+                  setPesanSalin("Jalur dikonversi menjadi Area (Polygon).");
+                }
+              : undefined
+          }
+          onNavigasiTitik={() => {
+            const k = titikDraft[0];
+            if (!k) return;
+            setTargetGoTo({ lat: k.lat, lng: k.lng, judul: form.isian.judul.trim() || "Titik baru" });
+            setBukaModalForm(false);
+          }}
           onUbahKoordinat={(titikBaru: KoordinatTitik) => {
             setTitikDraft([titikBaru]);
             setCenter(titikBaru);

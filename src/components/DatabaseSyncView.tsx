@@ -399,7 +399,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             </div>
             <h5 style={{ margin: "0 0 6px", fontSize: "0.95rem", color: "#1e293b" }}>Belum Ada Foto Survei Lapangan</h5>
             <p style={{ margin: 0, fontSize: "0.82rem", color: "#64748b", maxWidth: 360, marginInline: "auto" }}>
-              Ambil foto dokumentasi pohon, satwa, atau mata air saat merekam data di menu <b>Temukan (Peta)</b>. Foto akan otomatis tampil
+              Ambil foto dokumentasi pohon, satwa, atau mata air saat merekam data di menu <b>Peta</b>. Foto akan otomatis tampil
               di sini dan siap disinkronkan ke Google Drive.
             </p>
           </div>
@@ -521,7 +521,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", fontSize: "0.86rem" }}>
-            Belum ada data spasial tersimpan. Buka menu <b>Temukan (Peta)</b> untuk mulai merekam titik, jejak langkah, atau poligon survei
+            Belum ada data spasial tersimpan. Buka menu <b>Peta</b> untuk mulai merekam titik, jejak langkah, atau poligon survei
             lapangan.
           </div>
         )}

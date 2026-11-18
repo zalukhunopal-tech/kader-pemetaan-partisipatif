@@ -78,14 +78,15 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
       <div className="avz-halaman-isi avz-isian">
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
-            <strong>Koordinat</strong>
+            <strong>{objek.jenisGeometri === "point" ? "Koordinat" : objek.jenisGeometri === "line" ? "Jarak" : "Luas"}</strong>
             {koordUtama && (
               <button type="button" className="avz-aksi-hijau" onClick={() => salin(teksKoordinat)}>
                 Salin
               </button>
             )}
           </div>
-          <span>{teksKoordinat}</span>
+          <span>{objek.jenisGeometri === "point" ? teksKoordinat : ukuran}</span>
+          {objek.jenisGeometri !== "point" && <small className="avz-isian-kecil">{teksKoordinat}</small>}
         </div>
 
         <div className="avz-isian-baris">
@@ -93,7 +94,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
             <strong>Lapisan saat ini</strong>
           </div>
           <span className="avz-isian-nilai-panah">
-            Data lapangan <ChevronRight size={20} />
+            {objek.lapisanNama || objek.tematik || "Lapisan 1"} <ChevronRight size={20} />
           </span>
         </div>
 
@@ -113,10 +114,44 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
-            <strong>Ukuran</strong>
+            <strong>Corak</strong>
           </div>
-          <span>{ukuran}</span>
+          <span className="avz-corak-preview">
+            <span className="avz-corak-dot" style={{ background: objek.warna || "#ef4444" }} aria-hidden="true" />
+            {objek.simbol || (objek.jenisGeometri === "line" ? "Jingga jejak" : objek.jenisGeometri === "polygon" ? "Hijau area" : "Pin Merah")}
+          </span>
         </div>
+
+        {(objek.elevasi !== undefined || koordUtama?.elevasi !== undefined) && (
+          <div className="avz-isian-baris">
+            <div className="avz-isian-kepala">
+              <strong>Elevasi</strong>
+            </div>
+            <span>{(objek.elevasi ?? koordUtama?.elevasi ?? 0).toFixed(2).replace(".", ",")} m</span>
+          </div>
+        )}
+
+        {objek.atributKustom && Object.keys(objek.atributKustom).length > 0 && (
+          <div className="avz-isian-baris">
+            <div className="avz-isian-kepala">
+              <strong>Skema atribut tugas</strong>
+            </div>
+            <div className="avz-atribut-kustom-list">
+              {Object.entries(objek.atributKustom).map(([kunci, nilai]) => (
+                <div key={kunci} className="avz-atribut-kustom-row">
+                  <span className="text-muted">{kunci}</span>
+                  <span>
+                    {typeof nilai === "string" && nilai.startsWith("data:image/") ? (
+                      <img src={nilai} alt={kunci} className="avz-isian-foto" style={{ maxHeight: 90 }} />
+                    ) : (
+                      nilai || "-"
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {objek.fotoBase64 && (
           <div className="avz-isian-baris">

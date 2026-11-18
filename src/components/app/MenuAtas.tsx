@@ -21,7 +21,7 @@ import { TombolInstal } from "../InstalAplikasi";
 
 const JUDUL_TAB: Record<MenuTab, string> = {
   pustaka: "Pustaka",
-  peta: "Temukan",
+  peta: "Peta",
   data_sync: "Sinkronisasi",
   reward: "Sertifikat",
   tugas: "Tugas",

@@ -282,9 +282,9 @@ describe("TEST SUITE VALIDASI LENGKAP — PEROMBAKAN UI TITIK TAPAK & ENGINE AVE
     expect(html).not.toContain("GDrive");
     expect(html).not.toContain("Sinkronisasi");
 
-    // Tab yang tersedia bersih: Pustaka, Temukan, Sertifikat, Diskusi
+    // Tab yang tersedia bersih: Pustaka, Peta, Sertifikat, Diskusi
     expect(html).toContain("Pustaka");
-    expect(html).toContain("Temukan");
+    expect(html).toContain("Peta");
     expect(html).toContain("Sertifikat");
     expect(html).toContain("Diskusi");
   });

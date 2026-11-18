@@ -33,7 +33,7 @@ for (const u of UKURAN) {
     void nama;
     const { p, galat, tutup } = await masukAkunSemai(browser, opsi); // tanpa izin lokasi: GPS belum aktif
     await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
-    await p.locator(".avenza-nav-item", { hasText: "Temukan" }).first().click();
+    await p.locator(".avenza-nav-item", { hasText: "Peta" }).first().click();
     await p.waitForTimeout(1200);
     expect(await kontrolBertumpuk(p, KONTROL), "diam").toEqual([]);
 

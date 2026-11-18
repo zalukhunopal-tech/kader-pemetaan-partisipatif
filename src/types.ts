@@ -199,6 +199,12 @@ export interface DataSpasialItem {
   simbol?: string;
   /** Nama kolam peta tematik (kosong/undefined = data peta biasa / non-tematik) */
   tematik?: string;
+  /** ID Lapisan / Tugas asal serta nilai isian atribut kustom sesuai skema Admin */
+  lapisanId?: string;
+  lapisanNama?: string;
+  tugasId?: string;
+  atributKustom?: Record<string, string>;
+  elevasi?: number;
   /** Penanda bahwa data sedang berada di folder pencadangan 90 hari (tidak masuk database aktif maupun level) */
   dalamPencadangan?: boolean;
   statusSinkron: StatusSinkron;
@@ -274,6 +280,23 @@ export interface AreaPetaOffline {
   empatSudut?: [number, number][];
 }
 
+export type TipeFieldSkema = "teks" | "angka" | "pilihan" | "tanggal" | "catatan" | "foto";
+
+export interface FieldSkemaAtribut {
+  id: string;
+  nama: string;
+  tipe: TipeFieldSkema;
+  wajib?: boolean;
+  opsi?: string[];
+  placeholder?: string;
+}
+
+export interface SkemaAtributGeometri {
+  point: FieldSkemaAtribut[];
+  line: FieldSkemaAtribut[];
+  polygon: FieldSkemaAtribut[];
+}
+
 export interface LapisanSpasial {
   id: string;
   nama: string;
@@ -281,6 +304,11 @@ export interface LapisanSpasial {
   kategoriDefault?: KategoriSurvei;
   /** true = kolam data peta tematik yang terbentuk dari pengisian survei */
   adalahTematik?: boolean;
+  /** ID Tugas Pemetaan asal bila lapisan ditautkan dari Tugas yang dibuat Admin */
+  tugasId?: string;
+  /** Konfigurasi isian atribut peta interaktif untuk Point, Line, dan Polygon */
+  skemaGeometri?: SkemaAtributGeometri;
+  deskripsi?: string;
   createdAt: string;
 }
 
@@ -359,6 +387,8 @@ export interface TugasPemetaan {
   batasWaktu: string;
   koordinatAcuan: KoordinatTitik;
   batasPoligonAcuan?: KoordinatTitik[];
+  /** Konfigurasi isian peta interaktif (Point, Line, Polygon) yang diatur Admin */
+  skemaGeometri?: SkemaAtributGeometri;
   status: "aktif" | "menunggu_verifikasi" | "selesai";
   dibuatOleh: string;
 }

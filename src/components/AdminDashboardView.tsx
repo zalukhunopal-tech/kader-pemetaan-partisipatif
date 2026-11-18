@@ -2,6 +2,7 @@ import { hitungSkorKualitasData } from "../lib/kualitasData";
 import React, { useState } from "react";
 import {
   DataSpasialItem,
+  FieldSkemaAtribut,
   ItemPencadanganSpasial,
   JenisGeometri,
   KaderAktifPresence,
@@ -10,9 +11,19 @@ import {
   PengumumanBroadcast,
   ProfilKader,
   SertifikatKader,
+  SkemaAtributGeometri,
   StatusSinkron,
+  TipeFieldSkema,
   TugasPemetaan
 } from "../types";
+import {
+  buatFieldSkemaBaru,
+  buatSkemaKosong,
+  cloneSkemaGeometri,
+  hitungRingkasSkema,
+  LABEL_TIPE_FIELD,
+  TEMPLAT_FIELD_SKEMA
+} from "../lib/skemaTugas";
 import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
 import { kompresFotoKeDataUrl } from "../lib/foto";
 import { sisaHariPencadangan } from "../lib/pencadanganData";
@@ -20,7 +31,19 @@ import { AkunSesi } from "../lib/auth";
 import { AkunAdminPanel } from "./AkunAdminPanel";
 import { CatatanPerangkat } from "./CatatanPerangkat";
 import { PanelDataUserLevel } from "./PanelDataUserLevel";
-import { Archive, ClipboardList, PenTool, RefreshCw, RotateCcw, Users } from "lucide-react";
+import {
+  Archive,
+  ArrowDown,
+  ArrowUp,
+  ClipboardList,
+  Layers,
+  PenTool,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Users
+} from "lucide-react";
 import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "../lib/sertifikatBawaan";
@@ -51,6 +74,7 @@ interface AdminDashboardViewProps {
   ) => void;
   onTambahPengumuman: (p: PengumumanBroadcast) => void;
   onTambahTugas: (t: TugasPemetaan) => void;
+  onUbahTugas?: (t: TugasPemetaan) => void;
   onVerifikasiTugas?: (id: string) => void;
   onHapusTugas: (id: string) => void;
   onBalasPesanAdmin: (teks: string) => void;
@@ -76,6 +100,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onUbahPenandatanganSertifikat,
   onTambahPengumuman,
   onTambahTugas,
+  onUbahTugas,
   onVerifikasiTugas,
   onHapusTugas,
   onFokusKePeta
@@ -98,7 +123,8 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
     if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
   };
 
-  // Form Tugas Spasial Baru (tanpa data contoh)
+  // Form Tugas Spasial & Konfigurasi Skema Isian Peta Interaktif (Point, Line, Polygon)
+  const [tugasDieditId, setTugasDieditId] = useState<string | null>(null);
   const [judulTugas, setJudulTugas] = useState("");
   const [descTugas, setDescTugas] = useState("");
   const [wilayahTugas, setWilayahTugas] = useState("");
@@ -108,6 +134,13 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const [latTugas, setLatTugas] = useState("2.8575");
   const [lngTugas, setLngTugas] = useState("117.3775");
   const [deadlineTugas, setDeadlineTugas] = useState(new Date().toISOString().slice(0, 10));
+  const [skemaTugas, setSkemaTugas] = useState<SkemaAtributGeometri>(() => buatSkemaKosong());
+  const [tabGeomSkema, setTabGeomSkema] = useState<JenisGeometri>("point");
+  const [namaFieldBaru, setNamaFieldBaru] = useState("");
+  const [tipeFieldBaru, setTipeFieldBaru] = useState<TipeFieldSkema>("teks");
+  const [wajibFieldBaru, setWajibFieldBaru] = useState<boolean>(true);
+  const [opsiFieldBaru, setOpsiFieldBaru] = useState("");
+  const [placeholderFieldBaru, setPlaceholderFieldBaru] = useState("");
 
   // Form Pengumuman Baru
   const [judulAnn, setJudulAnn] = useState("");
@@ -158,11 +191,103 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
     }
   };
 
+  const resetFormTugas = () => {
+    setTugasDieditId(null);
+    setJudulTugas("");
+    setDescTugas("");
+    setWilayahTugas("");
+    setGeomTugas("polygon");
+    setKatTugas("Wilayah Adat / Lahan");
+    setKuantitasTugas("");
+    setLatTugas("2.8575");
+    setLngTugas("117.3775");
+    setDeadlineTugas(new Date().toISOString().slice(0, 10));
+    setSkemaTugas(buatSkemaKosong());
+    setTabGeomSkema("point");
+    setNamaFieldBaru("");
+    setTipeFieldBaru("teks");
+    setWajibFieldBaru(true);
+    setOpsiFieldBaru("");
+    setPlaceholderFieldBaru("");
+  };
+
+  const mulaiEditTugas = (t: TugasPemetaan) => {
+    setTugasDieditId(t.id);
+    setJudulTugas(t.judul);
+    setDescTugas(t.deskripsi);
+    setWilayahTugas(t.targetWilayah);
+    setGeomTugas(t.jenisTargetGeometri);
+    setKatTugas(t.kategoriTarget);
+    setKuantitasTugas(t.targetKuantitas);
+    setLatTugas(String(t.koordinatAcuan.lat));
+    setLngTugas(String(t.koordinatAcuan.lng));
+    setDeadlineTugas(t.batasWaktu);
+    setSkemaTugas(cloneSkemaGeometri(t.skemaGeometri));
+    setTabGeomSkema(t.jenisTargetGeometri);
+  };
+
+  const tambahFieldKeSkema = () => {
+    const nama = namaFieldBaru.trim();
+    if (!nama) return;
+    const fieldBaru = buatFieldSkemaBaru({
+      nama,
+      tipe: tipeFieldBaru,
+      wajib: wajibFieldBaru,
+      opsi: tipeFieldBaru === "pilihan" ? opsiFieldBaru.split(",").map((x) => x.trim()).filter(Boolean) : undefined,
+      placeholder: placeholderFieldBaru
+    });
+    setSkemaTugas((prev) => ({
+      ...prev,
+      [tabGeomSkema]: [...prev[tabGeomSkema], fieldBaru]
+    }));
+    setNamaFieldBaru("");
+    setOpsiFieldBaru("");
+    setPlaceholderFieldBaru("");
+  };
+
+  const muatTemplatSkema = (jenis: JenisGeometri) => {
+    setSkemaTugas((prev) => {
+      const existingNames = new Set(prev[jenis].map((f) => f.nama.toLowerCase()));
+      const tambahan = TEMPLAT_FIELD_SKEMA[jenis]
+        .filter((item) => !existingNames.has(item.nama.toLowerCase()))
+        .map((item) => buatFieldSkemaBaru(item));
+      return {
+        ...prev,
+        [jenis]: [...prev[jenis], ...tambahan]
+      };
+    });
+  };
+
+  const geserFieldSkema = (jenis: JenisGeometri, idx: number, arah: -1 | 1) => {
+    setSkemaTugas((prev) => {
+      const daftar = [...prev[jenis]];
+      const target = idx + arah;
+      if (target < 0 || target >= daftar.length) return prev;
+      const [dipindah] = daftar.splice(idx, 1);
+      daftar.splice(target, 0, dipindah);
+      return { ...prev, [jenis]: daftar };
+    });
+  };
+
+  const toggleWajibField = (jenis: JenisGeometri, idField: string) => {
+    setSkemaTugas((prev) => ({
+      ...prev,
+      [jenis]: prev[jenis].map((f) => (f.id === idField ? { ...f, wajib: !f.wajib } : f))
+    }));
+  };
+
+  const hapusFieldSkema = (jenis: JenisGeometri, idField: string) => {
+    setSkemaTugas((prev) => ({
+      ...prev,
+      [jenis]: prev[jenis].filter((f) => f.id !== idField)
+    }));
+  };
+
   const handleBuatTugas = (e: React.FormEvent) => {
     e.preventDefault();
     if (!judulTugas.trim()) return;
-    onTambahTugas({
-      id: buatId("TSK"),
+    const payload: TugasPemetaan = {
+      id: tugasDieditId ?? buatId("TSK"),
       judul: judulTugas.trim(),
       deskripsi: descTugas.trim() || "Penugasan survei lapangan.",
       targetWilayah: wilayahTugas.trim() || "-",
@@ -174,13 +299,16 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
         lat: Number(latTugas) || 2.8575,
         lng: Number(lngTugas) || 117.3775
       },
-      status: "aktif",
+      skemaGeometri: cloneSkemaGeometri(skemaTugas),
+      status: tugasDieditId ? tugasList.find((x) => x.id === tugasDieditId)?.status ?? "aktif" : "aktif",
       dibuatOleh: "Admin GIS"
-    });
-    setJudulTugas("");
-    setDescTugas("");
-    setWilayahTugas("");
-    setKuantitasTugas("");
+    };
+    if (tugasDieditId && onUbahTugas) {
+      onUbahTugas(payload);
+    } else {
+      onTambahTugas(payload);
+    }
+    resetFormTugas();
   };
 
   const handleBuatPengumuman = (e: React.FormEvent) => {
@@ -709,23 +837,33 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
         </div>
       )}
 
-      {/* 4. TAB C: TUGAS SURVEI */}
+      {/* 4. TAB C: TUGAS SURVEI & SKEMA ISIAN LAPISAN PETA */}
       {subTabAdmin === "tugas_survei" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <CatatanPerangkat>
-            Tugas dan pengumuman hanya tersimpan di perangkat ini. Kader di perangkat lain belum menerimanya karena aplikasi belum memakai
-            server.
+            Tugas tersimpan di perangkat ini dan otomatis muncul pada menu Lapisan pengguna agar format isian Point, Line, dan Polygon
+            mengikuti aturan yang Anda tetapkan.
           </CatatanPerangkat>
           <form onSubmit={handleBuatTugas} className="section-card">
-            <h3 style={{ margin: "0 0 10px", fontSize: "1rem" }}>🗺️ Buat Tugas Pemetaan Baru</h3>
+            <div className="section-header-flex" style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "1.02rem", display: "flex", alignItems: "center", gap: 8 }}>
+                <Layers size={18} color="#0B6E4F" aria-hidden="true" />
+                {tugasDieditId ? "Ubah Tugas dan Skema Isian Peta" : "Buat Tugas Pemetaan Baru"}
+              </h3>
+              {tugasDieditId && (
+                <button type="button" className="btn-outline-sm" onClick={resetFormTugas}>
+                  Batal Ubah
+                </button>
+              )}
+            </div>
 
             <div className="form-row-2">
               <div>
-                <label>Judul Penugasan</label>
+                <label>Judul Tugas / Nama Lapisan</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Nama tugas survei"
+                  placeholder="Contoh: Inventarisasi Pohon Pakan"
                   value={judulTugas}
                   onChange={(e) => setJudulTugas(e.target.value)}
                   required
@@ -744,9 +882,9 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               </div>
             </div>
 
-            <div className="form-row-3" style={{ marginTop: 8 }}>
+            <div className="form-row-3" style={{ marginTop: 10 }}>
               <div>
-                <label>Jenis Geometri</label>
+                <label>Fokus Geometri</label>
                 <select className="form-input" value={geomTugas} onChange={(e) => setGeomTugas(e.target.value as JenisGeometri)}>
                   <option value="point">Titik (Point)</option>
                   <option value="line">Jalur (Line)</option>
@@ -775,7 +913,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               </div>
             </div>
 
-            <div className="form-row-3" style={{ marginTop: 8 }}>
+            <div className="form-row-3" style={{ marginTop: 10 }}>
               <div>
                 <label>Latitude</label>
                 <input type="text" className="form-input" value={latTugas} onChange={(e) => setLatTugas(e.target.value)} />
@@ -790,19 +928,211 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               </div>
             </div>
 
-            <div style={{ marginTop: 8 }}>
-              <label>Instruksi</label>
+            <div style={{ marginTop: 10 }}>
+              <label>Instruksi Tugas</label>
               <textarea
                 rows={2}
                 className="form-input"
-                placeholder="Rincian tugas lapangan..."
+                placeholder="Rincian tugas lapangan untuk kader..."
                 value={descTugas}
                 onChange={(e) => setDescTugas(e.target.value)}
               />
             </div>
 
-            <button type="submit" className="btn-primary" style={{ marginTop: 12, width: "100%" }} title="Publikasikan penugasan survei">
-              <PlusCircle size={16} /> Publikasikan
+            {/* PENGATUR DATA ISIAN PETA INTERAKTIF (POINT, LINE, POLYGON) */}
+            <div className="tugas-skema-builder">
+              <div className="tugas-skema-head">
+                <div>
+                  <strong>Aturan Data Isian di Peta Interaktif</strong>
+                  <p className="text-xs text-muted" style={{ margin: "2px 0 0" }}>
+                    Atur kolom apa saja yang wajib atau opsional diisi user saat memilih lapisan tugas ini di menu Lapisan.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  onClick={() => muatTemplatSkema(tabGeomSkema)}
+                  title="Muat contoh kolom siap pakai untuk tipe geometri ini"
+                >
+                  <Sparkles size={14} aria-hidden="true" /> Templat Cepat
+                </button>
+              </div>
+
+              <div className="tugas-skema-tabs" role="tablist" aria-label="Pilih skema geometri">
+                {(
+                  [
+                    ["point", "Point (Titik)"],
+                    ["line", "Line (Jalur)"],
+                    ["polygon", "Polygon (Area)"]
+                  ] as const
+                ).map(([g, label]) => {
+                  const jml = skemaTugas[g].length;
+                  const aktif = tabGeomSkema === g;
+                  return (
+                    <button
+                      type="button"
+                      key={g}
+                      role="tab"
+                      aria-selected={aktif}
+                      className={`tugas-skema-tab ${aktif ? "aktif" : ""}`}
+                      onClick={() => setTabGeomSkema(g)}
+                    >
+                      <span>{label}</span>
+                      <span className="tugas-skema-badge tabular-nums">{jml}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Daftar field yang sudah dikonfigurasi untuk geometri aktif */}
+              <div className="tugas-skema-field-list">
+                {skemaTugas[tabGeomSkema].length === 0 ? (
+                  <div className="tugas-skema-empty">
+                    Belum ada kolom kustom untuk <b>{tabGeomSkema.toUpperCase()}</b>. Tambahkan di bawah atau gunakan{" "}
+                    <b>Templat Cepat</b>; bila dibiarkan kosong, pengisian memakai formulir standar.
+                  </div>
+                ) : (
+                  skemaTugas[tabGeomSkema].map((f: FieldSkemaAtribut, idx: number) => (
+                    <div key={f.id} className="tugas-skema-field-item">
+                      <div className="tugas-skema-field-meta">
+                        <div className="tugas-skema-field-title">
+                          <strong>{f.nama}</strong>
+                          <span className="badge-kategori">{LABEL_TIPE_FIELD[f.tipe]}</span>
+                          <button
+                            type="button"
+                            className={`tugas-wajib-toggle ${f.wajib ? "wajib" : ""}`}
+                            onClick={() => toggleWajibField(tabGeomSkema, f.id)}
+                          >
+                            {f.wajib ? "Wajib" : "Opsional"}
+                          </button>
+                        </div>
+                        {(f.opsi?.length || f.placeholder) && (
+                          <div className="text-xs text-muted">
+                            {f.opsi?.length ? `Pilihan: ${f.opsi.join(", ")}` : ""}
+                            {f.opsi?.length && f.placeholder ? " · " : ""}
+                            {f.placeholder ? `Petunjuk: ${f.placeholder}` : ""}
+                          </div>
+                        )}
+                      </div>
+                      <div className="tugas-skema-field-actions">
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          disabled={idx === 0}
+                          aria-label={`Naikkan ${f.nama}`}
+                          onClick={() => geserFieldSkema(tabGeomSkema, idx, -1)}
+                        >
+                          <ArrowUp size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          disabled={idx === skemaTugas[tabGeomSkema].length - 1}
+                          aria-label={`Turunkan ${f.nama}`}
+                          onClick={() => geserFieldSkema(tabGeomSkema, idx, 1)}
+                        >
+                          <ArrowDown size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger-sm"
+                          aria-label={`Hapus ${f.nama}`}
+                          onClick={() => hapusFieldSkema(tabGeomSkema, f.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Composer tambah kolom baru */}
+              <div className="tugas-skema-composer">
+                <div className="form-row-3">
+                  <div>
+                    <label>Nama Isian</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder={`Kolom ${tabGeomSkema} (mis. Jenis Pohon)`}
+                      value={namaFieldBaru}
+                      onChange={(e) => setNamaFieldBaru(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label>Format Input</label>
+                    <select
+                      className="form-input"
+                      value={tipeFieldBaru}
+                      onChange={(e) => setTipeFieldBaru(e.target.value as TipeFieldSkema)}
+                    >
+                      <option value="teks">Teks Singkat</option>
+                      <option value="angka">Angka</option>
+                      <option value="pilihan">Pilihan (Dropdown)</option>
+                      <option value="tanggal">Tanggal</option>
+                      <option value="catatan">Catatan Panjang</option>
+                      <option value="foto">Foto</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Status Isian</label>
+                    <button
+                      type="button"
+                      className={`form-input tugas-wajib-btn ${wajibFieldBaru ? "aktif" : ""}`}
+                      aria-pressed={wajibFieldBaru}
+                      onClick={() => setWajibFieldBaru((v) => !v)}
+                    >
+                      {wajibFieldBaru ? "✓ Wajib Diisi" : "Opsional"}
+                    </button>
+                  </div>
+                </div>
+                <div className="form-row-2" style={{ marginTop: 8 }}>
+                  {tipeFieldBaru === "pilihan" ? (
+                    <div>
+                      <label>Daftar Pilihan (pisahkan dengan koma)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Baik, Sedang, Rusak"
+                        value={opsiFieldBaru}
+                        onChange={(e) => setOpsiFieldBaru(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label>Teks Petunjuk (Opsional)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Contoh pengisian untuk kader"
+                        value={placeholderFieldBaru}
+                        onChange={(e) => setPlaceholderFieldBaru(e.target.value)}
+                      />
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      style={{ width: "100%" }}
+                      disabled={!namaFieldBaru.trim()}
+                      onClick={tambahFieldKeSkema}
+                    >
+                      <Plus size={15} aria-hidden="true" /> Tambah Isian ke {tabGeomSkema.toUpperCase()}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ marginTop: 14, width: "100%" }}
+              title="Publikasikan penugasan survei dan sinkronkan ke menu Lapisan"
+            >
+              <PlusCircle size={16} /> {tugasDieditId ? "Simpan Perubahan Tugas dan Skema" : "Publikasikan Tugas ke Lapisan"}
             </button>
           </form>
 
@@ -812,62 +1142,69 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               Daftar Tugas ({tugasList.length})
             </h3>
             {tugasList.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-                {tugasList.map((t) => (
-                  <div
-                    key={t.id}
-                    style={{
-                      background: "#f8faf9",
-                      border: "1px solid #d5dcd8",
-                      borderRadius: 12,
-                      padding: "14px",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      gap: 10
-                    }}
-                  >
-                    <div>
-                      <span className="badge-kategori">{t.kategoriTarget}</span> <strong>{t.judul}</strong>{" "}
-                      <span
-                        className={`badge-sync ${
-                          t.status === "selesai"
-                            ? "status-terverifikasi"
-                            : t.status === "menunggu_verifikasi"
-                              ? "status-lokal"
-                              : "status-tersinkron"
-                        }`}
-                      >
-                        {t.status === "selesai" ? "SELESAI" : t.status === "menunggu_verifikasi" ? "MENUNGGU VERIF" : "AKTIF"}
-                      </span>
-                      <div className="text-xs text-muted">
-                        {t.targetKuantitas} • {t.targetWilayah}
+              <div className="admin-tugas-grid">
+                {tugasList.map((t) => {
+                  const ringkas = hitungRingkasSkema(t.skemaGeometri);
+                  return (
+                    <div key={t.id} className="admin-tugas-card">
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6, flexWrap: "wrap" }}>
+                          <span className="badge-kategori">{t.kategoriTarget}</span>
+                          <span
+                            className={`badge-sync ${
+                              t.status === "selesai"
+                                ? "status-terverifikasi"
+                                : t.status === "menunggu_verifikasi"
+                                  ? "status-lokal"
+                                  : "status-tersinkron"
+                            }`}
+                          >
+                            {t.status === "selesai" ? "SELESAI" : t.status === "menunggu_verifikasi" ? "MENUNGGU VERIF" : "AKTIF"}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: "8px 0 4px", fontSize: "0.96rem", color: "#0f172a" }}>{t.judul}</h4>
+                        <div className="text-xs text-muted">
+                          {t.targetKuantitas} · {t.targetWilayah} · Batas {t.batasWaktu}
+                        </div>
+                        <div className="tugas-skema-summary-pills">
+                          <span>Point: {ringkas.point}</span>
+                          <span>Line: {ringkas.line}</span>
+                          <span>Polygon: {ringkas.polygon}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {t.status !== "selesai" && onVerifikasiTugas && (
+                      <div className="admin-tugas-actions">
                         <button
                           type="button"
-                          className="btn-primary-sm"
-                          onClick={() => onVerifikasiTugas(t.id)}
-                          title="Sahkan penyelesaian tugas (+60 poin level)"
+                          className="btn-outline-sm"
+                          onClick={() => mulaiEditTugas(t)}
+                          title="Ubah tugas atau skema isian Point, Line, dan Polygon"
                         >
-                          <Check size={13} /> Sahkan
+                          <Edit3 size={13} /> Ubah Skema
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn-outline-sm"
-                        onClick={() => onFokusKePeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul)}
-                      >
-                        <Compass size={13} /> Peta
-                      </button>
-                      <button type="button" className="btn-danger-sm" onClick={() => onHapusTugas(t.id)}>
-                        <Trash2 size={13} />
-                      </button>
+                        {t.status !== "selesai" && onVerifikasiTugas && (
+                          <button
+                            type="button"
+                            className="btn-primary-sm"
+                            onClick={() => onVerifikasiTugas(t.id)}
+                            title="Sahkan penyelesaian tugas (+60 poin level)"
+                          >
+                            <Check size={13} /> Sahkan
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-outline-sm"
+                          onClick={() => onFokusKePeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul)}
+                        >
+                          <Compass size={13} /> Peta
+                        </button>
+                        <button type="button" className="btn-danger-sm" onClick={() => onHapusTugas(t.id)} title="Hapus tugas">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>Belum ada tugas aktif.</div>

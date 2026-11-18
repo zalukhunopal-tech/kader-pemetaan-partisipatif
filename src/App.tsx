@@ -108,6 +108,7 @@ import { BantuanBugView } from "./components/BantuanBugView";
 import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug";
 import { pasangPenjagaKembali, PESAN_TEKAN_KEMBALI_LAGI } from "./lib/penjagaKembali";
 import { sinkronkanLapisanDenganItem } from "./lib/tematik";
+import { sinkronkanLapisanDariTugas } from "./lib/skemaTugas";
 
 export const App: React.FC = () => {
   const desktop = useDesktop();
@@ -206,10 +207,11 @@ export const App: React.FC = () => {
   });
   const [sedangRekonsiliasi, setSedangRekonsiliasi] = useState<boolean>(false);
   const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() => muatAreaOffline());
-  const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() => muatLapisan());
+  const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
+  const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() => sinkronkanLapisanDariTugas(muatLapisan(), muatTugas()));
+  const [lapisanAktifId, setLapisanAktifId] = useState<string | null>(null);
   const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() => muatSertifikat());
   const [pengumumanList, setPengumumanList] = useState<PengumumanBroadcast[]>(() => muatPengumuman());
-  const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [pesanList, setPesanList] = useState<PesanKomunikasi[]>(() => muatPesan());
   const [pesanDibacaCount, setPesanDibacaCount] = useState<number>(() => {
     try {
@@ -817,19 +819,38 @@ export const App: React.FC = () => {
 
   // Handler Tambah Tugas Baru oleh Admin (Admin Feature)
   const handleTambahTugas = (tugasBaru: TugasPemetaan) => {
-    setTugasList((prev) => [tugasBaru, ...prev]);
-    tampilkanToast(`✓ Tugas "${tugasBaru.judul}" disimpan di perangkat ini.`);
+    const daftarTugasBaru = [tugasBaru, ...tugasList];
+    setTugasList(daftarTugasBaru);
+    setLapisanList((prev) => sinkronkanLapisanDariTugas(prev, daftarTugasBaru));
+    tampilkanToast(`✓ Tugas "${tugasBaru.judul}" disimpan dan ditautkan ke menu Lapisan.`);
+  };
+
+  // Handler Ubah Tugas dan Skema Isian oleh Admin
+  const handleUbahTugas = (tugasDiubah: TugasPemetaan) => {
+    const daftarTugasBaru = tugasList.map((t) => (t.id === tugasDiubah.id ? tugasDiubah : t));
+    setTugasList(daftarTugasBaru);
+    setLapisanList((prev) => sinkronkanLapisanDariTugas(prev, daftarTugasBaru));
+    tampilkanToast(`✓ Perubahan tugas "${tugasDiubah.judul}" dan skema lapisan disimpan.`);
   };
 
   // Handler Hapus Tugas
   const handleHapusTugas = (id: string) => {
     const indeks = tugasList.findIndex((t) => t.id === id);
     const tugas = tugasList[indeks];
-    setTugasList((prev) => prev.filter((t) => t.id !== id));
+    const daftarTugasBaru = tugasList.filter((t) => t.id !== id);
+    setTugasList(daftarTugasBaru);
+    setLapisanList((prev) => sinkronkanLapisanDariTugas(prev, daftarTugasBaru));
+    if (lapisanAktifId === `LAP-TGS-${id}`) {
+      setLapisanAktifId(null);
+    }
     if (!tugas) return;
-    tampilkanToast(`Tugas "${tugas.judul}" dihapus.`, () =>
-      setTugasList((prev) => (prev.some((t) => t.id === id) ? prev : [...prev.slice(0, indeks), tugas, ...prev.slice(indeks)]))
-    );
+    tampilkanToast(`Tugas "${tugas.judul}" dihapus.`, () => {
+      setTugasList((prev) => {
+        const pulih = prev.some((t) => t.id === id) ? prev : [...prev.slice(0, indeks), tugas, ...prev.slice(indeks)];
+        setLapisanList((l) => sinkronkanLapisanDariTugas(l, pulih));
+        return pulih;
+      });
+    });
   };
 
   // Handler Klaim / Verifikasi Penyelesaian Tugas (Kader mengajukan -> Admin mengesahkan untuk +60 poin)
@@ -1192,7 +1213,22 @@ export const App: React.FC = () => {
                 onMatikanModePilih={() => setModePilihPustaka(false)}
                 onBukaPetaDasar={() => {
                   setPetaKustomAktif(null);
+                  setLapisanAktifId(null);
                   setTabAktif("peta");
+                }}
+                onBukaLapisanDiPeta={(lapisan) => {
+                  setPetaKustomAktif(null);
+                  setLapisanAktifId(lapisan.id);
+                  const cocokTugas = lapisan.tugasId ? tugasList.find((t) => t.id === lapisan.tugasId) : undefined;
+                  if (cocokTugas?.koordinatAcuan) {
+                    setFokusKoordinat({
+                      lat: cocokTugas.koordinatAcuan.lat,
+                      lng: cocokTugas.koordinatAcuan.lng,
+                      label: cocokTugas.judul
+                    });
+                  }
+                  setTabAktif("peta");
+                  tampilkanToast(`Lapisan "${lapisan.nama}" aktif di Peta.`);
                 }}
                 onBukaAreaPeta={(area) => {
                   setPetaKustomAktif(area);
@@ -1224,6 +1260,8 @@ export const App: React.FC = () => {
               <InteractiveMap
                 dataSpasial={dataSpasial}
                 lapisanList={lapisanList}
+                lapisanAktifId={lapisanAktifId}
+                onPilihLapisanAktif={setLapisanAktifId}
                 profil={profil}
                 areaOffline={areaOffline}
                 petaKustomAktif={petaKustomAktif}
@@ -1356,6 +1394,7 @@ export const App: React.FC = () => {
                 )}
                 onTambahPengumuman={wajibAdmin((p: PengumumanBroadcast) => setPengumumanList((prev) => [p, ...prev]))}
                 onTambahTugas={wajibAdmin(handleTambahTugas)}
+                onUbahTugas={wajibAdmin(handleUbahTugas)}
                 onVerifikasiTugas={wajibAdmin((id: string) => {
                   setTugasList((prev) => prev.map((t) => (t.id === id ? { ...t, status: "selesai" } : t)));
                   tampilkanToast("✓ Penyelesaian tugas disahkan oleh Admin (+60 poin level).");
