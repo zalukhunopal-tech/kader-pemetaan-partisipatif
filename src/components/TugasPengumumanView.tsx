@@ -53,7 +53,7 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
             <div key={t.id} className="task-card">
               <div className="task-top">
                 <span className="badge-kategori">
-                  {t.jenisTargetGeometri.toUpperCase()} • {t.kategoriTarget}
+                  {t.jenisTargetGeometri.toUpperCase()} · {t.targetWilayah}
                 </span>
                 <span
                   className={`badge-sync ${

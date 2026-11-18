@@ -54,11 +54,11 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   await p.locator("#simpan-wilayah").click();
   await expect(panel).toContainText("Jambi › Kabupaten Merangin › Bangko › Rantau Panjang");
 
-  // Rekam titik di Mode User
+  // Rekam titik di Mode User (format Default Avenza tanpa kategori Biodiversitas)
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
   await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.locator(".avz-fab-pin").click();
-  await p.getByRole("button", { name: /^Biodiversitas/ }).click();
+  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Sebaran Anggrek");
   await p.locator(".modal-form button[type=submit]").click();
   expect(await sampai(async () => /Sebaran Anggrek/.test(await teksToast(p)))).toBe(true);
@@ -69,11 +69,11 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   expect(k.token).toBe("token-uji-gdrive");
   expect(k.records).toHaveLength(1);
   expect(k.records[0].wilayah).toEqual(WILAYAH);
+  expect(k.records[0].lapisanNama).toBe("Lapisan 1");
   expect(k.records[0].namaBerkas).toMatch(
     /^siti_rahmawati_sebaran_anggrek_(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)_\d{4}$/
   );
-  // Atribut GeoJSON mengikuti skema PRM-AID (label, kategori, simbol); wilayah dibawa di records[].wilayah
-  expect(JSON.parse(k.geojsonBundle).features[0].properties).toMatchObject({ label: "Sebaran Anggrek", kategori: "Biodiversitas" });
+  expect(JSON.parse(k.geojsonBundle).features[0].properties).toMatchObject({ label: "Sebaran Anggrek" });
 
   // Halaman GDrive: tanpa Konfigurasi, menampilkan folder dan berkas tujuan, status tersinkron
   await pilihMenu(p, "Sinkronisasi");

@@ -332,7 +332,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                       borderRadius: 4
                     }}
                   >
-                    {item.kategori}
+                    {item.lapisanNama || item.jenisGeometri.toUpperCase()}
                   </span>
                 </div>
                 <div style={{ padding: "8px 10px" }}>
@@ -467,14 +467,23 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                       <div className="text-xs text-muted">{d.createdAt.slice(0, 10)}</div>
                     </td>
                     <td>
-                      <span className="badge-kategori">{d.kategori}</span>
+                      <span className="badge-kategori">{d.lapisanNama || "Lapisan 1"}</span>
                       <div className="text-xs text-muted" style={{ marginTop: 2 }}>
-                        {d.jenisGeometri.toUpperCase()} · {d.tematik ? `Tematik: ${d.tematik}` : "Non-Tematik"}
+                        {d.jenisGeometri.toUpperCase()}
+                        {d.elevasi !== undefined ? ` · ${d.elevasi.toFixed(1)} m` : ""}
                       </div>
                     </td>
                     <td>
                       <strong>{d.judul}</strong>
                       <div className="text-xs text-muted">{d.deskripsi}</div>
+                      {d.atributKustom && Object.keys(d.atributKustom).length > 0 && (
+                        <div className="text-xs text-muted">
+                          {Object.entries(d.atributKustom)
+                            .slice(0, 3)
+                            .map(([k, v]) => `${k}: ${String(v).startsWith("data:image/") ? "[Foto]" : v}`)
+                            .join(" · ")}
+                        </div>
+                      )}
                       <div className="text-xs text-muted tujuan-drive" title="Folder dan nama berkas di Google Drive">
                         <Folder size={11} /> {teksWilayah(tujuan(d).wilayah)} / {tujuan(d).namaBerkas}
                       </div>
@@ -584,7 +593,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
 
             <div style={{ padding: "16px 18px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <span className="badge-kategori">{previewFoto.kategori}</span>
+                <span className="badge-kategori">{previewFoto.lapisanNama || previewFoto.jenisGeometri.toUpperCase()}</span>
                 <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{previewFoto.createdAt.slice(0, 10)}</span>
               </div>
               <h4 style={{ margin: "0 0 6px", fontSize: "1.1rem", color: "#181a19" }}>{previewFoto.judul}</h4>

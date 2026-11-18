@@ -134,10 +134,10 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
   await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   expect(await sampai(async () => /-1\.61/.test(await p.locator(".field-telemetry-coordinate").first().innerText()), 8000)).toBe(true);
-  // Tombol pin besar: halaman "Pin dijatuhkan" di posisi bidikan (peta mengikuti GPS)
+  // Tombol pin besar: kartu ringkas "Pin dijatuhkan" lalu klik "Simpan" untuk membuka halaman formulir
   await p.locator(".avz-fab-pin").click();
   await expect(p.getByRole("heading", { name: "Pin dijatuhkan" })).toBeVisible();
-  await p.getByRole("button", { name: /^Biodiversitas/ }).click();
+  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
   await p.getByPlaceholder("Masukkan nama objek").fill("Pohon Meranti uji");
   await p.locator(".modal-form button[type=submit]").click();
   expect(await sampai(async () => /Pohon Meranti uji/.test(await teksToast(p)))).toBe(true);
@@ -159,10 +159,11 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   expect(titik?.jenisGeometri).toBe("point");
   expect(Math.abs(titik!.koordinat[0].lat + 1.61)).toBeLessThan(1e-4);
   expect(titik!.koordinat[0].akurasi).toBe(6);
-  // ketuk titik di tengah peta: kartu detail objek terbuka
+  // ketuk titik di tengah peta: kartu ringkas muncul, lalu ketuk Detail untuk membuka inspektor penuh
   const kan = await kotak(p, "canvas.map-canvas");
   await p.mouse.click(kan.left + kan.width / 2, kan.top + kan.height / 2);
   expect(await sampai(async () => /Pohon Meranti uji/.test(await p.locator(".field-inspector-sheet").innerText()))).toBe(true);
+  await p.locator(".field-inspector-sheet").getByRole("button", { name: "Detail" }).click();
 
   // perbarui kondisi: objek yang baru dibuat belum boleh diperbarui (jeda 24 jam), isian tetap ada
   await p.getByPlaceholder("Kondisi terbaru...").fill("Daun menguning");

@@ -1,6 +1,6 @@
 import { sanitasiTeksInput } from "../../lib/geoUtils";
 import React from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, MapPin, Route, Hexagon } from "lucide-react";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { DataSpasialItem } from "../../types";
 import { JEDA_PEMBARUAN_JAM } from "../../lib/rewardEngine";
@@ -14,6 +14,7 @@ interface InspektorObjekProps {
   onTambahPembaruanObjek: (idData: string, kondisiTerbaru: string, catatan: string) => boolean;
   onGoTo: (target: { lat: number; lng: number; judul: string }) => void;
   onTutup: () => void;
+  onHapus?: (idData: string) => void;
   /** Pesan singkat di peta (mis. "Koordinat disalin") */
   onPesan?: (pesan: string) => void;
 }
@@ -25,9 +26,8 @@ const LABEL_STATUS: Record<string, string> = {
 };
 
 /**
- * Halaman detail objek yang diketuk di peta, mengikuti halaman tanda tempat Avenza Maps:
- * kepala (tutup · nama), baris-baris berlabel tebal dengan aksi hijau di kanan, lalu tombol
- * Navigasi dan Bagikan di bawah.
+ * Halaman detail objek yang diketuk di peta (Pin dijatuhkan / Trek / Area),
+ * mengikuti struktur bersih Avenza Maps tanpa kategori bawaan lama.
  */
 export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   objek,
@@ -36,6 +36,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   onTambahPembaruanObjek,
   onGoTo,
   onTutup,
+  onHapus,
   onPesan
 }) => {
   useTombolEsc(true, onTutup);
@@ -48,8 +49,19 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         ? `Akurasi ±${Math.round(koordUtama.akurasi)} m`
         : "1 titik"
       : objek.jenisGeometri === "line"
-        ? `${(objek.panjangKm || 0).toFixed(2).replace(".", ",")} km · ${objek.koordinat.length} titik`
-        : `${(objek.luasHa || 0).toFixed(2).replace(".", ",")} Ha · ${objek.koordinat.length} titik`;
+        ? `${(objek.panjangKm || 0).toFixed(2).replace(".", ",")} km`
+        : `${(objek.luasHa || 0).toFixed(2).replace(".", ",")} Ha`;
+
+  const judulTipe = objek.jenisGeometri === "point" ? "Pin dijatuhkan" : objek.jenisGeometri === "line" ? "Trek" : "Area";
+  const warnaCorak =
+    objek.warna || (objek.jenisGeometri === "line" ? "#f26101" : objek.jenisGeometri === "polygon" ? "#0d7344" : "#ef4444");
+  const labelCorak =
+    objek.simbol || (objek.jenisGeometri === "line" ? "Jingga jejak" : objek.jenisGeometri === "polygon" ? "Hijau zamrud" : "Pin Merah");
+
+  const tgl = objek.createdAt ? new Date(objek.createdAt) : new Date();
+  const dibuatTeks = Number.isNaN(tgl.getTime())
+    ? objek.createdAt
+    : `${String(tgl.getDate()).padStart(2, "0")}/${String(tgl.getMonth() + 1).padStart(2, "0")}/${String(tgl.getFullYear()).slice(-2)} pada ${String(tgl.getHours()).padStart(2, "0")}.${String(tgl.getMinutes()).padStart(2, "0")}`;
 
   const salin = (teks: string) => {
     if (!navigator.clipboard) return;
@@ -60,11 +72,13 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   };
 
   const bagikan = () => {
-    const teks = `${objek.judul} (${objek.kategori}) — ${teksKoordinat}`;
+    const teks = `${objek.judul} — ${teksKoordinat}`;
     if (typeof navigator.share === "function") {
       void navigator.share({ title: objek.judul, text: teks }).catch(() => undefined);
     } else salin(teks);
   };
+
+  const elevasiVal = objek.elevasi ?? koordUtama?.elevasi;
 
   return (
     <section className="avz-halaman avz-detail-objek field-inspector-sheet" role="dialog" aria-label={objek.judul}>
@@ -72,10 +86,17 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         <button type="button" className="avenza-head-btn btn-icon-close" aria-label="Tutup" onClick={onTutup}>
           <ChevronDown size={26} />
         </button>
-        <h2>{objek.judul}</h2>
+        <h2>{judulTipe}</h2>
       </header>
 
       <div className="avz-halaman-isi avz-isian">
+        <div className="avz-isian-baris">
+          <div className="avz-isian-kepala">
+            <strong>Nama</strong>
+          </div>
+          <span>{objek.judul}</span>
+        </div>
+
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>{objek.jenisGeometri === "point" ? "Koordinat" : objek.jenisGeometri === "line" ? "Jarak" : "Luas"}</strong>
@@ -85,7 +106,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
               </button>
             )}
           </div>
-          <span>{objek.jenisGeometri === "point" ? teksKoordinat : ukuran}</span>
+          <span className="tabular-nums">{objek.jenisGeometri === "point" ? teksKoordinat : ukuran}</span>
           {objek.jenisGeometri !== "point" && <small className="avz-isian-kecil">{teksKoordinat}</small>}
         </div>
 
@@ -97,61 +118,6 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
             {objek.lapisanNama || objek.tematik || "Lapisan 1"} <ChevronRight size={20} />
           </span>
         </div>
-
-        <div className="avz-isian-baris">
-          <div className="avz-isian-kepala">
-            <strong>Peta Tematik</strong>
-          </div>
-          <span>{objek.tematik ? objek.tematik : "Bukan Peta Tematik (Peta Biasa)"}</span>
-        </div>
-
-        <div className="avz-isian-baris">
-          <div className="avz-isian-kepala">
-            <strong>Kategori</strong>
-          </div>
-          <span>{objek.kategori}</span>
-        </div>
-
-        <div className="avz-isian-baris">
-          <div className="avz-isian-kepala">
-            <strong>Corak</strong>
-          </div>
-          <span className="avz-corak-preview">
-            <span className="avz-corak-dot" style={{ background: objek.warna || "#ef4444" }} aria-hidden="true" />
-            {objek.simbol || (objek.jenisGeometri === "line" ? "Jingga jejak" : objek.jenisGeometri === "polygon" ? "Hijau area" : "Pin Merah")}
-          </span>
-        </div>
-
-        {(objek.elevasi !== undefined || koordUtama?.elevasi !== undefined) && (
-          <div className="avz-isian-baris">
-            <div className="avz-isian-kepala">
-              <strong>Elevasi</strong>
-            </div>
-            <span>{(objek.elevasi ?? koordUtama?.elevasi ?? 0).toFixed(2).replace(".", ",")} m</span>
-          </div>
-        )}
-
-        {objek.atributKustom && Object.keys(objek.atributKustom).length > 0 && (
-          <div className="avz-isian-baris">
-            <div className="avz-isian-kepala">
-              <strong>Skema atribut tugas</strong>
-            </div>
-            <div className="avz-atribut-kustom-list">
-              {Object.entries(objek.atributKustom).map(([kunci, nilai]) => (
-                <div key={kunci} className="avz-atribut-kustom-row">
-                  <span className="text-muted">{kunci}</span>
-                  <span>
-                    {typeof nilai === "string" && nilai.startsWith("data:image/") ? (
-                      <img src={nilai} alt={kunci} className="avz-isian-foto" style={{ maxHeight: 90 }} />
-                    ) : (
-                      nilai || "-"
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {objek.fotoBase64 && (
           <div className="avz-isian-baris">
@@ -174,13 +140,90 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
-            <strong>Status</strong>
+            <strong>Corak</strong>
           </div>
-          <span>{LABEL_STATUS[objek.statusSinkron] ?? objek.statusSinkron}</span>
-          <small className="avz-isian-kecil">
-            Kualitas data {dqa.grade} · {dqa.skor}/100
-          </small>
+          <span className="avz-isian-nilai-panah">
+            <span>{labelCorak}</span>
+            <span className="avz-corak-preview">
+              {objek.jenisGeometri === "point" ? (
+                <MapPin size={18} color={warnaCorak} fill={warnaCorak} aria-hidden="true" />
+              ) : objek.jenisGeometri === "line" ? (
+                <Route size={18} color={warnaCorak} aria-hidden="true" />
+              ) : (
+                <Hexagon size={18} color={warnaCorak} aria-hidden="true" />
+              )}
+              <ChevronRight size={18} aria-hidden="true" />
+            </span>
+          </span>
         </div>
+
+        <div className="avz-isian-baris">
+          <div className="avz-isian-kepala">
+            <strong>{objek.jenisGeometri === "point" ? "Elevasi" : "Perolehan elevasi total"}</strong>
+          </div>
+          <span className="tabular-nums">{elevasiVal !== undefined ? `${elevasiVal.toFixed(2).replace(".", ",")} m` : "---"}</span>
+        </div>
+
+        {objek.jenisGeometri === "line" && (
+          <>
+            <div className="avz-isian-baris">
+              <div className="avz-isian-kepala">
+                <strong>Tampilkan Grafik</strong>
+              </div>
+              <span className="avz-isian-nilai-panah tabular-nums">
+                Dist: {(objek.panjangKm || 0).toFixed(2).replace(".", ",")} km | {objek.koordinat.length} titik{" "}
+                <ChevronRight size={18} aria-hidden="true" />
+              </span>
+            </div>
+            <div className="avz-isian-baris">
+              <div className="avz-isian-kepala">
+                <strong>Operasi</strong>
+                <span className="avz-lock-yellow">
+                  <Lock size={13} aria-hidden="true" />
+                </span>
+              </div>
+              <span className="avz-isian-kecil">Tersimpan sebagai jalur trek · {LABEL_STATUS[objek.statusSinkron] ?? objek.statusSinkron}</span>
+            </div>
+          </>
+        )}
+
+        <div className="avz-isian-baris">
+          <div className="avz-isian-kepala">
+            <strong>Dibuat</strong>
+          </div>
+          <span className="tabular-nums">{dibuatTeks}</span>
+        </div>
+
+        {objek.atributKustom && Object.keys(objek.atributKustom).length > 0 ? (
+          <div className="avz-isian-baris">
+            <div className="avz-isian-kepala">
+              <strong>Skema atribut tugas</strong>
+            </div>
+            <div className="avz-atribut-kustom-list">
+              {Object.entries(objek.atributKustom).map(([kunci, nilai]) => (
+                <div key={kunci} className="avz-atribut-kustom-row">
+                  <span className="text-muted">{kunci}</span>
+                  <span>
+                    {typeof nilai === "string" && nilai.startsWith("data:image/") ? (
+                      <img src={nilai} alt={kunci} className="avz-isian-foto" style={{ maxHeight: 90 }} />
+                    ) : (
+                      nilai || "-"
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="avz-isian-baris">
+            <div className="avz-isian-kepala">
+              <strong>Skema atribut</strong>
+            </div>
+            <span className="avz-isian-kecil">
+              {LABEL_STATUS[objek.statusSinkron] ?? objek.statusSinkron} · Kualitas {dqa.grade} ({dqa.skor}/100)
+            </span>
+          </div>
+        )}
 
         <div className="avz-isian-baris inspector-update-box">
           <div className="avz-isian-kepala">
@@ -215,19 +258,24 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         </div>
       </div>
 
-      <footer className="avz-halaman-kaki">
+      <footer className="avz-halaman-kaki avz-footer-pills">
         {koordUtama && (
           <button
             type="button"
-            className="avz-tombol-garis inspector-goto-btn"
+            className="avz-pill-outline-btn inspector-goto-btn"
             onClick={() => onGoTo({ lat: koordUtama.lat, lng: koordUtama.lng, judul: objek.judul })}
           >
             Navigasi
           </button>
         )}
-        <button type="button" className="avz-tombol-garis" onClick={bagikan}>
+        <button type="button" className="avz-pill-outline-btn" onClick={bagikan}>
           Bagikan
         </button>
+        {onHapus && (
+          <button type="button" className="avz-pill-outline-btn" onClick={() => onHapus(objek.id)}>
+            Hapus
+          </button>
+        )}
       </footer>
     </section>
   );

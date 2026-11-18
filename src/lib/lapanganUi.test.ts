@@ -51,7 +51,7 @@ describe("UI lapangan", () => {
     act(() => panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
     expect(tutup).toHaveBeenCalledOnce();
   });
-  it("menampilkan formulir langsung beserta pilihan kategori dan peta tematik tanpa langkah terpisah", () => {
+  it("menampilkan formulir langsung sesuai tata letak default Avenza tanpa pilihan kategori atau peta tematik lama", () => {
     function Form() {
       const form = useFormSurvei("A");
       return React.createElement(FormSurveiModal, {
@@ -64,18 +64,17 @@ describe("UI lapangan", () => {
         onSimpan: vi.fn(),
         onTutup: vi.fn(),
         onHasilAveraging: vi.fn(),
-        kolamTematikList: [{ nama: "Patok Adat", kategori: "Tanda Batas", jumlahObjek: 2 }]
+        lapisanList: []
       });
     }
     render(React.createElement(Form));
-    // Formulir langsung tampil beserta input wajib dan pilihan Peta Tematik
     expect(el.querySelector("input[required]")).not.toBeNull();
-    expect(el.querySelector('select[aria-label="Pilih Peta Tematik"]')).not.toBeNull();
-    act(() => button("Batas").click());
-    expect(el.textContent).toContain("Saksi Lapangan / Tokoh Desa");
-    expect(bacaDraftSurvei("A").kategori).toBe("Tanda Batas");
-    act(() => button("Biodiversitas").click());
-    expect(el.textContent).not.toContain("Saksi Lapangan / Tokoh Desa");
+    expect(el.textContent).toContain("Lapisan saat ini");
+    expect(el.textContent).toContain("Edit Lapisan");
+    expect(el.textContent).toContain("Ambil elevasi");
+    expect(el.textContent).not.toContain("Biodiversitas");
+    expect(el.textContent).not.toContain("Sarana");
+    expect(el.querySelector('select[aria-label="Pilih Peta Tematik"]')).toBeNull();
   });
   it("memulihkan draf tiap akun dan tidak mencampur foto/saksi/geometri", () => {
     simpanDraftSurvei("A", {
