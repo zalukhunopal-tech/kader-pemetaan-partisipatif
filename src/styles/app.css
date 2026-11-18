@@ -13766,3 +13766,264 @@ html[data-field-theme="matahari"] .section-card h2 {
     flex: 0 0 64px;
   }
 }
+
+/* ==========================================================================
+   6. Admin Tugas & Skema Isian Peta (Point, Line, Polygon) + Lapisan Badge
+   ========================================================================== */
+.tugas-skema-builder {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8faf9;
+  border: 1px solid #d5dcd8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tugas-skema-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tugas-skema-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  background: #e2e8f0;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.tugas-skema-tab {
+  min-height: 44px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.tugas-skema-tab.aktif {
+  background: #ffffff;
+  color: #0b6e4f;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.tugas-skema-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  color: #1e293b;
+}
+
+.tugas-skema-tab.aktif .tugas-skema-badge {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.tugas-skema-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tugas-skema-empty {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1.5px dashed #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.tugas-skema-field-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+
+.tugas-skema-field-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.tugas-skema-field-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tugas-wajib-toggle {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 999px;
+  min-height: 28px !important;
+  height: auto !important;
+  min-width: 0 !important;
+  padding: 3px 10px !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.tugas-wajib-toggle.wajib {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tugas-skema-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tugas-skema-composer {
+  padding: 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #d5dcd8;
+}
+
+.tugas-wajib-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #475569;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.tugas-wajib-btn.aktif {
+  background: #ecfdf5;
+  border-color: #0b6e4f;
+  color: #065f46;
+}
+
+.admin-tugas-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (min-width: 700px) {
+  .admin-tugas-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .admin-tugas-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.admin-tugas-card {
+  background: #f8faf9;
+  border: 1px solid #d5dcd8;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.tugas-skema-summary-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tugas-skema-summary-pills span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-tugas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.avenza-layer-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.avenza-layer-info {
+  padding-right: 36px;
+}
+
+.avenza-layer-badge-tugas {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .tugas-skema-tabs {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .tugas-skema-tab {
+    flex-direction: column;
+    font-size: 0.72rem;
+    padding: 6px 4px;
+    gap: 2px;
+    min-height: 48px;
+    line-height: 1.15;
+    white-space: normal;
+  }
+}

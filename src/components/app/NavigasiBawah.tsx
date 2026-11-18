@@ -73,7 +73,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             onClick={() => setTabAktif("peta")}
           >
             <Map size={20} />
-            <span>Temukan</span>
+            <span>Peta</span>
           </button>
 
           <button
@@ -119,7 +119,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             onClick={() => setTabAktif("peta")}
           >
             <Map size={20} />
-            <span>Temukan</span>
+            <span>Peta</span>
           </button>
 
           <button

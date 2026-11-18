@@ -2244,3 +2244,160 @@
   background: #eff6ff;
   box-shadow: 0 0 0 3px rgba(33, 133, 230, 0.25);
 }
+
+/* ---------- 13. Avenza Default Form Rows, Skema Atribut Tugas & Corak ---------- */
+.avz-peta .avz-skema-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  margin-top: 4px;
+}
+
+.avz-peta .avz-skema-banner strong {
+  display: block;
+  font-size: 0.9rem;
+  color: #065f46;
+}
+
+.avz-peta .avz-skema-banner small {
+  display: block;
+  font-size: 0.76rem;
+  color: #047857;
+}
+
+.avz-peta .avz-skema-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  text-transform: capitalize;
+}
+
+.avz-peta .avz-kategori-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.avz-peta .avz-corak-btn {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  color: var(--avz-teks);
+  font-size: 0.96rem;
+  cursor: pointer;
+}
+
+.avz-peta .avz-corak-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.avz-peta .avz-corak-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(15, 23, 42, 0.18);
+  flex-shrink: 0;
+}
+
+.avz-peta .avz-corak-chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.avz-peta .avz-corak-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.avz-peta .avz-corak-chip.aktif {
+  border-color: var(--avz-hijau);
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.avz-peta .avz-grafik-ringkas {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.84rem;
+  color: #334155;
+}
+
+.avz-peta .avz-lock-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fef08a;
+  color: #854d0e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avz-peta .avz-atribut-ekstra {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.avz-peta .avz-atribut-kustom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.avz-peta .avz-atribut-kustom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.avz-peta .avz-halaman-form .modal-footer {
+  position: static !important;
+  margin-top: 12px;
+  padding: 14px 0 8px;
+  border-top: 1px solid var(--avz-garis);
+  background: #ffffff;
+}
+
+.avz-peta .avz-halaman-form .modal-footer button {
+  white-space: nowrap;
+  font-size: 0.88rem;
+  padding: 0 12px;
+}

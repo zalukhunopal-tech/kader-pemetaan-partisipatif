@@ -37,7 +37,7 @@ test("HP dengan huruf besar: peta layar penuh, atribusi dan tombol pin tidak ter
     expect(labelUtuh.every(Boolean)).toBe(true);
   });
 
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForTimeout(1200);
 
   await test.step("tata letak peta layar penuh", async () => {
@@ -105,7 +105,7 @@ test("PC: roda tetikus memperbesar peta tanpa menggulir halaman", async ({ brows
   const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 1280, height: 800 } });
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForTimeout(1200);
   const kan = await kotak(p, "canvas.map-canvas");
   const zAwal = (await posisiPeta(p))!.zoom;
@@ -132,7 +132,7 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p);
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   expect(await sampai(async () => /-1\.61/.test(await p.locator(".field-telemetry-coordinate").first().innerText()), 8000)).toBe(true);
   // Tombol pin besar: halaman "Pin dijatuhkan" di posisi bidikan (peta mengikuti GPS)
   await p.locator(".avz-fab-pin").click();
@@ -192,7 +192,7 @@ test("unduh area offline dari penyedia tile berlisensi: tile tersimpan dan area 
     );
   await masukSebagaiAdmin(p, URL_APP_KUNCI);
   await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.locator(".avz-quick-basemap-btn").click();
   await p.locator(".map-basemap-Option", { hasText: "OSM" }).click();
   expect(await p.locator("#atribusi-peta").innerText()).toMatch(/penyedia tile uji/);
@@ -270,7 +270,7 @@ test("Satelit Google lewat Map Tiles API resmi (jaringan Google ditiru) dan Sate
       r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG })
     );
   await masukSebagaiAdmin(p, URL_APP_KUNCI);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   // Peta dasar bawaan adalah Satelit Esri; pilih Google Satelit dari pemilih peta dasar
   await p.locator(".avz-quick-basemap-btn").click();
   await p.locator(".map-basemap-Option", { hasText: "Google Satelit" }).click();
@@ -303,7 +303,7 @@ test("Satelit Google lewat Map Tiles API resmi (jaringan Google ditiru) dan Sate
   await p.reload();
   expect(await sampai(async () => (await p.locator("#pin-buka").count()) === 1)).toBe(true);
   await p.locator("#pin-buka").fill(PIN);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   expect(await sampai(async () => /Powered by Esri/.test(await p.locator("#atribusi-peta").innerText()))).toBe(true);
   expect(galat).toEqual([]);
   await tutup();
@@ -318,7 +318,7 @@ test("tanpa kunci API: Esri publik jadi bawaan, tidak ada permintaan ke Google M
   });
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p, URL_APP);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForTimeout(1500);
   expect(await p.locator("#atribusi-peta").innerText()).toMatch(/Powered by Esri/);
   await p.locator(".avz-quick-basemap-btn").click();

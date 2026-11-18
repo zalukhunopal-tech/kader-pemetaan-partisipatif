@@ -28,6 +28,7 @@ import { daftarkanSumberPmtiles } from "../lib/pmtilesProtocol";
 import { daftarkanSumberMbtiles } from "../lib/mbtilesProtocol";
 import { singkatkanLabelPeta, ringkasLabelCrs } from "../lib/labelPeta";
 import { objekCocokLapisan } from "../lib/tematik";
+import { hitungRingkasSkema } from "../lib/skemaTugas";
 import { useTombolEsc } from "../lib/useTombolEsc";
 import { KonteksEkspor } from "../lib/eksporFilter";
 
@@ -38,6 +39,7 @@ interface PustakaViewProps {
   modePilihAktif: boolean;
   onMatikanModePilih: () => void;
   onBukaPetaDasar: () => void;
+  onBukaLapisanDiPeta?: (lapisan: LapisanSpasial) => void;
   onBukaAreaPeta: (area: AreaPetaOffline) => void;
   onTambahAreaOffline: (area: AreaPetaOffline) => void;
   onHapusAreaOffline: (id: string) => void;
@@ -127,6 +129,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   modePilihAktif,
   onMatikanModePilih,
   onBukaPetaDasar,
+  onBukaLapisanDiPeta,
   onBukaAreaPeta,
   onTambahAreaOffline,
   onHapusAreaOffline,
@@ -879,11 +882,13 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             {daftarLapisanTampil.map((lapisan) => {
               const jmlObjek = hitungObjekLapisan(lapisan);
               const dipilih = idTerpilih.includes(lapisan.id);
+              const ringkasSkema = hitungRingkasSkema(lapisan.skemaGeometri);
+              const bukaLapisan = () => (onBukaLapisanDiPeta ? onBukaLapisanDiPeta(lapisan) : onBukaPetaDasar());
               return (
                 <div
                   key={lapisan.id}
                   className={`avenza-layer-row ${modePilihAktif && dipilih ? "selected" : ""}`}
-                  onClick={() => (modePilihAktif ? togglePilihId(lapisan.id) : onBukaPetaDasar())}
+                  onClick={() => (modePilihAktif ? togglePilihId(lapisan.id) : bukaLapisan())}
                 >
                   {modePilihAktif && (
                     <input
@@ -900,9 +905,18 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   </div>
 
                   <div className="avenza-layer-info">
-                    <div className="avenza-layer-title">{lapisan.nama}</div>
+                    <div className="avenza-layer-title">
+                      {lapisan.nama}
+                      {lapisan.tugasId && <span className="avenza-layer-badge-tugas">Tugas Admin</span>}
+                    </div>
                     <div className="avenza-layer-meta">
-                      {lapisan.adalahTematik ? "Kolam Tematik" : `${lapisan.jumlahPeta} Peta`}
+                      {lapisan.tugasId
+                        ? ringkasSkema.total > 0
+                          ? `Skema: Point ${ringkasSkema.point} · Line ${ringkasSkema.line} · Polygon ${ringkasSkema.polygon}`
+                          : "Lapisan Tugas Lapangan"
+                        : lapisan.adalahTematik
+                          ? "Kolam Tematik"
+                          : `${lapisan.jumlahPeta} Peta`}
                       {lapisan.kategoriDefault && (
                         <>
                           {" "}
@@ -935,10 +949,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                           type="button"
                           onClick={() => {
                             setMenuItemTerbuka(null);
-                            onBukaPetaDasar();
+                            bukaLapisan();
                           }}
                         >
-                          Lihat Objek di Peta
+                          Buka dan Isi di Peta
                         </button>
                         <button
                           type="button"

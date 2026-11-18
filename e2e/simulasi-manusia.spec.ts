@@ -22,7 +22,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
   const rahasia = await masukSebagaiAdmin(p);
 
   await test.step("1. Peta: posisi tab Lokasi/Pelacakan/Navigasi rapat atas, pewarnaan Pelacakan tanpa tombol ekstra, & basemap memanjang penuh", async () => {
-    await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+    await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
     await p.waitForSelector(".map-canvas-container");
 
     // Buka drawer Lokasi · Pelacakan · Navigasi
@@ -289,7 +289,7 @@ test("simulasi PC desktop: basemap memanjang konsisten dan drawer pelacakan bers
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   const rahasia = await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
 
   // Basemap memanjang penuh di PC juga
@@ -333,7 +333,7 @@ test("posisi pojok kiri bawah skala/atribusi dan auto-cache 1x1 km zoom tinggi 2
   );
 
   const rahasia = await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
 
   // 1. Verifikasi skala & atribusi mepet sudut kiri bawah tepat di atas bilah bawah
@@ -407,7 +407,7 @@ test("posisi pojok kiri bawah skala/atribusi dan auto-cache 1x1 km zoom tinggi 2
   }
   await p.evaluate(() => window.dispatchEvent(new Event("online")));
   if ((await p.locator(".map-canvas-container").count()) === 0) {
-    await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+    await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
     await p.waitForSelector(".map-canvas-container");
   }
   const basemapNow = await p.locator("#atribusi-peta").innerText();
@@ -476,7 +476,7 @@ test("swipe ke atas buka drawer, kompas klik 3x pertahankan simbol, pelacakan ti
     );
   });
 
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
 
   // 1. Uji menu kompas (.avz-nav-arrow-btn & .avz-kompas) diklik 3x: simbol harus selalu tampak dan kontras
@@ -636,7 +636,7 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
 
   // 1. Uji hitung kecepatan sesaat (Lokasi tab): bergerak 8.9 m dalam 1.2 detik -> kecepatan > 5 Km/j, lalu berhenti -> kembali 0,00
@@ -812,7 +812,7 @@ test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung 
   await expect(halBantuan).toBeHidden();
 
   // Cek item alat peta juga punya sudut melengkung
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
   await p.getByRole("button", { name: "Alat peta" }).click();
   const radiusAlat = await p.locator(".avz-tool-popup-item").first().evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
@@ -941,7 +941,7 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await p.locator(".modal-footer button", { hasText: /^Batal$/ }).click();
 
   // 2. Uji Formulir Langsung pada Point: tambah kolam tematik baru "Kolam Flora" (Biodiversitas)
-  await p.locator(".avenza-nav-item", { hasText: "Temukan" }).click();
+  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
 
   await p.locator(".avz-fab-pin").click();
