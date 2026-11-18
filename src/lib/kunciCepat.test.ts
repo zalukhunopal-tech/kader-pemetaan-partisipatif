@@ -9,15 +9,17 @@ import {
   aturUlangSandiOlehAdmin,
   autentikasiLogin,
   buatAdminPertama,
-  buatAkunOlehAdmin,
   konfigUji,
+  mulaiPendaftaranEmail,
   mulaiPendaftaranTotp,
   muatSemuaAkun,
   selesaikanPendaftaranTotp,
+  setujuiAkunOlehAdmin,
   simpanSesiPengguna,
   sisaMasaTotp,
   ubahKataSandi,
-  verifikasiKodeAuthenticator
+  verifikasiKodeAuthenticator,
+  verifikasiKodeEmailPendaftaran
 } from "./auth";
 import { hitungTotp } from "./totp";
 import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi } from "./kunciAplikasi";
@@ -54,9 +56,17 @@ async function siapkanAdmin() {
 
 async function siapkanKader(admin: AkunSesi) {
   const email = "kader.lapangan@contoh.id";
-  const r = await buatAkunOlehAdmin(admin, { nama: "Budi Kader", email, desaWilayah: "Desa B", noHp: "0813" });
   const sandi = "KataBaruKu-2028";
-  await ubahKataSandi(email, r.sandiSementara!, sandi);
+  const mulai = await mulaiPendaftaranEmail({
+    nama: "Budi Kader",
+    email,
+    desaWilayah: "Desa B",
+    noHp: "0813",
+    kataSandi: sandi
+  });
+  expect(mulai.sukses).toBe(true);
+  await verifikasiKodeEmailPendaftaran(email, mulai.kodeVerifikasi!);
+  expect(setujuiAkunOlehAdmin(admin, email).sukses).toBe(true);
   const m = await mulaiPendaftaranTotp(email, sandi);
   await selesaikanPendaftaranTotp(email, sandi, m.rahasia!, hitungTotp(m.rahasia!)!);
   majuDetik(30);
@@ -249,7 +259,7 @@ describe("pemisahan admin dengan PIN", () => {
     expect(aksesAdminSah(admin.sesi)).toBe(true);
     kunciAplikasi();
     expect(aksesAdminSah(admin.sesi)).toBe(false);
-    expect((await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "x@contoh.id", desaWilayah: "-", noHp: "-" })).sukses).toBe(false);
+    expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, "x@contoh.id").sukses).toBe(false);
 
     await bukaDenganPin(admin.sesi, "482915", "aplikasi+admin");
     majuDetik(16 * 60);

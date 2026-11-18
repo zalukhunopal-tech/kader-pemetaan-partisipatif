@@ -298,7 +298,7 @@ export async function masukAkunSemai(
       await buatPin(p);
       continue;
     }
-    const kunci = p.getByPlaceholder("123 456");
+    const kunci = p.locator(".layar-kunci").getByPlaceholder("123 456");
     if (await kunci.count()) {
       await kunci.fill(await kodeBerikutnya(p, rahasia));
       await p.getByRole("button", { name: "Verifikasi" }).click();

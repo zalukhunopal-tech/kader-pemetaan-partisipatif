@@ -5,6 +5,10 @@ import { wilayahAkun } from "./auth";
 import { namaBerkasData, wilayahUntukData } from "./wilayah";
 import { sinkronkanBertahapKeGDrive } from "./gdriveBertahap";
 import { SnapshotStatusDatabaseServer } from "./pencadanganData";
+import { KONEKSI_GDRIVE, KoneksiGDrive, gdriveTerpasang, urlAppsScriptValid } from "./koneksiDrive";
+
+export { KONEKSI_GDRIVE, gdriveTerpasang, urlAppsScriptValid };
+export type { KoneksiGDrive };
 
 /**
  * Unggahan data spasial ke Google Drive pemilik aplikasi lewat Web App Apps Script (apps-script/Code.gs).
@@ -12,19 +16,6 @@ import { SnapshotStatusDatabaseServer } from "./pencadanganData";
  * Code.gs menyimpan setiap data di folder Provinsi/Kabupaten/Kecamatan/Desa milik akun pembuatnya,
  * dalam berkas bernama akun_data_bulan_tahun (mis. budi_sebaran_anggrek_november_2026).
  */
-export interface KoneksiGDrive {
-  url: string;
-  token: string;
-}
-
-const GDRIVE_URL_DEFAULT =
-  "https://script.google.com/macros/s/AKfycbzAQXKvXddb8IG9lf3kyf4brebn68u2LIC9Sw_gZnw1poGcXAIoKmDy1raIeV6_1X8D/exec";
-const GDRIVE_TOKEN_DEFAULT = "893533c720cc47f3a094db1b183539da";
-
-export const KONEKSI_GDRIVE: KoneksiGDrive = {
-  url: (import.meta.env.VITE_GDRIVE_URL || (import.meta.env.MODE !== "test" ? GDRIVE_URL_DEFAULT : "")).trim(),
-  token: (import.meta.env.VITE_GDRIVE_TOKEN || (import.meta.env.MODE !== "test" ? GDRIVE_TOKEN_DEFAULT : "")).trim()
-};
 
 export interface HasilSinkron {
   /** true hanya bila SEMUA data yang dikirim dikonfirmasi tersimpan oleh Apps Script */
@@ -44,15 +35,6 @@ export { sinkronkanBertahapKeGDrive, terapkanHasilSinkron, selesaikanKonflik } f
 const UKURAN_BATCH = 10;
 const BATAS_BYTE_BATCH = 4_000_000;
 const WAKTU_TUNGGU_MS = 90_000;
-
-export function urlAppsScriptValid(url: string | undefined): boolean {
-  const u = (url ?? "").trim();
-  return u.startsWith("https://script.google.com/") && /\/exec(\?.*)?$/.test(u);
-}
-
-/** true bila build ini memuat alamat Web App dan token Google Drive */
-export const gdriveTerpasang = (koneksi: KoneksiGDrive = KONEKSI_GDRIVE): boolean =>
-  urlAppsScriptValid(koneksi.url) && koneksi.token !== "";
 
 export type CariWilayahAkun = (idKader: string) => Partial<WilayahAdministrasi> | undefined;
 

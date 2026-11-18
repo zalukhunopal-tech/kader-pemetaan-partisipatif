@@ -44,7 +44,16 @@ import {
   simpanSertifikat,
   simpanTugas
 } from "./lib/storage";
-import { AkunSesi, aksesAdminSah, capWilayah, muatSesiPengguna, simpanSesiPengguna, sisaMasaTotp } from "./lib/auth";
+import {
+  AkunSesi,
+  aksesAdminSah,
+  capWilayah,
+  muatSesiPengguna,
+  simpanSesiPengguna,
+  sinkronkanDaftarAkunGDrive,
+  sisaMasaTotp,
+  verifikasiKunciSesiAktif
+} from "./lib/auth";
 import { catatAktivitasAdmin, gerbangAdminTerbuka, kunciGerbangAdmin, useVersiGerbangAdmin } from "./lib/gerbangAdmin";
 import { aplikasiTerbuka, catatAktivitasAplikasi, kunciAplikasi, useVersiKunciAplikasi } from "./lib/kunciAplikasi";
 import { metodeKunciCepat } from "./lib/kunciCepat";
@@ -492,11 +501,25 @@ export const App: React.FC = () => {
       aksi(...args);
     };
 
-  // Kunci aplikasi, gerbang admin, dan masa 8 jam diperiksa berkala dan saat aplikasi kembali
-  // ditampilkan, supaya layar kunci langsung muncul begitu batasnya lewat
+  const handleLogoutRef = useRef<(() => void) | null>(null);
+  handleLogoutRef.current = handleLogout;
+
+  // Kunci aplikasi, gerbang admin, masa 8 jam, & validasi sesi tunggal diperiksa berkala
   const masaTotpHabisRef = useRef<boolean | null>(null);
   useEffect(() => {
     if (!emailSesi) return;
+    let aktif = true;
+    const periksaSesiTunggal = async () => {
+      if (!aktif || !sesiPengguna) return;
+      if (sesiPengguna.peran === "admin") {
+        void sinkronkanDaftarAkunGDrive();
+      }
+      const res = await verifikasiKunciSesiAktif(sesiPengguna);
+      if (aktif && !res.sah) {
+        handleLogoutRef.current?.();
+        tampilkanToast("⛔ Sesi dihentikan: akun dipakai perangkat lain atau dilepas Administrator.");
+      }
+    };
     const periksa = () => {
       // keduanya mengunci sendiri (dan memberi tahu App) bila batas diam terlewati
       aplikasiTerbuka(emailSesi);
@@ -509,15 +532,24 @@ export const App: React.FC = () => {
       }
     };
     const saatTampil = () => {
-      if (document.visibilityState === "visible") periksa();
+      if (document.visibilityState === "visible") {
+        periksa();
+        void periksaSesiTunggal();
+      }
     };
+    void periksaSesiTunggal();
     const t = window.setInterval(periksa, 15_000);
+    const tSesi = window.setInterval(() => {
+      void periksaSesiTunggal();
+    }, 30_000);
     document.addEventListener("visibilitychange", saatTampil);
     return () => {
+      aktif = false;
       window.clearInterval(t);
+      window.clearInterval(tSesi);
       document.removeEventListener("visibilitychange", saatTampil);
     };
-  }, [emailSesi]);
+  }, [emailSesi, sesiPengguna, tampilkanToast]);
 
   // Isi aplikasi di belakang layar kunci tetap terpasang (formulir tidak hilang) tetapi tidak bisa
   // disentuh, difokus, atau dibaca pembaca layar

@@ -37,9 +37,8 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   await masukSebagaiAdmin(p, URL_APP_KUNCI);
   await p.locator(".admin-subnav-btn", { hasText: "Akun" }).click();
 
-  // Akun kader baru wajib diberi wilayah: provinsi dari daftar 38 provinsi, sisanya diketik
-  await expect(p.locator("#akun-provinsi option")).toHaveCount(39);
-  await expect(p.locator("#akun-kabupaten")).toHaveAttribute("required", "");
+  // Admin tidak lagi memiliki form buat akun; perubahan wilayah tetap bisa melalui Aksi > Lihat detail akun > Ubah
+  await expect(p.locator("#form-buat-akun")).toHaveCount(0);
 
   // Akun admin uji belum punya wilayah lengkap: lengkapi lewat Aksi > Lihat detail akun > Ubah
   const panel = p.locator("#panel-akun-admin");

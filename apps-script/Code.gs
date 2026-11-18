@@ -193,6 +193,42 @@ function doPost(e) {
       bersihkanCadanganKedaluwarsa_(konteks, body.sekarangIso);
       return balas_(daftarStatusAktif_(konteks));
     }
+    if (body.action === "kirim_otp_email") {
+      return balas_(kirimOtpEmailGs_(body, konteks));
+    }
+    if (body.action === "verifikasi_otp_dan_daftar_akun" || body.action === "daftar_akun_baru") {
+      return balas_(verifikasiOtpDanDaftarGs_(body, konteks));
+    }
+    if (body.action === "ambil_daftar_akun") {
+      return balas_(ambilDaftarAkunGs_(body, konteks));
+    }
+    if (body.action === "setujui_akun") {
+      return balas_(setujuiAkunGs_(body, konteks));
+    }
+    if (body.action === "tolak_akun") {
+      return balas_(tolakAkunGs_(body, konteks));
+    }
+    if (body.action === "hapus_akun") {
+      return balas_(hapusAkunGs_(body, konteks));
+    }
+    if (body.action === "ubah_wilayah_akun") {
+      return balas_(ubahWilayahAkunGs_(body, konteks));
+    }
+    if (body.action === "simpan_kredensial_akun") {
+      return balas_(simpanKredensialAkunGs_(body, konteks));
+    }
+    if (body.action === "reset_semua_akun") {
+      return balas_(resetSemuaAkunGs_(body, konteks));
+    }
+    if (body.action === "klaim_sesi_akun") {
+      return balas_(klaimSesiAkunGs_(body, konteks));
+    }
+    if (body.action === "lepas_sesi_akun") {
+      return balas_(lepasSesiAkunGs_(body, konteks));
+    }
+    if (body.action === "cek_sesi_akun") {
+      return balas_(cekSesiAkunGs_(body, konteks));
+    }
 
     var records = body.records || [];
     var diterima = [];
@@ -1534,4 +1570,529 @@ function daftarStatusAktif_(konteks) {
     }
   }
   return { sukses: true, aktif: aktif, pencadanganIds: pencadanganIds };
+}
+
+/* ==========================================================================
+   MANAJEMEN AKUN, OTP EMAIL, PERSETUJUAN ADMIN, DAN KUNCI SESI TUNGGAL
+   ========================================================================== */
+
+var TAB_AKUN_GS = "Akun_Pengguna";
+var PROP_OTP_GS = "TITIK_TAPAK_OTP_PENDAFTARAN";
+var KOLOM_AKUN_GS = [
+  "Email",
+  "ID_Kader",
+  "Nama",
+  "Peran",
+  "Desa_Wilayah",
+  "Wilayah_JSON",
+  "No_HP",
+  "Kelompok_Masyarakat",
+  "Nama_Organisasi",
+  "Kata_Sandi_Hash",
+  "Garam",
+  "Iterasi",
+  "Sig_Peran",
+  "Email_Terverifikasi",
+  "Status_Persetujuan",
+  "Email_Diverifikasi_Pada",
+  "Disetujui_Pada",
+  "Totp_Rahasia",
+  "Totp_Langkah_Terakhir",
+  "Kode_Pemulihan_Hash_JSON",
+  "ID_Sesi_Aktif",
+  "Info_Perangkat_Aktif",
+  "Sesi_Aktif_Sejak",
+  "Diperbarui_Pada",
+  "Created_At"
+];
+var KA = {};
+for (var kaIdx = 0; kaIdx < KOLOM_AKUN_GS.length; kaIdx++) KA[KOLOM_AKUN_GS[kaIdx]] = kaIdx;
+
+function bersihkanPrefiksSel_(nilai, prefiks) {
+  var s = String(nilai === undefined || nilai === null ? "" : nilai);
+  if (prefiks && s.indexOf(prefiks) === 0) return s.slice(prefiks.length);
+  return s;
+}
+
+function tabAkunGs_(konteks) {
+  var ss = spreadsheetInduk_(konteks.induk);
+  var tab = ss.getSheetByName(TAB_AKUN_GS);
+  if (!tab) {
+    tab = ss.insertSheet(TAB_AKUN_GS);
+    tab.appendRow(KOLOM_AKUN_GS);
+  } else if (tab.getLastRow() >= 1) {
+    tab.getRange(1, 1, 1, KOLOM_AKUN_GS.length).setValues([KOLOM_AKUN_GS]);
+  }
+  return tab;
+}
+
+function barisKeAkunGs_(row) {
+  var email = String(row[KA.Email] || "").trim().toLowerCase();
+  if (!email) return null;
+  var wJson = bersihkanPrefiksSel_(row[KA.Wilayah_JSON], "json:");
+  var wilayah = undefined;
+  if (wJson) {
+    try {
+      wilayah = JSON.parse(wJson);
+    } catch (e) {}
+  }
+  var pulihJson = bersihkanPrefiksSel_(row[KA.Kode_Pemulihan_Hash_JSON], "json:");
+  var kodePemulihanHash = [];
+  if (pulihJson) {
+    try {
+      kodePemulihanHash = JSON.parse(pulihJson);
+    } catch (e) {}
+  }
+  var totpLangkahRaw = row[KA.Totp_Langkah_Terakhir];
+  var totpLangkahTerakhir = totpLangkahRaw === "" || totpLangkahRaw === null || totpLangkahRaw === undefined ? undefined : Number(totpLangkahRaw);
+  return {
+    idKader: String(row[KA.ID_Kader] || ""),
+    nama: String(row[KA.Nama] || ""),
+    email: email,
+    peran: String(row[KA.Peran] || "kader") === "admin" ? "admin" : "kader",
+    desaWilayah: String(row[KA.Desa_Wilayah] || "-"),
+    wilayah: wilayah,
+    noHp: String(row[KA.No_HP] || "-"),
+    kelompokMasyarakat: String(row[KA.Kelompok_Masyarakat] || "-"),
+    namaOrganisasi: String(row[KA.Nama_Organisasi] || "Sertifikat Kader Pemetaan Partisipatif"),
+    kataSandiHash: bersihkanPrefiksSel_(row[KA.Kata_Sandi_Hash], "h:"),
+    garam: bersihkanPrefiksSel_(row[KA.Garam], "g:"),
+    iterasi: Number(row[KA.Iterasi] || 200000),
+    sigPeran: bersihkanPrefiksSel_(row[KA.Sig_Peran], "s:"),
+    emailTerverifikasi: String(row[KA.Email_Terverifikasi]) === "true",
+    statusPersetujuan: String(row[KA.Status_Persetujuan] || "disetujui"),
+    emailDiverifikasiPada: String(row[KA.Email_Diverifikasi_Pada] || "") || undefined,
+    disetujuiPada: String(row[KA.Disetujui_Pada] || "") || undefined,
+    totpRahasia: bersihkanPrefiksSel_(row[KA.Totp_Rahasia], "t:") || undefined,
+    totpLangkahTerakhir: isFinite(totpLangkahTerakhir) ? totpLangkahTerakhir : undefined,
+    kodePemulihanHash: Array.isArray(kodePemulihanHash) ? kodePemulihanHash : [],
+    idSesiAktif: String(row[KA.ID_Sesi_Aktif] || "") || undefined,
+    infoPerangkatAktif: String(row[KA.Info_Perangkat_Aktif] || "") || undefined,
+    sesiAktifSejak: String(row[KA.Sesi_Aktif_Sejak] || "") || undefined,
+    diperbaruiPada: String(row[KA.Diperbarui_Pada] || "") || undefined,
+    createdAt: String(row[KA.Created_At] || "") || new Date().toISOString(),
+    versiAkun: 2
+  };
+}
+
+function akunKeBarisGs_(a, waktuSekarang) {
+  return [
+    String(a.email || "").trim().toLowerCase(),
+    sanitasiSel_(a.idKader || ""),
+    sanitasiSel_(a.nama || ""),
+    String(a.peran || "kader") === "admin" ? "admin" : "kader",
+    sanitasiSel_(a.desaWilayah || "-"),
+    a.wilayah ? "json:" + JSON.stringify(a.wilayah) : "",
+    sanitasiSel_(a.noHp || "-"),
+    sanitasiSel_(a.kelompokMasyarakat || "-"),
+    sanitasiSel_(a.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif"),
+    a.kataSandiHash ? "h:" + String(a.kataSandiHash) : "",
+    a.garam ? "g:" + String(a.garam) : "",
+    Number(a.iterasi || 200000),
+    a.sigPeran ? "s:" + String(a.sigPeran) : "",
+    a.emailTerverifikasi ? "true" : "false",
+    String(a.statusPersetujuan || "menunggu"),
+    String(a.emailDiverifikasiPada || ""),
+    String(a.disetujuiPada || ""),
+    a.totpRahasia ? "t:" + String(a.totpRahasia) : "",
+    a.totpLangkahTerakhir !== undefined && a.totpLangkahTerakhir !== null ? Number(a.totpLangkahTerakhir) : "",
+    Array.isArray(a.kodePemulihanHash) ? "json:" + JSON.stringify(a.kodePemulihanHash) : "json:[]",
+    String(a.idSesiAktif || ""),
+    sanitasiSel_(a.infoPerangkatAktif || ""),
+    String(a.sesiAktifSejak || ""),
+    String(waktuSekarang || new Date().toISOString()),
+    String(a.createdAt || waktuSekarang || new Date().toISOString())
+  ];
+}
+
+function cariBarisAkunGs_(tab, email) {
+  var emailKecil = String(email || "").trim().toLowerCase();
+  var jml = tab.getLastRow();
+  if (jml <= 1) return { baris: -1, akun: null };
+  var vals = tab.getRange(2, 1, jml - 1, KOLOM_AKUN_GS.length).getValues();
+  for (var i = 0; i < vals.length; i++) {
+    if (String(vals[i][KA.Email] || "").trim().toLowerCase() === emailKecil) {
+      return { baris: i + 2, akun: barisKeAkunGs_(vals[i]) };
+    }
+  }
+  return { baris: -1, akun: null };
+}
+
+function bacaPetaOtpGs_() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty(PROP_OTP_GS);
+  if (!raw) return {};
+  try {
+    var obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function simpanPetaOtpGs_(peta) {
+  var props = PropertiesService.getScriptProperties();
+  var sekarang = Date.now();
+  var bersih = {};
+  for (var k in peta) {
+    if (Object.prototype.hasOwnProperty.call(peta, k) && peta[k] && Number(peta[k].kadaluarsaPada) > sekarang) {
+      bersih[k] = peta[k];
+    }
+  }
+  props.setProperty(PROP_OTP_GS, JSON.stringify(bersih));
+}
+
+function buatOtp6DigitGs_() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function kirimOtpEmailGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var nama = String(body.nama || "Calon Kader").trim() || "Calon Kader";
+  if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)) {
+    return { sukses: false, protokolAkun: 1, pesan: "Format alamat email tidak valid." };
+  }
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (ada.akun) {
+    return {
+      sukses: false,
+      protokolAkun: 1,
+      duplikat: true,
+      pesan: "Email ini sudah terdaftar. Satu email hanya dapat digunakan untuk satu akun."
+    };
+  }
+
+  var kodeOtp = String(body.kodeOtp || "").replace(/\s+/g, "");
+  if (!/^\d{6}$/.test(kodeOtp)) kodeOtp = buatOtp6DigitGs_();
+
+  var peta = bacaPetaOtpGs_();
+  peta[email] = {
+    kode: kodeOtp,
+    kadaluarsaPada: Date.now() + 10 * 60 * 1000,
+    percobaan: 0
+  };
+  simpanPetaOtpGs_(peta);
+
+  if (typeof MailApp === "undefined" || !MailApp || typeof MailApp.sendEmail !== "function") {
+    return {
+      sukses: false,
+      protokolAkun: 1,
+      terkirimEmail: false,
+      pesan: "Layanan pengirim email Apps Script (MailApp) belum tersedia atau belum diberi izin."
+    };
+  }
+
+  var subjek = "Kode Verifikasi Pendaftaran Titik Tapak: " + kodeOtp;
+  var teksPolos =
+    "Halo " + nama + ",\n\n" +
+    "Kode verifikasi pendaftaran akun Titik Tapak Anda adalah: " + kodeOtp + "\n" +
+    "Kode berlaku selama 10 menit.\n\n" +
+    "Setelah email terverifikasi, akun Anda akan ditinjau dan perlu disetujui oleh Administrator sebelum aktif.\n" +
+    "Abaikan email ini bila Anda tidak merasa mendaftar.\n\n" +
+    "- Tim Titik Tapak";
+  var isiHtml =
+    "<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;\">" +
+    "<h2 style=\"margin:0 0 8px;color:#0B6E4F;\">Verifikasi Email Titik Tapak</h2>" +
+    "<p style=\"color:#334155;font-size:14px;line-height:1.5;\">Halo <strong>" + nama.replace(/[<>&]/g, "") + "</strong>,</p>" +
+    "<p style=\"color:#334155;font-size:14px;line-height:1.5;\">Masukkan kode OTP 6 digit berikut di halaman pendaftaran Titik Tapak (berlaku 10 menit):</p>" +
+    "<div style=\"margin:18px 0;padding:14px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;text-align:center;font-size:28px;font-weight:700;letter-spacing:6px;color:#0B6E4F;\">" +
+    kodeOtp +
+    "</div>" +
+    "<p style=\"color:#64748b;font-size:12px;line-height:1.5;\">Setelah verifikasi berhasil, akun Anda menunggu persetujuan Administrator sebelum bisa masuk. Satu email hanya untuk satu akun dan satu perangkat aktif.</p>" +
+    "</div>";
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: subjek,
+      body: teksPolos,
+      htmlBody: isiHtml
+    });
+    return {
+      sukses: true,
+      protokolAkun: 1,
+      terkirimEmail: true,
+      email: email,
+      pesan: "Kode OTP 6 digit berhasil dikirim ke kotak masuk " + email + "."
+    };
+  } catch (errMail) {
+    return {
+      sukses: false,
+      protokolAkun: 1,
+      terkirimEmail: false,
+      pesan: "Gagal mengirim email OTP ke " + email + ": " + String(errMail && errMail.message ? errMail.message : errMail)
+    };
+  }
+}
+
+function verifikasiOtpDanDaftarGs_(body, konteks) {
+  var akunInput = body.akun || {};
+  var email = String(body.email || akunInput.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)) {
+    return { sukses: false, protokolAkun: 1, pesan: "Format email tidak valid." };
+  }
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (ada.akun) {
+    return {
+      sukses: false,
+      protokolAkun: 1,
+      duplikat: true,
+      pesan: "Email ini sudah terdaftar. Satu email hanya dapat digunakan untuk satu akun."
+    };
+  }
+
+  var kodeInput = String(body.kodeOtp || "").replace(/\s+/g, "");
+  var peta = bacaPetaOtpGs_();
+  var entriOtp = peta[email];
+  if (entriOtp) {
+    if (Date.now() > Number(entriOtp.kadaluarsaPada)) {
+      delete peta[email];
+      simpanPetaOtpGs_(peta);
+      return { sukses: false, protokolAkun: 1, pesan: "Kode OTP sudah kedaluwarsa. Silakan kirim ulang kode baru." };
+    }
+    if (Number(entriOtp.percobaan || 0) >= 5) {
+      delete peta[email];
+      simpanPetaOtpGs_(peta);
+      return { sukses: false, protokolAkun: 1, pesan: "Terlalu banyak percobaan OTP salah. Silakan daftar ulang." };
+    }
+    if (!/^\d{6}$/.test(kodeInput) || entriOtp.kode !== kodeInput) {
+      entriOtp.percobaan = Number(entriOtp.percobaan || 0) + 1;
+      peta[email] = entriOtp;
+      simpanPetaOtpGs_(peta);
+      return { sukses: false, protokolAkun: 1, pesan: "Kode OTP email tidak cocok." };
+    }
+    delete peta[email];
+    simpanPetaOtpGs_(peta);
+  } else if (body.wajibOtpServer) {
+    return { sukses: false, protokolAkun: 1, pesan: "Sesi OTP server tidak ditemukan atau sudah kedaluwarsa. Kirim ulang kode OTP." };
+  }
+
+  var sekarang = new Date().toISOString();
+  var akunSiap = {
+    idKader: String(akunInput.idKader || "KDR-" + Utilities.getUuid().replace(/-/g, "").slice(0, 12)),
+    nama: String(akunInput.nama || "").trim(),
+    email: email,
+    peran: "kader",
+    desaWilayah: String(akunInput.desaWilayah || (akunInput.wilayah && akunInput.wilayah.desa) || "-"),
+    wilayah: akunInput.wilayah || undefined,
+    noHp: String(akunInput.noHp || "-"),
+    kelompokMasyarakat: String(akunInput.kelompokMasyarakat || "-"),
+    namaOrganisasi: String(akunInput.namaOrganisasi || "Sertifikat Kader Pemetaan Partisipatif"),
+    kataSandiHash: String(akunInput.kataSandiHash || ""),
+    garam: String(akunInput.garam || ""),
+    iterasi: Number(akunInput.iterasi || 200000),
+    sigPeran: String(akunInput.sigPeran || ""),
+    emailTerverifikasi: true,
+    statusPersetujuan: "menunggu",
+    emailDiverifikasiPada: String(akunInput.emailDiverifikasiPada || sekarang),
+    disetujuiPada: "",
+    idSesiAktif: "",
+    createdAt: String(akunInput.createdAt || sekarang)
+  };
+  tab.appendRow(akunKeBarisGs_(akunSiap, sekarang));
+  return {
+    sukses: true,
+    protokolAkun: 1,
+    menungguPersetujuan: true,
+    akun: akunSiap,
+    pesan: "Email terverifikasi. Pendaftaran dikirim ke Administrator untuk persetujuan."
+  };
+}
+
+function ambilDaftarAkunGs_(body, konteks) {
+  var tab = tabAkunGs_(konteks);
+  var emailCari = String(body.email || "").trim().toLowerCase();
+  var jml = tab.getLastRow();
+  var daftar = [];
+  if (jml > 1) {
+    var vals = tab.getRange(2, 1, jml - 1, KOLOM_AKUN_GS.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var a = barisKeAkunGs_(vals[i]);
+      if (!a) continue;
+      if (emailCari) {
+        if (a.email === emailCari) {
+          return { sukses: true, protokolAkun: 1, akun: a };
+        }
+      } else {
+        daftar.push(a);
+      }
+    }
+  }
+  if (emailCari) return { sukses: true, protokolAkun: 1, akun: null };
+  return { sukses: true, protokolAkun: 1, akunList: daftar };
+}
+
+function perbaruiBarisAkunGs_(tab, noBaris, akunObj) {
+  tab.getRange(noBaris, 1, 1, KOLOM_AKUN_GS.length).setValues([akunKeBarisGs_(akunObj, new Date().toISOString())]);
+}
+
+function setujuiAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) return { sukses: false, protokolAkun: 1, pesan: "Akun tidak ditemukan di database cloud." };
+  ada.akun.emailTerverifikasi = true;
+  ada.akun.statusPersetujuan = "disetujui";
+  ada.akun.disetujuiPada = String(body.disetujuiPada || new Date().toISOString());
+  perbaruiBarisAkunGs_(tab, ada.baris, ada.akun);
+  return { sukses: true, protokolAkun: 1, akun: ada.akun, pesan: "Akun disetujui." };
+}
+
+function tolakAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) return { sukses: false, protokolAkun: 1, pesan: "Akun tidak ditemukan di database cloud." };
+  ada.akun.statusPersetujuan = "ditolak";
+  ada.akun.idSesiAktif = "";
+  ada.akun.infoPerangkatAktif = "";
+  ada.akun.sesiAktifSejak = "";
+  perbaruiBarisAkunGs_(tab, ada.baris, ada.akun);
+  return { sukses: true, protokolAkun: 1, akun: ada.akun, pesan: "Akun ditolak." };
+}
+
+function hapusAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) return { sukses: true, protokolAkun: 1, dihapus: false, pesan: "Akun sudah tidak ada di cloud." };
+  if (typeof tab.deleteRow === "function") tab.deleteRow(ada.baris);
+  return { sukses: true, protokolAkun: 1, dihapus: true, pesan: "Akun dihapus dari cloud." };
+}
+
+function ubahWilayahAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) return { sukses: false, protokolAkun: 1, pesan: "Akun tidak ditemukan di cloud." };
+  ada.akun.wilayah = body.wilayah || undefined;
+  ada.akun.desaWilayah = String((body.wilayah && body.wilayah.desa) || body.desaWilayah || ada.akun.desaWilayah || "-");
+  perbaruiBarisAkunGs_(tab, ada.baris, ada.akun);
+  return { sukses: true, protokolAkun: 1, akun: ada.akun };
+}
+
+function simpanKredensialAkunGs_(body, konteks) {
+  var email = String(body.email || (body.akun && body.akun.email) || "").trim().toLowerCase();
+  if (!email) return { sukses: false, protokolAkun: 1, pesan: "Email akun wajib diisi." };
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) {
+    var sumber = body.akun;
+    if (!sumber) return { sukses: false, protokolAkun: 1, pesan: "Akun tidak ditemukan." };
+    tab.appendRow(akunKeBarisGs_(sumber, new Date().toISOString()));
+    return { sukses: true, protokolAkun: 1, akun: sumber };
+  }
+  var u = body.perubahan || body.akun || {};
+  if (u.kataSandiHash) ada.akun.kataSandiHash = String(u.kataSandiHash);
+  if (u.garam) ada.akun.garam = String(u.garam);
+  if (u.iterasi) ada.akun.iterasi = Number(u.iterasi);
+  if (u.sigPeran) ada.akun.sigPeran = String(u.sigPeran);
+  if (u.totpRahasia !== undefined) ada.akun.totpRahasia = u.totpRahasia ? String(u.totpRahasia) : undefined;
+  if (u.totpLangkahTerakhir !== undefined) ada.akun.totpLangkahTerakhir = u.totpLangkahTerakhir;
+  if (u.kodePemulihanHash !== undefined) ada.akun.kodePemulihanHash = u.kodePemulihanHash;
+  if (u.wajibGantiSandi !== undefined) ada.akun.wajibGantiSandi = Boolean(u.wajibGantiSandi);
+  perbaruiBarisAkunGs_(tab, ada.baris, ada.akun);
+  return { sukses: true, protokolAkun: 1, akun: ada.akun };
+}
+
+function resetSemuaAkunGs_(body, konteks) {
+  var emailAdminPengecualian = String(body.emailAdmin || "zalukhunopal@gmail.com").trim().toLowerCase();
+  var tab = tabAkunGs_(konteks);
+  var jml = tab.getLastRow();
+  var dihapus = 0;
+  if (jml > 1) {
+    var vals = tab.getRange(2, 1, jml - 1, KOLOM_AKUN_GS.length).getValues();
+    for (var i = vals.length - 1; i >= 0; i--) {
+      var e = String(vals[i][KA.Email] || "").trim().toLowerCase();
+      if (e && e !== emailAdminPengecualian) {
+        if (typeof tab.deleteRow === "function") tab.deleteRow(i + 2);
+        dihapus++;
+      } else if (e === emailAdminPengecualian) {
+        var adm = barisKeAkunGs_(vals[i]);
+        if (adm) {
+          adm.idSesiAktif = "";
+          adm.infoPerangkatAktif = "";
+          adm.sesiAktifSejak = "";
+          perbaruiBarisAkunGs_(tab, i + 2, adm);
+        }
+      }
+    }
+  }
+  PropertiesService.getScriptProperties().setProperty(PROP_OTP_GS, "{}");
+  return { sukses: true, protokolAkun: 1, dihapus: dihapus, pesan: "Semua akun terdaftar berhasil direset dan dihapus." };
+}
+
+function klaimSesiAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var idPerangkat = String(body.idPerangkat || "").trim();
+  if (!email || !idPerangkat) return { sukses: false, protokolAkun: 1, pesan: "Email dan ID perangkat wajib diisi." };
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  var sekarang = new Date().toISOString();
+  if (!ada.akun && body.akunFallback) {
+    var baru = body.akunFallback;
+    if (!baru.statusPersetujuan) baru.statusPersetujuan = "disetujui";
+    baru.idSesiAktif = idPerangkat;
+    baru.infoPerangkatAktif = String(body.infoPerangkat || "Perangkat");
+    baru.sesiAktifSejak = sekarang;
+    tab.appendRow(akunKeBarisGs_(baru, sekarang));
+    return { sukses: true, protokolAkun: 1, idSesiAktif: idPerangkat };
+  }
+  if (!ada.akun) return { sukses: false, protokolAkun: 1, pesan: "Akun tidak ditemukan di server." };
+  if (ada.akun.statusPersetujuan === "menunggu") {
+    return { sukses: false, protokolAkun: 1, pesan: "Akun masih menunggu persetujuan Administrator." };
+  }
+  if (ada.akun.statusPersetujuan === "ditolak") {
+    return { sukses: false, protokolAkun: 1, pesan: "Akun tidak disetujui oleh Administrator." };
+  }
+  if (ada.akun.idSesiAktif && ada.akun.idSesiAktif !== "__DILEPAS_ADMIN__" && ada.akun.idSesiAktif !== idPerangkat) {
+    return {
+      sukses: false,
+      protokolAkun: 1,
+      ditolakSesiGanda: true,
+      pesan: "Akses ditolak: akun ini sedang aktif digunakan oleh perangkat lain. Satu akun hanya dapat diakses oleh 1 orang."
+    };
+  }
+  ada.akun.idSesiAktif = idPerangkat;
+  ada.akun.infoPerangkatAktif = String(body.infoPerangkat || ada.akun.infoPerangkatAktif || "Perangkat");
+  ada.akun.sesiAktifSejak = sekarang;
+  perbaruiBarisAkunGs_(tab, ada.baris, ada.akun);
+  return { sukses: true, protokolAkun: 1, idSesiAktif: idPerangkat };
+}
+
+function lepasSesiAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var idPerangkat = String(body.idPerangkat || "").trim();
+  var paksa = Boolean(body.paksaAdmin);
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) return { sukses: true, protokolAkun: 1, dilepas: true };
+  if (!paksa && ada.akun.idSesiAktif && ada.akun.idSesiAktif !== "__DILEPAS_ADMIN__" && idPerangkat && ada.akun.idSesiAktif !== idPerangkat) {
+    return { sukses: false, protokolAkun: 1, pesan: "Tidak dapat melepas sesi milik perangkat lain." };
+  }
+  ada.akun.idSesiAktif = paksa ? "__DILEPAS_ADMIN__" : "";
+  ada.akun.infoPerangkatAktif = "";
+  ada.akun.sesiAktifSejak = "";
+  perbaruiBarisAkunGs_(tab, ada.baris, ada.akun);
+  return { sukses: true, protokolAkun: 1, dilepas: true };
+}
+
+function cekSesiAkunGs_(body, konteks) {
+  var email = String(body.email || "").trim().toLowerCase();
+  var idPerangkat = String(body.idPerangkat || "").trim();
+  var tab = tabAkunGs_(konteks);
+  var ada = cariBarisAkunGs_(tab, email);
+  if (!ada.akun) return { sukses: true, protokolAkun: 1, sah: true };
+  if (ada.akun.statusPersetujuan === "ditolak" || ada.akun.statusPersetujuan === "menunggu") {
+    return { sukses: true, protokolAkun: 1, sah: false, statusPersetujuan: ada.akun.statusPersetujuan };
+  }
+  if (ada.akun.idSesiAktif === "__DILEPAS_ADMIN__") {
+    return { sukses: true, protokolAkun: 1, sah: false, alasan: "dilepas" };
+  }
+  if (ada.akun.idSesiAktif && ada.akun.idSesiAktif !== idPerangkat) {
+    return { sukses: true, protokolAkun: 1, sah: false, alasan: "perangkat_lain" };
+  }
+  return { sukses: true, protokolAkun: 1, sah: true, statusPersetujuan: ada.akun.statusPersetujuan };
 }

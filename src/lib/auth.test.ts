@@ -11,17 +11,20 @@ import {
   autentikasiLogin,
   bukaGerbangAdminDenganKode,
   buatAdminPertama,
-  buatAkunOlehAdmin,
   buatHashSandi,
   capWilayah,
   detikTertahan,
   konfigUji,
+  lepasKunciSesiOlehAdmin,
   migrasiAkunLama,
   mulaiPendaftaranTotp,
   muatSemuaAkun,
   muatSesiPengguna,
+  resetSemuaAkunOlehAdmin,
+  resetSemuaAkunTerdaftar,
   selesaikanPendaftaranTotp,
   siapkanAkunUji,
+  simpanSesiPengguna,
   sisaMasaTotp,
   ubahKataSandi,
   ubahWilayahAkunOlehAdmin,
@@ -83,19 +86,26 @@ async function bukaGerbang(admin: { sesi: AkunSesi; rahasia: string }) {
   expect(r.sukses).toBe(true);
 }
 
-/** Admin membuat kader, kader mengganti sandi sementara dan memasang Authenticator */
-async function buatKaderLengkap(admin: AkunSesi, n = "K", sandiBaru = "KataBaruKu-2028") {
-  const r = await buatAkunOlehAdmin(admin, {
+/** Pendaftar mendaftar via OTP email, admin menyetujui, lalu kader memasang Authenticator */
+async function buatKaderLengkap(admin: AkunSesi, n = "K", sandiBaru = "KataBaruKu-2028", wilayah?: Record<string, string>) {
+  const email = `kader${n.toLowerCase()}@gmail.com`;
+  const mulai = await mulaiPendaftaranEmail({
     nama: "Kader " + n,
-    email: `kader${n.toLowerCase()}@contoh.id`,
-    desaWilayah: "Desa B",
-    noHp: "0813"
+    email,
+    desaWilayah: wilayah?.desa || "Desa B",
+    wilayah,
+    noHp: "0813",
+    kataSandi: sandiBaru
   });
-  expect(r.sukses).toBe(true);
-  const email = `kader${n.toLowerCase()}@contoh.id`;
-  expect((await ubahKataSandi(email, r.sandiSementara!, sandiBaru)).sukses).toBe(true);
+  expect(mulai.sukses).toBe(true);
+  const verif = await verifikasiKodeEmailPendaftaran(email, mulai.kodeVerifikasi!);
+  expect(verif.sukses).toBe(true);
+  majuDetik(30);
+  await bukaGerbangAdminDenganKode(admin, hitungTotp(muatSemuaAkun().find((a) => a.email === admin.email)!.totpRahasia!)!);
+  // atau langsung setujui bila gerbang sudah terbuka
+  expect(setujuiAkunOlehAdmin(admin, email).sukses).toBe(true);
   const auth = await pasangAuthenticator(email, sandiBaru);
-  return { ...auth, email, sandiBaru, sandiSementara: r.sandiSementara! };
+  return { ...auth, email, sandiBaru };
 }
 
 beforeEach(() => {
@@ -162,68 +172,65 @@ describe("tidak ada pendaftaran mandiri; admin pertama dan akun dari admin", () 
     expect((await buatAdminPertama(data("A"))).sukses).toBe(true);
   });
 
-  it("hanya admin yang dapat membuat akun: kader, sesi palsu, dan tanpa sesi ditolak", async () => {
+  it("pendaftaran mandiri via OTP email & persetujuan admin menggantikan pembuatan akun oleh admin", async () => {
     const admin = await siapkanAdmin();
-    const kader = await buatKaderLengkap(admin.sesi);
-    const sesiKader = (await masukPenuh(kader.email, kader.rahasia, kader.sandiBaru)).akun!;
-    const baru = { nama: "Lain", email: "lain@contoh.id", desaWilayah: "-", noHp: "-" };
-    expect((await buatAkunOlehAdmin(sesiKader, baru)).sukses).toBe(false);
-    expect((await buatAkunOlehAdmin({ ...sesiKader, peran: "admin" }, baru)).sukses).toBe(false);
-    expect((await buatAkunOlehAdmin(null, baru)).sukses).toBe(false);
-    expect(muatSemuaAkun().find((a) => a.email === "lain@contoh.id")).toBeUndefined();
-  });
-
-  it("admin membuat kader: sandi sementara acak tampil sekali, tersimpan sebagai hash, ID unik, wajib ganti sandi", async () => {
-    const admin = await siapkanAdmin();
-    const r = await buatAkunOlehAdmin(admin.sesi, {
+    const emailKader = "siti.kader@gmail.com";
+    const mulai = await mulaiPendaftaranEmail({
       nama: "Siti Kader",
-      email: "siti@contoh.id",
+      email: emailKader,
       desaWilayah: "Desa B",
       noHp: "0813",
-      kelompokMasyarakat: "KTH"
+      kelompokMasyarakat: "KTH",
+      kataSandi: SANDI
     });
-    expect(r.sukses).toBe(true);
-    expect(r.sandiSementara).toMatch(/^[A-Za-z2-9]{12}$/);
-    expect(r.akun).toMatchObject({ peran: "kader", nama: "Siti Kader", desaWilayah: "Desa B", kelompokMasyarakat: "KTH" });
-    const akun = muatSemuaAkun().find((a) => a.email === "siti@contoh.id")!;
+    expect(mulai.sukses).toBe(true);
+    const verif = await verifikasiKodeEmailPendaftaran(emailKader, mulai.kodeVerifikasi!);
+    expect(verif.sukses).toBe(true);
+    expect(verif.akun).toMatchObject({ peran: "kader", nama: "Siti Kader", desaWilayah: "Desa B", kelompokMasyarakat: "KTH" });
+    const akun = muatSemuaAkun().find((a) => a.email === emailKader)!;
     expect(akun.idKader).toMatch(/^KDR-[0-9a-f]{12}$/);
-    expect(akun.wajibGantiSandi).toBe(true);
-    expect(akun.totpRahasia).toBeUndefined();
-    expect(JSON.stringify(localStorage)).not.toContain(r.sandiSementara!);
-    // email ganda ditolak
-    expect((await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "SITI@contoh.id", desaWilayah: "-", noHp: "-" })).pesan).toMatch(
-      /sudah terdaftar/
-    );
-  });
+    expect(akun.statusPersetujuan).toBe("menunggu");
+    expect(JSON.stringify(localStorage)).not.toContain(SANDI);
 
-  it("admin dapat membuat admin lain; ID dan peran sesuai", async () => {
-    const admin = await siapkanAdmin();
-    const r = await buatAkunOlehAdmin(admin.sesi, {
-      nama: "Admin Dua",
-      email: "dua@contoh.id",
-      desaWilayah: "-",
+    // 1 email hanya boleh 1 akun (case-insensitive)
+    const ganda = await mulaiPendaftaranEmail({
+      nama: "Siti Ganda",
+      email: "SITI.KADER@gmail.com",
+      desaWilayah: "Desa B",
       noHp: "-",
-      peran: "admin"
+      kataSandi: SANDI
     });
-    expect(r.sukses).toBe(true);
-    expect(muatSemuaAkun().find((a) => a.email === "dua@contoh.id")).toMatchObject({ peran: "admin" });
-    expect(muatSemuaAkun().find((a) => a.email === "dua@contoh.id")!.idKader).toMatch(/^ADM-/);
+    expect(ganda.sukses).toBe(false);
+    expect(ganda.pesan).toMatch(/sudah terdaftar/);
+
+    // Kader palsu / non-admin tidak dapat menyetujui akun
+    expect(setujuiAkunOlehAdmin({ ...verif.akun!, peran: "admin" }, emailKader).sukses).toBe(false);
+    expect(setujuiAkunOlehAdmin(null, emailKader).sukses).toBe(false);
   });
 
-  it("wilayah tugas (provinsi sampai desa) tersimpan di akun, ikut di sesi, dan dicap pada data baru", async () => {
+  it("wilayah tugas (provinsi sampai desa) tersimpan saat daftar, ikut di sesi, dan dicap pada data baru", async () => {
     const admin = await siapkanAdmin();
     const wilayah = { provinsi: "Jambi", kabupaten: " Kabupaten  Merangin ", kecamatan: "Bangko", desa: "Rantau Panjang" };
-    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "Siti Kader", email: "siti@contoh.id", wilayah, noHp: "-" });
-    expect(r.sukses).toBe(true);
+    const mulai = await mulaiPendaftaranEmail({
+      nama: "Siti Kader",
+      email: "siti.wilayah@gmail.com",
+      wilayah,
+      noHp: "-",
+      kataSandi: SANDI
+    });
+    expect(mulai.sukses).toBe(true);
+    const verif = await verifikasiKodeEmailPendaftaran("siti.wilayah@gmail.com", mulai.kodeVerifikasi!);
+    expect(verif.sukses).toBe(true);
+    expect(setujuiAkunOlehAdmin(admin.sesi, "siti.wilayah@gmail.com").sukses).toBe(true);
     const rapi = { ...wilayah, kabupaten: "Kabupaten Merangin" };
-    expect(r.akun).toMatchObject({ desaWilayah: "Rantau Panjang", wilayah: rapi });
-    expect(wilayahAkun(r.akun!.idKader)).toEqual(rapi);
-    expect(capWilayah(r.akun!.idKader)).toEqual({ wilayah: rapi });
-    // akun tanpa wilayah lengkap (mis. akun lama): data baru tidak dicap, tujuan ditentukan saat unggah
+    expect(verif.akun).toMatchObject({ desaWilayah: "Rantau Panjang", wilayah: rapi });
+    expect(wilayahAkun(verif.akun!.idKader)).toEqual(rapi);
+    expect(capWilayah(verif.akun!.idKader)).toEqual({ wilayah: rapi });
+    // akun tanpa wilayah lengkap: data baru tidak dicap, tujuan ditentukan saat unggah
     expect(capWilayah(admin.sesi.idKader)).toEqual({});
   });
 
-  it("admin mengubah wilayah akun lama; isian harus lengkap dan hanya admin yang boleh", async () => {
+  it("admin mengubah wilayah akun; isian harus lengkap dan hanya admin yang boleh", async () => {
     const admin = await siapkanAdmin();
     const kader = await buatKaderLengkap(admin.sesi);
     const wilayah = { provinsi: "Jambi", kabupaten: "Kabupaten Merangin", kecamatan: "Bangko", desa: "Pulau Rengas" };
@@ -239,21 +246,25 @@ describe("tidak ada pendaftaran mandiri; admin pertama dan akun dari admin", () 
     expect(muatSemuaAkun().find((a) => a.email === kader.email)).toMatchObject({ wilayah, desaWilayah: "Pulau Rengas" });
   });
 
-  it("alur lengkap akun baru: sandi sementara, ganti sandi, pasang Authenticator, lalu masuk", async () => {
+  it("alur lengkap akun baru: daftar OTP email, persetujuan admin, pasang Authenticator, lalu masuk", async () => {
     const admin = await siapkanAdmin();
-    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "Siti Kader", email: "siti@contoh.id", desaWilayah: "-", noHp: "-" });
-    // 1. sandi sementara: harus diganti dulu, belum ada sesi
-    const sementara = await autentikasiLogin("siti@contoh.id", r.sandiSementara!);
-    expect(sementara).toMatchObject({ sukses: false, wajibGantiSandi: true });
-    expect((await mulaiPendaftaranTotp("siti@contoh.id", r.sandiSementara!)).sukses).toBe(false); // belum boleh sebelum ganti sandi
-    expect((await ubahKataSandi("siti@contoh.id", r.sandiSementara!, "KataBaruKu-2028")).sukses).toBe(true);
-    // 2. sandi benar tetapi Authenticator belum ada
-    const belum = await autentikasiLogin("siti@contoh.id", "KataBaruKu-2028");
+    const mulai = await mulaiPendaftaranEmail({
+      nama: "Siti Kader",
+      email: "siti.baru@gmail.com",
+      desaWilayah: "-",
+      noHp: "-",
+      kataSandi: "KataBaruKu-2028"
+    });
+    expect(mulai.sukses).toBe(true);
+    await verifikasiKodeEmailPendaftaran("siti.baru@gmail.com", mulai.kodeVerifikasi!);
+    expect(setujuiAkunOlehAdmin(admin.sesi, "siti.baru@gmail.com").sukses).toBe(true);
+    // sandi benar tetapi Authenticator belum ada
+    const belum = await autentikasiLogin("siti.baru@gmail.com", "KataBaruKu-2028");
     expect(belum).toMatchObject({ sukses: false, perluDaftarTotp: true });
     expect(muatSesiPengguna()?.email).toBe(admin.email); // sesi admin lama tidak tertimpa
-    // 3. pasang, lalu masuk
-    const auth = await pasangAuthenticator("siti@contoh.id", "KataBaruKu-2028");
-    const masuk = await masukPenuh("siti@contoh.id", auth.rahasia, "KataBaruKu-2028");
+    // pasang, lalu masuk
+    const auth = await pasangAuthenticator("siti.baru@gmail.com", "KataBaruKu-2028");
+    const masuk = await masukPenuh("siti.baru@gmail.com", auth.rahasia, "KataBaruKu-2028");
     expect(masuk.sukses).toBe(true);
     expect(masuk.akun?.nama).toBe("Siti Kader");
   });
@@ -435,10 +446,26 @@ describe("Google Authenticator (TOTP)", () => {
     expect(muatSemuaAkun().find((a) => a.email === admin.email)!.totpRahasia).toBeDefined();
   });
 
-  it("admin kedua dapat mengatur ulang Authenticator admin pertama", async () => {
+  it("admin kedua yang sah dapat mengatur ulang Authenticator admin pertama", async () => {
     const a1 = await siapkanAdmin("A");
-    const r = await buatAkunOlehAdmin(a1.sesi, { nama: "Admin Dua", email: "dua@contoh.id", desaWilayah: "-", noHp: "-", peran: "admin" });
-    await ubahKataSandi("dua@contoh.id", r.sandiSementara!, "KataBaruKu-2028");
+    // Simulasikan admin kedua yang sah di penyimpanan
+    const accounts = muatSemuaAkun();
+    const hash = await buatHashSandi("KataBaruKu-2028", 1000);
+    const adm2: AkunPengguna = {
+      idKader: "ADM-DUA",
+      nama: "Admin Dua",
+      email: "dua@contoh.id",
+      peran: "admin",
+      desaWilayah: "-",
+      noHp: "-",
+      kelompokMasyarakat: "-",
+      namaOrganisasi: "Sertifikat Kader Pemetaan Partisipatif",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      ...hash,
+      statusPersetujuan: "disetujui"
+    };
+    accounts.push(adm2);
+    localStorage.setItem("geokader_accounts_v5", JSON.stringify(accounts));
     const a2 = await pasangAuthenticator("dua@contoh.id", "KataBaruKu-2028");
     const sesiDua = (await masukPenuh("dua@contoh.id", a2.rahasia, "KataBaruKu-2028")).akun!;
     expect(aturUlangAuthenticatorOlehAdmin(sesiDua, a1.email).sukses).toBe(true);
@@ -463,13 +490,12 @@ describe("gerbang admin: lapis pengaman kedua", () => {
     const admin = await siapkanAdmin();
     kunciGerbangAdmin();
     expect(muatSesiPengguna()?.peran).toBe("admin"); // sesi tetap ada
-    const r = await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "x@contoh.id", desaWilayah: "-", noHp: "-" });
-    expect(r.sukses).toBe(false);
-    expect(r.pesan).toMatch(/mode admin terbuka/);
+    expect(setujuiAkunOlehAdmin(admin.sesi, "x@contoh.id").sukses).toBe(false);
+    expect(tolakAkunOlehAdmin(admin.sesi, "x@contoh.id").sukses).toBe(false);
     expect((await aturUlangSandiOlehAdmin(admin.sesi, "x@contoh.id")).sukses).toBe(false);
     expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, "x@contoh.id").sukses).toBe(false);
     await bukaGerbang(admin);
-    expect((await buatAkunOlehAdmin(admin.sesi, { nama: "X", email: "x@contoh.id", desaWilayah: "-", noHp: "-" })).sukses).toBe(true);
+    expect(aturUlangAuthenticatorOlehAdmin(admin.sesi, "tidak@ada.id").pesan).toMatch(/tidak ditemukan/);
   });
 
   it(`terkunci sendiri setelah ${BATAS_DIAM_MS / 60000} menit tanpa aktivitas; aktivitas memperpanjangnya`, async () => {
@@ -837,5 +863,58 @@ describe("pendaftaran email & persetujuan admin", () => {
     const setelahDitolak = await autentikasiLogin("rina.lestari@gmail.com", SANDI, hitungTotp(totpRina.rahasia)!);
     expect(setelahDitolak.sukses).toBe(false);
     expect(setelahDitolak.pesan).toMatch(/tidak disetujui/i);
+  });
+
+  it("satu akun hanya bisa diakses 1 orang: perangkat kedua ditolak selama sesi aktif, lalu diizinkan setelah logout atau dilepas admin", async () => {
+    const admin = await siapkanAdmin();
+    const kader = await buatKaderLengkap(admin.sesi, "S1", SANDI);
+
+    // Orang pertama masuk dari Perangkat-1
+    majuDetik(30);
+    const orang1 = await autentikasiLogin(kader.email, SANDI, hitungTotp(kader.rahasia)!, { perangkatId: "DEV-SATU" });
+    expect(orang1.sukses).toBe(true);
+
+    // Orang kedua mencoba mengakses akun yang sama dari Perangkat-2 -> ditolak!
+    majuDetik(30);
+    const orang2Ditolak = await autentikasiLogin(kader.email, SANDI, hitungTotp(kader.rahasia)!, { perangkatId: "DEV-DUA" });
+    expect(orang2Ditolak.sukses).toBe(false);
+    expect(orang2Ditolak.ditolakSesiGanda).toBe(true);
+    expect(orang2Ditolak.pesan).toMatch(/1 orang|perangkat atau sesi lain/i);
+
+    // Setelah logout, Perangkat-2 diizinkan masuk
+    simpanSesiPengguna(null);
+    majuDetik(30);
+    const orang2SetelahLogout = await autentikasiLogin(kader.email, SANDI, hitungTotp(kader.rahasia)!, { perangkatId: "DEV-DUA" });
+    expect(orang2SetelahLogout.sukses).toBe(true);
+
+    // Perangkat-1 mencoba masuk lagi saat Perangkat-2 masih aktif -> ditolak sampai admin melepas kunci sesi
+    majuDetik(30);
+    const orang1Ditolak = await autentikasiLogin(kader.email, SANDI, hitungTotp(kader.rahasia)!, { perangkatId: "DEV-SATU" });
+    expect(orang1Ditolak.sukses).toBe(false);
+    expect(orang1Ditolak.ditolakSesiGanda).toBe(true);
+
+    await bukaGerbang(admin);
+    expect(lepasKunciSesiOlehAdmin(admin.sesi, kader.email).sukses).toBe(true);
+    majuDetik(30);
+    const orang1SetelahLepas = await autentikasiLogin(kader.email, SANDI, hitungTotp(kader.rahasia)!, { perangkatId: "DEV-SATU" });
+    expect(orang1SetelahLepas.sukses).toBe(true);
+  });
+
+  it("resetSemuaAkunTerdaftar & resetSemuaAkunOlehAdmin menghapus semua akun kader terdaftar", async () => {
+    const admin = await siapkanAdmin();
+    await buatKaderLengkap(admin.sesi, "R1", SANDI);
+    await buatKaderLengkap(admin.sesi, "R2", SANDI);
+    expect(muatSemuaAkun().filter((a) => a.peran === "kader")).toHaveLength(2);
+
+    await bukaGerbang(admin);
+    const rAdmin = await resetSemuaAkunOlehAdmin(admin.sesi);
+    expect(rAdmin.sukses).toBe(true);
+    expect(rAdmin.dihapus).toBe(2);
+    expect(muatSemuaAkun().filter((a) => a.peran === "kader")).toHaveLength(0);
+    expect(muatSemuaAkun().some((a) => a.email === admin.email)).toBe(true);
+
+    const rAll = await resetSemuaAkunTerdaftar({ pertahankanMasterAdmin: false, sinkronCloud: false });
+    expect(rAll.sukses).toBe(true);
+    expect(muatSemuaAkun()).toHaveLength(0);
   });
 });

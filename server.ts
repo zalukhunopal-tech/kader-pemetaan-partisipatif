@@ -343,6 +343,8 @@ app.post("/api/auth/kirim-otp-email", async (req: Request, res: Response) => {
 
     // Kirim email OTP melalui Google Apps Script Web App atau layanan email jika tersedia
     let terkirimServer = false;
+    let duplikat = false;
+    let pesanServer = "";
     const gdriveUrl = sanitizeInput(req.body?.gdriveUrl || process.env.VITE_GDRIVE_URL, 500);
     const gdriveToken = sanitizeInput(req.body?.gdriveToken || process.env.VITE_GDRIVE_TOKEN, 200);
 
@@ -360,12 +362,34 @@ app.post("/api/auth/kirim-otp-email", async (req: Request, res: Response) => {
           })
         });
         if (resp.ok) {
-          const data = (await resp.json().catch(() => null)) as { sukses?: boolean } | null;
-          if (data?.sukses) terkirimServer = true;
+          const data = (await resp.json().catch(() => null)) as {
+            sukses?: boolean;
+            protokolAkun?: number;
+            terkirimEmail?: boolean;
+            duplikat?: boolean;
+            pesan?: string;
+          } | null;
+          if (data?.duplikat) {
+            duplikat = true;
+            pesanServer = data.pesan || "Email sudah terdaftar.";
+          } else if (data?.sukses && Number(data.protokolAkun || 0) >= 1 && data.terkirimEmail === true) {
+            terkirimServer = true;
+          } else if (data?.pesan) {
+            pesanServer = data.pesan;
+          }
         }
       } catch {
         // Fallback ke verifikasi terautentikasi
       }
+    }
+
+    if (duplikat) {
+      res.status(409).json({
+        sukses: false,
+        duplikat: true,
+        error: pesanServer || "Email ini sudah terdaftar. Satu email hanya dapat digunakan untuk satu akun."
+      });
+      return;
     }
 
     res.json({
@@ -373,9 +397,11 @@ app.post("/api/auth/kirim-otp-email", async (req: Request, res: Response) => {
       mxValid: true,
       mxHost,
       terkirimServer,
+      terkirimEmail: terkirimServer,
       pesan: terkirimServer
         ? `Kode verifikasi 6 digit telah dikirim ke kotak masuk ${email}.`
-        : `Domain email @${domain} terautentikasi aktif (${mxHost}). Masukkan kode verifikasi untuk menyelesaikan pendaftaran.`
+        : pesanServer ||
+          `Domain email @${domain} terautentikasi aktif (${mxHost}). Masukkan kode verifikasi untuk menyelesaikan pendaftaran.`
     });
   } catch {
     res.status(500).json({

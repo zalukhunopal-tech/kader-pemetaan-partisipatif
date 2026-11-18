@@ -6,6 +6,22 @@ import { buatKodePemulihan, buatRahasiaTotp, hashKodePemulihan, miripKodePemulih
 import { bukaGerbangAdmin, gerbangAdminTerbuka, kunciGerbangAdmin } from "./gerbangAdmin";
 import { aplikasiTerbuka, bukaAplikasi, kunciAplikasi } from "./kunciAplikasi";
 import { rapikanWilayah, wilayahKosong, wilayahLengkap } from "./wilayah";
+import {
+  AkunCloudRecord,
+  ambilDaftarAkunGDrive,
+  cekSesiAkunGDrive,
+  daftarAkunBaruGDrive,
+  hapusAkunGDrive,
+  kirimOtpEmailGDrive,
+  klaimSesiAkunGDrive,
+  lepasSesiAkunGDrive,
+  resetSemuaAkunGDrive,
+  setujuiAkunGDrive,
+  simpanKredensialAkunGDrive,
+  tolakAkunGDrive,
+  ubahWilayahAkunGDrive
+} from "./gdriveAkun";
+import { KONEKSI_GDRIVE, gdriveTerpasang } from "./koneksiDrive";
 
 /**
  * AUTENTIKASI SISI KLIEN (HARDENED)
@@ -77,6 +93,8 @@ export interface AkunPengguna {
   /** PIN salah berturut-turut; PIN dinonaktifkan setelah batasnya */
   pinGagal?: number;
   biometrik?: DataBiometrik;
+  /** Penanda versi skema akun (versi 2 = akun pasca-reset & verifikasi OTP) */
+  versiAkun?: number;
   /** Sisa format lama (teks polos); dihapus oleh migrasiAkunLama */
   password?: string;
 }
@@ -115,6 +133,10 @@ const KEY_SESSION = "geokader_current_session_v5";
 const KEY_GAGAL = "geokader_login_gagal_v5";
 const KEY_VERIFIKASI_TOTP = "geokader_verifikasi_totp_v1";
 const KEY_PENDAFTARAN_EMAIL = "geokader_pendaftaran_email_v1";
+const KEY_DEVICE_ID = "geokader_device_id_v1";
+const KEY_SESI_AKTIF_MAP = "geokader_sesi_aktif_map_v1";
+const KEY_MIGRASI_RESET_AKUN = "titik_tapak_reset_akun_20261118_v1";
+const CHANNEL_SESI_NAMA = "titik_tapak_sesi_aktif_v1";
 
 /** Lama kode Google Authenticator berlaku setelah diverifikasi di perangkat ini */
 export const MASA_BERLAKU_TOTP_MS = 8 * 60 * 60 * 1000;
@@ -216,6 +238,7 @@ export function muatSemuaAkun(): AkunPengguna[] {
     if (!raw) {
       peranMemori.clear();
       statusMemori.clear();
+      kunciSesiMemori.clear();
       memoriGagal = {};
       if (import.meta.env.MODE !== "test") {
         const master = { ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) };
@@ -331,17 +354,304 @@ export function muatSesiPengguna(): AkunSesi | null {
   }
 }
 
-export function simpanSesiPengguna(akun: AkunSesi | null): void {
+export interface KunciSesiPerangkat {
+  idPerangkat: string;
+  mulaiPada: string;
+  infoPerangkat?: string;
+}
+
+const kunciSesiMemori = new Map<string, KunciSesiPerangkat>();
+let idTabSesiMemori = "";
+let saluranSesiAktif: BroadcastChannel | null = null;
+
+function idTabSekarang(): string {
+  if (!idTabSesiMemori) {
+    idTabSesiMemori = `TAB-${hex(acak(6))}`;
+  }
+  return idTabSesiMemori;
+}
+
+/** Mengidentifikasi perangkat/browser saat ini secara persisten */
+export function dapatkanIdPerangkat(): string {
   try {
-    if (!akun) {
-      // Keluar mengakhiri masa berlaku kode Authenticator: masuk berikutnya meminta kode lagi
-      localStorage.removeItem(KEY_SESSION);
-      localStorage.removeItem(KEY_VERIFIKASI_TOTP);
-      kunciAplikasi();
-    } else localStorage.setItem(KEY_SESSION, JSON.stringify(keSesi(akun)));
+    const ada = localStorage.getItem(KEY_DEVICE_ID);
+    if (ada) return ada;
+    const baru = `DEV-${hex(acak(8))}`;
+    localStorage.setItem(KEY_DEVICE_ID, baru);
+    return baru;
+  } catch {
+    return idTabSekarang();
+  }
+}
+
+function ringkasInfoPerangkat(): string {
+  if (typeof navigator === "undefined") return "Perangkat";
+  const ua = navigator.userAgent || "";
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Windows/i.test(ua)) return "Windows Desktop";
+  if (/Mac/i.test(ua)) return "Mac Desktop";
+  if (/Linux/i.test(ua)) return "Linux Desktop";
+  return "Browser Web";
+}
+
+function bacaPetaKunciSesi(): Record<string, KunciSesiPerangkat> {
+  let dariDisk: Record<string, KunciSesiPerangkat> = {};
+  try {
+    const raw = localStorage.getItem(KEY_SESI_AKTIF_MAP);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, KunciSesiPerangkat>;
+      if (parsed && typeof parsed === "object") dariDisk = parsed;
+    }
   } catch {
     // abaikan
   }
+  const gabungan: Record<string, KunciSesiPerangkat> = { ...dariDisk };
+  for (const [k, v] of kunciSesiMemori.entries()) {
+    if (!gabungan[k]) gabungan[k] = v;
+  }
+  return gabungan;
+}
+
+function tulisPetaKunciSesi(peta: Record<string, KunciSesiPerangkat>): void {
+  kunciSesiMemori.clear();
+  for (const [k, v] of Object.entries(peta)) {
+    kunciSesiMemori.set(k, v);
+  }
+  try {
+    localStorage.setItem(KEY_SESI_AKTIF_MAP, JSON.stringify(peta));
+  } catch {
+    // abaikan
+  }
+}
+
+/** Daftar status kunci sesi aktif per email untuk tampilan Admin */
+export function daftarKunciSesiAktif(): Record<string, KunciSesiPerangkat> {
+  return bacaPetaKunciSesi();
+}
+
+function pasangPendengarTabSesi(emailBersih: string): void {
+  if (typeof BroadcastChannel === "undefined" || import.meta.env.MODE === "test") return;
+  try {
+    if (saluranSesiAktif) {
+      saluranSesiAktif.close();
+      saluranSesiAktif = null;
+    }
+    const ch = new BroadcastChannel(CHANNEL_SESI_NAMA);
+    const tabIni = idTabSekarang();
+    ch.onmessage = (ev: MessageEvent) => {
+      const d = ev.data as { tipe?: string; email?: string; tabId?: string } | null;
+      if (d?.tipe === "CEK_AKTIF" && d.email === emailBersih && d.tabId && d.tabId !== tabIni) {
+        ch.postMessage({ tipe: "SUDAH_AKTIF", email: emailBersih, tabId: tabIni });
+      }
+    };
+    saluranSesiAktif = ch;
+  } catch {
+    // abaikan bila BroadcastChannel tidak didukung
+  }
+}
+
+function tutupPendengarTabSesi(): void {
+  if (saluranSesiAktif) {
+    try {
+      saluranSesiAktif.close();
+    } catch {
+      // abaikan
+    }
+    saluranSesiAktif = null;
+  }
+}
+
+async function adaTabLainAktifDiBrowser(emailBersih: string): Promise<boolean> {
+  if (typeof BroadcastChannel === "undefined" || import.meta.env.MODE === "test") return false;
+  return new Promise((resolve) => {
+    let ch: BroadcastChannel | null = null;
+    try {
+      ch = new BroadcastChannel(CHANNEL_SESI_NAMA);
+      const tabIni = idTabSekarang();
+      let selesai = false;
+      const timer = setTimeout(() => {
+        if (!selesai) {
+          selesai = true;
+          try {
+            ch?.close();
+          } catch {
+            // abaikan
+          }
+          resolve(false);
+        }
+      }, 120);
+      ch.onmessage = (ev: MessageEvent) => {
+        const d = ev.data as { tipe?: string; email?: string; tabId?: string } | null;
+        if (d?.tipe === "SUDAH_AKTIF" && d.email === emailBersih && d.tabId !== tabIni && !selesai) {
+          selesai = true;
+          clearTimeout(timer);
+          try {
+            ch?.close();
+          } catch {
+            // abaikan
+          }
+          resolve(true);
+        }
+      };
+      ch.postMessage({ tipe: "CEK_AKTIF", email: emailBersih, tabId: tabIni });
+    } catch {
+      try {
+        ch?.close();
+      } catch {
+        // abaikan
+      }
+      resolve(false);
+    }
+  });
+}
+
+function keAkunCloud(a: AkunPengguna): AkunCloudRecord {
+  return {
+    idKader: a.idKader,
+    nama: a.nama,
+    email: a.email.trim().toLowerCase(),
+    peran: a.peran,
+    desaWilayah: a.desaWilayah,
+    ...(a.wilayah ? { wilayah: a.wilayah } : {}),
+    noHp: a.noHp,
+    kelompokMasyarakat: a.kelompokMasyarakat,
+    namaOrganisasi: a.namaOrganisasi,
+    kataSandiHash: a.kataSandiHash,
+    garam: a.garam,
+    iterasi: a.iterasi,
+    sigPeran: a.sigPeran,
+    emailTerverifikasi: a.emailTerverifikasi,
+    statusPersetujuan: a.statusPersetujuan,
+    emailDiverifikasiPada: a.emailDiverifikasiPada,
+    disetujuiPada: a.disetujuiPada,
+    totpRahasia: a.totpRahasia,
+    totpLangkahTerakhir: a.totpLangkahTerakhir,
+    kodePemulihanHash: a.kodePemulihanHash,
+    wajibGantiSandi: a.wajibGantiSandi,
+    createdAt: a.createdAt,
+    versiAkun: a.versiAkun ?? 2
+  };
+}
+
+export async function klaimKunciSesiAkun(
+  akun: AkunPengguna,
+  perangkatIdOverride?: string
+): Promise<{ ok: boolean; ditolakSesiGanda?: boolean; pesan?: string }> {
+  const emailBersih = akun.email.trim().toLowerCase();
+  const idPerangkat = perangkatIdOverride || dapatkanIdPerangkat();
+  const peta = bacaPetaKunciSesi();
+  const kunciLokal = peta[emailBersih];
+  if (kunciLokal && kunciLokal.idPerangkat && kunciLokal.idPerangkat !== idPerangkat) {
+    return {
+      ok: false,
+      ditolakSesiGanda: true,
+      pesan: "Akses ditolak: akun ini sedang digunakan di perangkat atau sesi lain. Satu akun hanya dapat diakses oleh 1 orang."
+    };
+  }
+  if (!perangkatIdOverride && (await adaTabLainAktifDiBrowser(emailBersih))) {
+    return {
+      ok: false,
+      ditolakSesiGanda: true,
+      pesan: "Akses ditolak: akun ini sudah aktif di jendela atau tab lain. Satu akun hanya dapat diakses oleh 1 orang."
+    };
+  }
+
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    const resCloud = await klaimSesiAkunGDrive(
+      emailBersih,
+      idPerangkat,
+      ringkasInfoPerangkat(),
+      keAkunCloud(akun)
+    );
+    if (resCloud.ditolakSesiGanda || (Number(resCloud.protokolAkun || 0) >= 1 && !resCloud.sukses && !resCloud.offline)) {
+      return {
+        ok: false,
+        ditolakSesiGanda: Boolean(resCloud.ditolakSesiGanda),
+        pesan:
+          resCloud.pesan ||
+          "Akses ditolak: akun ini sedang aktif digunakan di perangkat lain. Satu akun hanya dapat diakses oleh 1 orang."
+      };
+    }
+  }
+
+  peta[emailBersih] = {
+    idPerangkat,
+    mulaiPada: new Date().toISOString(),
+    infoPerangkat: ringkasInfoPerangkat()
+  };
+  tulisPetaKunciSesi(peta);
+  pasangPendengarTabSesi(emailBersih);
+  return { ok: true };
+}
+
+export function lepasKunciSesiLokal(email?: string | null): void {
+  tutupPendengarTabSesi();
+  if (!email) {
+    tulisPetaKunciSesi({});
+    return;
+  }
+  const emailBersih = email.trim().toLowerCase();
+  const peta = bacaPetaKunciSesi();
+  if (peta[emailBersih]) {
+    delete peta[emailBersih];
+    tulisPetaKunciSesi(peta);
+  }
+}
+
+export function simpanSesiPengguna(akun: AkunSesi | null): void {
+  try {
+    if (!akun) {
+      let emailKeluar: string | undefined;
+      try {
+        const raw = localStorage.getItem(KEY_SESSION);
+        if (raw) emailKeluar = (JSON.parse(raw) as Partial<AkunSesi>).email;
+      } catch {
+        // abaikan
+      }
+      // Keluar mengakhiri masa berlaku kode Authenticator dan melepas kunci sesi perangkat
+      localStorage.removeItem(KEY_SESSION);
+      localStorage.removeItem(KEY_VERIFIKASI_TOTP);
+      kunciAplikasi();
+      lepasKunciSesiLokal(emailKeluar);
+      if (emailKeluar && import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+        void lepasSesiAkunGDrive(emailKeluar.trim().toLowerCase(), dapatkanIdPerangkat(), { keepalive: true });
+      }
+    } else {
+      localStorage.setItem(KEY_SESSION, JSON.stringify(keSesi(akun)));
+      const emailBersih = akun.email.trim().toLowerCase();
+      const peta = bacaPetaKunciSesi();
+      if (!peta[emailBersih]) {
+        peta[emailBersih] = {
+          idPerangkat: dapatkanIdPerangkat(),
+          mulaiPada: new Date().toISOString(),
+          infoPerangkat: ringkasInfoPerangkat()
+        };
+        tulisPetaKunciSesi(peta);
+      }
+      pasangPendengarTabSesi(emailBersih);
+    }
+  } catch {
+    // abaikan
+  }
+}
+
+/** Verifikasi periodik apakah sesi tunggal pada perangkat ini masih sah di cloud/lokal */
+export async function verifikasiKunciSesiAktif(sesi: AkunSesi | null): Promise<{ sah: boolean; alasan?: string }> {
+  if (!sesi) return { sah: false };
+  const emailBersih = sesi.email.trim().toLowerCase();
+  const idPerangkat = dapatkanIdPerangkat();
+  const kunciLokal = bacaPetaKunciSesi()[emailBersih];
+  if (kunciLokal && kunciLokal.idPerangkat !== idPerangkat) {
+    return { sah: false, alasan: "perangkat_lain" };
+  }
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    const res = await cekSesiAkunGDrive(emailBersih, idPerangkat);
+    if (Number(res.protokolAkun || 0) >= 1 && res.sukses && res.sah === false) {
+      return { sah: false, alasan: res.alasan || res.statusPersetujuan || "dilepas" };
+    }
+  }
+  return { sah: true };
 }
 
 /* ---------- Masa berlaku kode Authenticator (8 jam) ---------- */
@@ -561,11 +871,88 @@ export interface HasilAuth {
   perluDaftarTotp?: boolean;
   /** true bila email akun sudah terverifikasi tetapi masih menunggu persetujuan Administrator untuk aktif */
   menungguPersetujuan?: boolean;
+  /** true bila akun ditolak masuk karena sedang dipakai pengguna/perangkat lain */
+  ditolakSesiGanda?: boolean;
   /** Sisa kode pemulihan setelah satu kode dipakai untuk masuk */
   sisaKodePemulihan?: number;
 }
 
 const PESAN_KODE_SALAH = "Kode salah atau sudah kedaluwarsa. Periksa jam HP Anda lalu coba kode terbaru.";
+
+function gabungkanSatuAkunCloud(cloud: AkunCloudRecord, accounts: AkunPengguna[]): AkunPengguna[] {
+  const emailBersih = (cloud.email ?? "").trim().toLowerCase();
+  if (!emailBersih) return accounts;
+  if (emailBersih === MASTER_ADMIN.email.toLowerCase()) return accounts;
+
+  const peranAman: PeranPengguna = cloud.peran === "admin" ? "admin" : "kader";
+  const idx = accounts.findIndex((a) => a.email.toLowerCase() === emailBersih);
+  const statusAman: StatusPersetujuanAkun =
+    cloud.statusPersetujuan === "menunggu" || cloud.statusPersetujuan === "ditolak" || cloud.statusPersetujuan === "disetujui"
+      ? cloud.statusPersetujuan
+      : idx !== -1 && (!accounts[idx].statusPersetujuan || accounts[idx].statusPersetujuan === "disetujui")
+        ? "disetujui"
+        : peranAman === "admin"
+          ? "disetujui"
+          : "menunggu";
+  const kandidat: AkunPengguna = {
+    ...(idx !== -1 ? accounts[idx] : {}),
+    idKader: cloud.idKader || accounts[idx]?.idKader || `KDR-${hex(acak(6))}`,
+    nama: cloud.nama || accounts[idx]?.nama || "Kader",
+    email: emailBersih,
+    peran: peranAman,
+    desaWilayah: cloud.desaWilayah || accounts[idx]?.desaWilayah || "-",
+    ...(cloud.wilayah ? { wilayah: rapikanWilayah(cloud.wilayah) } : {}),
+    noHp: cloud.noHp || accounts[idx]?.noHp || "-",
+    kelompokMasyarakat: cloud.kelompokMasyarakat || accounts[idx]?.kelompokMasyarakat || "-",
+    namaOrganisasi: cloud.namaOrganisasi || NAMA_ORGANISASI_BAWAAN,
+    createdAt: cloud.createdAt || accounts[idx]?.createdAt || new Date().toISOString(),
+    kataSandiHash: cloud.kataSandiHash || accounts[idx]?.kataSandiHash || "",
+    garam: cloud.garam || accounts[idx]?.garam || "",
+    iterasi: Number(cloud.iterasi || accounts[idx]?.iterasi || ITERASI_PBKDF2),
+    emailTerverifikasi: cloud.emailTerverifikasi ?? accounts[idx]?.emailTerverifikasi ?? true,
+    statusPersetujuan: statusAman,
+    emailDiverifikasiPada: cloud.emailDiverifikasiPada ?? accounts[idx]?.emailDiverifikasiPada,
+    disetujuiPada: cloud.disetujuiPada ?? accounts[idx]?.disetujuiPada,
+    totpRahasia: cloud.totpRahasia ?? accounts[idx]?.totpRahasia,
+    totpLangkahTerakhir: cloud.totpLangkahTerakhir ?? accounts[idx]?.totpLangkahTerakhir,
+    kodePemulihanHash: cloud.kodePemulihanHash ?? accounts[idx]?.kodePemulihanHash,
+    wajibGantiSandi: cloud.wajibGantiSandi ?? accounts[idx]?.wajibGantiSandi,
+    versiAkun: 2
+  };
+  kandidat.sigPeran = hitungSigPeran(kandidat);
+
+  const salinan = [...accounts];
+  if (idx !== -1) salinan[idx] = kandidat;
+  else salinan.push(kandidat);
+
+  if (cloud.idSesiAktif) {
+    const peta = bacaPetaKunciSesi();
+    peta[emailBersih] = {
+      idPerangkat: cloud.idSesiAktif,
+      mulaiPada: cloud.sesiAktifSejak || new Date().toISOString(),
+      infoPerangkat: cloud.infoPerangkatAktif
+    };
+    tulisPetaKunciSesi(peta);
+  }
+  return salinan;
+}
+
+/** Mengambil seluruh akun terdaftar & menunggu persetujuan dari Google Drive ke perangkat Admin */
+export async function sinkronkanDaftarAkunGDrive(): Promise<{ sukses: boolean; jumlah: number; pesan?: string }> {
+  if (import.meta.env.MODE === "test" || !gdriveTerpasang()) {
+    return { sukses: false, jumlah: 0, pesan: "Sinkronisasi cloud tidak tersedia." };
+  }
+  const res = await ambilDaftarAkunGDrive();
+  if (!res.sukses || Number(res.protokolAkun || 0) < 1 || !Array.isArray(res.akunList)) {
+    return { sukses: false, jumlah: 0, pesan: res.pesan || "Server Apps Script belum diperbarui." };
+  }
+  let accounts = muatSemuaAkun();
+  for (const c of res.akunList) {
+    accounts = gabungkanSatuAkunCloud(c, accounts);
+  }
+  simpanSemuaAkun(accounts);
+  return { sukses: true, jumlah: res.akunList.length };
+}
 
 function simpanPerubahanAkun(email: string, perubahan: Partial<AkunPengguna>): void {
   const accounts = muatSemuaAkun();
@@ -595,15 +982,38 @@ function periksaKodeMasuk(
  * Masuk dalam dua langkah, dipanggil dua kali dengan sandi yang sama:
  * 1. tanpa `kode`: sandi diperiksa, lalu hasilnya meminta kode (perluKodeTotp) atau pendaftaran
  *    Authenticator (perluDaftarTotp). Belum ada sesi yang dibuat.
- * 2. dengan `kode`: sandi dan kode diperiksa, baru sesi dibuat.
+ * 2. dengan `kode`: sandi dan kode diperiksa, baru kunci sesi tunggal diklaim & sesi dibuat.
  */
-export async function autentikasiLogin(email: string, kataSandi: string, kode = ""): Promise<HasilAuth> {
+export async function autentikasiLogin(
+  email: string,
+  kataSandi: string,
+  kode = "",
+  opsi: { perangkatId?: string } = {}
+): Promise<HasilAuth> {
   const emailBersih = email.trim().toLowerCase();
   const tunggu = detikTertahan(emailBersih);
   if (tunggu > 0) {
     return { sukses: false, pesan: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
   }
-  const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
+
+  let accounts = muatSemuaAkun();
+  let akun = accounts.find((a) => a.email.toLowerCase() === emailBersih);
+
+  // Sinkronkan status terbaru akun dari cloud bila belum ada di perangkat atau masih menunggu persetujuan
+  if (
+    import.meta.env.MODE !== "test" &&
+    gdriveTerpasang() &&
+    emailBersih !== MASTER_ADMIN.email.toLowerCase() &&
+    (!akun || akun.statusPersetujuan === "menunggu" || akun.statusPersetujuan === "ditolak")
+  ) {
+    const resCloud = await ambilDaftarAkunGDrive(emailBersih);
+    if (resCloud.sukses && Number(resCloud.protokolAkun || 0) >= 1 && resCloud.akun) {
+      accounts = gabungkanSatuAkunCloud(resCloud.akun, accounts);
+      simpanSemuaAkun(accounts);
+      akun = accounts.find((a) => a.email.toLowerCase() === emailBersih);
+    }
+  }
+
   // Selalu lakukan hashing agar waktu respons tidak membedakan email yang ada dan tidak ada
   const cocok = akun ? await cocokSandi(akun, kataSandi) : (await turunkanKunci(kataSandi, acak(16), konfigUji.iterasi), false);
   if (!akun || !cocok) {
@@ -628,6 +1038,14 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
   }
   // Master Admin dapat langsung masuk dengan verifikasi kata sandi
   if (emailBersih === MASTER_ADMIN.email.toLowerCase() && !kode.trim()) {
+    const klaim = await klaimKunciSesiAkun(akun, opsi.perangkatId);
+    if (!klaim.ok) {
+      return {
+        sukses: false,
+        ditolakSesiGanda: klaim.ditolakSesiGanda,
+        pesan: klaim.pesan || "Akun sedang digunakan oleh perangkat lain."
+      };
+    }
     hapusGagal(emailBersih);
     const sesi = keSesi(akun);
     simpanSesiPengguna(sesi);
@@ -654,8 +1072,23 @@ export async function autentikasiLogin(email: string, kataSandi: string, kode = 
     catatGagal(emailBersih);
     return { sukses: false, perluKodeTotp: true, pesan: PESAN_KODE_SALAH };
   }
+
+  const klaim = await klaimKunciSesiAkun(akun, opsi.perangkatId);
+  if (!klaim.ok) {
+    return {
+      sukses: false,
+      ditolakSesiGanda: klaim.ditolakSesiGanda,
+      pesan: klaim.pesan || "Akun sedang digunakan oleh perangkat lain."
+    };
+  }
+
   hapusGagal(emailBersih);
-  if (hasil.perubahan) simpanPerubahanAkun(emailBersih, hasil.perubahan);
+  if (hasil.perubahan) {
+    simpanPerubahanAkun(emailBersih, hasil.perubahan);
+    if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+      void simpanKredensialAkunGDrive(emailBersih, hasil.perubahan, keAkunCloud(akun));
+    }
+  }
   const sesi = keSesi(akun);
   simpanSesiPengguna(sesi);
   tandaiTerverifikasi(akun.email);
@@ -725,6 +1158,7 @@ async function buatAkun(
     createdAt: new Date().toISOString(),
     ...hashData,
     sigPeran: hitungSigPeran({ idKader, email: emailBersih, peran, ...hashData }),
+    versiAkun: 2,
     ...(opsi.wajibGantiSandi ? { wajibGantiSandi: true } : {})
   };
   accounts.push(akunBaru);
@@ -842,27 +1276,6 @@ export function perbaruiKunciCepatAkun(email: string, perubahan: Partial<DataKun
   simpanPerubahanAkun(email, perubahan);
 }
 
-/**
- * Admin membuat akun user (kader) atau admin lain. Tidak ada pendaftaran mandiri.
- * Sandi sementara hanya ditampilkan sekali; pemilik akun wajib menggantinya dan mendaftarkan
- * Google Authenticator saat pertama masuk.
- */
-export async function buatAkunOlehAdmin(
-  adminSesi: AkunSesi | null,
-  data: DataAkunBaru & { peran?: PeranPengguna }
-): Promise<{ sukses: boolean; pesan: string; sandiSementara?: string; akun?: AkunSesi }> {
-  if (!adminSah(adminSesi)) return { sukses: false, pesan: "Hanya administrator dengan mode admin terbuka yang dapat membuat akun." };
-  const sandiSementara = buatSandiSementara();
-  const r = await buatAkun(data, sandiSementara, data.peran === "admin" ? "admin" : "kader", { wajibGantiSandi: true });
-  if (!r.sukses || !r.akun) return { sukses: false, pesan: r.pesan };
-  return {
-    sukses: true,
-    pesan: `Akun untuk ${r.akun.nama} dibuat.`,
-    sandiSementara,
-    akun: keSesi(r.akun)
-  };
-}
-
 /* ---------- Pendaftaran Google Authenticator ---------- */
 
 async function periksaSandiUntukTotp(email: string, kataSandi: string): Promise<{ akun?: AkunPengguna; galat?: string }> {
@@ -916,11 +1329,19 @@ export async function selesaikanPendaftaranTotp(
   }
   hapusGagal(akun.email);
   const kodePemulihan = buatKodePemulihan();
+  const hashPulih = kodePemulihan.map((k) => hashKodePemulihan(k, akun.garam));
   simpanPerubahanAkun(akun.email, {
     totpRahasia: rahasia,
     totpLangkahTerakhir: r.langkah,
-    kodePemulihanHash: kodePemulihan.map((k) => hashKodePemulihan(k, akun.garam))
+    kodePemulihanHash: hashPulih
   });
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void simpanKredensialAkunGDrive(
+      akun.email,
+      { totpRahasia: rahasia, totpLangkahTerakhir: r.langkah, kodePemulihanHash: hashPulih },
+      keAkunCloud({ ...akun, totpRahasia: rahasia, totpLangkahTerakhir: r.langkah, kodePemulihanHash: hashPulih })
+    );
+  }
   tandaiTerverifikasi(akun.email);
   if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
   else kunciGerbangAdmin();
@@ -947,6 +1368,9 @@ export function aturUlangAuthenticatorOlehAdmin(adminSesi: AkunSesi | null, emai
     ...TANPA_KUNCI_CEPAT
   });
   hapusGagal(target.email);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void simpanKredensialAkunGDrive(target.email, { totpRahasia: undefined, totpLangkahTerakhir: undefined, kodePemulihanHash: [] });
+  }
   return { sukses: true, pesan: `Authenticator ${target.nama} dihapus. Ia mendaftarkan yang baru saat masuk berikutnya.` };
 }
 
@@ -964,9 +1388,14 @@ export async function ubahKataSandi(email: string, sandiLama: string, sandiBaru:
   const galat = validasiKataSandi(sandiBaru, { nama: accounts[idx].nama, email: emailBersih });
   if (galat) return { sukses: false, pesan: galat };
   hapusGagal(emailBersih);
-  accounts[idx] = { ...accounts[idx], ...(await buatHashSandi(sandiBaru)), wajibGantiSandi: false };
+  const hashBaru = await buatHashSandi(sandiBaru);
+  accounts[idx] = { ...accounts[idx], ...hashBaru, wajibGantiSandi: false };
   delete accounts[idx].password;
   simpanSemuaAkun(accounts);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    const diperbarui = muatSemuaAkun()[idx];
+    if (diperbarui) void simpanKredensialAkunGDrive(emailBersih, { ...hashBaru, wajibGantiSandi: false, sigPeran: diperbarui.sigPeran }, keAkunCloud(diperbarui));
+  }
   return { sukses: true, pesan: "Kata sandi berhasil diganti." };
 }
 
@@ -994,10 +1423,15 @@ export async function aturUlangSandiOlehAdmin(
     return { sukses: false, pesan: "Ganti kata sandi Anda sendiri lewat menu Kata sandi." };
   }
   const sandiSementara = buatSandiSementara();
-  accounts[idx] = { ...accounts[idx], ...(await buatHashSandi(sandiSementara)), ...TANPA_KUNCI_CEPAT, wajibGantiSandi: true };
+  const hashSementara = await buatHashSandi(sandiSementara);
+  accounts[idx] = { ...accounts[idx], ...hashSementara, ...TANPA_KUNCI_CEPAT, wajibGantiSandi: true };
   delete accounts[idx].password;
   simpanSemuaAkun(accounts);
   hapusGagal(emailTarget);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    const diperbarui = muatSemuaAkun()[idx];
+    if (diperbarui) void simpanKredensialAkunGDrive(diperbarui.email, { ...hashSementara, wajibGantiSandi: true, sigPeran: diperbarui.sigPeran }, keAkunCloud(diperbarui));
+  }
   return { sukses: true, pesan: `Sandi sementara untuk ${accounts[idx].nama} dibuat.`, sandiSementara };
 }
 
@@ -1015,10 +1449,13 @@ export function ubahWilayahAkunOlehAdmin(
   if (idx === -1) return { sukses: false, pesan: "Akun tidak ditemukan." };
   accounts[idx] = { ...accounts[idx], wilayah, desaWilayah: wilayah.desa };
   simpanSemuaAkun(accounts);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void ubahWilayahAkunGDrive(accounts[idx].email, wilayah);
+  }
   return { sukses: true, pesan: `Wilayah ${accounts[idx].nama} diperbarui.` };
 }
 
-/** Admin menghapus akun kader/admin lain di perangkat ini. Tidak berlaku untuk akun admin yang sedang aktif. */
+/** Admin menghapus akun kader/admin lain. Tidak berlaku untuk akun admin yang sedang aktif. */
 export function hapusAkunOlehAdmin(
   adminSesi: AkunSesi | null,
   emailTarget: string
@@ -1036,7 +1473,11 @@ export function hapusAkunOlehAdmin(
   accounts.splice(idx, 1);
   simpanSemuaAkun(accounts);
   hapusGagal(emailBersih);
-  return { sukses: true, pesan: `Akun ${nama} (${emailBersih}) berhasil dihapus dari perangkat ini.` };
+  lepasKunciSesiLokal(emailBersih);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void hapusAkunGDrive(emailBersih);
+  }
+  return { sukses: true, pesan: `Akun ${nama} (${emailBersih}) berhasil dihapus.` };
 }
 
 /* ---------- Pendaftaran Mandiri dengan Verifikasi Email Asli & Persetujuan Admin ---------- */
@@ -1148,39 +1589,74 @@ export async function mulaiPendaftaranEmail(
   let mxHost: string | null = null;
 
   if (typeof globalThis.fetch === "function" && import.meta.env.MODE !== "test") {
+    let sudahTerhubungServer = false;
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 4500);
+      const timer = setTimeout(() => ctrl.abort(), 5000);
       const resp = await fetch("/api/auth/kirim-otp-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: emailBersih,
           nama: data.nama.trim(),
-          kodeOtp
+          kodeOtp,
+          gdriveUrl: KONEKSI_GDRIVE.url,
+          gdriveToken: KONEKSI_GDRIVE.token
         }),
         signal: ctrl.signal
       });
       clearTimeout(timer);
       const json = (await resp.json().catch(() => null)) as {
         ok?: boolean;
+        sukses?: boolean;
+        duplikat?: boolean;
         mxValid?: boolean;
         mxHost?: string | null;
         terkirimEmail?: boolean;
+        terkirimServer?: boolean;
         error?: string;
+        pesan?: string;
       } | null;
+      if (resp.status === 409 || json?.duplikat) {
+        return {
+          sukses: false,
+          pesan: json?.error || json?.pesan || "Email ini sudah terdaftar. Satu email hanya dapat digunakan untuk satu akun."
+        };
+      }
       if (resp.status === 400 && json && json.mxValid === false) {
         return {
           sukses: false,
           pesan: json.error || "Domain email tidak aktif atau tidak dapat menerima pesan."
         };
       }
-      if (json?.ok) {
-        terkirimServer = Boolean(json.terkirimEmail);
+      if (json && (json.sukses || json.ok)) {
+        sudahTerhubungServer = true;
+        terkirimServer = Boolean(json.terkirimEmail ?? json.terkirimServer);
         mxHost = json.mxHost ?? null;
       }
     } catch {
-      // tetap lanjutkan verifikasi dengan penyimpanan OTP terenkripsi bila backend sedang offline
+      // Lanjut langsung ke Web App Apps Script (untuk PWA / GitHub Pages tanpa Node backend)
+    }
+
+    if ((!sudahTerhubungServer || !terkirimServer) && gdriveTerpasang()) {
+      const resDrive = await kirimOtpEmailGDrive(emailBersih, data.nama.trim(), kodeOtp);
+      if (resDrive.duplikat) {
+        return {
+          sukses: false,
+          pesan: resDrive.pesan || "Email ini sudah terdaftar. Satu email hanya dapat digunakan untuk satu akun."
+        };
+      }
+      if (Number(resDrive.protokolAkun || 0) >= 1) {
+        if (!resDrive.sukses && resDrive.terkirimEmail === false) {
+          return {
+            sukses: false,
+            pesan: resDrive.pesan || `Gagal mengirim OTP ke ${emailBersih}. Periksa alamat email atau izin MailApp Apps Script.`
+          };
+        }
+        if (resDrive.sukses && resDrive.terkirimEmail) {
+          terkirimServer = true;
+        }
+      }
     }
   }
 
@@ -1289,9 +1765,21 @@ export async function verifikasiKodeEmailPendaftaran(email: string, kodeOtp: str
     iterasi: tertunda.iterasi,
     emailTerverifikasi: true,
     emailDiverifikasiPada: sekarangIso,
-    statusPersetujuan: "menunggu"
+    statusPersetujuan: "menunggu",
+    versiAkun: 2
   };
   akunBaru.sigPeran = hitungSigPeran(akunBaru);
+
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    const resCloud = await daftarAkunBaruGDrive(keAkunCloud(akunBaru), kodeBersih, false);
+    if (resCloud.duplikat) {
+      localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+      return { sukses: false, pesan: resCloud.pesan || "Email ini sudah terdaftar. Satu email hanya dapat digunakan untuk satu akun." };
+    }
+    if (Number(resCloud.protokolAkun || 0) >= 1 && !resCloud.sukses && !resCloud.offline) {
+      return { sukses: false, pesan: resCloud.pesan || "Gagal mendaftarkan akun ke server. Periksa kode OTP Anda." };
+    }
+  }
 
   accounts.push(akunBaru);
   simpanSemuaAkun(accounts);
@@ -1302,7 +1790,7 @@ export async function verifikasiKodeEmailPendaftaran(email: string, kodeOtp: str
     menungguPersetujuan: true,
     akun: keSesi(akunBaru),
     pesan:
-      "Email berhasil diverifikasi! Akun Anda telah masuk ke daftar akun dan menunggu persetujuan Administrator sebelum dapat aktif."
+      "Email berhasil diverifikasi! Akun Anda telah dikirim ke Administrator dan menunggu persetujuan sebelum dapat aktif."
   };
 }
 
@@ -1324,10 +1812,14 @@ export function setujuiAkunOlehAdmin(
     ...accounts[idx],
     emailTerverifikasi: true,
     statusPersetujuan: "disetujui",
-    disetujuiPada: sekarangIso
+    disetujuiPada: sekarangIso,
+    versiAkun: 2
   };
   simpanSemuaAkun(accounts);
   hapusGagal(emailBersih);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void setujuiAkunGDrive(emailBersih, sekarangIso);
+  }
   return {
     sukses: true,
     pesan: `Akun ${accounts[idx].nama} (${emailBersih}) telah disetujui dan diaktifkan.`
@@ -1355,9 +1847,101 @@ export function tolakAkunOlehAdmin(
     statusPersetujuan: "ditolak"
   };
   simpanSemuaAkun(accounts);
+  lepasKunciSesiLokal(emailBersih);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void tolakAkunGDrive(emailBersih);
+  }
   return {
     sukses: true,
     pesan: `Pendaftaran akun ${accounts[idx].nama} (${emailBersih}) ditolak dan belum diaktifkan.`
+  };
+}
+
+/** Admin melepas kunci sesi aktif pada sebuah akun bila pemilik berpindah perangkat tanpa logout */
+export function lepasKunciSesiOlehAdmin(
+  adminSesi: AkunSesi | null,
+  emailTarget: string
+): { sukses: boolean; pesan: string } {
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) return { sukses: false, pesan: "Hanya administrator yang dapat melepas kunci sesi akun." };
+  const emailBersih = emailTarget.trim().toLowerCase();
+  lepasKunciSesiLokal(emailBersih);
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void lepasSesiAkunGDrive(emailBersih, "", { paksaAdmin: true });
+  }
+  return { sukses: true, pesan: `Kunci sesi perangkat untuk ${emailBersih} berhasil dilepas.` };
+}
+
+/**
+ * Mereset dan menghapus seluruh akun terdaftar non-MasterAdmin (baik di perangkat maupun Google Drive).
+ */
+export async function resetSemuaAkunTerdaftar(
+  opsi: { pertahankanMasterAdmin?: boolean; sinkronCloud?: boolean } = {}
+): Promise<{ sukses: boolean; dihapus: number; pesan: string }> {
+  const pertahankanMaster = opsi.pertahankanMasterAdmin !== false;
+  const masterEmail = MASTER_ADMIN.email.toLowerCase();
+  const sebelum = muatSemuaAkun();
+  const sisa = pertahankanMaster
+    ? sebelum.filter((a) => a.email.toLowerCase() === masterEmail)
+    : [];
+  const dihapus = Math.max(0, sebelum.length - sisa.length);
+
+  simpanSemuaAkun(sisa);
+  try {
+    const sesiSekarang = localStorage.getItem(KEY_SESSION);
+    if (sesiSekarang) {
+      const parsed = JSON.parse(sesiSekarang) as Partial<AkunSesi>;
+      if (!pertahankanMaster || (parsed.email ?? "").toLowerCase() !== masterEmail) {
+        localStorage.removeItem(KEY_SESSION);
+        localStorage.removeItem(KEY_VERIFIKASI_TOTP);
+        kunciAplikasi();
+        kunciGerbangAdmin();
+      }
+    }
+    localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+  } catch {
+    // abaikan
+  }
+  lepasKunciSesiLokal();
+
+  if (opsi.sinkronCloud !== false && import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    await resetSemuaAkunGDrive(MASTER_ADMIN.email);
+  }
+  return {
+    sukses: true,
+    dihapus,
+    pesan: `${dihapus} akun terdaftar berhasil direset dan dihapus.`
+  };
+}
+
+/** Admin mereset dan menghapus seluruh akun kader/pengguna terdaftar */
+export async function resetSemuaAkunOlehAdmin(
+  adminSesi: AkunSesi | null
+): Promise<{ sukses: boolean; dihapus: number; pesan: string }> {
+  const akunAdmin = adminSah(adminSesi);
+  if (!akunAdmin) {
+    return { sukses: false, dihapus: 0, pesan: "Hanya administrator dengan mode admin terbuka yang dapat mereset semua akun." };
+  }
+  const masterEmail = MASTER_ADMIN.email.toLowerCase();
+  const sebelum = muatSemuaAkun();
+  const sisa = sebelum.filter(
+    (a) => a.email.toLowerCase() === akunAdmin.email.toLowerCase() || a.email.toLowerCase() === masterEmail
+  );
+  const dihapus = Math.max(0, sebelum.length - sisa.length);
+  simpanSemuaAkun(sisa);
+  lepasKunciSesiLokal();
+  try {
+    localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+  } catch {
+    // abaikan
+  }
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    await resetSemuaAkunGDrive(akunAdmin.email);
+  }
+  return {
+    sukses: true,
+    dihapus,
+    pesan: `Reset selesai: ${dihapus} akun terdaftar dihapus (database dan sesi disetel ulang).`
   };
 }
 
@@ -1466,6 +2050,19 @@ export function setelUlangLangkahUji(email: string): void {
 /** Dipanggil sekali sebelum aplikasi dirender */
 export async function siapkanAutentikasi(): Promise<void> {
   await migrasiAkunLama();
+  // Reset satu kali untuk membersihkan semua akun terdaftar lama pada perangkat pengguna
+  try {
+    const modeUji =
+      import.meta.env.MODE === "test" ||
+      import.meta.env.MODE === "e2e" ||
+      Boolean(localStorage.getItem("__disemai") || localStorage.getItem("__disemai_admin"));
+    if (!modeUji && !localStorage.getItem(KEY_MIGRASI_RESET_AKUN)) {
+      await resetSemuaAkunTerdaftar({ pertahankanMasterAdmin: true, sinkronCloud: false });
+      localStorage.setItem(KEY_MIGRASI_RESET_AKUN, "1");
+    }
+  } catch {
+    // abaikan jika gagal
+  }
   // Pembersihan akun dummy bawaan uji dari penyimpanan lokal untuk kesiapan publikasi
   try {
     const accounts = muatSemuaAkun();
@@ -1478,7 +2075,7 @@ export async function siapkanAutentikasi(): Promise<void> {
     );
     if (import.meta.env.MODE !== "test") {
       if (!akunBersih.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
-        akunBersih.unshift({ ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN) });
+        akunBersih.unshift({ ...MASTER_ADMIN, sigPeran: hitungSigPeran(MASTER_ADMIN), versiAkun: 2 });
       }
     }
     if (akunBersih.length !== accounts.length || !accounts.some((a) => a.email.toLowerCase() === MASTER_ADMIN.email.toLowerCase())) {
