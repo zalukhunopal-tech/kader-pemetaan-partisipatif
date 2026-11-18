@@ -87,11 +87,24 @@ export function hitungRingkasSkema(skema?: SkemaAtributGeometri): {
 export const LABEL_TIPE_FIELD: Record<FieldSkemaAtribut["tipe"], string> = {
   teks: "Teks Singkat",
   angka: "Angka",
+  nominal: "Nominal (Rp)",
   pilihan: "Pilihan (Dropdown)",
   tanggal: "Tanggal",
   catatan: "Catatan Panjang",
   foto: "Foto"
 };
+
+/** Memformat string angka menjadi tampilan Rupiah berpemisah ribuan (contoh: 150000 -> "Rp 150.000"). */
+export function formatNominalRupiah(nilai: string | number): string {
+  const bersih = String(nilai ?? "").replace(/\D/g, "");
+  if (!bersih) return "";
+  return "Rp " + Number(bersih).toLocaleString("id-ID");
+}
+
+/** Mengambil angka mentah dari string nominal Rupiah (contoh: "Rp 150.000" -> "150000"). */
+export function ambilAngkaNominal(nilai: string | number): string {
+  return String(nilai ?? "").replace(/\D/g, "");
+}
 
 /** Membuat instance field baru dengan ID unik. */
 export function buatFieldSkemaBaru(asal: Omit<FieldSkemaAtribut, "id">): FieldSkemaAtribut {
@@ -173,6 +186,7 @@ export function kelompokkanFieldPerTabel(
 /**
  * Menyelaraskan daftar Lapisan (`LapisanSpasial[]`) dengan Tugas yang dibuat Admin (`TugasPemetaan[]`).
  * - Tugas aktif/tersimpan otomatis tersedia di menu Lapisan supaya user tinggal memilihnya.
+ * - Membawa sasaran kader (`targetKader`) dan format isian data (`fields`).
  * - Lapisan milik user (non-tugasId) tetap dipertahankan tanpa diubah.
  */
 export function sinkronkanLapisanDariTugas(
@@ -181,6 +195,23 @@ export function sinkronkanLapisanDariTugas(
 ): LapisanSpasial[] {
   const mapTugas = new Map(tugasList.map((t) => [t.id, t]));
   const sudahAdaTugasId = new Set<string>();
+
+  const buatSkemaDariTugas = (t: TugasPemetaan): SkemaAtributGeometri => {
+    if (t.skemaGeometri && (t.skemaGeometri.point.length > 0 || t.skemaGeometri.line.length > 0 || t.skemaGeometri.polygon.length > 0)) {
+      return cloneSkemaGeometri(t.skemaGeometri);
+    }
+    const flds = (t.fields ?? []).map((f) => ({ ...f, tabel: f.tabel || "Data Isian Tugas" }));
+    return {
+      point: [...flds],
+      line: [...flds],
+      polygon: [...flds],
+      daftarTabel: {
+        point: ["Data Isian Tugas"],
+        line: ["Data Isian Tugas"],
+        polygon: ["Data Isian Tugas"]
+      }
+    };
+  };
 
   const hasil: LapisanSpasial[] = [];
   for (const l of lapisanSaatIni) {
@@ -195,7 +226,9 @@ export function sinkronkanLapisanDariTugas(
       ...l,
       nama: tugas.judul,
       kategoriDefault: undefined,
-      skemaGeometri: cloneSkemaGeometri(tugas.skemaGeometri),
+      targetKader: tugas.targetKader ? [...tugas.targetKader] : undefined,
+      fields: tugas.fields ? [...tugas.fields] : undefined,
+      skemaGeometri: buatSkemaDariTugas(tugas),
       deskripsi: tugas.deskripsi
     });
   }
@@ -210,7 +243,9 @@ export function sinkronkanLapisanDariTugas(
       kategoriDefault: undefined,
       adalahTematik: false,
       tugasId: t.id,
-      skemaGeometri: cloneSkemaGeometri(t.skemaGeometri),
+      targetKader: t.targetKader ? [...t.targetKader] : undefined,
+      fields: t.fields ? [...t.fields] : undefined,
+      skemaGeometri: buatSkemaDariTugas(t),
       deskripsi: t.deskripsi,
       createdAt: new Date().toISOString()
     });

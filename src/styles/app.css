@@ -14073,6 +14073,390 @@ html[data-field-theme="matahari"] .section-card h2 {
   white-space: nowrap;
 }
 
+.avenza-badge-kader-khusus {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   7. Revisi Tugas Admin, Pilihan Sasaran Kader, dan Format Data Isian Pengguna
+   ========================================================================== */
+.tugas-builder-card {
+  border: 1px solid #d1fae5;
+  background: #ffffff;
+  border-radius: 14px;
+}
+
+.tugas-section-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tugas-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.tugas-label-text {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.tugas-badge-wajib {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tugas-input-tema {
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.tugas-target-pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tugas-target-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.tugas-target-pill.aktif {
+  border-color: #0b6e4f;
+  background: #ecfdf5;
+  color: #065f46;
+  box-shadow: 0 1px 4px rgba(11, 110, 79, 0.12);
+}
+
+.tugas-counter-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #0b6e4f;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tugas-kader-picker-wrap {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8faf9;
+  border: 1px solid #e2e8f0;
+}
+
+.tugas-kader-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.tugas-kader-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.tugas-kader-chip.terpilih {
+  border-color: #0b6e4f;
+  background: #ecfdf5;
+}
+
+.tugas-kader-check-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.82rem;
+  background: #f1f5f9;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.tugas-kader-chip.terpilih .tugas-kader-check-icon {
+  background: #0b6e4f;
+  color: #ffffff;
+}
+
+.tugas-kader-chip-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tugas-kader-chip-info strong {
+  font-size: 0.85rem;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tugas-kader-chip-info small {
+  font-size: 0.72rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tugas-empty-notice {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.tugas-counter-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.tugas-empty-builder {
+  padding: 20px;
+  border-radius: 12px;
+  border: 1.5px dashed #cbd5e1;
+  background: #f8fafc;
+  text-align: center;
+  color: #475569;
+}
+
+.tugas-builder-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tugas-builder-field-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tugas-field-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tugas-field-index {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #64748b;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  flex-shrink: 0;
+}
+
+.tugas-field-name-input {
+  font-weight: 600;
+  flex: 1;
+}
+
+.tugas-field-card-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.tugas-control-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 180px;
+}
+
+.tugas-control-item.flex-2 {
+  flex: 2 1 240px;
+}
+
+.tugas-nominal-hint {
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+}
+
+.tugas-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tugas-btn-tambah-field {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1.5px dashed #0b6e4f;
+  background: #f0fdf4;
+  color: #0b6e4f;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all var(--dur-fast) ease;
+}
+
+.tugas-btn-tambah-field:hover {
+  background: #dcfce7;
+}
+
+.tugas-btn-submit-share {
+  width: 100%;
+  min-height: 46px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tugas-target-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tugas-target-chip.semua {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.tugas-target-chip.tertentu {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.tugas-fields-preview-wrap {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.tugas-fields-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tugas-field-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.avz-nominal-input-wrap {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.avz-nominal-prefix {
+  padding: 0 12px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #065f46;
+  background: #ecfdf5;
+  border-right: 1px solid #cbd5e1;
+  height: 42px;
+  display: flex;
+  align-items: center;
+}
+
+.avz-nominal-input {
+  border: none !important;
+  box-shadow: none !important;
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
 @media (max-width: 480px) {
   .tugas-skema-tabs {
     gap: 4px;

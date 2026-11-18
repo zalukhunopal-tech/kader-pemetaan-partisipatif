@@ -1,6 +1,6 @@
 import { useDesktop } from "./lib/tampilanLapangan";
 import { selesaikanKonflik } from "./lib/gdriveBertahap";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   AreaPetaOffline,
@@ -210,6 +210,36 @@ export const App: React.FC = () => {
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() => sinkronkanLapisanDariTugas(muatLapisan(), muatTugas()));
   const [lapisanAktifId, setLapisanAktifId] = useState<string | null>(null);
+
+  // Lapisan dan tugas yang dapat diakses oleh sesi pengguna aktif (agar tidak bercampur tugas antar-kader)
+  const lapisanListUntukUser = useMemo(() => {
+    if (sesiPengguna?.peran === "admin") return lapisanList;
+    return lapisanList.filter((l) => {
+      if (!l.tugasId) return true;
+      if (!l.targetKader || l.targetKader.length === 0 || l.targetKader.includes("*")) return true;
+      const id = sesiPengguna?.idKader?.toLowerCase();
+      const email = sesiPengguna?.email?.toLowerCase();
+      const nama = sesiPengguna?.nama?.toLowerCase();
+      return l.targetKader.some((k) => {
+        const target = k.toLowerCase().trim();
+        return (id && target === id) || (email && target === email) || (nama && target === nama);
+      });
+    });
+  }, [lapisanList, sesiPengguna]);
+
+  const tugasListUntukUser = useMemo(() => {
+    if (sesiPengguna?.peran === "admin") return tugasList;
+    return tugasList.filter((t) => {
+      if (!t.targetKader || t.targetKader.length === 0 || t.targetKader.includes("*")) return true;
+      const id = sesiPengguna?.idKader?.toLowerCase();
+      const email = sesiPengguna?.email?.toLowerCase();
+      const nama = sesiPengguna?.nama?.toLowerCase();
+      return t.targetKader.some((k) => {
+        const target = k.toLowerCase().trim();
+        return (id && target === id) || (email && target === email) || (nama && target === nama);
+      });
+    });
+  }, [tugasList, sesiPengguna]);
   const [sertifikatList, setSertifikatList] = useState<SertifikatKader[]>(() => muatSertifikat());
   const [pengumumanList, setPengumumanList] = useState<PengumumanBroadcast[]>(() => muatPengumuman());
   const [pesanList, setPesanList] = useState<PesanKomunikasi[]>(() => muatPesan());
@@ -1077,7 +1107,7 @@ export const App: React.FC = () => {
     return denganKunci(
       <PemberitahuanView
         pengumumanList={pengumumanList}
-        tugasList={tugasList}
+        tugasList={tugasListUntukUser}
         onTutup={() => setBukaPemberitahuan(false)}
         onBukaTargetDiPeta={handleFokusKePeta}
         onTandaiTugasSelesai={handleTandaiTugasSelesai}
@@ -1207,8 +1237,9 @@ export const App: React.FC = () => {
             {tabAktif === "pustaka" && (
               <PustakaView
                 areaOffline={areaOffline}
-                lapisanList={lapisanList}
+                lapisanList={lapisanListUntukUser}
                 dataSpasial={dataSpasial}
+                sesiPengguna={sesiPengguna}
                 modePilihAktif={modePilihPustaka}
                 onMatikanModePilih={() => setModePilihPustaka(false)}
                 onBukaPetaDasar={() => {
@@ -1259,7 +1290,7 @@ export const App: React.FC = () => {
             {tabAktif === "peta" && (
               <InteractiveMap
                 dataSpasial={dataSpasial}
-                lapisanList={lapisanList}
+                lapisanList={lapisanListUntukUser}
                 lapisanAktifId={lapisanAktifId}
                 onPilihLapisanAktif={setLapisanAktifId}
                 profil={profil}
@@ -1281,6 +1312,7 @@ export const App: React.FC = () => {
                 onTambahPembaruanObjek={handleTambahPembaruanObjek}
                 onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
                 onHapusAreaOffline={handleHapusAreaOffline}
+                onHapusData={handleHapusDataSpasial}
                 onImporBerkas={handleImporBerkas}
                 sedangOnline={sedangOnline}
                 onKembali={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
@@ -1324,7 +1356,7 @@ export const App: React.FC = () => {
                 peran={aksesAdmin ? "admin" : "kader"}
                 sertifikatList={sertifikatList}
                 pesanList={pesanList}
-                tugasList={tugasList}
+                tugasList={tugasListUntukUser}
                 onUbahProfil={setProfil}
                 onUbahPenandatanganSertifikat={wajibAdmin(handleUbahPenandatanganSertifikat)}
               />
@@ -1333,7 +1365,7 @@ export const App: React.FC = () => {
             {tabAktif === "tugas" && (
               <TugasPengumumanView
                 pengumumanList={pengumumanList}
-                tugasList={tugasList}
+                tugasList={tugasListUntukUser}
                 onBukaTargetDiPeta={handleFokusKePeta}
                 onTandaiTugasSelesai={handleTandaiTugasSelesai}
               />

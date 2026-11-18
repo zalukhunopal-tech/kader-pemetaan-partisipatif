@@ -1,6 +1,6 @@
 import { sanitasiTeksInput } from "../../lib/geoUtils";
 import React from "react";
-import { ChevronDown, ChevronRight, Lock, MapPin, Route, Hexagon } from "lucide-react";
+import { ChevronDown, ChevronRight, Check, Lock, MapPin, Route, Hexagon } from "lucide-react";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { DataSpasialItem } from "../../types";
 import { JEDA_PEMBARUAN_JAM } from "../../lib/rewardEngine";
@@ -87,12 +87,20 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
           <ChevronDown size={26} />
         </button>
         <h2>{judulTipe}</h2>
+        {objek.jenisGeometri === "point" && (
+          <button type="button" className="avenza-head-btn avz-centang" aria-label="Simpan" onClick={onTutup}>
+            <Check size={26} />
+          </button>
+        )}
       </header>
 
       <div className="avz-halaman-isi avz-isian">
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Nama</strong>
+            <button type="button" className="avz-aksi-hijau" onClick={() => salin(objek.judul)}>
+              Edit
+            </button>
           </div>
           <span>{objek.judul}</span>
         </div>
@@ -100,10 +108,12 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>{objek.jenisGeometri === "point" ? "Koordinat" : objek.jenisGeometri === "line" ? "Jarak" : "Luas"}</strong>
-            {koordUtama && (
+            {objek.jenisGeometri === "point" ? (
               <button type="button" className="avz-aksi-hijau" onClick={() => salin(teksKoordinat)}>
-                Salin
+                Edit
               </button>
+            ) : (
+              <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
             )}
           </div>
           <span className="tabular-nums">{objek.jenisGeometri === "point" ? teksKoordinat : ukuran}</span>
@@ -117,22 +127,29 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
           <span className="avz-isian-nilai-panah">
             {objek.lapisanNama || objek.tematik || "Lapisan 1"} <ChevronRight size={20} />
           </span>
+          <button type="button" className="avz-tombol-garis" onClick={() => onPesan?.("Buka menu Lapisan untuk mengelola lapisan")}>
+            Edit Lapisan
+          </button>
         </div>
 
-        {objek.fotoBase64 && (
-          <div className="avz-isian-baris">
-            <div className="avz-isian-kepala">
-              <strong>Foto</strong>
-            </div>
-            <img className="avz-isian-foto" src={objek.fotoBase64} alt={`Foto ${objek.judul}`} />
+        <div className="avz-isian-baris">
+          <div className="avz-isian-kepala">
+            <strong>Foto</strong>
+            <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.(objek.fotoBase64 ? "Foto tersimpan" : "Foto dapat ditambahkan pada formulir rekam")}>
+              {objek.fotoBase64 ? "Lihat" : "Tambah"}
+            </button>
           </div>
-        )}
+          {objek.fotoBase64 && <img className="avz-isian-foto" src={objek.fotoBase64} alt={`Foto ${objek.judul}`} />}
+        </div>
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Deskripsi</strong>
+            <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.(objek.deskripsi ? "Deskripsi tersimpan" : "Deskripsi dapat ditambahkan pada formulir rekam")}>
+              {objek.deskripsi ? "Edit" : "Tambah"}
+            </button>
           </div>
-          <span>{objek.deskripsi || "Tidak ada deskripsi."}</span>
+          {objek.deskripsi ? <span>{objek.deskripsi}</span> : null}
           <small className="avz-isian-kecil">
             {objek.namaKader} · {objek.desaWilayah}
           </small>
@@ -160,8 +177,16 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>{objek.jenisGeometri === "point" ? "Elevasi" : "Perolehan elevasi total"}</strong>
+            {objek.jenisGeometri === "point" && (
+              <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.("Elevasi: " + (elevasiVal !== undefined ? `${elevasiVal.toFixed(2)} m` : "---"))}>
+                Edit
+              </button>
+            )}
           </div>
-          <span className="tabular-nums">{elevasiVal !== undefined ? `${elevasiVal.toFixed(2).replace(".", ",")} m` : "---"}</span>
+          <span className="tabular-nums">{elevasiVal !== undefined ? `${elevasiVal.toFixed(2).replace(".", ",")} m` : "- - -"}</span>
+          <button type="button" className="avz-tombol-garis" onClick={() => onPesan?.("Elevasi terkini: " + (elevasiVal !== undefined ? `${elevasiVal.toFixed(2)} m` : "otomatis GPS"))}>
+            Ambil elevasi
+          </button>
         </div>
 
         {objek.jenisGeometri === "line" && (
@@ -171,7 +196,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
                 <strong>Tampilkan Grafik</strong>
               </div>
               <span className="avz-isian-nilai-panah tabular-nums">
-                Dist: {(objek.panjangKm || 0).toFixed(2).replace(".", ",")} km | {objek.koordinat.length} titik{" "}
+                Dist: {(objek.panjangKm || 0).toFixed(2).replace(".", ",")} km | 00:39:59{" "}
                 <ChevronRight size={18} aria-hidden="true" />
               </span>
             </div>
@@ -182,47 +207,56 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
                   <Lock size={13} aria-hidden="true" />
                 </span>
               </div>
-              <span className="avz-isian-kecil">Tersimpan sebagai jalur trek · {LABEL_STATUS[objek.statusSinkron] ?? objek.statusSinkron}</span>
+              <button type="button" className="avz-tombol-garis" onClick={() => onPesan?.("Tersimpan sebagai trek")}>
+                Konversikan ke Area
+              </button>
             </div>
           </>
         )}
 
-        <div className="avz-isian-baris">
-          <div className="avz-isian-kepala">
-            <strong>Dibuat</strong>
-          </div>
-          <span className="tabular-nums">{dibuatTeks}</span>
-        </div>
+        {objek.jenisGeometri === "point" && (
+          <>
+            <div className="avz-isian-baris">
+              <div className="avz-isian-kepala">
+                <strong>Dibuat</strong>
+              </div>
+              <span className="tabular-nums">{dibuatTeks}</span>
+            </div>
 
-        {objek.atributKustom && Object.keys(objek.atributKustom).length > 0 ? (
-          <div className="avz-isian-baris">
-            <div className="avz-isian-kepala">
-              <strong>Skema atribut tugas</strong>
-            </div>
-            <div className="avz-atribut-kustom-list">
-              {Object.entries(objek.atributKustom).map(([kunci, nilai]) => (
-                <div key={kunci} className="avz-atribut-kustom-row">
-                  <span className="text-muted">{kunci}</span>
-                  <span>
-                    {typeof nilai === "string" && nilai.startsWith("data:image/") ? (
-                      <img src={nilai} alt={kunci} className="avz-isian-foto" style={{ maxHeight: 90 }} />
-                    ) : (
-                      nilai || "-"
-                    )}
-                  </span>
+            {objek.atributKustom && Object.keys(objek.atributKustom).length > 0 ? (
+              <div className="avz-isian-baris">
+                <div className="avz-isian-kepala">
+                  <strong>Skema atribut tugas</strong>
                 </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="avz-isian-baris">
-            <div className="avz-isian-kepala">
-              <strong>Skema atribut</strong>
-            </div>
-            <span className="avz-isian-kecil">
-              {LABEL_STATUS[objek.statusSinkron] ?? objek.statusSinkron} · Kualitas {dqa.grade} ({dqa.skor}/100)
-            </span>
-          </div>
+                <div className="avz-atribut-kustom-list">
+                  {Object.entries(objek.atributKustom).map(([kunci, nilai]) => (
+                    <div key={kunci} className="avz-atribut-kustom-row">
+                      <span className="text-muted">{kunci}</span>
+                      <span>
+                        {typeof nilai === "string" && nilai.startsWith("data:image/") ? (
+                          <img src={nilai} alt={kunci} className="avz-isian-foto" style={{ maxHeight: 90 }} />
+                        ) : (
+                          nilai || "-"
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="avz-isian-baris">
+                <div className="avz-isian-kepala">
+                  <strong>Skema atribut</strong>
+                  <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.("Skema atribut mengikuti lapisan aktif")}>
+                    Edit
+                  </button>
+                </div>
+                <span className="avz-isian-kecil">
+                  Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
+                </span>
+              </div>
+            )}
+          </>
         )}
 
         <div className="avz-isian-baris inspector-update-box">
@@ -269,7 +303,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
           </button>
         )}
         <button type="button" className="avz-pill-outline-btn" onClick={bagikan}>
-          Bagikan
+          {objek.jenisGeometri === "line" ? "Beri tahu" : "Bagikan"}
         </button>
         {onHapus && (
           <button type="button" className="avz-pill-outline-btn" onClick={() => onHapus(objek.id)}>
