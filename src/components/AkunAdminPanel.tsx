@@ -1,17 +1,35 @@
-import React, { useState } from "react";
-import { CheckCircle2, ChevronDown, Copy, Info, KeyRound, ShieldAlert, Trash2, UserPlus, XCircle } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  Info,
+  KeyRound,
+  Lock,
+  MailCheck,
+  RefreshCw,
+  RotateCcw,
+  ShieldAlert,
+  Trash2,
+  Unlock,
+  UserCheck,
+  XCircle
+} from "lucide-react";
 import {
   AkunSesi,
   aturUlangAuthenticatorOlehAdmin,
   aturUlangSandiOlehAdmin,
-  buatAkunOlehAdmin,
+  daftarKunciSesiAktif,
   hapusAkunOlehAdmin,
+  lepasKunciSesiOlehAdmin,
   muatSemuaAkun,
+  resetSemuaAkunOlehAdmin,
   setujuiAkunOlehAdmin,
+  sinkronkanDaftarAkunGDrive,
   tolakAkunOlehAdmin,
   ubahWilayahAkunOlehAdmin
 } from "../lib/auth";
-import { DataSpasialItem, PeranPengguna, SertifikatKader, WilayahAdministrasi } from "../types";
+import { DataSpasialItem, SertifikatKader, WilayahAdministrasi } from "../types";
 import { WILAYAH_KOSONG, teksWilayah, wilayahLengkap } from "../lib/wilayah";
 import { migrasiFolderWilayahKeGDrive } from "../lib/gdriveSync";
 import { IsianWilayah } from "./IsianWilayah";
@@ -23,11 +41,12 @@ interface AkunAdminPanelProps {
   sertifikatList?: SertifikatKader[];
 }
 
-const FORM_KOSONG = { nama: "", email: "", wilayah: WILAYAH_KOSONG, noHp: "", kelompokMasyarakat: "", peran: "kader" as PeranPengguna };
+type FilterStatus = "semua" | "menunggu" | "disetujui" | "ditolak";
 
 /**
- * Akun di perangkat ini. Tidak ada pendaftaran mandiri: admin membuat akun (sandi sementara tampil sekali),
- * mengatur ulang sandi, dan menghapus Authenticator yang ponselnya hilang.
+ * Panel Persetujuan Pendaftaran dan Manajemen Akun oleh Administrator.
+ * Pembuatan akun baru hanya dilakukan pengguna secara mandiri dengan OTP email dari halaman utama,
+ * lalu disetujui atau ditolak oleh Administrator di panel ini.
  */
 export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataSpasial = [], sertifikatList = [] }) => {
   const [versi, setVersi] = useState(0);
@@ -35,37 +54,41 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   const [info, setInfo] = useState<string | null>(null);
   const [galat, setGalat] = useState<string | null>(null);
   const [tersalin, setTersalin] = useState(false);
-  const [form, setForm] = useState(FORM_KOSONG);
-  const [sibuk, setSibuk] = useState(false);
+  const [sedangSinkron, setSedangSinkron] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("semua");
   const [detailEmail, setDetailEmail] = useState<string | null>(null);
   const [ubahWilayah, setUbahWilayah] = useState<{ email: string; nilai: WilayahAdministrasi } | null>(null);
+  const akun = muatSemuaAkun();
+  const kunciSesi = daftarKunciSesiAktif();
   const [menuAksiAkun, setMenuAksiAkun] = useState<(typeof akun)[number] | null>(null);
-  const akun = muatSemuaAkun(); // dibaca ulang setiap render agar status terbaru tampil
   void versi;
+
+  const segarkanDariCloud = useCallback(async (tampilkanPesan = false) => {
+    setSedangSinkron(true);
+    try {
+      const res = await sinkronkanDaftarAkunGDrive();
+      setVersi((v) => v + 1);
+      if (tampilkanPesan) {
+        if (res.sukses) {
+          setInfo(`Daftar akun berhasil disegarkan (${res.jumlah} akun di server).`);
+        } else {
+          setGalat(res.pesan || "Belum dapat terhubung ke server akun Google Drive.");
+        }
+      }
+    } finally {
+      setSedangSinkron(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void segarkanDariCloud(false);
+  }, [segarkanDariCloud]);
 
   const bersihkan = () => {
     setGalat(null);
     setInfo(null);
     setHasil(null);
     setTersalin(false);
-  };
-
-  const buatAkun = async (e: React.FormEvent) => {
-    e.preventDefault();
-    bersihkan();
-    setSibuk(true);
-    try {
-      const r = await buatAkunOlehAdmin(sesiAdmin, form);
-      if (!r.sukses || !r.sandiSementara || !r.akun) {
-        setGalat(r.pesan);
-        return;
-      }
-      setHasil({ judul: "Akun dibuat", email: r.akun.email, nama: r.akun.nama, sandi: r.sandiSementara });
-      setForm(FORM_KOSONG);
-      setVersi((v) => v + 1);
-    } finally {
-      setSibuk(false);
-    }
   };
 
   const simpanWilayah = () => {
@@ -112,10 +135,19 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     setVersi((v) => v + 1);
   };
 
+  const lepasKunciSesi = (email: string, nama: string) => {
+    if (!window.confirm(`Lepas kunci perangkat aktif untuk ${nama} (${email})? Sesi sebelumnya akan dihentikan.`)) return;
+    bersihkan();
+    const r = lepasKunciSesiOlehAdmin(sesiAdmin, email);
+    if (!r.sukses) setGalat(r.pesan);
+    else setInfo(r.pesan);
+    setVersi((v) => v + 1);
+  };
+
   const hapusAkun = (email: string, nama: string) => {
     if (
       !window.confirm(
-        `Hapus akun ${nama} (${email}) dari perangkat ini?\n\nAkun ini tidak akan dapat masuk lagi di perangkat ini. Data lapangan yang sudah tersimpan di perangkat tetap aman.`
+        `Hapus akun ${nama} (${email})?\n\nAkun ini tidak akan dapat masuk lagi. Data lapangan yang sudah tersimpan tetap aman.`
       )
     ) {
       return;
@@ -149,116 +181,72 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
     setVersi((v) => v + 1);
   };
 
+  const resetSemuaAkun = async () => {
+    if (
+      !window.confirm(
+        "Reset dan hapus SEMUA akun kader terdaftar saat ini (lokal dan server)?\n\nHanya akun Administrator yang dipertahankan. Pengguna lain harus mendaftar ulang dengan verifikasi OTP email."
+      )
+    ) {
+      return;
+    }
+    bersihkan();
+    const r = await resetSemuaAkunOlehAdmin(sesiAdmin);
+    if (!r.sukses) setGalat(r.pesan);
+    else setInfo(r.pesan);
+    setDetailEmail(null);
+    setUbahWilayah(null);
+    setVersi((v) => v + 1);
+  };
+
   const salin = async () => {
     if (!hasil) return;
     try {
       await navigator.clipboard.writeText(hasil.sandi);
       setTersalin(true);
     } catch {
-      // clipboard tidak tersedia: sandi tetap terlihat dan bisa disalin manual
+      // clipboard tidak tersedia
     }
   };
 
   const statusAkun = (a: (typeof akun)[number]) => {
-    if (a.statusPersetujuan === "menunggu") {
-      return "Menunggu persetujuan Admin (Email terverifikasi)";
-    }
-    if (a.statusPersetujuan === "ditolak") {
-      return "Ditolak Admin (Belum aktif)";
-    }
-    return a.wajibGantiSandi
-      ? "Wajib ganti sandi"
-      : a.totpRahasia
-        ? "Aktif, Authenticator terpasang"
-        : "Belum memasang Authenticator";
+    if (a.statusPersetujuan === "menunggu") return "Menunggu persetujuan";
+    if (a.statusPersetujuan === "ditolak") return "Ditolak";
+    return a.totpRahasia ? "Aktif (Authenticator terpasang)" : "Disetujui (Belum Authenticator)";
   };
+
+  const akunMenunggu = akun.filter((a) => a.statusPersetujuan === "menunggu");
+  const akunTersaring = akun.filter((a) => {
+    if (filterStatus === "semua") return true;
+    if (filterStatus === "menunggu") return a.statusPersetujuan === "menunggu";
+    if (filterStatus === "ditolak") return a.statusPersetujuan === "ditolak";
+    return !a.statusPersetujuan || a.statusPersetujuan === "disetujui";
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <form className="section-card" id="form-buat-akun" onSubmit={(e) => void buatAkun(e)}>
-        <h3 style={{ margin: "0 0 4px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-          <UserPlus size={18} color="#0d7344" /> Buat akun baru
-        </h3>
-        <p className="text-muted" style={{ margin: "0 0 10px", fontSize: "0.82rem" }}>
-          Tidak ada pendaftaran mandiri. Anda membuat akun, lalu menyampaikan sandi sementara secara langsung. Pemilik akun membuat sandi
-          baru dan memasang Google Authenticator saat pertama masuk.
-        </p>
-        <div className="form-row-2">
+      {/* 1. ANTREAN PERSETUJUAN AKUN BARU */}
+      <div className="section-card" id="panel-persetujuan-akun">
+        <div className="section-header-flex" style={{ marginBottom: 10 }}>
           <div>
-            <label htmlFor="akun-nama">Nama lengkap *</label>
-            <input
-              id="akun-nama"
-              className="form-input"
-              required
-              value={form.nama}
-              onChange={(e) => setForm({ ...form, nama: e.target.value })}
-            />
+            <h3 style={{ margin: "0 0 4px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <UserCheck size={18} color="#0B6E4F" aria-hidden="true" />
+              Persetujuan Akun Baru ({akunMenunggu.length})
+            </h3>
+            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+              Akun baru dibuat langsung oleh pendaftar lewat OTP email di halaman awal. Setujui agar akun dapat masuk.
+            </p>
           </div>
-          <div>
-            <label htmlFor="akun-email">Email *</label>
-            <input
-              id="akun-email"
-              type="email"
-              className="form-input"
-              required
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
+          <button
+            type="button"
+            className="btn-outline-sm"
+            disabled={sedangSinkron}
+            onClick={() => void segarkanDariCloud(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <RefreshCw size={14} className={sedangSinkron ? "spin" : ""} aria-hidden="true" />
+            {sedangSinkron ? "Memuat…" : "Segarkan"}
+          </button>
         </div>
-        <p className="text-muted" style={{ margin: "10px 0 4px", fontSize: "0.8rem" }}>
-          Wilayah tugas menentukan folder Google Drive tempat data akun ini disimpan (Provinsi › Kabupaten/Kota › Kecamatan ›
-          Kelurahan/Desa).
-        </p>
-        <IsianWilayah
-          idAwalan="akun"
-          nilai={form.wilayah}
-          onUbah={(wilayah) => setForm({ ...form, wilayah })}
-          saran={akun.map((a) => a.wilayah)}
-          wajib={form.peran === "kader"}
-        />
-        <div className="form-row-2">
-          <div>
-            <label htmlFor="akun-hp">No. HP</label>
-            <input id="akun-hp" className="form-input" value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} />
-          </div>
-          <div>
-            <label htmlFor="akun-kelompok">Kelompok / organisasi</label>
-            <input
-              id="akun-kelompok"
-              className="form-input"
-              value={form.kelompokMasyarakat}
-              onChange={(e) => setForm({ ...form, kelompokMasyarakat: e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="form-row-2">
-          <div>
-            <label htmlFor="akun-peran">Peran</label>
-            <select
-              id="akun-peran"
-              className="form-input"
-              value={form.peran}
-              onChange={(e) => setForm({ ...form, peran: e.target.value as PeranPengguna })}
-            >
-              <option value="kader">Kader (user lapangan)</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit" className="btn-primary" disabled={sibuk} style={{ marginTop: 10 }}>
-          {sibuk ? "Membuat…" : "Buat akun"}
-        </button>
-      </form>
-
-      <div className="section-card" id="panel-akun-admin">
-        <h3 style={{ margin: "0 0 4px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-          <KeyRound size={18} color="#0d7344" /> Akun di perangkat ini ({akun.length})
-        </h3>
-        <p className="text-muted" style={{ margin: "0 0 10px", fontSize: "0.82rem" }}>
-          Kata sandi tidak bisa diatur ulang sendiri tanpa verifikasi: admin membuat sandi sementara. Bila HP pemilik akun hilang, hapus
-          Authenticator-nya agar ia bisa memasang yang baru.
-        </p>
 
         {hasil && (
           <div role="status" className="alert-banner-success" style={{ margin: "0 0 10px" }}>
@@ -289,6 +277,127 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
           </div>
         )}
 
+        {akunMenunggu.length === 0 ? (
+          <div
+            style={{
+              padding: "14px 16px",
+              borderRadius: 12,
+              border: "1px dashed #cbd5e1",
+              background: "#f8fafc",
+              color: "#475569",
+              fontSize: "0.84rem"
+            }}
+          >
+            Belum ada pendaftaran akun baru yang menunggu persetujuan Administrator.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {akunMenunggu.map((pendaftar) => (
+              <div
+                key={pendaftar.email}
+                style={{
+                  border: "1.5px solid #a7f3d0",
+                  background: "#ecfdf5",
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12
+                }}
+              >
+                <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <strong style={{ fontSize: "0.95rem", color: "#0f172a" }}>{pendaftar.nama}</strong>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 99,
+                        background: "#ffffff",
+                        color: "#0B6E4F",
+                        border: "1px solid #a7f3d0"
+                      }}
+                    >
+                      <MailCheck size={12} aria-hidden="true" /> Email OTP terverifikasi
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "#334155", marginTop: 3 }}>{pendaftar.email}</div>
+                  <div style={{ fontSize: "0.76rem", color: "#475569", marginTop: 4 }}>
+                    Wilayah: {pendaftar.wilayah ? teksWilayah(pendaftar.wilayah) : pendaftar.desaWilayah || "-"} · Kelompok:{" "}
+                    {pendaftar.kelompokMasyarakat || "-"} · HP: {pendaftar.noHp || "-"}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn-primary-sm"
+                    style={{ minHeight: 40, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                    onClick={() => setujuiAkun(pendaftar.email)}
+                  >
+                    <CheckCircle2 size={15} aria-hidden="true" /> Setujui
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-danger-sm"
+                    style={{ minHeight: 40, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                    onClick={() => tolakAkun(pendaftar.email, pendaftar.nama)}
+                  >
+                    <XCircle size={15} aria-hidden="true" /> Tolak
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 2. DAFTAR AKUN TERDAFTAR DAN KONTROL SESI TUNGGAL */}
+      <div className="section-card" id="panel-akun-admin">
+        <div className="section-header-flex" style={{ marginBottom: 10 }}>
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+              <KeyRound size={18} color="#0B6E4F" aria-hidden="true" /> Akun Terdaftar ({akun.length})
+            </h3>
+            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+              Satu email untuk satu akun dan satu perangkat aktif. Gunakan Reset bila ingin menghapus semua akun kader lama.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-danger-sm"
+            onClick={() => void resetSemuaAkun()}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <RotateCcw size={14} aria-hidden="true" /> Reset Akun
+          </button>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+          {(
+            [
+              { id: "semua", label: `Semua (${akun.length})` },
+              { id: "menunggu", label: `Menunggu (${akunMenunggu.length})` },
+              { id: "disetujui", label: "Aktif" },
+              { id: "ditolak", label: "Ditolak" }
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={filterStatus === f.id ? "btn-primary-sm" : "btn-outline-sm"}
+              onClick={() => setFilterStatus(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         <div className="table-responsive">
           <table className="data-table">
             <thead>
@@ -300,8 +409,9 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               </tr>
             </thead>
             <tbody>
-              {akun.map((a) => {
-                const diriSendiri = a.email.toLowerCase() === sesiAdmin?.email.toLowerCase();
+              {akunTersaring.map((a) => {
+                const emailKecil = a.email.toLowerCase();
+                const kunci = kunciSesi[emailKecil];
                 const dataAkun = dataSpasial.filter((d) => d.idKader === a.idKader);
                 const terverifikasi = dataAkun.filter((d) => d.statusSinkron === "terverifikasi").length;
                 const sert = sertifikatList.find((x) => x.idKader === a.idKader);
@@ -312,6 +422,21 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                       <td>
                         <strong>{a.nama}</strong>
                         <div className="text-xs text-muted">{a.email}</div>
+                        {kunci && (
+                          <div
+                            className="text-xs"
+                            style={{
+                              marginTop: 3,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              color: "#0B6E4F",
+                              fontWeight: 600
+                            }}
+                          >
+                            <Lock size={11} aria-hidden="true" /> Sesi aktif ({kunci.infoPerangkat || "Perangkat"})
+                          </div>
+                        )}
                       </td>
                       <td>{a.peran === "admin" ? "Admin" : "Kader"}</td>
                       <td className="text-xs">{statusAkun(a)}</td>
@@ -350,7 +475,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                             <div>
                               <dt>Verifikasi Email</dt>
                               <dd>
-                                {a.emailTerverifikasi ? "Email asli terverifikasi" : "Dibuat oleh Admin"} ·{" "}
+                                {a.emailTerverifikasi ? "Email asli terverifikasi OTP" : "Akun bawaan"} ·{" "}
                                 {a.statusPersetujuan === "menunggu"
                                   ? "Menunggu persetujuan Admin"
                                   : a.statusPersetujuan === "ditolak"
@@ -391,6 +516,10 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                                   ? `Terpasang · ${a.kodePemulihanHash?.length ?? 0} kode pemulihan tersisa`
                                   : "Belum terpasang"}
                               </dd>
+                            </div>
+                            <div>
+                              <dt>Kunci sesi perangkat</dt>
+                              <dd>{kunci ? `Terkunci pada ${kunci.infoPerangkat || kunci.idPerangkat}` : "Bebas (belum masuk)"}</dd>
                             </div>
                             <div>
                               <dt>Data lapangan</dt>
@@ -439,7 +568,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
         </div>
       </div>
 
-      {/* MENU AKSI AKUN: MODAL / BOTTOM SHEET RAPI */}
+      {/* MENU AKSI AKUN */}
       {menuAksiAkun && (
         <div className="aksi-sheet-backdrop" onClick={() => setMenuAksiAkun(null)} role="presentation">
           <div className="aksi-sheet" role="menu" aria-label="Pilihan tindakan akun" onClick={(e) => e.stopPropagation()}>
@@ -474,7 +603,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                   setujuiAkun(target.email);
                 }}
               >
-                <CheckCircle2 size={17} color="#0d7344" /> Aktifkan akun
+                <CheckCircle2 size={17} color="#0B6E4F" /> Setujui dan aktifkan akun
               </button>
             )}
 
@@ -497,12 +626,20 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               type="button"
               role="menuitem"
               className="aksi-sheet-item"
+              onClick={() => {
+                const target = menuAksiAkun;
+                setMenuAksiAkun(null);
+                lepasKunciSesi(target.email, target.nama);
+              }}
+            >
+              <Unlock size={17} /> Lepas kunci sesi perangkat
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              className="aksi-sheet-item"
               disabled={menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()}
-              title={
-                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()
-                  ? "Ganti sandi Anda sendiri lewat menu Kata sandi"
-                  : "Buat sandi sementara"
-              }
               onClick={() => {
                 const target = menuAksiAkun;
                 setMenuAksiAkun(null);
@@ -517,15 +654,7 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               role="menuitem"
               className="aksi-sheet-item"
               disabled={
-                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase() ||
-                !menuAksiAkun.totpRahasia
-              }
-              title={
-                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()
-                  ? "Authenticator Anda hanya bisa diatur ulang oleh admin lain"
-                  : !menuAksiAkun.totpRahasia
-                    ? "Belum ada Authenticator"
-                    : "Hapus Authenticator agar bisa dipasang ulang"
+                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase() || !menuAksiAkun.totpRahasia
               }
               onClick={() => {
                 const target = menuAksiAkun;
@@ -541,11 +670,6 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               role="menuitem"
               className="aksi-sheet-item aksi-sheet-hapus"
               disabled={menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()}
-              title={
-                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase()
-                  ? "Anda tidak dapat menghapus akun Anda sendiri saat sedang masuk"
-                  : "Hapus akun dari perangkat ini"
-              }
               onClick={() => {
                 const target = menuAksiAkun;
                 setMenuAksiAkun(null);

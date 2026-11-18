@@ -151,6 +151,7 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
   const root = new Folder("ROOT");
   const spreadsheet = new Map<string, Spreadsheet>();
   const props = new Map<string, string>(token ? [["TITIK_TAPAK_TOKEN", token]] : []);
+  const emailTerkirim: { to: string; subject: string; body: string; htmlBody?: string }[] = [];
   const ambil = (id: string) => {
     const x = semua.get(id);
     if (!x) throw new Error("tidak ada " + id);
@@ -158,6 +159,11 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
   };
 
   const sandbox: Record<string, unknown> = {
+    MailApp: {
+      sendEmail: (opts: { to: string; subject: string; body: string; htmlBody?: string }) => {
+        emailTerkirim.push(opts);
+      }
+    },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock: () => log.lockLepas++ }) },
     PropertiesService: {
       getScriptProperties: () => ({
@@ -210,7 +216,7 @@ function buatLingkungan({ token = "rahasia" as string | null } = {}) {
     const b = f?.berkasAktif().find((x) => x.nama === nama);
     return b ? (JSON.parse(b.isi) as { features: { id: string; properties: Record<string, unknown> }[] }) : undefined;
   };
-  return { kirim, panggil, root, induk, tabData, isiGeojson, props, log, spreadsheet };
+  return { kirim, panggil, root, induk, tabData, isiGeojson, props, log, spreadsheet, emailTerkirim };
 }
 
 const JAMBI = { provinsi: "Jambi", kabupaten: "Kabupaten Merangin", kecamatan: "Bangko", desa: "Rantau Panjang" };
@@ -835,5 +841,90 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
     const statusSetelah90Hari = L.kirim({ token: "rahasia", action: "list_active_status", sekarangIso: "2026-11-16T00:00:00.000Z" });
     expect(statusSetelah90Hari.aktif).toEqual([]);
     expect(statusSetelah90Hari.pencadanganIds).toEqual([]);
+  });
+
+  it("menjalankan alur OTP email, pendaftaran 1 email 1 akun, persetujuan admin, kunci sesi tunggal 1 orang, dan reset akun", () => {
+    const L = buatLingkungan();
+
+    // 1. Kirim OTP email pendaftaran
+    const otpRes = L.kirim({
+      token: "rahasia",
+      action: "kirim_otp_email",
+      email: "kader.baru@gmail.com",
+      nama: "Rina Lestari",
+      kodeOtp: "654321"
+    });
+    expect(otpRes.sukses).toBe(true);
+    expect(otpRes.terkirimEmail).toBe(true);
+    expect(L.emailTerkirim).toHaveLength(1);
+    expect(L.emailTerkirim[0].to).toBe("kader.baru@gmail.com");
+    expect(L.emailTerkirim[0].subject).toContain("654321");
+
+    // 2. OTP salah ditolak
+    const salahOtp = L.kirim({
+      token: "rahasia",
+      action: "verifikasi_otp_dan_daftar_akun",
+      email: "kader.baru@gmail.com",
+      kodeOtp: "000000",
+      wajibOtpServer: true,
+      akun: { idKader: "KDR-111", nama: "Rina Lestari", email: "kader.baru@gmail.com", kataSandiHash: "+hash==", garam: "=garam==" }
+    });
+    expect(salahOtp.sukses).toBe(false);
+
+    // 3. OTP benar -> akun tersimpan dengan status menunggu persetujuan admin (prefiks sel aman untuk base64 + / =)
+    const daftarOk = L.kirim({
+      token: "rahasia",
+      action: "verifikasi_otp_dan_daftar_akun",
+      email: "kader.baru@gmail.com",
+      kodeOtp: "654321",
+      wajibOtpServer: true,
+      akun: { idKader: "KDR-111", nama: "Rina Lestari", email: "kader.baru@gmail.com", kataSandiHash: "+hash==", garam: "=garam==" }
+    });
+    expect(daftarOk.sukses).toBe(true);
+    expect(daftarOk.menungguPersetujuan).toBe(true);
+
+    // 4. 1 email hanya bisa buat 1 akun
+    const otpGanda = L.kirim({
+      token: "rahasia",
+      action: "kirim_otp_email",
+      email: "KADER.BARU@gmail.com",
+      nama: "Orang Lain",
+      kodeOtp: "111222"
+    });
+    expect(otpGanda.sukses).toBe(false);
+    expect(otpGanda.duplikat).toBe(true);
+
+    // 5. Klaim sesi sebelum disetujui admin ditolak; setelah disetujui baru diizinkan & base64 utuh
+    const klaimSebelumSetuju = L.kirim({
+      token: "rahasia",
+      action: "klaim_sesi_akun",
+      email: "kader.baru@gmail.com",
+      idPerangkat: "HP-1"
+    });
+    expect(klaimSebelumSetuju.sukses).toBe(false);
+
+    const setuju = L.kirim({ token: "rahasia", action: "setujui_akun", email: "kader.baru@gmail.com" });
+    expect(setuju.sukses).toBe(true);
+
+    const ambil = L.kirim({ token: "rahasia", action: "ambil_daftar_akun", email: "kader.baru@gmail.com" });
+    expect((ambil.akun as Record<string, unknown>).statusPersetujuan).toBe("disetujui");
+    expect((ambil.akun as Record<string, unknown>).kataSandiHash).toBe("+hash==");
+    expect((ambil.akun as Record<string, unknown>).garam).toBe("=garam==");
+
+    // 6. 1 akun hanya 1 orang: HP-1 masuk sukses, HP-2 ditolak, setelah logout HP-2 boleh masuk
+    expect(L.kirim({ token: "rahasia", action: "klaim_sesi_akun", email: "kader.baru@gmail.com", idPerangkat: "HP-1" }).sukses).toBe(true);
+    const hp2Ditolak = L.kirim({ token: "rahasia", action: "klaim_sesi_akun", email: "kader.baru@gmail.com", idPerangkat: "HP-2" });
+    expect(hp2Ditolak.sukses).toBe(false);
+    expect(hp2Ditolak.ditolakSesiGanda).toBe(true);
+
+    expect(L.kirim({ token: "rahasia", action: "lepas_sesi_akun", email: "kader.baru@gmail.com", idPerangkat: "HP-1" }).sukses).toBe(true);
+    expect(L.kirim({ token: "rahasia", action: "klaim_sesi_akun", email: "kader.baru@gmail.com", idPerangkat: "HP-2" }).sukses).toBe(true);
+
+    // 7. Reset semua akun terdaftar
+    const reset = L.kirim({ token: "rahasia", action: "reset_semua_akun", emailAdmin: "zalukhunopal@gmail.com" });
+    expect(reset.sukses).toBe(true);
+    expect(reset.dihapus).toBe(1);
+    const daftarKosong = L.kirim({ token: "rahasia", action: "ambil_daftar_akun" });
+    expect(daftarKosong.akunList).toEqual([]);
   });
 });

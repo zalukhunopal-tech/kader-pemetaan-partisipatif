@@ -5,8 +5,10 @@ import {
   adaAdmin,
   autentikasiLogin,
   buatAdminPertama,
+  klaimKunciSesiAkun,
   mulaiPendaftaranEmail,
   mulaiPendaftaranTotp,
+  muatSemuaAkun,
   selesaikanPendaftaranTotp,
   simpanSesiPengguna,
   ubahKataSandi,
@@ -16,7 +18,24 @@ import { rahasiaUntukTampil } from "../lib/totp";
 import { useWallpaperLoginHarian } from "../lib/wallpaperLogin";
 import { KodeQrSvg } from "./KodeQrSvg";
 import { TombolInstal } from "./InstalAplikasi";
-import { AlertCircle, CheckCircle2, Copy, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
+import { IsianWilayah } from "./IsianWilayah";
+import { WILAYAH_KOSONG, wilayahLengkap } from "../lib/wilayah";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Leaf,
+  Lock,
+  Mail,
+  Radio,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+  UserPlus
+} from "lucide-react";
 
 interface AuthModalProps {
   onLoginSukses: (akun: AkunSesi) => void;
@@ -109,7 +128,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
   // Pendaftaran Akun Baru dengan Verifikasi Email
   const [namaDaftar, setNamaDaftar] = useState("");
   const [emailDaftar, setEmailDaftar] = useState("");
-  const [desaDaftar, setDesaDaftar] = useState("");
+  const [wilayahDaftar, setWilayahDaftar] = useState(WILAYAH_KOSONG);
   const [hpDaftar, setHpDaftar] = useState("");
   const [kelompokDaftar, setKelompokDaftar] = useState("");
   const [sandiDaftar, setSandiDaftar] = useState("");
@@ -310,11 +329,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
     }
   };
 
-  const lanjutSetelahKodePemulihan = () => {
+  const lanjutSetelahKodePemulihan = async () => {
     if (!hasilDaftar) return;
-    simpanSesiPengguna(hasilDaftar.akun); // sesi baru dibuat setelah kode pemulihan diakui tersimpan
-    setPasswordLogin("");
-    masukKeAplikasi(hasilDaftar.akun, `Selamat datang, ${hasilDaftar.akun.nama}!`, 150);
+    resetAlert();
+    setSedangProses(true);
+    try {
+      const akunPenuh = muatSemuaAkun().find((a) => a.email.toLowerCase() === hasilDaftar.akun.email.toLowerCase());
+      if (akunPenuh) {
+        const klaim = await klaimKunciSesiAkun(akunPenuh);
+        if (!klaim.ok) {
+          setPesanError(klaim.pesan || "Akun sedang digunakan oleh perangkat lain.");
+          return;
+        }
+      }
+      simpanSesiPengguna(hasilDaftar.akun); // sesi baru dibuat setelah kode pemulihan diakui tersimpan
+      setPasswordLogin("");
+      masukKeAplikasi(hasilDaftar.akun, `Selamat datang, ${hasilDaftar.akun.nama}!`, 150);
+    } finally {
+      setSedangProses(false);
+    }
+  };
+
+  const kirimAtauUlangOtpEmail = async () => {
+    const res = await mulaiPendaftaranEmail({
+      nama: namaDaftar,
+      email: emailDaftar,
+      desaWilayah: wilayahDaftar.desa,
+      wilayah: wilayahLengkap(wilayahDaftar) ? wilayahDaftar : undefined,
+      noHp: hpDaftar,
+      kelompokMasyarakat: kelompokDaftar,
+      kataSandi: sandiDaftar
+    });
+    if (!res.sukses) {
+      setPesanError(res.pesan);
+      return false;
+    }
+    setInfoOtpEmail({
+      email: res.email ?? emailDaftar.trim().toLowerCase(),
+      kodeVerifikasi: res.kodeVerifikasi,
+      terkirimServer: res.terkirimServer,
+      mxHost: res.mxHost
+    });
+    setKodeOtpEmail("");
+    setMode("verifikasi_email");
+    setPesanSukses(res.pesan);
+    return true;
   };
 
   const handleMulaiDaftarEmail = async (e: React.FormEvent) => {
@@ -326,27 +385,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
     }
     setSedangProses(true);
     try {
-      const res = await mulaiPendaftaranEmail({
-        nama: namaDaftar,
-        email: emailDaftar,
-        desaWilayah: desaDaftar,
-        noHp: hpDaftar,
-        kelompokMasyarakat: kelompokDaftar,
-        kataSandi: sandiDaftar
-      });
-      if (!res.sukses) {
-        setPesanError(res.pesan);
-        return;
-      }
-      setInfoOtpEmail({
-        email: res.email ?? emailDaftar.trim().toLowerCase(),
-        kodeVerifikasi: res.kodeVerifikasi,
-        terkirimServer: res.terkirimServer,
-        mxHost: res.mxHost
-      });
-      setKodeOtpEmail("");
-      setMode("verifikasi_email");
-      setPesanSukses(res.pesan);
+      await kirimAtauUlangOtpEmail();
+    } finally {
+      setSedangProses(false);
+    }
+  };
+
+  const handleKirimUlangOtp = async () => {
+    resetAlert();
+    setSedangProses(true);
+    try {
+      await kirimAtauUlangOtpEmail();
     } finally {
       setSedangProses(false);
     }
@@ -369,6 +418,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
       }
       setEmailLogin(targetEmail);
       setPasswordLogin("");
+      setNamaDaftar("");
+      setEmailDaftar("");
+      setWilayahDaftar(WILAYAH_KOSONG);
+      setHpDaftar("");
+      setKelompokDaftar("");
+      setSandiDaftar("");
+      setSandiDaftarUlang("");
       setKodeOtpEmail("");
       setInfoOtpEmail(null);
       setMode("login");
@@ -417,21 +473,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
               </button>
               <div className="auth-feature-list">
                 <div className="auth-feature-item">
-                  <div className="auth-feature-title">🌿 Survei Keanekaragaman Hayati</div>
+                  <div className="auth-feature-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Leaf size={16} aria-hidden="true" />
+                    Survei Keanekaragaman Hayati
+                  </div>
                   <div className="auth-feature-desc">
                     Pencatatan flora, fauna, mata air, dan batas wilayah adat langsung dari kader lapangan.
                   </div>
                 </div>
                 <div className="auth-feature-item">
-                  <div className="auth-feature-title">📡 Tetap jalan tanpa sinyal</div>
+                  <div className="auth-feature-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Radio size={16} aria-hidden="true" />
+                    Tetap jalan tanpa sinyal
+                  </div>
                   <div className="auth-feature-desc">
                     Bekerja tanpa sinyal seluler di hutan pedalaman dengan sinkronisasi otomatis Google Drive.
                   </div>
                 </div>
                 <div className="auth-feature-item">
-                  <div className="auth-feature-title">🔒 Keamanan Terverifikasi</div>
+                  <div className="auth-feature-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Lock size={16} aria-hidden="true" />
+                    Keamanan Terverifikasi
+                  </div>
                   <div className="auth-feature-desc">
-                    Verifikasi dua langkah dengan Google Authenticator, ditambah PIN untuk melindungi data desa.
+                    Verifikasi email OTP, persetujuan Administrator, Google Authenticator, serta kunci satu perangkat aktif.
                   </div>
                 </div>
               </div>
@@ -683,13 +748,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 type="button"
                 id="tombol-menu-daftar"
                 onClick={() => pindah("daftar_akun")}
-                style={{ ...gayaTautan, color: "#0d7344", textAlign: "center", padding: "2px 0" }}
+                style={{
+                  width: "100%",
+                  minHeight: 44,
+                  borderRadius: 10,
+                  border: "1.5px solid #0B6E4F",
+                  background: "#ECFDF5",
+                  color: "#0B6E4F",
+                  fontSize: "0.86rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
               >
-                Belum punya akun? Daftar di sini
+                <UserPlus size={16} aria-hidden="true" />
+                Belum punya akun? Daftar sekarang
               </button>
 
               <p style={{ margin: 0, fontSize: "0.74rem", color: "#64748b", textAlign: "center", lineHeight: 1.45 }}>
-                Akses aman dengan verifikasi 2 langkah (Google Authenticator) untuk admin dan kader lapangan.
+                Satu email hanya untuk satu akun dan satu perangkat aktif dengan persetujuan Administrator.
               </p>
             </form>
           )}
@@ -698,10 +778,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
           {mode === "daftar_akun" && (
             <form id="form-daftar-akun" onSubmit={handleMulaiDaftarEmail} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ textAlign: "center", marginBottom: 2 }}>
-                <UserPlus size={26} color="#0d7344" />
+                <UserPlus size={26} color="#0B6E4F" aria-hidden="true" />
                 <h4 style={{ margin: "4px 0 2px", fontSize: "0.98rem" }}>Daftar Akun Baru</h4>
                 <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b", lineHeight: 1.4 }}>
-                  Gunakan email asli yang aktif. Setelah email terverifikasi, akun akan masuk ke daftar akun dan menunggu persetujuan Administrator sebelum aktif.
+                  Satu email hanya untuk satu akun. Kode OTP dikirim ke email Anda, lalu akun disetujui Administrator.
                 </p>
               </div>
               <input
@@ -717,20 +797,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 id="daftar-email"
                 type="email"
                 required
-                placeholder="Alamat email asli (mis. nama@gmail.com)"
+                placeholder="Alamat email aktif (mis. nama@gmail.com)"
                 value={emailDaftar}
                 onChange={(e) => setEmailDaftar(e.target.value)}
                 style={gayaInput}
               />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <input
-                  id="daftar-desa"
-                  type="text"
-                  placeholder="Nama desa/wilayah"
-                  value={desaDaftar}
-                  onChange={(e) => setDesaDaftar(e.target.value)}
-                  style={gayaInput}
-                />
                 <input
                   id="daftar-hp"
                   type="text"
@@ -739,15 +811,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   onChange={(e) => setHpDaftar(e.target.value)}
                   style={gayaInput}
                 />
+                <input
+                  id="daftar-kelompok"
+                  type="text"
+                  placeholder="Kelompok / instansi"
+                  value={kelompokDaftar}
+                  onChange={(e) => setKelompokDaftar(e.target.value)}
+                  style={gayaInput}
+                />
               </div>
-              <input
-                id="daftar-kelompok"
-                type="text"
-                placeholder="Kelompok masyarakat / instansi"
-                value={kelompokDaftar}
-                onChange={(e) => setKelompokDaftar(e.target.value)}
-                style={gayaInput}
-              />
+              <IsianWilayah idAwalan="daftar" nilai={wilayahDaftar} onUbah={setWilayahDaftar} saran={[]} wajib={false} />
               <input
                 id="daftar-sandi"
                 type="password"
@@ -769,7 +842,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 style={gayaInput}
               />
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
-                {sedangProses ? "Mengautentikasi Email…" : "Kirim Kode Verifikasi Email"}
+                {sedangProses ? "Mengirim OTP Email…" : "Kirim Kode Verifikasi Email"}
               </button>
               <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
                 ← Sudah punya akun? Masuk
@@ -781,59 +854,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
           {mode === "verifikasi_email" && (
             <form id="form-verifikasi-email" onSubmit={handleVerifikasiEmail} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ textAlign: "center", marginBottom: 2 }}>
-                <Mail size={28} color="#0d7344" />
+                <Mail size={28} color="#0B6E4F" aria-hidden="true" />
                 <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Verifikasi Email Pendaftaran</h4>
-                <div style={{ fontSize: "0.78rem", color: "#0d7344", fontWeight: 700 }}>{infoOtpEmail?.email || emailDaftar}</div>
+                <div style={{ fontSize: "0.78rem", color: "#0B6E4F", fontWeight: 700 }}>{infoOtpEmail?.email || emailDaftar}</div>
                 {infoOtpEmail?.mxHost && (
                   <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: 2 }}>
                     Server MX terautentikasi: {infoOtpEmail.mxHost}
                   </div>
                 )}
               </div>
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#334155", lineHeight: 1.5 }}>
-                Masukkan <strong>kode verifikasi 6 digit</strong> untuk mengautentikasi bahwa alamat email ini asli dan aktif.
-              </p>
-              {infoOtpEmail?.kodeVerifikasi && !infoOtpEmail.terkirimServer && (
+              {infoOtpEmail?.terkirimServer ? (
                 <div
-                  id="info-kode-otp-email"
                   style={{
-                    background: "#f8fafc",
-                    border: "1px solid #cbd5e1",
+                    background: "#ECFDF5",
+                    border: "1px solid #A7F3D0",
                     borderRadius: 10,
-                    padding: "8px 10px",
-                    fontSize: "0.75rem",
-                    color: "#334155",
-                    lineHeight: 1.45
+                    padding: "10px 12px",
+                    fontSize: "0.78rem",
+                    color: "#065F46",
+                    lineHeight: 1.5
                   }}
                 >
-                  <div>
-                    Kode autentikasi sesi email Anda:{" "}
-                    <strong
-                      id="nilai-kode-otp-email"
-                      style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.9rem", color: "#0d7344", letterSpacing: "0.08em" }}
-                    >
-                      {infoOtpEmail.kodeVerifikasi}
-                    </strong>
-                  </div>
-                  <div style={{ marginTop: 4, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      onClick={() => setKodeOtpEmail(infoOtpEmail.kodeVerifikasi ?? "")}
-                      style={{ ...gayaTautan, color: "#0d7344", fontSize: "0.73rem", padding: 0 }}
-                    >
-                      Gunakan kode ini
-                    </button>
-                    <a
-                      href={`mailto:${encodeURIComponent(infoOtpEmail.email)}?subject=${encodeURIComponent(
-                        `Kode Verifikasi Email Titik Tapak: ${infoOtpEmail.kodeVerifikasi}`
-                      )}&body=${encodeURIComponent(
-                        `Halo ${namaDaftar},\n\nKode verifikasi pendaftaran email Titik Tapak Anda adalah: ${infoOtpEmail.kodeVerifikasi}\n\nSetelah diverifikasi, akun Anda akan menunggu persetujuan Administrator sebelum aktif.`
-                      )}`}
-                      style={{ ...gayaTautan, color: "#475569", fontSize: "0.73rem", textDecoration: "underline" }}
-                    >
-                      Kirim salinan ke aplikasi email
-                    </a>
-                  </div>
+                  Kode OTP 6 digit telah dikirim ke kotak masuk <strong>{infoOtpEmail.email}</strong>. Periksa Kotak Masuk atau folder Spam (berlaku 10 menit).
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: "#FFFBEB",
+                    border: "1px solid #FDE68A",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    fontSize: "0.76rem",
+                    color: "#92400E",
+                    lineHeight: 1.5
+                  }}
+                >
+                  Masukkan <strong>kode OTP 6 digit</strong> yang dikirim ke email Anda. Jika email belum masuk dalam 1 menit, tekan tombol Kirim ulang OTP di bawah.
                 </div>
               )}
               <input
@@ -850,13 +906,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 style={{ ...gayaInput, height: 48, textAlign: "center", fontSize: "1.2rem", letterSpacing: "0.18em", fontWeight: 700 }}
               />
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
-                {sedangProses ? "Memverifikasi…" : "Daftarkan Akun"}
+                {sedangProses ? "Memverifikasi…" : "Verifikasi dan Daftarkan Akun"}
+              </button>
+              <button
+                type="button"
+                disabled={sedangProses}
+                onClick={() => void handleKirimUlangOtp()}
+                style={{
+                  ...gayaTautan,
+                  color: "#0B6E4F",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6
+                }}
+              >
+                <RefreshCw size={13} aria-hidden="true" /> Kirim ulang kode OTP
               </button>
               <p style={{ margin: 0, fontSize: "0.73rem", color: "#64748b", textAlign: "center", lineHeight: 1.45 }}>
-                Catatan: Akun yang sudah diverifikasi akan tampil di daftar akun, namun <strong>belum bisa aktif</strong> sebelum disetujui Administrator.
+                Catatan: Setelah email terverifikasi, akun akan masuk daftar tunggu dan <strong>baru aktif setelah disetujui Administrator</strong>.
               </p>
               <button type="button" onClick={() => pindah("daftar_akun")} style={gayaTautan}>
-                ← Ubah email atau kirim ulang
+                ← Ubah data pendaftaran
               </button>
             </form>
           )}
