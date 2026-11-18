@@ -129,6 +129,7 @@ interface InteractiveMapProps {
   /** Tombol kembali di bilah judul peta (bila bukan lembar peta kustom) */
   onKembali?: () => void;
   onHapusAreaOffline?: (id: string) => void;
+  onHapusData?: (id: string) => void;
   /** Status konektivitas aplikasi (jaringan + sakelar offline manual) */
   sedangOnline?: boolean;
 }
@@ -207,6 +208,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanAreaOffline,
   onImporBerkas,
   onKembali,
+  onHapusData,
   sedangOnline = typeof navigator === "undefined" ? true : navigator.onLine
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -3466,15 +3468,29 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 if (navigator.share) {
                   void navigator.share({ title: objekTerpilih.judul, text: teks }).catch(() => undefined);
                 } else if (navigator.clipboard) {
-                  void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Tautan objek disalin")).catch(() => undefined);
+                  void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Tautan disalin")).catch(() => undefined);
                 }
               }}
             >
-              Bagikan
+              {objekTerpilih.jenisGeometri === "line" ? "Beri tahu" : "Bagikan"}
             </button>
-            <button type="button" className="avz-pill-outline-btn" onClick={() => setDetailObjekTerbuka(true)}>
-              Detail
-            </button>
+            {objekTerpilih.jenisGeometri === "line" && onHapusData ? (
+              <button
+                type="button"
+                className="avz-pill-outline-btn"
+                onClick={() => {
+                  onHapusData(objekTerpilih.id);
+                  setObjekTerpilih(null);
+                  setDetailObjekTerbuka(false);
+                }}
+              >
+                Hapus
+              </button>
+            ) : (
+              <button type="button" className="avz-pill-outline-btn" onClick={() => setDetailObjekTerbuka(true)}>
+                {objekTerpilih.jenisGeometri === "point" ? "Simpan" : "Detail"}
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -3495,6 +3511,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             setObjekTerpilih(null);
             setDetailObjekTerbuka(false);
           }}
+          onHapus={
+            onHapusData
+              ? (id) => {
+                  onHapusData(id);
+                  setObjekTerpilih(null);
+                  setDetailObjekTerbuka(false);
+                }
+              : undefined
+          }
           onPesan={setPesanSalin}
         />
       )}

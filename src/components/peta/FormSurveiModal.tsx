@@ -30,7 +30,7 @@ import { bacaDraftSurvei, DraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from ".
 import { ambilRataRataGps } from "../../lib/posisiPerangkat";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { susunAtributPolygonPrmAid, susunAtributLinePrmAid, susunAtributPointPrmAid } from "../../lib/atributPrmAid";
-import { kelompokkanFieldPerTabel, validasiIsianSkema } from "../../lib/skemaTugas";
+import { ambilAngkaNominal, formatNominalRupiah, kelompokkanFieldPerTabel, LABEL_TIPE_FIELD, validasiIsianSkema } from "../../lib/skemaTugas";
 import { BottomSheet } from "./BottomSheet";
 import { PerekamMemoSuara } from "./PerekamMemoSuara";
 import { KartuLokasiTitik } from "./KartuLokasiTitik";
@@ -415,6 +415,35 @@ export function FormSurveiModal({
             value={val}
             onChange={(e) => ubahNilaiKustom(f.id, e.target.value)}
           />
+        </div>
+      );
+    }
+    if (f.tipe === "nominal") {
+      const displayVal = val ? (val.startsWith("Rp") ? val : formatNominalRupiah(val)) : "";
+      return (
+        <div key={f.id} className="avz-isian-baris avz-tabel-kolom">
+          <div className="avz-isian-kepala">
+            <strong>
+              {f.nama}
+              {labelReq}
+            </strong>
+            <span className={`avz-skema-tag ${f.wajib ? "wajib" : ""}`}>{f.wajib ? "Wajib" : "Nominal (Rp)"}</span>
+          </div>
+          <div className="avz-nominal-input-wrap">
+            <span className="avz-nominal-prefix">Rp</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="form-input avz-nominal-input"
+              required={Boolean(f.wajib)}
+              placeholder={f.placeholder || "0"}
+              value={displayVal.replace(/^Rp\s*/, "")}
+              onChange={(e) => {
+                const raw = ambilAngkaNominal(e.target.value);
+                ubahNilaiKustom(f.id, raw ? formatNominalRupiah(raw) : "");
+              }}
+            />
+          </div>
         </div>
       );
     }

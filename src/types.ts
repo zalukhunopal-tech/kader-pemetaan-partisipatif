@@ -280,7 +280,7 @@ export interface AreaPetaOffline {
   empatSudut?: [number, number][];
 }
 
-export type TipeFieldSkema = "teks" | "angka" | "pilihan" | "tanggal" | "catatan" | "foto";
+export type TipeFieldSkema = "teks" | "angka" | "nominal" | "pilihan" | "tanggal" | "catatan" | "foto";
 
 export interface FieldSkemaAtribut {
   id: string;
@@ -317,6 +317,10 @@ export interface LapisanSpasial {
   adalahTematik?: boolean;
   /** ID Tugas Pemetaan asal bila lapisan ditautkan dari Tugas yang dibuat Admin */
   tugasId?: string;
+  /** Sasaran user/kader penerima tugas (idKader atau email). Kosong atau ['*'] = Semua Kader */
+  targetKader?: string[];
+  /** Isian format data yang ditentukan Admin */
+  fields?: FieldSkemaAtribut[];
   /** Konfigurasi isian atribut peta interaktif untuk Point, Line, dan Polygon */
   skemaGeometri?: SkemaAtributGeometri;
   deskripsi?: string;
@@ -398,6 +402,10 @@ export interface TugasPemetaan {
   batasWaktu: string;
   koordinatAcuan: KoordinatTitik;
   batasPoligonAcuan?: KoordinatTitik[];
+  /** Sasaran user/kader penerima tugas (idKader atau email). Kosong atau ['*'] = Semua Kader */
+  targetKader?: string[];
+  /** Isian format data yang ditentukan Admin */
+  fields?: FieldSkemaAtribut[];
   /** Konfigurasi isian peta interaktif (Point, Line, Polygon) yang diatur Admin */
   skemaGeometri?: SkemaAtributGeometri;
   status: "aktif" | "menunggu_verifikasi" | "selesai";

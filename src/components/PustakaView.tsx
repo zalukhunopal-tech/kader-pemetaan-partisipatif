@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
+import { AkunSesi } from "../lib/auth";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
 import {
@@ -36,6 +37,7 @@ interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
   lapisanList: LapisanSpasial[];
   dataSpasial: DataSpasialItem[];
+  sesiPengguna?: AkunSesi | null;
   modePilihAktif: boolean;
   onMatikanModePilih: () => void;
   onBukaPetaDasar: () => void;
@@ -126,6 +128,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   areaOffline,
   lapisanList,
   dataSpasial,
+  sesiPengguna,
   modePilihAktif,
   onMatikanModePilih,
   onBukaPetaDasar,
@@ -219,7 +222,21 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     });
 
   const daftarLapisanTampil = lapisanList
-    .filter((l) => (kataKunci.trim() ? l.nama.toLowerCase().includes(kataKunci.toLowerCase()) : true))
+    .filter((l) => {
+      if (kataKunci.trim() && !l.nama.toLowerCase().includes(kataKunci.toLowerCase())) return false;
+      if (sesiPengguna && sesiPengguna.peran === "kader") {
+        if (!l.tugasId) return true;
+        if (!l.targetKader || l.targetKader.length === 0 || l.targetKader.includes("*")) return true;
+        const id = sesiPengguna.idKader?.toLowerCase();
+        const email = sesiPengguna.email?.toLowerCase();
+        const nama = sesiPengguna.nama?.toLowerCase();
+        return l.targetKader.some((k) => {
+          const target = k.toLowerCase().trim();
+          return (id && target === id) || (email && target === email) || (nama && target === nama);
+        });
+      }
+      return true;
+    })
     .sort((a, b) => {
       if (urutLapisan === "nama") return a.nama.localeCompare(b.nama);
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -906,13 +923,22 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   <div className="avenza-layer-info">
                     <div className="avenza-layer-title">
                       {lapisan.nama}
-                      {lapisan.tugasId && <span className="avenza-layer-badge-tugas">Tugas Admin</span>}
+                      {lapisan.tugasId && (
+                        <>
+                          <span className="avenza-layer-badge-tugas">Tugas Lapangan</span>
+                          {lapisan.targetKader && !lapisan.targetKader.includes("*") && lapisan.targetKader.length > 0 && (
+                            <span className="avenza-badge-kader-khusus">Khusus Anda</span>
+                          )}
+                        </>
+                      )}
                     </div>
                     <div className="avenza-layer-meta">
                       {lapisan.tugasId
-                        ? ringkasSkema.total > 0 || ringkasSkema.totalTabel > 0
-                          ? `Point ${ringkasSkema.tabelPoint}T (${ringkasSkema.point}) · Line ${ringkasSkema.tabelLine}T (${ringkasSkema.line}) · Polygon ${ringkasSkema.tabelPolygon}T (${ringkasSkema.polygon})`
-                          : "Belum ada tabel (isi memakai format Default)"
+                        ? (lapisan.fields && lapisan.fields.length > 0)
+                          ? `${lapisan.fields.length} isian data: ${lapisan.fields.map((f) => f.nama).slice(0, 3).join(", ")}${lapisan.fields.length > 3 ? "..." : ""}`
+                          : ringkasSkema.total > 0 || ringkasSkema.totalTabel > 0
+                            ? `Point ${ringkasSkema.tabelPoint}T (${ringkasSkema.point}) · Line ${ringkasSkema.tabelLine}T (${ringkasSkema.line}) · Polygon ${ringkasSkema.tabelPolygon}T (${ringkasSkema.polygon})`
+                            : "Format Lapisan"
                         : `${lapisan.jumlahPeta} Peta`}
                       {jmlObjek > 0 && (
                         <>
