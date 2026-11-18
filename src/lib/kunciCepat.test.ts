@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sha256 } from "@noble/hashes/sha2.js";
 import {
   AkunSesi,
@@ -8,6 +8,7 @@ import {
   aturUlangAuthenticatorOlehAdmin,
   aturUlangSandiOlehAdmin,
   autentikasiLogin,
+  bersihkanAkunSetelahTes,
   buatAdminPertama,
   konfigUji,
   mulaiPendaftaranEmail,
@@ -87,8 +88,14 @@ beforeEach(() => {
   bukaUlangAplikasi();
 });
 afterEach(() => {
+  bersihkanAkunSetelahTes();
+  localStorage.clear();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+afterAll(() => {
+  bersihkanAkunSetelahTes();
+  localStorage.clear();
 });
 
 describe("aturan PIN", () => {

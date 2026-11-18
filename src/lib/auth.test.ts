@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AkunPengguna,
   AkunSesi,
@@ -9,6 +9,7 @@ import {
   aturUlangSandiOlehAdmin,
   aksesAdminSah,
   autentikasiLogin,
+  bersihkanAkunSetelahTes,
   bukaGerbangAdminDenganKode,
   buatAdminPertama,
   buatHashSandi,
@@ -114,8 +115,14 @@ beforeEach(() => {
   vi.setSystemTime(WAKTU_AWAL);
 });
 afterEach(() => {
+  bersihkanAkunSetelahTes();
+  localStorage.clear();
   vi.useRealTimers();
   vi.unstubAllEnvs();
+});
+afterAll(() => {
+  bersihkanAkunSetelahTes();
+  localStorage.clear();
 });
 
 describe("validasiKataSandi", () => {
@@ -916,5 +923,13 @@ describe("pendaftaran email & persetujuan admin", () => {
     const rAll = await resetSemuaAkunTerdaftar({ pertahankanMasterAdmin: false, sinkronCloud: false });
     expect(rAll.sukses).toBe(true);
     expect(muatSemuaAkun()).toHaveLength(0);
+  });
+
+  it("aturan pembersihan akun setelah tes: bersihkanAkunSetelahTes menghapus seluruh akun dan memori", async () => {
+    const admin = await siapkanAdmin("Bersih");
+    expect(muatSemuaAkun().length).toBeGreaterThan(0);
+    bersihkanAkunSetelahTes();
+    expect(muatSemuaAkun()).toHaveLength(0);
+    expect(muatSesiPengguna()).toBeNull();
   });
 });

@@ -1903,6 +1903,8 @@ export async function resetSemuaAkunTerdaftar(
     // abaikan
   }
   lepasKunciSesiLokal();
+  peranMemori.clear();
+  statusMemori.clear();
 
   if (opsi.sinkronCloud !== false && import.meta.env.MODE !== "test" && gdriveTerpasang()) {
     await resetSemuaAkunGDrive(MASTER_ADMIN.email);
@@ -1930,6 +1932,8 @@ export async function resetSemuaAkunOlehAdmin(
   const dihapus = Math.max(0, sebelum.length - sisa.length);
   simpanSemuaAkun(sisa);
   lepasKunciSesiLokal();
+  peranMemori.clear();
+  statusMemori.clear();
   try {
     localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
   } catch {
@@ -2047,6 +2051,27 @@ export function setelUlangLangkahUji(email: string): void {
   simpanPerubahanAkun(email, { totpLangkahTerakhir: undefined });
 }
 
+/**
+ * Aturan Proyek: Pembersihan Akun Setelah Tes.
+ * Menghapus seluruh akun uji coba, sesi sementara, dan residu pendaftaran pengujian
+ * dari penyimpanan lokal dan memori agar aplikasi kembali bersih setelah tes dijalankan.
+ */
+export function bersihkanAkunSetelahTes(): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(KEY_ACCOUNTS);
+      localStorage.removeItem(KEY_SESSION);
+      localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+      localStorage.removeItem(KEY_VERIFIKASI_TOTP);
+    }
+  } catch {
+    // abaikan jika lingkungan non-storage
+  }
+  lepasKunciSesiLokal();
+  peranMemori.clear();
+  statusMemori.clear();
+}
+
 /** Dipanggil sekali sebelum aplikasi dirender */
 export async function siapkanAutentikasi(): Promise<void> {
   await migrasiAkunLama();
@@ -2070,7 +2095,12 @@ export async function siapkanAutentikasi(): Promise<void> {
       (a) =>
         !(
           (a.email.toLowerCase() === "kader@geokader.id" && a.idKader === "KDR-001") ||
-          (a.email.toLowerCase() === "admin@geokader.id" && (a.idKader === "ADM-001" || a.totpRahasia === RAHASIA_TOTP_UJI))
+          (a.email.toLowerCase() === "admin@geokader.id" && (a.idKader === "ADM-001" || a.totpRahasia === RAHASIA_TOTP_UJI)) ||
+          (import.meta.env.MODE !== "test" &&
+            (a.email.toLowerCase().endsWith("@contoh.id") ||
+              a.email.toLowerCase().endsWith("@test.id") ||
+              a.email.toLowerCase().includes("dummy") ||
+              a.email.toLowerCase().includes("testing")))
         )
     );
     if (import.meta.env.MODE !== "test") {
@@ -2082,7 +2112,16 @@ export async function siapkanAutentikasi(): Promise<void> {
       simpanSemuaAkun(akunBersih);
     }
     const sesi = muatSesiPengguna();
-    if (sesi && (sesi.email.toLowerCase() === "kader@geokader.id" || sesi.email.toLowerCase() === "admin@geokader.id")) {
+    if (
+      sesi &&
+      (sesi.email.toLowerCase() === "kader@geokader.id" ||
+        sesi.email.toLowerCase() === "admin@geokader.id" ||
+        (import.meta.env.MODE !== "test" &&
+          (sesi.email.toLowerCase().endsWith("@contoh.id") ||
+            sesi.email.toLowerCase().endsWith("@test.id") ||
+            sesi.email.toLowerCase().includes("dummy") ||
+            sesi.email.toLowerCase().includes("testing"))))
+    ) {
       localStorage.removeItem(KEY_SESSION);
     }
   } catch {
