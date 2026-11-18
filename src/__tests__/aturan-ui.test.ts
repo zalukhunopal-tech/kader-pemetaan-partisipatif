@@ -126,4 +126,27 @@ describe("Aturan UI", () => {
     expect(panelLapisan).toMatch(/<button[\s\S]*?>\s*Dasar\s*<\/button>/);
     expect(panelLapisan).toContain(">Berkas</span>");
   });
+
+  it("aturan pembersihan akun setelah tes wajib tercantum di CLAUDE.md dan GEMINI.md", () => {
+    const claude = readFileSync(resolve(AKAR, "../CLAUDE.md"), "utf8");
+    const gemini = readFileSync(resolve(AKAR, "../GEMINI.md"), "utf8");
+    expect(claude).toMatch(/Pembersihan Akun/i);
+    expect(claude).toMatch(/Hapus Akun Setelah Melakukan Tes/i);
+    expect(claude).toMatch(/bersihkanAkunSetelahTes/i);
+    expect(gemini).toMatch(/Aturan Pembersihan Akun Setelah Tes/i);
+  });
+
+  it("berkas pengujian autentikasi dan setup vitest menerapkan teardown pembersihan akun", () => {
+    const authTest = readFileSync(resolve(AKAR, "lib/auth.test.ts"), "utf8");
+    const kunciCepatTest = readFileSync(resolve(AKAR, "lib/kunciCepat.test.ts"), "utf8");
+    const testSetup = readFileSync(resolve(AKAR, "test-setup.ts"), "utf8");
+    const vitestConfig = readFileSync(resolve(AKAR, "../vitest.config.ts"), "utf8");
+
+    expect(authTest).toMatch(/afterEach[\s\S]*?bersihkanAkunSetelahTes/);
+    expect(authTest).toMatch(/afterAll[\s\S]*?bersihkanAkunSetelahTes/);
+    expect(kunciCepatTest).toMatch(/afterEach[\s\S]*?bersihkanAkunSetelahTes/);
+    expect(kunciCepatTest).toMatch(/afterAll[\s\S]*?bersihkanAkunSetelahTes/);
+    expect(testSetup).toContain("geokader_accounts_v5");
+    expect(vitestConfig).toContain("test-setup.ts");
+  });
 });

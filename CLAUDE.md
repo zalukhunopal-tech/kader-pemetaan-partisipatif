@@ -39,3 +39,12 @@ Aplikasi React + Vite (PWA) untuk survei dan pemetaan partisipatif. Bahasa antar
 - Gaya peta ada di `src/styles/petaAvenza.css` (dimuat setelah `app.css`, dibatasi `.avz-peta`).
   `app.css` berisi banyak aturan lama ber-`!important`; jangan menambah aturan peta baru di sana.
 - `RailAlatPeta` dirender dua kali: `bagian="zoom"` di kolom kanan atas dan `bagian="alat"` sebagai bilah bawah.
+
+## Aturan Pengujian dan Pembersihan Akun (wajib)
+
+1. **Hapus Akun Setelah Melakukan Tes**:
+   - Setiap pengujian (unit test, integrasi, e2e, atau simulasi pendaftaran) yang membuat, mendaftarkan, atau memodifikasi akun pengguna/kader/admin **wajib menghapus dan membersihkan akun-akun tersebut setelah pengujian selesai** (melalui hook teardown `afterEach` atau `afterAll`).
+   - Tidak boleh meninggalkan residu akun uji coba di dalam penyimpanan aplikasi (`localStorage`, `geokader_accounts_v5`, `geokader_active_session_v5`, atau status sesi) setelah tes selesai dijalankan.
+   - Gunakan fungsi `bersihkanAkunSetelahTes()` atau `resetSemuaAkunTerdaftar({ pertahankanMasterAdmin: false, sinkronCloud: false })` pada blok teardown di berkas tes terkait.
+2. **Penyimpanan Aplikasi Tetap Bersih**:
+   - Di luar lingkungan pengujian otomatis (`import.meta.env.MODE !== "test"`), aplikasi melalui fungsi inisialisasi `siapkanAutentikasi()` secara otomatis membersihkan semua akun dummy/uji coba (seperti domain `@contoh.id`, `@test.id`, atau akun bawaan uji) agar penyimpanan aplikasi selalu bersih dan hanya menyisakan Master Admin atau akun pengguna sah.
