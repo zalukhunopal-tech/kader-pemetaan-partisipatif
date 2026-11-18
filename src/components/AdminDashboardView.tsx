@@ -43,7 +43,6 @@ import {
   Layers,
   PenTool,
   Plus,
-  RefreshCw,
   RotateCcw,
   Share2,
   Table2,
@@ -470,17 +469,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
         <div className="section-card">
           <div className="admin-data-header-bar">
             <h3 style={{ margin: 0, fontSize: "1rem" }}>✏️ Data ({dataSpasial.length})</h3>
-            {onRekonsiliasiGDrive && (
-              <button
-                type="button"
-                className="btn-outline-sm"
-                disabled={sedangRekonsiliasi}
-                onClick={() => void onRekonsiliasiGDrive()}
-                title="Periksa kesesuaian data aktif dan folder pencadangan dengan database Google Drive"
-              >
-                <RefreshCw size={14} /> {sedangRekonsiliasi ? "Memeriksa…" : "Cek Database GDrive"}
-              </button>
-            )}
+            <span className="text-xs text-muted">Tarik ke bawah untuk menyegarkan</span>
           </div>
 
           <div className="admin-data-subtabs" role="tablist" aria-label="Pilih daftar data">
