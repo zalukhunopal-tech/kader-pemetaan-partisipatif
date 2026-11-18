@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Crosshair, Loader2 } from "lucide-react";
+import { ArrowLeftRight, Crosshair, Loader2 } from "lucide-react";
 import { KoordinatTitik } from "../../types";
 import { formatKoordinat, SistemKoordinat, uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
 
@@ -16,7 +16,7 @@ interface KartuLokasiTitikProps {
   galatGps?: string;
 }
 
-/** Tiga sistem koordinat utama yang dapat diganti lewat tiga titik atau swipe. */
+/** Tiga sistem koordinat utama yang dapat diganti berurutan lewat tombol simbol atau swipe. */
 export const SISTEM_SWIPE: SistemKoordinat[] = ["DD", "DMS", "UTM"];
 
 const LABEL_SISTEM: Record<SistemKoordinat, string> = {
@@ -69,6 +69,7 @@ export function KartuLokasiTitik({
 
   const idxAktifRaw = SISTEM_SWIPE.indexOf(sistem);
   const idxAktif = idxAktifRaw >= 0 ? idxAktifRaw : 0;
+  const sistemBerikut = SISTEM_SWIPE[(idxAktif + 1) % SISTEM_SWIPE.length];
 
   const geserSistem = (arah: 1 | -1) => {
     setSedangEdit(false);
@@ -119,96 +120,81 @@ export function KartuLokasiTitik({
       }}
       onPointerUp={(e) => selesaiSentuh(e.clientX)}
     >
-      <label className="loc-coord-label">
-        <span className="loc-coord-label-row">
-          <span>
-            Koordinat <strong className="loc-swipe-badge">{LABEL_SISTEM[sistem]}</strong>
-          </span>
+      <div className="loc-coord-label">
+        <label htmlFor="input-koordinat-titik" className="loc-coord-label-text">
+          Koordinat
+        </label>
+        <div className="loc-coord-row">
+          <input
+            id="input-koordinat-titik"
+            type="text"
+            className="form-input loc-coord-input"
+            aria-label="Koordinat Titik"
+            readOnly={!onUbahKoordinat}
+            value={sedangEdit ? teksEdit : teksNilai}
+            placeholder={CONTOH_SISTEM[sistem]}
+            onFocus={() => {
+              setSedangEdit(true);
+              setTeksEdit(teksNilai);
+            }}
+            onChange={(e) => {
+              const val = e.target.value;
+              setTeksEdit(val);
+              terapkanKoordinatLangsung(val, false);
+            }}
+            onBlur={() => {
+              if (!terapkanKoordinatLangsung(teksEdit, true)) {
+                setTeksEdit(teksNilai);
+              }
+              setSedangEdit(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (terapkanKoordinatLangsung(teksEdit, true)) {
+                  setSedangEdit(false);
+                  e.currentTarget.blur();
+                }
+              } else if (e.key === "ArrowLeft" && !sedangEdit) {
+                e.preventDefault();
+                geserSistem(-1);
+              } else if (e.key === "ArrowRight" && !sedangEdit) {
+                e.preventDefault();
+                geserSistem(1);
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="btn-media-simbol loc-action-simbol loc-format-btn"
+            onClick={() => geserSistem(1)}
+            aria-label={`Ganti format koordinat (${LABEL_SISTEM[sistem]})`}
+            title={`Ganti format koordinat (${LABEL_SISTEM[sistem]} ke ${LABEL_SISTEM[sistemBerikut]})`}
+          >
+            <ArrowLeftRight size={20} />
+          </button>
           {gpsSibuk ? (
             <button
               type="button"
-              className="loc-mini-icon-btn aktif"
-              onClick={(e) => {
-                e.preventDefault();
-                onBatalUkur();
-              }}
+              className="btn-media-simbol loc-action-simbol aktif"
+              onClick={onBatalUkur}
               aria-label="Hentikan GPS"
               title={`Mengukur GPS (${sampel}/10)`}
             >
-              <Loader2 size={14} className="spin" />
+              <Loader2 size={20} className="spin" />
             </button>
           ) : (
             <button
               type="button"
-              className="loc-mini-icon-btn"
-              onClick={(e) => {
-                e.preventDefault();
-                onUkurGps();
-              }}
+              className="btn-media-simbol loc-action-simbol"
+              onClick={onUkurGps}
               aria-label="Ukur GPS"
               title="Ukur ulang GPS rata-rata"
             >
-              <Crosshair size={14} />
+              <Crosshair size={20} />
             </button>
           )}
-        </span>
-        <input
-          type="text"
-          className="form-input loc-coord-input"
-          aria-label="Koordinat Titik"
-          readOnly={!onUbahKoordinat}
-          value={sedangEdit ? teksEdit : teksNilai}
-          placeholder={CONTOH_SISTEM[sistem]}
-          onFocus={() => {
-            setSedangEdit(true);
-            setTeksEdit(teksNilai);
-          }}
-          onChange={(e) => {
-            const val = e.target.value;
-            setTeksEdit(val);
-            terapkanKoordinatLangsung(val, false);
-          }}
-          onBlur={() => {
-            if (!terapkanKoordinatLangsung(teksEdit, true)) {
-              setTeksEdit(teksNilai);
-            }
-            setSedangEdit(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              if (terapkanKoordinatLangsung(teksEdit, true)) {
-                setSedangEdit(false);
-                e.currentTarget.blur();
-              }
-            } else if (e.key === "ArrowLeft" && !sedangEdit) {
-              e.preventDefault();
-              geserSistem(-1);
-            } else if (e.key === "ArrowRight" && !sedangEdit) {
-              e.preventDefault();
-              geserSistem(1);
-            }
-          }}
-        />
-      </label>
-
-      <div className="loc-swipe-dots" role="tablist" aria-label="Pilih format koordinat">
-        {SISTEM_SWIPE.map((idSistem, idx) => (
-          <button
-            key={idSistem}
-            type="button"
-            role="tab"
-            aria-selected={idx === idxAktif}
-            aria-label={`Format ${idSistem}`}
-            title={`Ganti ke ${idSistem}`}
-            className={`loc-swipe-dot ${idx === idxAktif ? "aktif" : ""}`}
-            onClick={() => {
-              setSedangEdit(false);
-              setGalatEdit("");
-              onGantiSistem(idSistem);
-            }}
-          />
-        ))}
+        </div>
       </div>
 
       {gpsSibuk && (

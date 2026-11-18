@@ -76,7 +76,7 @@ interface AdminDashboardViewProps {
     jabatan: string,
     daftarPenandatangan?: PenandatanganSertifikatItem[]
   ) => void;
-  onTambahPengumuman: (p: PengumumanBroadcast) => void;
+  onTambahPengumuman?: (p: PengumumanBroadcast) => void;
   onTambahTugas: (t: TugasPemetaan) => void;
   onUbahTugas?: (t: TugasPemetaan) => void;
   onVerifikasiTugas?: (id: string) => void;
@@ -102,7 +102,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   sedangRekonsiliasi = false,
   onTerbitkanSertifikat,
   onUbahPenandatanganSertifikat,
-  onTambahPengumuman,
   onTambahTugas,
   onUbahTugas,
   onVerifikasiTugas,
@@ -151,11 +150,6 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
       peran: "kader" as const
     }));
   }, [kaderAktifList]);
-
-  // Form Pengumuman Baru
-  const [judulAnn, setJudulAnn] = useState("");
-  const [isiAnn, setIsiAnn] = useState("");
-  const [katAnn] = useState<PengumumanBroadcast["kategori"]>("Panduan Survei");
 
   // Form Penerbitan & Pengaturan Penandatangan Sertifikat
   // Nomor berikutnya mengikuti jumlah sertifikat yang sudah terbit; nomor yang diketik admin berlaku
@@ -316,23 +310,6 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
     resetFormTugas();
   };
 
-  const handleBuatPengumuman = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!judulAnn.trim() || !isiAnn.trim()) return;
-    onTambahPengumuman({
-      id: buatId("ANN"),
-      judul: judulAnn.trim(),
-      isi: isiAnn.trim(),
-      kategori: katAnn,
-      targetDesa: "Semua Wilayah",
-      olehAdmin: "Admin GIS",
-      tanggal: new Date().toISOString().slice(0, 10),
-      penting: true
-    });
-    setJudulAnn("");
-    setIsiAnn("");
-  };
-
   const handleSimpanEditData = (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemDiedit) return;
@@ -489,7 +466,8 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               className={`admin-data-subtab-btn ${tampilanData === "pencadangan" ? "aktif" : ""}`}
               onClick={() => setTampilanData("pencadangan")}
             >
-              <Archive size={14} /> Pencadangan 90 Hari ({pencadanganList.length})
+              <Archive size={14} aria-hidden="true" />
+              <span>Pencadangan 90 Hari ({pencadanganList.length})</span>
             </button>
           </div>
 
@@ -1201,29 +1179,6 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               </div>
             )}
           </div>
-
-          <form onSubmit={handleBuatPengumuman} className="section-card">
-            <h3 style={{ margin: "0 0 8px", fontSize: "1rem" }}>📢 Buat Pengumuman</h3>
-            <div className="form-row-2">
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Judul pengumuman"
-                value={judulAnn}
-                onChange={(e) => setJudulAnn(e.target.value)}
-              />
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Isi pesan"
-                value={isiAnn}
-                onChange={(e) => setIsiAnn(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn-outline-sm" style={{ marginTop: 10 }} title="Umumkan pesan kepada seluruh kader">
-              Umumkan
-            </button>
-          </form>
         </div>
       )}
 

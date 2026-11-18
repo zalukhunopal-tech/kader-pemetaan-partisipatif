@@ -12472,18 +12472,37 @@ html[data-field-theme="matahari"] .section-card h2 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px 10px;
+  min-width: 0;
+  min-height: 44px;
+  height: 100%;
+  max-width: 100%;
   border-radius: 99px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   color: #334155;
   font-size: 0.82rem;
   font-weight: 700;
+  line-height: 1.25;
   cursor: pointer;
   width: 100%;
   box-sizing: border-box;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}
+
+.admin-data-subtab-btn svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .admin-data-subtab-btn {
+    padding: 7px 10px;
+    font-size: 0.76rem;
+    gap: 5px;
+  }
 }
 
 .admin-data-subtab-btn.aktif {
@@ -12740,7 +12759,7 @@ html[data-field-theme="matahari"] .section-card h2 {
   flex-shrink: 0;
 }
 
-/* KOORDINAT TITIK ALA KOLAM TEMATIK / NAMA LOKAL + 3 TITIK */
+/* KOORDINAT TITIK DENGAN SIMBOL GANTI FORMAT & GPS DI SEBELAH KANAN */
 .loc-card-field {
   display: flex;
   flex-direction: column;
@@ -12750,22 +12769,45 @@ html[data-field-theme="matahari"] .section-card h2 {
 .loc-coord-label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin: 0;
 }
 
-.loc-coord-label-row {
+.loc-coord-label-text {
+  display: block;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.loc-coord-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  min-width: 0;
 }
 
 .loc-coord-input {
+  flex: 1 1 0%;
+  width: auto;
+  min-width: 0;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.btn-media-simbol.loc-action-simbol {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  flex-shrink: 0;
+}
+
+.btn-media-simbol.loc-action-simbol.aktif {
+  border-style: solid;
+  border-color: #0d7344;
+  background: #dcfce7;
 }
 
 .btn-media-simbol:hover {
