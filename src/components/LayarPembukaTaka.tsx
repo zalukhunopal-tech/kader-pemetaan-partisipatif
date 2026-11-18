@@ -10,6 +10,13 @@ const KUNCI_SPLASH_SESI = "geokader_taka_splash_tampil_v1";
 export function sudahTampilSplashTakaSesiIni(): boolean {
   if (import.meta.env.MODE === "test") return true;
   try {
+    // Pada mode PWA terpasang (Android/iOS standalone), sistem operasi sudah menampilkan layar pembuka bawaan
+    // sehingga layar pembuka React tidak ditampilkan ulang (mencegah logo muncul dua kali)
+    const adalahStandalone =
+      typeof window !== "undefined" &&
+      ((typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches) ||
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+    if (adalahStandalone) return true;
     return sessionStorage.getItem(KUNCI_SPLASH_SESI) === "1";
   } catch {
     return false;

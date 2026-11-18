@@ -563,9 +563,9 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                                 className="btn-primary-sm"
                                 disabled={!hitungSkorKualitasData(d).geometriValid}
                                 onClick={() => onVerifikasiData(d.id, "terverifikasi")}
-                                title="Sahkan data valid"
+                                title="Verifikasi data valid"
                               >
-                                <Check size={13} /> Sah
+                                <Check size={13} /> Verifikasi
                               </button>
                               <button
                                 type="button"
@@ -1174,9 +1174,9 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                             type="button"
                             className="btn-primary-sm"
                             onClick={() => onVerifikasiTugas(t.id)}
-                            title="Sahkan penyelesaian tugas (+60 poin level)"
+                            title="Verifikasi penyelesaian tugas (+60 poin level)"
                           >
-                            <Check size={13} /> Sahkan
+                            <Check size={13} /> Verifikasi
                           </button>
                         )}
                         <button
@@ -1246,11 +1246,58 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               {daftarPenandatangan.map((sig, idx) => (
                 <div key={sig.id} className="admin-signer-box">
                   <div className="admin-signer-box-head">
-                    <strong>
-                      Penandatangan #{idx + 1} · {sig.jabatan || `Posisi ${idx + 1}`}
+                    <span className="admin-signer-rank-pill">#{idx + 1}</span>
+                    <strong className="admin-signer-heading" title={sig.jabatan || `Posisi ${idx + 1}`}>
+                      {sig.jabatan || `Penandatangan ${idx + 1}`}
                     </strong>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <label className="btn-outline-sm admin-ttd-btn" style={{ margin: 0, cursor: "pointer" }} title="Unggah gambar tanda tangan">
+                  </div>
+
+                  <div className="admin-signer-fields">
+                    <div className="admin-signer-field">
+                      <label htmlFor={`admin-sig-nama-${sig.id}`}>Nama Penandatangan</label>
+                      <input
+                        id={`admin-sig-nama-${sig.id}`}
+                        type="text"
+                        className="form-input"
+                        placeholder="Nama lengkap beserta gelar"
+                        value={sig.nama}
+                        onChange={(e) => ubahSatuPenandatangan(idx, { nama: e.target.value })}
+                      />
+                    </div>
+                    <div className="admin-signer-field">
+                      <label htmlFor={`admin-sig-jabatan-${sig.id}`}>Jabatan Penandatangan</label>
+                      <input
+                        id={`admin-sig-jabatan-${sig.id}`}
+                        type="text"
+                        className="form-input"
+                        placeholder="Jabatan pejabat penandatangan"
+                        value={sig.jabatan}
+                        onChange={(e) => ubahSatuPenandatangan(idx, { jabatan: e.target.value })}
+                      />
+                    </div>
+                    <div className="admin-signer-field">
+                      <label htmlFor={`admin-sig-instansi-${sig.id}`}>Instansi</label>
+                      <input
+                        id={`admin-sig-instansi-${sig.id}`}
+                        type="text"
+                        className="form-input"
+                        placeholder="Instansi penandatangan"
+                        value={sig.instansi}
+                        onChange={(e) => ubahSatuPenandatangan(idx, { instansi: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="admin-signer-ttd-row">
+                    <div className="admin-signer-ttd-preview">
+                      {sig.tandaTanganBase64 ? (
+                        <img src={sig.tandaTanganBase64} alt={`Tanda tangan ${sig.nama || `Posisi ${idx + 1}`}`} />
+                      ) : (
+                        <span className="admin-signer-ttd-empty">Belum ada TTD</span>
+                      )}
+                    </div>
+                    <div className="admin-signer-ttd-actions">
+                      <label className="btn-outline-sm admin-ttd-btn" title="Unggah gambar tanda tangan">
                         <PenTool size={12} /> {sig.tandaTanganBase64 ? "Ganti TTD" : "Unggah TTD"}
                         <input
                           type="file"
@@ -1265,7 +1312,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                       {sig.tandaTanganBase64 && (
                         <button
                           type="button"
-                          className="btn-outline-sm admin-ttd-btn"
+                          className="btn-danger-sm admin-ttd-btn"
                           onClick={() => {
                             const baru = daftarPenandatangan.map((item, i) =>
                               i === idx ? { ...item, tandaTanganBase64: undefined } : item
@@ -1275,41 +1322,9 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                           }}
                           title="Hapus gambar tanda tangan"
                         >
-                          Hapus TTD
+                          Hapus
                         </button>
                       )}
-                    </div>
-                  </div>
-                  <div className="form-row-3">
-                    <div>
-                      <label>Nama Penandatangan</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Nama yang menandatangani sertifikat"
-                        value={sig.nama}
-                        onChange={(e) => ubahSatuPenandatangan(idx, { nama: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label>Jabatan Penandatangan</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Jabatan pejabat penandatangan"
-                        value={sig.jabatan}
-                        onChange={(e) => ubahSatuPenandatangan(idx, { jabatan: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label>Instansi</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Instansi penandatangan"
-                        value={sig.instansi}
-                        onChange={(e) => ubahSatuPenandatangan(idx, { instansi: e.target.value })}
-                      />
                     </div>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Check, Info, Plus, Undo2 } from "lucide-react";
 import { JenisGeometri, KoordinatTitik } from "../../types";
-import { hitungBearingDerajat, hitungJarakMeter } from "../../lib/geoUtils";
+import { hitungBearingDerajat, hitungJarakMeter, hitungLuasPoligonHa } from "../../lib/geoUtils";
 import { StatePerekamLatar, perekamLatar } from "../../lib/perekamLatar";
 
 interface PanelPerekamanProps {
@@ -27,16 +27,22 @@ interface PanelPerekamanProps {
   onBatal: () => void;
   /** Pusatkan peta ke posisi GPS saat di mode Gambar dan Ukur */
   onPusatkanGps?: () => void;
-  /** Ganti mode geometri di dalam Gambar dan Ukur (garis vs area) */
+  /** Ganti mode geometri di dalam Gambar dan Ukur (konversi garis menjadi area atau sebaliknya) */
   onPilihJenisUkur?: (jenis: "line" | "polygon") => void;
+}
+
+function formatLuasUkur(luasHa: number): string {
+  if (luasHa >= 100) {
+    return `${(luasHa / 100).toFixed(2).replace(".", ",")} km²`;
+  }
+  return `${luasHa.toFixed(2).replace(".", ",")} Ha`;
 }
 
 /**
  * Komponen notifikasi perekaman di atas peta:
- * 1. Mode Pelacakan GPS (Rekam Jalur GPS): pita oranye sederhana rata tengah yang hanya menampilkan
- *    notifikasi pelacakan ("Melacak" / "Pelacakan dijeda"). Ketuk pita untuk membuka panel Pelacakan.
- * 2. Mode Gambar dan Ukur: kartu informasi pengukuran di bagian atas (Jarak total, Segmen, Arah titik,
- *    Elevasi, Titik), dua tombol pil mengapung (Urungkan dan + Tambahkan titik), serta bilah alat bawah.
+ * 1. Mode Pelacakan GPS (Rekam Jalur GPS): pita oranye sederhana rata tengah ("Melacak" / "Pelacakan dijeda").
+ * 2. Mode Gambar dan Ukur: kartu pengukuran atas (Jarak total / Area total, Segmen / Perimeter, Arah titik,
+ *    Elevasi, Titik), tombol konversi Garis <-> Area, pil aksi mengapung, dan bilah alat bawah.
  */
 export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
   rekamLatar,
@@ -100,29 +106,67 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
     }
   }
 
+  // Hitung luas & perimeter real-time untuk mode Area (polygon)
+  const titikAreaAktif =
+    modeRekam === "polygon" &&
+    titikBidikan &&
+    titikTerakhir &&
+    hitungJarakMeter(titikTerakhir, titikBidikan) > 0.5
+      ? [...daftarTitik, titikBidikan]
+      : daftarTitik;
+
+  const luasAktifHa =
+    modeRekam === "polygon"
+      ? titikAreaAktif.length >= 3 && titikAreaAktif.length !== daftarTitik.length
+        ? hitungLuasPoligonHa(titikAreaAktif)
+        : luasDraftHa
+      : luasDraftHa;
+
+  let perimeterKm = jarakTotalKm;
+  if (modeRekam === "polygon" && titikAreaAktif.length >= 3) {
+    let totalM = 0;
+    for (let i = 0; i < titikAreaAktif.length - 1; i++) {
+      totalM += hitungJarakMeter(titikAreaAktif[i], titikAreaAktif[i + 1]);
+    }
+    totalM += hitungJarakMeter(titikAreaAktif[titikAreaAktif.length - 1], titikAreaAktif[0]);
+    perimeterKm = totalM / 1000;
+  }
+
   const jarakTotalTeks = `${jarakTotalKm.toFixed(2).replace(".", ",")} km`;
-  const luasTotalTeks = `${luasDraftHa.toFixed(2).replace(".", ",")} Ha`;
+  const perimeterTeks = `${perimeterKm.toFixed(2).replace(".", ",")} km`;
+  const luasTotalTeks = formatLuasUkur(luasAktifHa);
   const segmenTeks = `${segmenKm.toFixed(2).replace(".", ",")} km`;
   const arahTitikTeks = `${arahTitikDerajat.toFixed(2).replace(".", ",")} °`;
   const nilaiElevasi = elevasiMeter ?? titikBidikan?.elevasi ?? titikTerakhir?.elevasi ?? 0;
   const elevasiTeks = `${nilaiElevasi.toFixed(2).replace(".", ",")} m`;
   const koordinatTitikTeks = teksTitikBidikan ?? `${bidikan.lat.toFixed(6)}, ${bidikan.lng.toFixed(6)}`;
+  const adalahModeArea = modeRekam === "polygon";
 
   return (
     <div className="recording-active-bar avz-status-rekam avz-ukur-mode" role="status">
       <div className="avz-ukur-panel">
         <div className="avz-ukur-total-baris">
           <strong className="avz-ukur-total-teks">
-            {`Jarak total: ${jarakTotalTeks}${modeRekam === "polygon" && jumlahTitik >= 3 ? ` · Luas: ${luasTotalTeks}` : ""}`}
+            {adalahModeArea ? `Area total: ${luasTotalTeks}` : `Jarak total: ${jarakTotalTeks}`}
           </strong>
           <span className="avz-ukur-info-ikon" aria-hidden="true" title="Ringkasan pengukuran">
             <Info size={16} />
           </span>
+          {onPilihJenisUkur && (
+            <button
+              type="button"
+              className="avz-ukur-konversi-chip"
+              onClick={() => onPilihJenisUkur(adalahModeArea ? "line" : "polygon")}
+              title={adalahModeArea ? "Konversi area menjadi garis" : "Konversi garis menjadi area"}
+            >
+              {adalahModeArea ? "Jadi Garis" : "Konversi ke Area"}
+            </button>
+          )}
         </div>
         <div className="avz-ukur-kotak-tiga">
           <div className="avz-ukur-kotak">
-            <span className="avz-ukur-kotak-label">Segmen</span>
-            <span className="avz-ukur-kotak-nilai">{segmenTeks}</span>
+            <span className="avz-ukur-kotak-label">{adalahModeArea ? "Perimeter" : "Segmen"}</span>
+            <span className="avz-ukur-kotak-nilai">{adalahModeArea ? perimeterTeks : segmenTeks}</span>
           </div>
           <div className="avz-ukur-kotak">
             <span className="avz-ukur-kotak-label">Arah titik</span>
@@ -186,36 +230,60 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
               <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
             </svg>
           </button>
+
+          {/* Tombol Konversi Garis <-> Area (persis Avenza: di mode garis ikon kotak area, di mode area ikon garis) */}
           <button
             type="button"
-            className={`avz-ukur-tool-btn ${modeRekam === "line" ? "aktif" : ""}`}
-            aria-pressed={modeRekam === "line"}
-            onClick={() => onPilihJenisUkur?.("line")}
-            title="Ukur jarak garis"
-            aria-label="Ukur garis"
+            className={`avz-ukur-tool-btn ${adalahModeArea ? "aktif" : ""}`}
+            aria-pressed={adalahModeArea}
+            onClick={() => onPilihJenisUkur?.(adalahModeArea ? "line" : "polygon")}
+            title={adalahModeArea ? "Konversi ke garis (Line)" : "Konversi ke area (Polygon)"}
+            aria-label={adalahModeArea ? "Konversi ke garis" : "Konversi ke area"}
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <line x1="6.8" y1="17.2" x2="17.2" y2="6.8" />
-              <circle cx="5.2" cy="18.8" r="2.2" />
-              <circle cx="18.8" cy="5.2" r="2.2" />
-            </svg>
+            {adalahModeArea ? (
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <line x1="6.8" y1="17.2" x2="17.2" y2="6.8" />
+                <circle cx="5.2" cy="18.8" r="2.2" />
+                <circle cx="18.8" cy="5.2" r="2.2" />
+              </svg>
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="4.5" y="4.5" width="15" height="15" rx="1" />
+                <circle cx="4.5" cy="4.5" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="19.5" cy="4.5" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="4.5" cy="19.5" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="19.5" cy="19.5" r="1.6" fill="currentColor" stroke="none" />
+                <path d="M8.5 15.5l7-7M7 11l4-4M13 17l4-4" />
+              </svg>
+            )}
           </button>
+
           <button
             type="button"
-            className={`avz-ukur-tool-btn ${modeRekam === "polygon" ? "aktif" : ""}`}
-            aria-pressed={modeRekam === "polygon"}
-            onClick={() => onPilihJenisUkur?.("polygon")}
-            title="Ukur luas area"
-            aria-label="Ukur area"
+            className="avz-ukur-tool-btn"
+            disabled
+            title="Pengukur arah radius"
+            aria-label="Pengukur arah radius"
+            style={{ opacity: 0.45 }}
           >
             <svg
               viewBox="0 0 24 24"
@@ -231,11 +299,9 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
               <circle cx="12" cy="12" r="8.5" />
               <path d="M12 12l4.5-7.2" />
               <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
-              <circle cx="8" cy="9" r="0.9" fill="currentColor" stroke="none" />
-              <circle cx="9" cy="14.5" r="0.9" fill="currentColor" stroke="none" />
-              <circle cx="15" cy="14" r="0.9" fill="currentColor" stroke="none" />
             </svg>
           </button>
+
           <button
             type="button"
             className="avz-ukur-tool-btn avz-ukur-btn-simpan rec-btn-save"
@@ -251,4 +317,3 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
     </div>
   );
 };
-

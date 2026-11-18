@@ -4437,78 +4437,180 @@ label {
 
 .cert-signer-positions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
 }
 
 .cert-signer-quick-item {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .cert-signer-badge-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 28px;
+  min-width: 0;
 }
 
 .cert-signer-rank-badge {
-  background: #0284c7;
+  background: #0d7344;
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  line-height: 1.2;
 }
 
 .cert-signer-role-tag {
   font-size: 0.82rem;
   font-weight: 700;
   color: #0f172a;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cert-signer-input-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  margin-top: auto;
 }
 
 .cert-signer-input-field label {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: #475569;
+  line-height: 1.25;
+}
+
+.cert-signer-input-field .form-input {
+  height: 40px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cert-signer-editor-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .cert-signer-editor-card {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .cert-signer-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 0.8rem;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  min-width: 0;
+}
+
+.cert-signer-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cert-signer-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cert-signer-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cert-signer-act-btn {
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.76rem !important;
+  white-space: nowrap;
+}
+
+.cert-signer-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.cert-signer-field-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.cert-signer-field-col label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cert-signer-field-col .form-input {
+  width: 100%;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .cert-signer-positions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cert-signer-fields-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .cert-signer-card-top {
+    flex-wrap: wrap;
+  }
 }
 
 .cert-admin-banner-info {
@@ -11301,40 +11403,149 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 .admin-signers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .admin-signers-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .admin-signer-box {
   background: #f8faf9;
   border: 1px solid #d5dcd8;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .admin-signer-box-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  min-width: 0;
 }
 
-.admin-signer-box-head strong {
-  font-size: 0.86rem;
+.admin-signer-rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: #0d7344;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.admin-signer-heading {
+  font-size: 0.88rem;
+  font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.admin-signer-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-signer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-signer-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.2;
+}
+
+.admin-signer-field .form-input {
+  width: 100%;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.admin-signer-ttd-row {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-signer-ttd-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  overflow: hidden;
+}
+
+.admin-signer-ttd-preview img {
+  max-height: 36px;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.admin-signer-ttd-empty {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-signer-ttd-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .admin-ttd-btn {
-  min-height: 28px !important;
-  height: 28px !important;
+  margin: 0 !important;
+  cursor: pointer;
+  min-height: 36px !important;
+  height: 36px !important;
   min-width: 0 !important;
-  padding: 0 10px !important;
+  padding: 0 12px !important;
   border-radius: 8px !important;
-  font-size: 0.75rem !important;
+  font-size: 0.76rem !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 
 .aksi-sheet-backdrop {

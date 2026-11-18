@@ -8,8 +8,8 @@ const maskableSvg = fs.readFileSync("public/icon-maskable.svg", "utf-8");
 const targets = [
   { svg: iconSvg, size: 48, out: "public/favicon-48.png", transparent: true },
   { svg: maskableSvg, size: 180, out: "public/apple-touch-icon.png", transparent: false },
-  { svg: iconSvg, size: 192, out: "public/icon-192.png", transparent: true },
-  { svg: iconSvg, size: 512, out: "public/icon-512.png", transparent: true },
+  { svg: maskableSvg, size: 192, out: "public/icon-192.png", transparent: false },
+  { svg: maskableSvg, size: 512, out: "public/icon-512.png", transparent: false },
   { svg: maskableSvg, size: 512, out: "public/icon-maskable-512.png", transparent: false }
 ];
 

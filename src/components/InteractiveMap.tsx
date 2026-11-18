@@ -390,15 +390,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const t = window.setTimeout(() => setPesanSalin(""), 4000);
     return () => window.clearTimeout(t);
   }, [pesanSalin]);
-  const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() =>
-    rekamLatar.status !== "idle" && rekamLatar.jenis ? rekamLatar.jenis : (form.rekaman?.jenis ?? null)
-  );
+  const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() => {
+    if (rekamLatar.status !== "idle" && rekamLatar.jenis) return rekamLatar.jenis;
+    // Jangan pulihkan titik pin sementara (point) dari draft agar tidak meninggalkan titik oranye di peta saat pindah tab
+    if (form.rekaman?.jenis && form.rekaman.jenis !== "point") return form.rekaman.jenis;
+    return null;
+  });
   const [modeGambarUkur, setModeGambarUkur] = useState<boolean>(() =>
     rekamLatar.status !== "idle" ? rekamLatar.jenis === "polygon" : form.rekaman?.jenis === "polygon"
   );
-  const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() =>
-    rekamLatar.status !== "idle" ? rekamLatar.titik : (form.rekaman?.titik ?? [])
-  );
+  const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() => {
+    if (rekamLatar.status !== "idle") return rekamLatar.titik;
+    if (form.rekaman?.jenis && form.rekaman.jenis !== "point") return form.rekaman.titik ?? [];
+    return [];
+  });
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
   const [aksiAwalForm, setAksiAwalForm] = useState<"averaging" | "foto" | null>(null);
   const [monitorGeofenceAktif, setMonitorGeofenceAktif] = useState<boolean>(false);
@@ -447,6 +452,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   const [detikTick, setDetikTick] = useState<number>(0);
   useEffect(() => {
+    // Titik pin sementara tidak disimpan ke rekaman persisten agar tidak tertinggal sebagai titik oranye saat pindah tab
+    if (modeRekam === "point") {
+      simpanGeometri(null, []);
+      return;
+    }
     simpanGeometri(modeRekam, titikDraft);
   }, [modeRekam, titikDraft, simpanGeometri]);
 
@@ -847,8 +857,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       keLayar: (lat, lng) => latLngToPixel(lat, lng, W, H),
       dataSpasial: dataTampil,
       idTerpilih: objekTerpilih?.id,
-      modeRekam,
-      titikDraft,
+      modeRekam: modeRekam === "point" ? null : modeRekam,
+      titikDraft: modeRekam === "point" ? [] : titikDraft,
       targetGoTo,
       gpsPos,
       kompasDerajat,
@@ -1320,9 +1330,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setModeGambarUkur(true);
     setModeRekam(jenisBaru);
     form.setKategoriInput("Lainnya");
-    const titikSaatIni = perekamLatar.getState().titik;
+    const titikLatar = perekamLatar.getState().titik;
+    const titikSaatIni = titikLatar.length ? titikLatar : titikDraft;
     perekamLatar.mulai(jenisBaru, titikSaatIni);
     perekamLatar.jeda();
+    setTitikDraft(titikSaatIni);
+    setPesanSalin(
+      jenisBaru === "polygon"
+        ? "Garis dikonversi menjadi Area."
+        : "Area dikonversi menjadi Garis."
+    );
   };
 
   const lapisanAktif = lapisanAktifId ? lapisanList.find((l) => l.id === lapisanAktifId) ?? null : null;
@@ -3375,6 +3392,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             });
             onSimpanDataBaru(itemBaru);
             setPinPeekTerbuka(false);
+            setModeRekam(null);
             setTitikDraft([]);
             setPesanSalin("Pin disimpan ke peta");
           }}
@@ -3386,10 +3404,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             setPinPeekTerbuka(false);
             setBukaModalForm(true);
           }}
-          onTutup={() => setPinPeekTerbuka(false)}
+          onTutup={() => {
+            setPinPeekTerbuka(false);
+            if (modeRekam === "point") {
+              setModeRekam(null);
+              setTitikDraft([]);
+            }
+          }}
           onGoTo={(t) => {
             setTargetGoTo(t);
             setPinPeekTerbuka(false);
+            if (modeRekam === "point") {
+              setModeRekam(null);
+              setTitikDraft([]);
+            }
           }}
           onBagikan={(teks) => {
             if (navigator.share) {
@@ -3414,9 +3442,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       {/* KARTU BAWAH RINGKAS OBJEK TERPILIH DENGAN SWAP KE ATAS BERTAHAP & LEBAR PC */}
       {objekTerpilih && !detailObjekTerbuka && (
         <PeekSheetInteraktif
+          key={objekTerpilih.id}
           mode="objek_terpilih"
           objekTerpilih={objekTerpilih}
+          lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
+          onPilihLapisanAktif={onPilihLapisanAktif}
           onBukaFormLengkap={() => setDetailObjekTerbuka(true)}
           onBukaDetailLengkap={() => setDetailObjekTerbuka(true)}
           onTutup={() => setObjekTerpilih(null)}

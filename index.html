@@ -209,49 +209,10 @@
         padding: 0;
         background-color: #000000;
       }
-      .initial-app-splash {
-        position: fixed;
-        inset: 0;
-        background-color: #000000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 18px;
-        z-index: 9999;
-      }
-      .initial-app-splash img {
-        width: 112px;
-        height: 112px;
-        display: block;
-        border: none;
-        outline: none;
-        box-shadow: none;
-        background: transparent;
-      }
-      .initial-app-splash-title {
-        margin: 0;
-        font-family: "Plus Jakarta Sans", "Outfit", "Montserrat", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-        font-size: 1.85rem;
-        font-weight: 900;
-        letter-spacing: 0.04em;
-        color: #ffffff;
-        background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 55%, #6ee7b7 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center;
-        line-height: 1.15;
-      }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="initial-app-splash" aria-hidden="true">
-        <img src="./icon.svg" alt="" width="112" height="112" />
-        <div class="initial-app-splash-title">Titik Tapak</div>
-      </div>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
