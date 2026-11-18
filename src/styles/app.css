@@ -13370,3 +13370,399 @@ html[data-field-theme="matahari"] .section-card h2 {
     transform: none !important;
   }
 }
+
+/* ==========================================================================
+   SYMMETRY & RESPONSIVE POLISH (MOBILE & PC ACROSS ALL VIEWS)
+   Menjamin kesejajaran tepi kiri-kanan, tinggi kartu seragam, dan pembagian
+   kolom simetris di seluruh fitur pada layar HP hingga Desktop lebar.
+   ========================================================================== */
+
+/* 1. Equal-Height Card Grids & Clean Photo Gallery Grid */
+.stat-grid-3,
+.task-grid,
+.reward-targets-grid,
+.cert-logo-editor-grid,
+.cert-signer-positions-grid,
+.admin-signers-grid,
+.sync-pipeline-stages {
+  align-items: stretch;
+}
+
+.stat-box,
+.task-card,
+.milestone-box,
+.cert-logo-editor-item,
+.cert-signer-quick-item,
+.admin-signer-box,
+.pipeline-stage-card {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.admin-signer-box {
+  justify-content: space-between;
+}
+
+.form-row-3 {
+  align-items: end;
+}
+
+.admin-signer-box .form-row-3 > div > label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avenza-topbar {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.sync-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+  align-items: stretch;
+}
+
+.sync-photo-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) ease, border-color var(--dur-fast) ease;
+}
+
+.sync-photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* 2. Responsive Table Container & Cell Alignment */
+.table-responsive {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.data-table th,
+.data-table td {
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 3. Symmetric Mobile Gutters & Grid Column Counts (< 768px) */
+@media (max-width: 767px) {
+  .avenza-topbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .avenza-topbar-actions {
+    gap: 6px;
+  }
+
+  .page-container {
+    padding: 12px 12px 88px;
+    gap: 12px;
+  }
+
+  .admin-subnav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .pustaka-field .avenza-segmented-wrap,
+  .pustaka-field .avenza-filter-row,
+  .pustaka-field .avenza-basemap-banner-wrap,
+  .pustaka-field .pustaka-list-heading,
+  .pustaka-field .avenza-map-list:not(.pustaka-grid),
+  .pustaka-field .pustaka-grid,
+  .pustaka-field .avenza-layer-list {
+    width: 100%;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 14px;
+    padding-right: 14px;
+    box-sizing: border-box;
+  }
+
+  .pustaka-field .avenza-segmented-control {
+    max-width: 100%;
+  }
+
+  .pustaka-field .avenza-search-bar {
+    width: calc(100% - 28px);
+    max-width: 692px;
+    margin: 4px auto 12px;
+  }
+
+  .banner-instal {
+    width: calc(100% - 28px);
+    max-width: 692px;
+    margin: 10px auto 4px;
+    box-sizing: border-box;
+  }
+
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+    justify-items: stretch;
+  }
+
+  .pustaka-field .pustaka-grid > .avenza-map-row {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .auth-form-panel {
+    padding: 0;
+  }
+
+  .auth-body {
+    padding: 20px 18px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-subnav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .section-card {
+    padding: 14px;
+  }
+
+  .modal-backdrop {
+    padding: 14px;
+  }
+
+  .modal-card {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .avenza-export-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 339px) {
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 600px) and (max-width: 767px) {
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+/* 4. Tablet & PC Unified Horizontal Alignment & Grid Columns */
+@media (min-width: 560px) {
+  .cert-logo-editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (min-width: 640px) {
+  .sync-photo-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .task-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cert-signer-positions-grid,
+  .admin-signers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .avz-share-sheet {
+    border-radius: 20px;
+    margin: auto;
+    max-width: 540px;
+    padding: 20px 22px 24px;
+  }
+}
+
+@media (min-width: 768px) {
+  .avenza-topbar {
+    padding: 10px 32px;
+    gap: 12px;
+  }
+
+  .avenza-topbar-actions {
+    gap: 8px;
+  }
+
+  .page-container {
+    padding: 24px 32px 80px;
+    gap: 16px;
+  }
+
+  .section-card {
+    padding: 20px 22px;
+  }
+
+  .pustaka-field .avenza-segmented-wrap,
+  .pustaka-field .avenza-filter-row,
+  .pustaka-field .avenza-basemap-banner-wrap,
+  .pustaka-field .pustaka-list-heading,
+  .pustaka-field .avenza-map-list:not(.pustaka-grid),
+  .pustaka-field .pustaka-grid,
+  .pustaka-field .avenza-layer-list {
+    width: 100%;
+    max-width: 920px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+    box-sizing: border-box;
+  }
+
+  .pustaka-field .avenza-segmented-control {
+    max-width: 100%;
+  }
+
+  .pustaka-field .avenza-search-bar {
+    width: calc(100% - 40px);
+    max-width: 880px;
+    margin: 8px auto 16px;
+  }
+
+  .banner-instal {
+    width: calc(100% - 40px);
+    max-width: 880px;
+    margin: 14px auto 4px;
+    box-sizing: border-box;
+  }
+
+  .pustaka-field .avenza-map-list:not(.pustaka-grid) .avenza-map-row {
+    width: 100%;
+    max-width: none;
+  }
+
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    align-items: stretch;
+    justify-items: stretch;
+  }
+
+  .pustaka-field .pustaka-grid > .avenza-map-row {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+  }
+
+  .avenza-fullpage-overlay {
+    margin: 16px auto;
+    min-height: calc(100dvh - 32px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .avenza-subpage-header {
+    padding: 12px 22px;
+  }
+
+  .avenza-export-section {
+    padding: 18px 24px;
+  }
+
+  .avenza-fullpage-overlay .export-fab {
+    right: max(24px, calc((100vw - 960px) / 2 + 24px));
+    bottom: 28px;
+  }
+
+  .komunikasi-wrapper {
+    width: calc(100% - 64px) !important;
+    margin-top: 20px !important;
+    margin-bottom: 20px !important;
+    height: calc(100dvh - 104px) !important;
+  }
+
+  .auth-form-panel {
+    padding: 36px;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sync-photo-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1080px) {
+  .task-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .pustaka-field .avenza-segmented-wrap,
+  .pustaka-field .avenza-filter-row,
+  .pustaka-field .avenza-basemap-banner-wrap,
+  .pustaka-field .pustaka-list-heading,
+  .pustaka-field .avenza-map-list:not(.pustaka-grid),
+  .pustaka-field .pustaka-grid,
+  .pustaka-field .avenza-layer-list {
+    max-width: 1040px;
+  }
+
+  .pustaka-field .avenza-search-bar,
+  .banner-instal {
+    max-width: 1000px;
+  }
+
+  .pustaka-field .pustaka-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+/* 5. Centered Share Sheet App Icons (4+3 balanced on mobile, 7-in-1 row on PC) */
+.avz-share-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 8px;
+}
+
+.avz-share-app {
+  flex: 0 0 calc(25% - 8px);
+  min-width: 60px;
+}
+
+@media (min-width: 640px) {
+  .avz-share-app {
+    flex: 0 0 64px;
+  }
+}

@@ -306,27 +306,12 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
         </div>
 
         {dataDenganFoto.length > 0 ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: "12px",
-              marginTop: "14px"
-            }}
-          >
+          <div className="sync-photo-grid">
             {dataDenganFoto.map((item) => (
               <div
                 key={item.id}
+                className="sync-photo-card"
                 onClick={() => setPreviewFoto(item)}
-                style={{
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  border: "1px solid #d5dcd8",
-                  background: "#ffffff",
-                  cursor: "pointer",
-                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
-                }}
               >
                 <div style={{ width: "100%", height: 130, position: "relative", background: "#f1f5f3" }}>
                   <img
