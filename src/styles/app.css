@@ -12459,17 +12459,20 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 .admin-data-subtabs {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-data-subtab-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 99px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
@@ -12477,6 +12480,10 @@ html[data-field-theme="matahari"] .section-card h2 {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .admin-data-subtab-btn.aktif {
@@ -13983,9 +13990,31 @@ html[data-field-theme="matahari"] .section-card h2 {
 
 .admin-tugas-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.admin-tugas-actions > button:not(.btn-danger-sm) {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.admin-tugas-actions > .btn-danger-sm {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
 .avenza-layer-title {
@@ -14487,6 +14516,138 @@ html[data-field-theme="matahari"] .section-card h2 {
   .map-bawah {
     max-width: 1080px !important;
     margin-inline: auto !important;
+  }
+}
+
+/* =========================================================
+   PULL TO REFRESH & PENYEMPURNAAN SIMETRI TAMPILAN
+   ========================================================= */
+
+/* 1. Pull to Refresh Floating Indicator */
+.ptr-wrapper {
+  touch-action: pan-y;
+  position: relative;
+  width: 100%;
+}
+
+.ptr-indicator {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.18);
+  font-size: 0.84rem;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: ptrSlideDown 180ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.ptr-indicator.menyegarkan {
+  border-color: #0d7344;
+  color: #0d7344;
+  background: #f0fdf4;
+}
+
+.ptr-indicator.selesai {
+  border-color: #0d7344;
+  color: #0d7344;
+  background: #f0fdf4;
+}
+
+.ptr-spin {
+  animation: ptrSpin 850ms linear infinite;
+}
+
+@keyframes ptrSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ptrSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* 2. Badge Status Tarik untuk Sinkronisasi */
+.pull-sync-hint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* 3. Filter Pills Simetris di Akun Admin */
+.akun-admin-card-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.akun-admin-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.akun-filter-pills {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.akun-filter-pills > button {
+  width: 100%;
+  padding: 8px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 9999px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .akun-filter-pills {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
 

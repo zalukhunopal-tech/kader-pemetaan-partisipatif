@@ -109,6 +109,7 @@ import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug"
 import { pasangPenjagaKembali, PESAN_TEKAN_KEMBALI_LAGI } from "./lib/penjagaKembali";
 import { sinkronkanLapisanDenganItem } from "./lib/tematik";
 import { sinkronkanLapisanDariTugas } from "./lib/skemaTugas";
+import { PullToRefresh } from "./components/common/PullToRefresh";
 
 export const App: React.FC = () => {
   const desktop = useDesktop();
@@ -968,6 +969,28 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sedangOnline, pendingCadanganCount, adaSesi]);
 
+  // Handler Pull to Refresh Global: menarik layar ke bawah menyegarkan dan menyinkronkan data
+  const handleRefreshGlobal = async () => {
+    try {
+      if (gdriveTerpasang() && sedangOnline) {
+        await handleSinkronkanSekarang(false);
+        await sinkronkanDaftarAkunGDrive();
+        if (aksesAdmin) {
+          await jalankanRekonsiliasiGDrive(false);
+        }
+      } else {
+        // Muat ulang state lokal bila luring
+        setDataSpasial(muatDataSpasial());
+        setTugasList(muatTugas());
+        setPencadanganList(muatPencadanganSpasial());
+        setLapisanList(sinkronkanLapisanDariTugas(muatLapisan(), muatTugas()));
+      }
+      tampilkanToast("🔄 Data berhasil diperbarui.");
+    } catch {
+      tampilkanToast("⚠️ Gagal menyegarkan data. Periksa koneksi internet.");
+    }
+  };
+
   // Handler Fokus ke Titik Koordinat di Peta
   const handleFokusKePeta = (lat: number, lng: number, label: string) => {
     setFokusKoordinat({ lat, lng, label });
@@ -1233,8 +1256,39 @@ export const App: React.FC = () => {
           />
         )}
         {!modeAdminTerkunci && (
-          <>
-            {tabAktif === "pustaka" && (
+          tabAktif === "peta" ? (
+            <InteractiveMap
+              dataSpasial={dataSpasial}
+              lapisanList={lapisanListUntukUser}
+              lapisanAktifId={lapisanAktifId}
+              onPilihLapisanAktif={setLapisanAktifId}
+              profil={profil}
+              areaOffline={areaOffline}
+              petaKustomAktif={petaKustomAktif}
+              onTutupPetaKustom={() => {
+                setPetaKustomAktif(null);
+              }}
+              onPilihPetaKustom={(a) => {
+                setPetaKustomAktif(a);
+                setFokusKoordinat({
+                  lat: (a.minLat + a.maxLat) / 2,
+                  lng: (a.minLng + a.maxLng) / 2
+                });
+              }}
+              fokusKoordinat={fokusKoordinat}
+              onFokusDipakai={() => setFokusKoordinat(null)}
+              onSimpanDataBaru={handleSimpanDataBaru}
+              onTambahPembaruanObjek={handleTambahPembaruanObjek}
+              onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
+              onHapusAreaOffline={handleHapusAreaOffline}
+              onHapusData={handleHapusDataSpasial}
+              onImporBerkas={handleImporBerkas}
+              sedangOnline={sedangOnline}
+              onKembali={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
+            />
+          ) : (
+            <PullToRefresh onRefresh={handleRefreshGlobal}>
+              {tabAktif === "pustaka" && (
               <PustakaView
                 areaOffline={areaOffline}
                 lapisanList={lapisanListUntukUser}
@@ -1284,38 +1338,6 @@ export const App: React.FC = () => {
                   setKonteksEkspor(konteks ?? null);
                   setBukaPengaturanEkspor(true);
                 }}
-              />
-            )}
-
-            {tabAktif === "peta" && (
-              <InteractiveMap
-                dataSpasial={dataSpasial}
-                lapisanList={lapisanListUntukUser}
-                lapisanAktifId={lapisanAktifId}
-                onPilihLapisanAktif={setLapisanAktifId}
-                profil={profil}
-                areaOffline={areaOffline}
-                petaKustomAktif={petaKustomAktif}
-                onTutupPetaKustom={() => {
-                  setPetaKustomAktif(null);
-                }}
-                onPilihPetaKustom={(a) => {
-                  setPetaKustomAktif(a);
-                  setFokusKoordinat({
-                    lat: (a.minLat + a.maxLat) / 2,
-                    lng: (a.minLng + a.maxLng) / 2
-                  });
-                }}
-                fokusKoordinat={fokusKoordinat}
-                onFokusDipakai={() => setFokusKoordinat(null)}
-                onSimpanDataBaru={handleSimpanDataBaru}
-                onTambahPembaruanObjek={handleTambahPembaruanObjek}
-                onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
-                onHapusAreaOffline={handleHapusAreaOffline}
-                onHapusData={handleHapusDataSpasial}
-                onImporBerkas={handleImporBerkas}
-                sedangOnline={sedangOnline}
-                onKembali={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
               />
             )}
 
@@ -1436,8 +1458,8 @@ export const App: React.FC = () => {
                 onFokusKePeta={(lat, lng, label) => (desktop ? setFokusKoordinat({ lat, lng, label }) : handleFokusKePeta(lat, lng, label))}
               />
             )}
-          </>
-        )}
+          </PullToRefresh>
+        ))}
       </main>
 
       {bukaKeamanan && sesiPengguna && (

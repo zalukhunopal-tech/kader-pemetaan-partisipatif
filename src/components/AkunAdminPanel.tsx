@@ -7,7 +7,6 @@ import {
   KeyRound,
   Lock,
   MailCheck,
-  RefreshCw,
   RotateCcw,
   ShieldAlert,
   Trash2,
@@ -233,19 +232,9 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               Persetujuan Akun Baru ({akunMenunggu.length})
             </h3>
             <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-              Akun baru dibuat langsung oleh pendaftar lewat OTP email di halaman awal. Setujui agar akun dapat masuk.
+              Akun baru dibuat langsung oleh pendaftar lewat OTP email di halaman awal. Setujui agar akun dapat masuk. Tarik layar ke bawah untuk menyegarkan daftar.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-outline-sm"
-            disabled={sedangSinkron}
-            onClick={() => void segarkanDariCloud(true)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <RefreshCw size={14} className={sedangSinkron ? "spin" : ""} aria-hidden="true" />
-            {sedangSinkron ? "Memuat…" : "Segarkan"}
-          </button>
         </div>
 
         {hasil && (
@@ -359,26 +348,26 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
 
       {/* 2. DAFTAR AKUN TERDAFTAR DAN KONTROL SESI TUNGGAL */}
       <div className="section-card" id="panel-akun-admin">
-        <div className="section-header-flex" style={{ marginBottom: 10 }}>
-          <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="akun-admin-card-header">
+          <div className="akun-admin-title-row">
+            <h3 style={{ margin: 0, fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
               <KeyRound size={18} color="#0B6E4F" aria-hidden="true" /> Akun Terdaftar ({akun.length})
             </h3>
-            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-              Satu email untuk satu akun dan satu perangkat aktif. Gunakan Reset bila ingin menghapus semua akun kader lama.
-            </p>
+            <button
+              type="button"
+              className="btn-danger-sm"
+              onClick={() => void resetSemuaAkun()}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+            >
+              <RotateCcw size={14} aria-hidden="true" /> Reset Akun
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn-danger-sm"
-            onClick={() => void resetSemuaAkun()}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <RotateCcw size={14} aria-hidden="true" /> Reset Akun
-          </button>
+          <p className="text-muted" style={{ margin: "6px 0 10px", fontSize: "0.82rem" }}>
+            Satu email untuk satu akun dan satu perangkat aktif. Gunakan Reset bila ingin menghapus semua akun kader lama.
+          </p>
         </div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        <div className="akun-filter-pills">
           {(
             [
               { id: "semua", label: `Semua (${akun.length})` },

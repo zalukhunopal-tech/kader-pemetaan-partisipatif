@@ -101,16 +101,19 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               {terakhirSinkron ? ` Terakhir berhasil: ${terakhirSinkron}.` : ""}
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={sedangSinkron || !sudahTersambung || !sedangOnline}
-            onClick={onSinkronkanSekarang}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          <div
+            className="pull-sync-hint-badge"
+            title="Tarik layar ke bawah untuk menyinkronkan data antrean"
           >
-            <CloudUpload size={17} />
-            {sedangSinkron ? "Sedang Mengunggah..." : `Sinkronkan Sekarang (${jmlLokal} Antrean)`}
-          </button>
+            <CloudUpload size={17} aria-hidden="true" />
+            <span>
+              {sedangSinkron
+                ? "Sedang Mengunggah…"
+                : jmlLokal > 0
+                  ? `${jmlLokal} antrean · Tarik layar ke bawah untuk sinkron`
+                  : "Semua data tersinkron"}
+            </span>
+          </div>
         </div>
 
         {!sudahTersambung && (
