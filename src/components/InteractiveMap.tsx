@@ -39,6 +39,7 @@ import {
   tileYToLat
 } from "../lib/petaKanvas";
 import { InspektorObjek } from "./peta/InspektorObjek";
+import { PeekSheetInteraktif } from "./peta/PeekSheetInteraktif";
 import { namaBasemap, pratinjauBasemap } from "./peta/PanelLapisanPeta";
 import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
@@ -3354,145 +3355,105 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* KARTU BAWAH RINGKAS PIN DIJATUHKAN (SCREENSHOT 4) */}
+      {/* KARTU BAWAH RINGKAS PIN DIJATUHKAN DENGAN SWAP KE ATAS BERTAHAP & LEBAR PC */}
       {pinPeekTerbuka && titikDraft[0] && !bukaModalForm && (
-        <section className="avz-peek-card" role="dialog" aria-label="Pin dijatuhkan">
-          <div className="avz-peek-handle" onClick={() => { setPinPeekTerbuka(false); setBukaModalForm(true); }}>
-            <span aria-hidden="true" />
-          </div>
-          <div className="avz-peek-body" onClick={() => { setPinPeekTerbuka(false); setBukaModalForm(true); }}>
-            <h2 className="avz-peek-title">Pin dijatuhkan</h2>
-            <div className="avz-peek-meta-row">
-              <MapPin size={17} color="#5f6368" aria-hidden="true" />
-              <span className="tabular-nums">
-                {titikDraft[0].lat.toFixed(6)}, {titikDraft[0].lng.toFixed(6)}
-              </span>
-            </div>
-            <div className="avz-peek-meta-row">
-              <Layers size={17} color="#5f6368" aria-hidden="true" />
-              <span>{lapisanAktif?.nama || "Lapisan 1"}</span>
-            </div>
-          </div>
-          <div className="avz-peek-actions">
-            <button
-              type="button"
-              className="avz-pill-outline-btn"
-              onClick={() => {
-                const k = titikDraft[0];
-                if (!k) return;
-                setTargetGoTo({ lat: k.lat, lng: k.lng, judul: "Pin dijatuhkan" });
-                setPinPeekTerbuka(false);
-              }}
-            >
-              Navigasi
-            </button>
-            <button
-              type="button"
-              className="avz-pill-outline-btn"
-              onClick={() => {
-                const k = titikDraft[0];
-                const teks = k ? `Pin dijatuhkan — ${k.lat.toFixed(6)}, ${k.lng.toFixed(6)}` : "Pin dijatuhkan";
-                if (navigator.share) {
-                  void navigator.share({ title: "Pin dijatuhkan", text: teks }).catch(() => undefined);
-                } else if (navigator.clipboard) {
-                  void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Koordinat pin disalin")).catch(() => undefined);
-                }
-              }}
-            >
-              Bagikan
-            </button>
-            <button
-              type="button"
-              className="avz-pill-outline-btn"
-              onClick={() => {
-                setPinPeekTerbuka(false);
-                setBukaModalForm(true);
-              }}
-            >
-              Simpan
-            </button>
-          </div>
-        </section>
+        <PeekSheetInteraktif
+          mode="draft_pin"
+          titikDraft={titikDraft}
+          lapisanAktif={lapisanAktif}
+          lapisanList={lapisanList}
+          onPilihLapisanAktif={onPilihLapisanAktif}
+          onSimpanLangsung={(nama, simbol, warna) => {
+            if (!titikDraft[0]) return;
+            form.ubah("judul", nama || "Tanda tempat 1");
+            if (simbol) form.ubah("simbol", simbol);
+            if (warna) form.ubah("warna", warna);
+            const itemBaru = form.susunItem(profil, "point", titikDraft, kompasDerajat, {
+              lapisanList,
+              dataSpasial,
+              lapisanAktif
+            });
+            onSimpanDataBaru(itemBaru);
+            setPinPeekTerbuka(false);
+            setTitikDraft([]);
+            setPesanSalin("Pin disimpan ke peta");
+          }}
+          onBukaFormLengkap={() => {
+            setPinPeekTerbuka(false);
+            setBukaModalForm(true);
+          }}
+          onBukaDetailLengkap={() => {
+            setPinPeekTerbuka(false);
+            setBukaModalForm(true);
+          }}
+          onTutup={() => setPinPeekTerbuka(false)}
+          onGoTo={(t) => {
+            setTargetGoTo(t);
+            setPinPeekTerbuka(false);
+          }}
+          onBagikan={(teks) => {
+            if (navigator.share) {
+              void navigator.share({ title: "Pin dijatuhkan", text: teks }).catch(() => undefined);
+            } else if (navigator.clipboard) {
+              void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Koordinat pin disalin")).catch(() => undefined);
+            }
+          }}
+          elevasiMeter={perangkat.posisi?.elevasi}
+          onAmbilElevasiGps={() => {
+            if (perangkat.posisi?.elevasi !== undefined) {
+              setPesanSalin(`Elevasi GPS: ${perangkat.posisi.elevasi.toFixed(1)} m`);
+            } else {
+              setPesanSalin("Menghubungkan sinyal elevasi GPS...");
+            }
+          }}
+          sedangUkurGps={perangkat.statusGps === "mencari"}
+          onPesan={setPesanSalin}
+        />
       )}
 
-      {/* KARTU BAWAH RINGKAS OBJEK TERPILIH (SCREENSHOT 3) */}
+      {/* KARTU BAWAH RINGKAS OBJEK TERPILIH DENGAN SWAP KE ATAS BERTAHAP & LEBAR PC */}
       {objekTerpilih && !detailObjekTerbuka && (
-        <section className="avz-peek-card field-inspector-sheet" role="dialog" aria-label={objekTerpilih.judul}>
-          <div className="avz-peek-handle" onClick={() => setDetailObjekTerbuka(true)}>
-            <span aria-hidden="true" />
-          </div>
-          <div className="avz-peek-body" onClick={() => setDetailObjekTerbuka(true)}>
-            <h2 className="avz-peek-title">{objekTerpilih.judul}</h2>
-            <div className="avz-peek-meta-row">
-              {objekTerpilih.jenisGeometri === "point" ? (
-                <MapPin size={17} color="#5f6368" aria-hidden="true" />
-              ) : objekTerpilih.jenisGeometri === "line" ? (
-                <Route size={17} color="#5f6368" aria-hidden="true" />
-              ) : (
-                <Hexagon size={17} color="#5f6368" aria-hidden="true" />
-              )}
-              <span className="tabular-nums">
-                {objekTerpilih.jenisGeometri === "point" && objekTerpilih.koordinat[0]
-                  ? `${objekTerpilih.koordinat[0].lat.toFixed(6)}, ${objekTerpilih.koordinat[0].lng.toFixed(6)}`
-                  : objekTerpilih.jenisGeometri === "line"
-                    ? `${(objekTerpilih.panjangKm || 0).toFixed(2).replace(".", ",")} km`
-                    : `${(objekTerpilih.luasHa || 0).toFixed(2).replace(".", ",")} Ha`}
-              </span>
-            </div>
-            <div className="avz-peek-meta-row">
-              <Layers size={17} color="#5f6368" aria-hidden="true" />
-              <span>{objekTerpilih.lapisanNama || objekTerpilih.tematik || "Lapisan 1"}</span>
-            </div>
-          </div>
-          <div className="avz-peek-actions">
-            {objekTerpilih.koordinat[0] && (
-              <button
-                type="button"
-                className="avz-pill-outline-btn"
-                onClick={() => {
-                  const k = objekTerpilih.koordinat[0];
-                  setTargetGoTo({ lat: k.lat, lng: k.lng, judul: objekTerpilih.judul });
+        <PeekSheetInteraktif
+          mode="objek_terpilih"
+          objekTerpilih={objekTerpilih}
+          lapisanList={lapisanList}
+          onBukaFormLengkap={() => setDetailObjekTerbuka(true)}
+          onBukaDetailLengkap={() => setDetailObjekTerbuka(true)}
+          onTutup={() => setObjekTerpilih(null)}
+          onGoTo={(t) => {
+            setTargetGoTo(t);
+            setObjekTerpilih(null);
+            setDetailObjekTerbuka(false);
+          }}
+          onBagikan={(teks) => {
+            if (navigator.share) {
+              void navigator.share({ title: objekTerpilih.judul, text: teks }).catch(() => undefined);
+            } else if (navigator.clipboard) {
+              void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Tautan disalin")).catch(() => undefined);
+            }
+          }}
+          onHapus={
+            onHapusData
+              ? (id) => {
+                  onHapusData(id);
                   setObjekTerpilih(null);
                   setDetailObjekTerbuka(false);
-                }}
-              >
-                Navigasi
-              </button>
-            )}
-            <button
-              type="button"
-              className="avz-pill-outline-btn"
-              onClick={() => {
-                const k = objekTerpilih.koordinat[0];
-                const teks = k ? `${objekTerpilih.judul} — ${k.lat.toFixed(6)}, ${k.lng.toFixed(6)}` : objekTerpilih.judul;
-                if (navigator.share) {
-                  void navigator.share({ title: objekTerpilih.judul, text: teks }).catch(() => undefined);
-                } else if (navigator.clipboard) {
-                  void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Tautan disalin")).catch(() => undefined);
                 }
-              }}
-            >
-              {objekTerpilih.jenisGeometri === "line" ? "Beri tahu" : "Bagikan"}
-            </button>
-            {objekTerpilih.jenisGeometri === "line" && onHapusData ? (
-              <button
-                type="button"
-                className="avz-pill-outline-btn"
-                onClick={() => {
-                  onHapusData(objekTerpilih.id);
-                  setObjekTerpilih(null);
-                  setDetailObjekTerbuka(false);
-                }}
-              >
-                Hapus
-              </button>
-            ) : (
-              <button type="button" className="avz-pill-outline-btn" onClick={() => setDetailObjekTerbuka(true)}>
-                {objekTerpilih.jenisGeometri === "point" ? "Simpan" : "Detail"}
-              </button>
-            )}
-          </div>
-        </section>
+              : undefined
+          }
+          onPesan={setPesanSalin}
+          onKonversiKeArea={() => {
+            if (objekTerpilih.jenisGeometri === "line" && objekTerpilih.koordinat.length >= 3) {
+              setModeRekam("polygon");
+              perekamLatar.mulai("polygon", objekTerpilih.koordinat);
+              perekamLatar.jeda();
+              setTitikDraft(objekTerpilih.koordinat);
+              setObjekTerpilih(null);
+              setDetailObjekTerbuka(false);
+              setBukaModalForm(true);
+            }
+          }}
+        />
       )}
 
       {/* HALAMAN DETAIL OBJEK EXISTING KETIKA DIBUKA PENUH */}
