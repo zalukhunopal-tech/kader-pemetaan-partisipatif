@@ -14473,3 +14473,20 @@ html[data-field-theme="matahari"] .section-card h2 {
     white-space: normal;
   }
 }
+
+/* Penyesuaian Lebar Perekaman Jalur dan Keterangan Titik di Layar PC */
+@media (min-width: 768px) {
+  .recording-active-bar,
+  .avz-peta .recording-active-bar {
+    width: calc(100% - 48px) !important;
+    max-width: 1080px !important;
+    margin-inline: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  .map-bawah {
+    max-width: 1080px !important;
+    margin-inline: auto !important;
+  }
+}
+
