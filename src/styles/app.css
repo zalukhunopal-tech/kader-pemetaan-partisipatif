@@ -13999,6 +13999,68 @@ html[data-field-theme="matahari"] .section-card h2 {
   padding-right: 36px;
 }
 
+.avenza-layer-list {
+  padding-bottom: 148px;
+}
+
+.tugas-tabel-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tugas-tabel-bar .form-input {
+  flex: 1 1 200px;
+}
+
+.tugas-tabel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tugas-tabel-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tugas-tabel-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tugas-tabel-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tugas-field-inline-edit {
+  margin-top: 4px;
+}
+
+.tugas-field-inline-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tugas-field-inline-edit .form-input {
+  min-height: 34px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+}
+
 .avenza-layer-badge-tugas {
   display: inline-flex;
   align-items: center;

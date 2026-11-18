@@ -368,13 +368,20 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
     }
     const sim = adalahDataSimulasi(item);
     const imp = adalahDataImpor(item);
+    const elevasiTitik = item.elevasi;
+    const punyaLapisanKustom = Boolean(
+      item.lapisanId || item.tugasId || (item.lapisanNama && item.lapisanNama !== "Lapisan 1")
+    );
     return {
       type: "Feature",
       id: item.id,
       geometry,
       properties: {
         ...atributPrmAid,
+        ...(punyaLapisanKustom && item.lapisanNama ? { lapisan: item.lapisanNama } : {}),
         ...(item.tematik ? { tematik: item.tematik } : {}),
+        ...(elevasiTitik !== undefined ? { elevasi_m: elevasiTitik } : {}),
+        ...(item.atributKustom ?? {}),
         ...(sim ? { simulasi: true } : {}),
         ...(imp ? { diimpor: true } : {})
       }
@@ -418,7 +425,7 @@ export function eksporKeKML(daftar: DataSpasialItem[]): string {
       return `    <Placemark>
       <name>${esc(item.judul)}</name>
       <description>${esc(
-        `[${item.kategori}] ${item.deskripsi} | Kader: ${item.namaKader} (${item.desaWilayah}) | Panjang: ${item.panjangKm} km | Luas: ${item.luasHa} Ha`
+        `[${item.lapisanNama || "Lapisan 1"}] ${item.deskripsi} | Kader: ${item.namaKader} (${item.desaWilayah}) | Panjang: ${item.panjangKm} km | Luas: ${item.luasHa} Ha`
       )}</description>
       ${geomXml}
     </Placemark>`;
@@ -446,7 +453,7 @@ export function eksporKeGPX(daftar: DataSpasialItem[]): string {
       const p = d.koordinat[0];
       return `  <wpt lat="${p.lat}" lon="${p.lng}">
 ${eleGPX(p, "    ")}    <name>${esc(d.judul)}</name>
-    <desc>${esc(`${d.kategori}: ${d.deskripsi}`)}</desc>
+    <desc>${esc(`${d.lapisanNama || "Lapisan 1"}: ${d.deskripsi}`)}</desc>
   </wpt>`;
     })
     .join("\n");

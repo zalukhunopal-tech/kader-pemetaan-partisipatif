@@ -6,10 +6,15 @@ import { NavigasiBawah } from "../components/app/NavigasiBawah";
 import { FormSurveiModal, useFormSurvei } from "../components/peta/FormSurveiModal";
 import { LapisanSpasial, ProfilKader, TugasPemetaan } from "../types";
 import {
+  ambilDaftarTabelGeometri,
   buatFieldSkemaBaru,
   buatSkemaKosong,
+  hapusTabelSkema,
   hitungRingkasSkema,
+  kelompokkanFieldPerTabel,
   sinkronkanLapisanDariTugas,
+  tambahTabelSkema,
+  ubahNamaTabelSkema,
   validasiIsianSkema
 } from "./skemaTugas";
 
@@ -25,18 +30,18 @@ const profilUji: ProfilKader = {
 
 describe("Skema Tugas Admin & Lapisan Peta Interaktif", () => {
   it("menyelaraskan Tugas Admin (Point, Line, Polygon) ke LapisanSpasial tanpa menghapus lapisan user", () => {
-    const skema = buatSkemaKosong();
-    skema.point = [buatFieldSkemaBaru({ nama: "Jenis Pohon", tipe: "teks", wajib: true })];
-    skema.line = [buatFieldSkemaBaru({ nama: "Kondisi Jalur", tipe: "pilihan", wajib: true, opsi: ["Baik", "Rusak"] })];
-    skema.polygon = [buatFieldSkemaBaru({ nama: "Tutupan Lahan", tipe: "teks", wajib: false })];
+    let skema = buatSkemaKosong();
+    skema = tambahTabelSkema(skema, "point", "Tabel Identitas");
+    skema.point = [buatFieldSkemaBaru({ nama: "Kode Patok", tabel: "Tabel Identitas", tipe: "teks", wajib: true })];
+    skema.line = [buatFieldSkemaBaru({ nama: "Kondisi Jalur", tabel: "Tabel Jalur", tipe: "pilihan", wajib: true, opsi: ["Baik", "Rusak"] })];
+    skema.polygon = [buatFieldSkemaBaru({ nama: "Tutupan Lahan", tabel: "Tabel Area", tipe: "teks", wajib: false })];
 
     const tugas: TugasPemetaan = {
       id: "TSK-100",
-      judul: "Inventarisasi Hutan Adat",
+      judul: "Inventarisasi Wilayah",
       deskripsi: "Pemetaan blok",
       targetWilayah: "Blok Timur",
       jenisTargetGeometri: "polygon",
-      kategoriTarget: "Flora",
       targetKuantitas: "10 Titik",
       batasWaktu: "2026-12-31",
       koordinatAcuan: { lat: 2.85, lng: 117.37 },
@@ -55,9 +60,29 @@ describe("Skema Tugas Admin & Lapisan Peta Interaktif", () => {
     const synced = sinkronkanLapisanDariTugas([lapisanUser], [tugas]);
     expect(synced).toHaveLength(2);
     const lapisanTugas = synced.find((l) => l.tugasId === "TSK-100");
-    expect(lapisanTugas?.nama).toBe("Inventarisasi Hutan Adat");
-    expect(hitungRingkasSkema(lapisanTugas?.skemaGeometri)).toEqual({ total: 3, point: 1, line: 1, polygon: 1 });
+    expect(lapisanTugas?.nama).toBe("Inventarisasi Wilayah");
+    expect(hitungRingkasSkema(lapisanTugas?.skemaGeometri)).toEqual({
+      total: 3,
+      point: 1,
+      line: 1,
+      polygon: 1,
+      tabelPoint: 1,
+      tabelLine: 1,
+      tabelPolygon: 1,
+      totalTabel: 3
+    });
     expect(synced.some((l) => l.id === "LAP-USER-1")).toBe(true);
+
+    // Tambah, ubah nama, dan kurangi tabel pada skema kosong
+    let ujiTabel = buatSkemaKosong();
+    expect(ambilDaftarTabelGeometri(ujiTabel, "point")).toEqual([]);
+    ujiTabel = tambahTabelSkema(ujiTabel, "point", "Tabel A");
+    ujiTabel.point.push(buatFieldSkemaBaru({ nama: "Kolom 1", tabel: "Tabel A", tipe: "teks", wajib: true }));
+    ujiTabel = ubahNamaTabelSkema(ujiTabel, "point", "Tabel A", "Tabel Baru");
+    expect(kelompokkanFieldPerTabel(ujiTabel, "point")[0].namaTabel).toBe("Tabel Baru");
+    ujiTabel = hapusTabelSkema(ujiTabel, "point", "Tabel Baru");
+    expect(ujiTabel.point).toEqual([]);
+    expect(ambilDaftarTabelGeometri(ujiTabel, "point")).toEqual([]);
 
     // Tugas diperbarui -> lapisan ikut diperbarui
     const tugasDiubah = { ...tugas, judul: "Inventarisasi Revisi" };
@@ -120,6 +145,8 @@ describe("Skema Tugas Admin & Lapisan Peta Interaktif", () => {
     expect(htmlDefaultPoint).toContain("Edit Lapisan");
     expect(htmlDefaultPoint).toContain("Ambil elevasi");
     expect(htmlDefaultPoint).toContain("Skema atribut");
+    expect(htmlDefaultPoint).not.toContain("Biodiversitas");
+    expect(htmlDefaultPoint).not.toContain("Sarana");
 
     const htmlDefaultLine = renderToString(<Wrapper mode="line" />);
     expect(htmlDefaultLine).toContain("Trek");

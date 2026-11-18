@@ -39,7 +39,7 @@ for (const u of UKURAN) {
 
     // Jatuhkan pin lalu simpan: toast "disimpan" tidak boleh menutupi bilah bawah
     await p.locator(".avz-fab-pin").click();
-    await p.getByRole("button", { name: /^Biodiversitas/ }).click();
+    await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
     await p.getByPlaceholder("Masukkan nama objek").fill("Pohon uji tata letak");
     await p.locator(".modal-form button[type=submit]").click();
     await p.waitForTimeout(500);

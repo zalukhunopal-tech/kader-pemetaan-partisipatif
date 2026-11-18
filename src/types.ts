@@ -285,9 +285,14 @@ export type TipeFieldSkema = "teks" | "angka" | "pilihan" | "tanggal" | "catatan
 export interface FieldSkemaAtribut {
   id: string;
   nama: string;
+  /** Nama tabel pengelompokan yang dibuat dan dinamai bebas oleh Admin */
+  tabel?: string;
   tipe: TipeFieldSkema;
   wajib?: boolean;
+  /** Daftar nilai pilihan dropdown yang ditetapkan Admin */
   opsi?: string[];
+  /** Nilai bawaan (default) yang ditentukan Admin untuk kolom ini */
+  nilaiBawaan?: string;
   placeholder?: string;
 }
 
@@ -295,6 +300,12 @@ export interface SkemaAtributGeometri {
   point: FieldSkemaAtribut[];
   line: FieldSkemaAtribut[];
   polygon: FieldSkemaAtribut[];
+  /** Daftar nama tabel aktif per geometri (Admin dapat menambah/mengurangi tabel kosong maupun terisi) */
+  daftarTabel?: {
+    point: string[];
+    line: string[];
+    polygon: string[];
+  };
 }
 
 export interface LapisanSpasial {
@@ -382,7 +393,7 @@ export interface TugasPemetaan {
   deskripsi: string;
   targetWilayah: string;
   jenisTargetGeometri: JenisGeometri;
-  kategoriTarget: KategoriSurvei;
+  kategoriTarget?: KategoriSurvei;
   targetKuantitas: string; // misal "20 Titik Pohon Pakan" atau "3 Ha Kebun Timur"
   batasWaktu: string;
   koordinatAcuan: KoordinatTitik;

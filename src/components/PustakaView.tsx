@@ -483,7 +483,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       id: buatId("LYR"),
       nama: namaLapisanBaru.trim(),
       jumlahPeta: 1,
-      kategoriDefault: "Flora",
       createdAt: new Date().toISOString()
     };
     onTambahLapisan(lyrBaru);
@@ -911,18 +910,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     </div>
                     <div className="avenza-layer-meta">
                       {lapisan.tugasId
-                        ? ringkasSkema.total > 0
-                          ? `Skema: Point ${ringkasSkema.point} · Line ${ringkasSkema.line} · Polygon ${ringkasSkema.polygon}`
-                          : "Lapisan Tugas Lapangan"
-                        : lapisan.adalahTematik
-                          ? "Kolam Tematik"
-                          : `${lapisan.jumlahPeta} Peta`}
-                      {lapisan.kategoriDefault && (
-                        <>
-                          {" "}
-                          <span className="dot-sep">•</span> {lapisan.kategoriDefault}
-                        </>
-                      )}
+                        ? ringkasSkema.total > 0 || ringkasSkema.totalTabel > 0
+                          ? `Point ${ringkasSkema.tabelPoint}T (${ringkasSkema.point}) · Line ${ringkasSkema.tabelLine}T (${ringkasSkema.line}) · Polygon ${ringkasSkema.tabelPolygon}T (${ringkasSkema.polygon})`
+                          : "Belum ada tabel (isi memakai format Default)"
+                        : `${lapisan.jumlahPeta} Peta`}
                       {jmlObjek > 0 && (
                         <>
                           {" "}

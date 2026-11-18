@@ -107,12 +107,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.locator(".avz-tool-popup-item", { hasText: "Rata-rata Plot GPS" }).click();
     await expect(p.locator(".visual-category-grid")).toHaveCount(0);
-    await expect(p.locator('button[aria-label="Hentikan GPS"], button[aria-label="Ukur GPS"]').first()).toBeVisible();
     await p.locator('input[placeholder="Masukkan nama objek"]').fill("Pohon Meranti Simulasi");
-    const btnBatalGps = p.locator('button[aria-label="Hentikan GPS"]');
-    if ((await btnBatalGps.count()) > 0) {
-      await btnBatalGps.click();
-    }
     await p.locator('#form-survei-lapangan button[type="submit"]').click();
     await expect(p.locator("form.field-survey-form")).toHaveCount(0);
 
@@ -121,7 +116,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.locator(".avz-tool-popup-item", { hasText: "Tandai Foto" }).click();
     await expect(p.locator(".visual-category-grid")).toHaveCount(0);
     await expect(p.locator(".form-photo-box.sorot-aksi-foto")).toBeVisible();
-    await p.locator("form.field-survey-form button", { hasText: "Tutup, simpan draf" }).click();
+    await p.locator('.field-survey-sheet button[aria-label="Tutup panel"]').click();
 
     // Menu Alat -> Monitor Geofences: aktif -> keluar batas -> masuk kembali -> matikan
     await p.getByRole("button", { name: "Alat peta" }).click();
@@ -940,74 +935,23 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await expect(p.getByText("Simpan ke Pustaka Peta")).toHaveCount(0);
   await p.locator(".modal-footer button", { hasText: /^Batal$/ }).click();
 
-  // 2. Uji Formulir Langsung pada Point: tambah kolam tematik baru "Kolam Flora" (Biodiversitas)
+  // 2. Uji Formulir Default Avenza pada Point (tanpa kategori Biodiversitas atau Peta Tematik lama)
   await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
   await p.waitForSelector(".map-canvas-container");
 
   await p.locator(".avz-fab-pin").click();
+  await expect(p.locator(".avz-peek-card")).toBeVisible();
+  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
   await expect(p.locator('#form-survei-lapangan input[required]')).toBeVisible();
-  await expect(p.locator('select[aria-label="Pilih Peta Tematik"]')).toBeVisible();
-  // Verifikasi kotak koordinat seragam (input edit langsung) + 3 titik ganti sistem & tombol simbol kamera simetris
-  await expect(p.locator(".loc-card-field .loc-swipe-dot")).toHaveCount(3);
-  await expect(p.locator(".loc-coord-input")).toBeVisible();
-  const teksAwalKoord = await p.locator(".loc-swipe-badge").innerText();
-  await p.locator('.loc-swipe-dot[aria-label="Format DMS"]').click();
-  await expect(p.locator(".loc-swipe-badge")).not.toHaveText(teksAwalKoord);
-  await expect(p.locator(".loc-swipe-badge")).toHaveText("DMS");
-  await p.locator('.loc-swipe-dot[aria-label="Format DD"]').click();
-  await p.locator(".loc-coord-input").fill("2.858111, 117.378222");
-  await p.locator(".loc-coord-input").blur();
-  await expect(p.locator(".loc-coord-input")).toHaveValue("2.8581110, 117.3782220");
-  // Uji ikon kamera tepat di tengah kotak (.btn-media-simbol)
-  const kotakKamera = await p.locator('.btn-media-simbol[aria-label="Ambil atau pilih foto"]').boundingBox();
-  const ikonKamera = await p.locator('.btn-media-simbol[aria-label="Ambil atau pilih foto"] svg').boundingBox();
-  expect(kotakKamera).not.toBeNull();
-  expect(ikonKamera).not.toBeNull();
-  const pusatKotakX = kotakKamera!.x + kotakKamera!.width / 2;
-  const pusatKotakY = kotakKamera!.y + kotakKamera!.height / 2;
-  const pusatIkonX = ikonKamera!.x + ikonKamera!.width / 2;
-  const pusatIkonY = ikonKamera!.y + ikonKamera!.height / 2;
-  expect(Math.abs(pusatKotakX - pusatIkonX)).toBeLessThanOrEqual(2.5);
-  expect(Math.abs(pusatKotakY - pusatIkonY)).toBeLessThanOrEqual(2.5);
-  await expect(p.locator(".form-media-panel .btn-media-simbol")).toHaveCount(2);
-  await expect(p.locator(".survey-photo-preview")).toHaveCount(0);
-  await expect(p.locator(".field-audio-pill")).toHaveCount(0);
+  await expect(p.locator('select[aria-label="Pilih Peta Tematik"]')).toHaveCount(0);
 
   await p.locator('#form-survei-lapangan input[required]').fill("Meranti Kolam Satu");
-  await p.locator(".form-kategori-grid button", { hasText: "Biodiversitas" }).click();
-  await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("__BARU__");
-  await p.locator('input[placeholder*="Misal: Sebaran Meranti"]').fill("Kolam Flora");
-  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
-  await expect(p.locator(".avenza-toast")).toContainText("Kolam Flora");
-
-  // 3. Uji Point ke-2 dengan tematik "Kolam Flora" TETAPI kategori berbeda ("Air" -> "Mata Air") -> jadi tematik tersendiri!
-  await p.locator(".avz-fab-pin").click();
-  await p.locator('#form-survei-lapangan input[required]').fill("Mata Air Terpisah");
-  await p.locator(".form-kategori-grid button", { hasText: "Air" }).click();
-  await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("Kolam Flora");
-  await expect(p.locator(".form-tematik-info.peringatan")).toContainText("Kolam Flora (Mata Air)");
   await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
 
-  // 4. Uji Point ke-3 dengan mengosongkan tematik -> keterangan non-tematik dihapus dan data masuk ke peta biasa
-  await p.locator(".avz-fab-pin").click();
-  await p.locator('#form-survei-lapangan input[required]').fill("Patok Biasa");
-  await p.locator(".form-kategori-grid button", { hasText: "Batas" }).click();
-  await p.locator('select[aria-label="Pilih Peta Tematik"]').selectOption("");
-  await expect(p.locator(".form-tematik-info")).toHaveCount(0);
-  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
-
-  // Verifikasi filter kolam tematik vs non-tematik di halaman Lapisan Peta (kotak label pipih)
+  // Verifikasi halaman Lapisan Peta terbuka bersih
   await p.getByRole("button", { name: "Lapisan" }).click();
   const chipSemua = p.locator(".avz-tematik-chip", { hasText: /^Semua \(/ });
-  const chipNonTematik = p.locator(".avz-tematik-chip", { hasText: "Non-Tematik (1)" });
   await expect(chipSemua).toBeVisible();
-  await expect(p.locator(".avz-tematik-chip", { hasText: "Kolam Flora · Biodiversitas (1)" })).toBeVisible();
-  await expect(p.locator(".avz-tematik-chip", { hasText: "Kolam Flora (Mata Air) · Mata Air (1)" })).toBeVisible();
-  await expect(chipNonTematik).toBeVisible();
-  const boxSemua = await chipSemua.boundingBox();
-  const boxNonTematik = await chipNonTematik.boundingBox();
-  expect(boxSemua!.height).toBeLessThanOrEqual(30);
-  expect(boxNonTematik!.height).toBeLessThanOrEqual(30);
 
   await p.getByRole("dialog", { name: "Lapisan Peta" }).getByRole("button", { name: "Kembali" }).click();
   await p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" }).click();

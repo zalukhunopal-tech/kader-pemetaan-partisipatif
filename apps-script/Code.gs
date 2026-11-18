@@ -32,9 +32,9 @@ var TAB_POLYGON = "Polygon";
 var TAB_LINE = "Line";
 var TAB_POINT = "Point";
 
-var KOLOM_POLYGON = ["label", "luas_ha", "keterangan", "url", "tepi", "warna"];
-var KOLOM_LINE = ["label", "panjang_m", "keterangan", "url", "warna"];
-var KOLOM_POINT = ["label", "kategori", "keterangan", "url", "simbol"];
+var KOLOM_POLYGON = ["label", "lapisan", "luas_ha", "elevasi_m", "keterangan", "corak", "url"];
+var KOLOM_LINE = ["label", "lapisan", "panjang_m", "elevasi_m", "keterangan", "corak", "url"];
+var KOLOM_POINT = ["label", "lapisan", "elevasi_m", "keterangan", "corak", "url"];
 var BELUM_DIISI = "Wilayah_Belum_Diisi";
 var BATAS_FOTO_BYTE = 2 * 1024 * 1024;
 var NAMA_BULAN = [
@@ -60,14 +60,15 @@ var KOLOM = [
   "Kabupaten_Kota",
   "Kecamatan",
   "Kelurahan_Desa",
+  "Nama_Lapisan",
   "Jenis_Geometri",
-  "Kategori",
   "Judul",
-  "Nama_Lokal",
-  "Nama_Ilmiah",
-  "Jumlah_Individu",
+  "Deskripsi",
+  "Elevasi_m",
   "Panjang_Km",
   "Luas_Ha",
+  "Corak",
+  "Atribut_Tabel_JSON",
   "Koordinat_WKT",
   "Nama_Berkas",
   "Tautan_Berkas",
@@ -290,6 +291,12 @@ function simpanRekaman_(r, fitur, konteks) {
 
   // Status yang diubah admin langsung di spreadsheet tidak ditimpa saat data dikirim ulang
   var status = lama ? String(lama[K.Status_Verifikasi] || "Tersinkron_GDrive") : "Tersinkron_GDrive";
+  var lapisanNama = String(r.lapisanNama || r.tematik || "Lapisan 1").trim() || "Lapisan 1";
+  var elevasiM = r.elevasi !== undefined && r.elevasi !== "" && isFinite(Number(r.elevasi)) ? Number(r.elevasi) : "";
+  var corak = String(r.corak || r.simbol || r.warna || "").trim();
+  var atributTabelJson = r.atributKustom && typeof r.atributKustom === "object" && Object.keys(r.atributKustom).length > 0
+    ? "json:" + JSON.stringify(r.atributKustom)
+    : "";
   var nilai = [
     sanitasiSel_(id),
     sanitasiSel_(r.idKader),
@@ -298,14 +305,15 @@ function simpanRekaman_(r, fitur, konteks) {
     sanitasiSel_(w.kabupaten),
     sanitasiSel_(w.kecamatan),
     sanitasiSel_(w.desa),
+    sanitasiSel_(lapisanNama),
     sanitasiSel_(r.jenisGeometri),
-    sanitasiSel_(r.kategori),
     sanitasiSel_(r.judul),
-    sanitasiSel_(r.namaLokal),
-    sanitasiSel_(r.namaIlmiah),
-    r.jumlahIndividu === undefined ? "" : r.jumlahIndividu,
+    sanitasiSel_(r.deskripsi),
+    elevasiM,
     r.panjangKm,
     r.luasHa,
+    sanitasiSel_(corak),
+    sanitasiSel_(atributTabelJson),
     sanitasiSel_(String(r.wkt || "").length > 40000 ? "GEOMETRI_DI_GEOJSON: " + berkas.getUrl() : r.wkt),
     sanitasiSel_(nama),
     berkas.getUrl(),
@@ -324,10 +332,11 @@ function simpanRekaman_(r, fitur, konteks) {
     konteks.barisAda[id] = konteks.sheet.getLastRow();
   }
 
-  // Sinkronkan data ke tabel atribut terstruktur Google Spreadsheet (Polygon, Line, Point) sesuai standar PRM-AID
+  // Sinkronkan data ke tab geometri (Polygon, Line, Point) dan tab Lapisan Tugas Admin
   try {
     var ssUtama = spreadsheetInduk_(konteks.induk);
     simpanKeTabGeometriPrmAid_(ssUtama, r, fiturSiap.properties);
+    simpanKeTabLapisanAdmin_(ssUtama, r, lapisanNama, fotoUrl);
   } catch (errTab) {
     Logger.log("Peringatan sinkron tab geometri: " + errTab);
   }
@@ -374,7 +383,7 @@ function namaBerkasRekaman_(r) {
   var t = new Date(r.createdAt);
   if (isNaN(t.getTime())) t = new Date();
   var akun = slug_(r.namaKader, 40) || "kader";
-  var data = slug_(r.judul, 60) || slug_(r.kategori, 40) || "data";
+  var data = slug_(r.judul, 60) || slug_(r.lapisanNama, 40) || "data";
   return [akun, data, NAMA_BULAN[t.getMonth()], t.getFullYear()].join("_");
 }
 
@@ -677,28 +686,33 @@ function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
   var pLama = (fitur && fitur.properties) || {};
   var label = String(r.judul || r.label || pLama.label || pLama.judul || "").trim();
   var ket = String(r.deskripsi || r.keterangan || pLama.keterangan || pLama.deskripsi || "").trim();
-  if (!ket) {
-    var bagian = [];
-    if (r.namaLokal && String(r.namaLokal).trim()) bagian.push(String(r.namaLokal).trim());
-    if (r.namaIlmiah && String(r.namaIlmiah).trim()) bagian.push("(" + String(r.namaIlmiah).trim() + ")");
-    ket = bagian.length > 0 ? bagian.join(" ") : String(r.kategori || pLama.kategori || "").trim();
-  }
+  var lapisan = String(r.lapisanNama || r.tematik || pLama.lapisan || "Lapisan 1").trim() || "Lapisan 1";
+  var corak = String(r.corak || r.simbol || r.warna || pLama.corak || "").trim();
+  var elevasi = r.elevasi !== undefined && r.elevasi !== "" && isFinite(Number(r.elevasi))
+    ? Number(r.elevasi)
+    : pLama.elevasi_m !== undefined
+      ? Number(pLama.elevasi_m)
+      : "";
   var url = sanitasiUrlGs_(fotoUrl || r.url || r.driveFileUrl || pLama.url);
   var jenis = String(r.jenisGeometri || "").toLowerCase();
-  var hasil;
+  var hasil = { label: label, lapisan: lapisan };
   if (jenis === "polygon") {
     var luas = Number(r.luasHa !== undefined ? r.luasHa : pLama.luas_ha !== undefined ? pLama.luas_ha : 0);
-    var luas_ha = isFinite(luas) ? Number(luas.toFixed(7)) : 0;
-    var gaya = gayaPolygonPrmAidGs_(label, r.kategori, ket, r.tepi || pLama.tepi, r.warna || pLama.warna);
-    hasil = { label: label, luas_ha: luas_ha, keterangan: ket, url: url, tepi: gaya.tepi, warna: gaya.warna };
+    hasil.luas_ha = isFinite(luas) ? Number(luas.toFixed(7)) : 0;
   } else if (jenis === "line") {
     var pjgMeter = r.panjang_m !== undefined ? Number(r.panjang_m) : pLama.panjang_m !== undefined ? Number(pLama.panjang_m) : Number(r.panjangKm || 0) * 1000;
-    var panjang_m = isFinite(pjgMeter) ? Number(pjgMeter.toFixed(2)) : 0;
-    var warnaLine = warnaLinePrmAidGs_(label, r.kategori, ket, r.warna || pLama.warna);
-    hasil = { label: label, panjang_m: panjang_m, keterangan: ket, url: url, warna: warnaLine };
-  } else {
-    var pt = simbolPointPrmAidGs_(label, r.kategori || pLama.kategori, ket, r.simbol || pLama.simbol);
-    hasil = { label: label, kategori: pt.kategori, keterangan: ket, url: url, simbol: pt.simbol };
+    hasil.panjang_m = isFinite(pjgMeter) ? Number(pjgMeter.toFixed(2)) : 0;
+  }
+  hasil.elevasi_m = elevasi;
+  hasil.keterangan = ket;
+  hasil.corak = corak || (jenis === "line" ? "Jingga jejak" : jenis === "polygon" ? "Hijau zamrud" : "Pin Merah");
+  hasil.url = url;
+  if (r.atributKustom && typeof r.atributKustom === "object") {
+    for (var k in r.atributKustom) {
+      if (Object.prototype.hasOwnProperty.call(r.atributKustom, k)) {
+        hasil[k] = r.atributKustom[k];
+      }
+    }
   }
   return hasil;
 }
@@ -1025,7 +1039,7 @@ function inisialisasiTabGeometriPrmAid_(ss) {
   }
 }
 
-/** Menyimpan atau memperbarui baris rekaman pada tab geometri PRM-AID yang bersangkutan */
+/** Menyimpan atau memperbarui baris rekaman pada tab geometri (Polygon, Line, Point) */
 function simpanKeTabGeometriPrmAid_(ss, r, atribut) {
   if (!ss || !r || !atribut) return;
   var jenis = String(r.jenisGeometri || "").toLowerCase();
@@ -1043,27 +1057,31 @@ function simpanKeTabGeometriPrmAid_(ss, r, atribut) {
   if (jenis === "polygon") {
     barisData = [
       sanitasiSel_(atribut.label),
+      sanitasiSel_(atribut.lapisan),
       Number(atribut.luas_ha) || 0,
+      atribut.elevasi_m === undefined || atribut.elevasi_m === "" ? "" : Number(atribut.elevasi_m),
       sanitasiSel_(atribut.keterangan),
-      sanitasiSel_(atribut.url),
-      sanitasiSel_(atribut.tepi),
-      sanitasiSel_(atribut.warna)
+      sanitasiSel_(atribut.corak),
+      sanitasiSel_(atribut.url)
     ];
   } else if (jenis === "line") {
     barisData = [
       sanitasiSel_(atribut.label),
+      sanitasiSel_(atribut.lapisan),
       Number(atribut.panjang_m) || 0,
+      atribut.elevasi_m === undefined || atribut.elevasi_m === "" ? "" : Number(atribut.elevasi_m),
       sanitasiSel_(atribut.keterangan),
-      sanitasiSel_(atribut.url),
-      sanitasiSel_(atribut.warna)
+      sanitasiSel_(atribut.corak),
+      sanitasiSel_(atribut.url)
     ];
   } else {
     barisData = [
       sanitasiSel_(atribut.label),
-      sanitasiSel_(atribut.kategori),
+      sanitasiSel_(atribut.lapisan),
+      atribut.elevasi_m === undefined || atribut.elevasi_m === "" ? "" : Number(atribut.elevasi_m),
       sanitasiSel_(atribut.keterangan),
-      sanitasiSel_(atribut.url),
-      sanitasiSel_(atribut.simbol)
+      sanitasiSel_(atribut.corak),
+      sanitasiSel_(atribut.url)
     ];
   }
 
@@ -1093,6 +1111,62 @@ function simpanKeTabGeometriPrmAid_(ss, r, atribut) {
     var baru = tab.getLastRow();
     var selBaru = tab.getRange(baru, 1);
     if (typeof selBaru.setNote === "function") selBaru.setNote(tagId);
+  }
+}
+
+/** Membuat / mengisi tab spreadsheet dinamis sesuai nama Lapisan & kolom tabel buatan Admin */
+function simpanKeTabLapisanAdmin_(ss, r, lapisanNama, fotoUrl) {
+  if (!ss || !r || !r.atributKustom || typeof r.atributKustom !== "object") return;
+  var keys = Object.keys(r.atributKustom);
+  if (keys.length === 0) return;
+  var amanTab = String("Lapisan_" + lapisanNama).replace(/[\\/?*\[\]:]/g, "_").slice(0, 90);
+  var tab = ss.getSheetByName(amanTab);
+  var headerDasar = ["ID_Data", "Judul", "Jenis_Geometri"];
+  var header = headerDasar.concat(keys, ["Elevasi_m", "Panjang_Km", "Luas_Ha", "Koordinat_WKT", "Tautan_Foto"]);
+  if (!tab) {
+    tab = ss.insertSheet(amanTab);
+    tab.appendRow(header);
+  } else if (tab.getLastRow() >= 1) {
+    var adaHeader = tab.getRange(1, 1, 1, tab.getLastRow() > 0 ? header.length : 1).getValues()[0];
+    var perluTambah = [];
+    for (var kIdx = 0; kIdx < header.length; kIdx++) {
+      if (adaHeader.indexOf(header[kIdx]) === -1 && String(header[kIdx]).trim()) {
+        perluTambah.push(header[kIdx]);
+      }
+    }
+    if (perluTambah.length > 0 && adaHeader[0]) {
+      header = adaHeader.filter(function(x) { return String(x).trim() !== ""; }).concat(perluTambah);
+      tab.getRange(1, 1, 1, header.length).setValues([header]);
+    }
+  }
+  var baris = [];
+  for (var hIdx = 0; hIdx < header.length; hIdx++) {
+    var col = String(header[hIdx]);
+    if (col === "ID_Data") baris.push(sanitasiSel_(r.id));
+    else if (col === "Judul") baris.push(sanitasiSel_(r.judul));
+    else if (col === "Jenis_Geometri") baris.push(sanitasiSel_(r.jenisGeometri));
+    else if (col === "Elevasi_m") baris.push(r.elevasi !== undefined && r.elevasi !== "" ? Number(r.elevasi) : "");
+    else if (col === "Panjang_Km") baris.push(Number(r.panjangKm) || 0);
+    else if (col === "Luas_Ha") baris.push(Number(r.luasHa) || 0);
+    else if (col === "Koordinat_WKT") baris.push(sanitasiSel_(r.wkt || ""));
+    else if (col === "Tautan_Foto") baris.push(sanitasiUrlGs_(fotoUrl || r.url || ""));
+    else baris.push(sanitasiSel_(r.atributKustom[col] !== undefined ? r.atributKustom[col] : ""));
+  }
+  var target = 0;
+  var jml = tab.getLastRow();
+  if (jml > 1) {
+    var ids = tab.getRange(2, 1, jml - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === String(r.id)) {
+        target = i + 2;
+        break;
+      }
+    }
+  }
+  if (target > 0) {
+    tab.getRange(target, 1, 1, baris.length).setValues([baris]);
+  } else {
+    tab.appendRow(baris);
   }
 }
 
@@ -1146,14 +1220,26 @@ function snapshotV3_(baris) {
     var coords = f.geometry ? f.geometry.coordinates : [], jenis = String(baris[K.Jenis_Geometri]);
     if (jenis === "point") coords = [coords];
     if (jenis === "polygon") coords = coords[0] || [];
+    var attrRaw = bersihkanPrefiksSel_(baris[K.Atribut_Tabel_JSON], "json:");
+    var attrObj = undefined;
+    if (attrRaw) {
+      try { attrObj = JSON.parse(attrRaw); } catch (ignoredAttr) {}
+    }
+    var elevRaw = baris[K.Elevasi_m];
     d = { id: String(baris[K.ID_Data]), idKader: String(baris[K.ID_Kader]), namaKader: String(baris[K.Nama_Kader]),
-      desaWilayah: String(baris[K.Kelurahan_Desa]), jenisGeometri: jenis, kategori: String(baris[K.Kategori]),
-      judul: String(baris[K.Judul]), namaLokal: String(baris[K.Nama_Lokal]), namaIlmiah: String(baris[K.Nama_Ilmiah]),
-      deskripsi: p.deskripsi || p.keterangan || "", koordinat: coords.map(function(c) { return { lat: c[1], lng: c[0], elevasi: c[2] }; }),
+      desaWilayah: String(baris[K.Kelurahan_Desa]), jenisGeometri: jenis,
+      lapisanNama: String(baris[K.Nama_Lapisan] || "Lapisan 1"),
+      judul: String(baris[K.Judul]),
+      deskripsi: String(baris[K.Deskripsi] || p.deskripsi || p.keterangan || ""),
+      elevasi: elevRaw !== "" && elevRaw !== undefined ? Number(elevRaw) : undefined,
+      simbol: String(baris[K.Corak] || "") || undefined,
+      atributKustom: attrObj,
+      koordinat: coords.map(function(c) { return { lat: c[1], lng: c[0], elevasi: c[2] }; }),
       panjangKm: Number(baris[K.Panjang_Km]) || 0, luasHa: Number(baris[K.Luas_Ha]) || 0,
       createdAt: String(baris[K.Waktu_Rekam]), updatedAt: String(baris[K.Waktu_Sinkron]), riwayatPembaruan: [] };
   }
-  d.judul = String(baris[K.Judul]); d.namaLokal = String(baris[K.Nama_Lokal]); d.namaIlmiah = String(baris[K.Nama_Ilmiah]);
+  d.judul = String(baris[K.Judul]);
+  d.lapisanNama = String(baris[K.Nama_Lapisan] || d.lapisanNama || "Lapisan 1");
   d.catatanAdmin = String(baris[K.Catatan_Admin] || "");
   var status = String(baris[K.Status_Verifikasi]).toLowerCase();
   d.statusSinkron = /tolak|revisi/.test(status) ? "ditolak" : /setuju|terverifikasi/.test(status) ? "terverifikasi" : "tersinkron";
@@ -1288,7 +1374,7 @@ var KOLOM_PENCADANGAN = [
   "ID_Kader",
   "Nama_Kader",
   "Judul",
-  "Kategori",
+  "Nama_Lapisan",
   "Jenis_Geometri",
   "Dipindahkan_Pada",
   "Kedaluwarsa_Pada",
@@ -1406,7 +1492,10 @@ function pindahKePencadangan_(body, konteks) {
     idKader: String(lama[K.ID_Kader] || ""),
     namaKader: String(lama[K.Nama_Kader] || ""),
     judul: String(lama[K.Judul] || ""),
-    kategori: String(lama[K.Kategori] || ""),
+    lapisanNama: String(lama[K.Nama_Lapisan] || "Lapisan 1"),
+    deskripsi: String(lama[K.Deskripsi] || ""),
+    elevasi: lama[K.Elevasi_m] !== "" ? Number(lama[K.Elevasi_m]) : "",
+    corak: String(lama[K.Corak] || ""),
     jenisGeometri: String(lama[K.Jenis_Geometri] || "point"),
     panjangKm: Number(lama[K.Panjang_Km] || 0),
     luasHa: Number(lama[K.Luas_Ha] || 0),
@@ -1443,7 +1532,7 @@ function pindahKePencadangan_(body, konteks) {
     sanitasiSel_(rec.idKader || ""),
     sanitasiSel_(rec.namaKader || ""),
     sanitasiSel_(rec.judul || ""),
-    sanitasiSel_(rec.kategori || ""),
+    sanitasiSel_(rec.lapisanNama || "Lapisan 1"),
     sanitasiSel_(rec.jenisGeometri || ""),
     sanitasiSel_(tPindah),
     sanitasiSel_(tKadaluarsa),

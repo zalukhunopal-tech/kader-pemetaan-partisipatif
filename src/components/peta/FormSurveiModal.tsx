@@ -3,16 +3,11 @@ import {
   Camera,
   Check,
   ChevronRight,
-  Leaf,
-  Droplets,
-  Flag,
-  Flame,
-  Layers,
   Lock,
-  Trees,
-  Landmark,
-  House,
-  MoreHorizontal,
+  MapPin,
+  Route,
+  Hexagon,
+  Table2,
   Trash2
 } from "lucide-react";
 import {
@@ -27,7 +22,7 @@ import {
   MemoSuara,
   ProfilKader
 } from "../../types";
-import { hitungLuasPoligonHa, hitungPanjangGarisKm, sanitasiTeksInput } from "../../lib/geoUtils";
+import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
 import { buatId } from "../../lib/id";
 import { capWilayah } from "../../lib/auth";
 import { kompresFoto, perkiraBytesDataUrl, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } from "../../lib/foto";
@@ -35,8 +30,7 @@ import { bacaDraftSurvei, DraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from ".
 import { ambilRataRataGps } from "../../lib/posisiPerangkat";
 import { hitungSkorKualitasData } from "../../lib/kualitasData";
 import { susunAtributPolygonPrmAid, susunAtributLinePrmAid, susunAtributPointPrmAid } from "../../lib/atributPrmAid";
-import { validasiIsianSkema } from "../../lib/skemaTugas";
-import { KolamTematik, selesaikanKolamTematik } from "../../lib/tematik";
+import { kelompokkanFieldPerTabel, validasiIsianSkema } from "../../lib/skemaTugas";
 import { BottomSheet } from "./BottomSheet";
 import { PerekamMemoSuara } from "./PerekamMemoSuara";
 import { KartuLokasiTitik } from "./KartuLokasiTitik";
@@ -50,17 +44,6 @@ const PILIHAN_CORAK = [
   { id: "Kuning emas", label: "Kuning emas", warna: "#eab308" },
   { id: "Ungu peta", label: "Ungu peta", warna: "#7c3aed" }
 ] as const;
-
-export const KATEGORI_VISUAL: { kategori: KategoriSurvei; judul: string; contoh: string; Ikon: typeof Leaf }[] = [
-  { kategori: "Tanda Batas", judul: "Batas", contoh: "Patok, sempadan alam", Ikon: Flag },
-  { kategori: "Wilayah Adat / Lahan", judul: "Lahan", contoh: "Hutan, kebun, ulayat", Ikon: Trees },
-  { kategori: "Biodiversitas", judul: "Biodiversitas", contoh: "Satwa, flora, fauna, tumbuhan", Ikon: Leaf },
-  { kategori: "Mata Air", judul: "Air", contoh: "Mata air, aliran", Ikon: Droplets },
-  { kategori: "Ancaman / Temuan", judul: "Ancaman", contoh: "Kebakaran, perambahan", Ikon: Flame },
-  { kategori: "Sarana Desa", judul: "Sarana", contoh: "Jalan, bangunan desa", Ikon: House },
-  { kategori: "Situs Budaya", judul: "Budaya", contoh: "Sejarah, toponimi", Ikon: Landmark },
-  { kategori: "Lainnya", judul: "Lainnya", contoh: "Objek dan data lainnya", Ikon: MoreHorizontal }
-];
 
 /** Draf per akun di IndexedDB. Tidak memuat akun, sandi atau token. */
 export function useFormSurvei(idKader: string) {
@@ -104,26 +87,24 @@ export function useFormSurvei(idKader: string) {
   ): DataSpasialItem => {
     const waktu = new Date().toISOString();
     const lapisanTerpakai = konteksKolam?.lapisanAktif ?? null;
-    const hasilTematik = selesaikanKolamTematik({
-      namaTematik: isian.tematik,
-      kategori: isian.kategori,
-      lapisanList: konteksKolam?.lapisanList ?? [],
-      dataSpasial: konteksKolam?.dataSpasial ?? []
-    });
     const skemaFields = lapisanTerpakai?.skemaGeometri?.[jenis] ?? [];
     const atributKustomMap: Record<string, string> = {};
-    if (skemaFields.length > 0 && isian.atributKustom) {
+    if (skemaFields.length > 0) {
+      const hitungNama = new Map<string, number>();
       for (const f of skemaFields) {
-        const val = isian.atributKustom[f.id];
-        if (val !== undefined && val !== "") {
-          atributKustomMap[f.nama] = val;
+        hitungNama.set(f.nama, (hitungNama.get(f.nama) ?? 0) + 1);
+      }
+      for (const f of skemaFields) {
+        const val = (isian.atributKustom?.[f.id] ?? f.nilaiBawaan ?? "").trim();
+        if (val !== "") {
+          const kunci = (hitungNama.get(f.nama) ?? 0) > 1 && f.tabel ? `${f.tabel} · ${f.nama}` : f.nama;
+          atributKustomMap[kunci] = val;
         }
       }
     }
     const elevasiAngka = Number(String(isian.elevasi ?? "").replace(",", "."));
-    const elevasiFinal = Number.isFinite(elevasiAngka) && String(isian.elevasi ?? "").trim() !== ""
-      ? elevasiAngka
-      : titik[0]?.elevasi;
+    const elevasiFinal =
+      Number.isFinite(elevasiAngka) && String(isian.elevasi ?? "").trim() !== "" ? elevasiAngka : titik[0]?.elevasi;
 
     const item: DataSpasialItem = {
       id: buatId("SPS"),
@@ -132,19 +113,13 @@ export function useFormSurvei(idKader: string) {
       desaWilayah: profil.desaWilayah,
       ...capWilayah(profil.idKader),
       jenisGeometri: jenis,
-      kategori: hasilTematik.kategori,
-      tematik: hasilTematik.tematik,
+      kategori: isian.kategori || "Lainnya",
       lapisanId: lapisanTerpakai?.id || undefined,
-      lapisanNama: lapisanTerpakai?.nama || undefined,
+      lapisanNama: lapisanTerpakai?.nama || "Lapisan 1",
       tugasId: lapisanTerpakai?.tugasId || undefined,
       atributKustom: Object.keys(atributKustomMap).length > 0 ? atributKustomMap : undefined,
       elevasi: elevasiFinal,
       judul: isian.judul.trim(),
-      namaLokal: isian.namaLokal.trim() || undefined,
-      namaIlmiah: isian.namaIlmiah.trim() || undefined,
-      jumlahIndividu: Number(isian.jumlahIndividu) || 1,
-      manfaatMasyarakat: isian.manfaat.trim() || undefined,
-      kondisiAncaman: isian.kondisi.trim() || undefined,
       deskripsi: isian.deskripsi.trim(),
       koordinat: titik,
       panjangKm: jenis === "line" ? hitungPanjangGarisKm(titik) : 0,
@@ -155,15 +130,6 @@ export function useFormSurvei(idKader: string) {
       namaFileFoto: isian.foto ? `${profil.idKader}_${Date.now()}.jpg` : undefined,
       gpsAveraging: jenis === "point" ? isian.averaging : undefined,
       memoSuara: isian.memo.length ? isian.memo : undefined,
-      kesepakatanBatas: isian.saksi.trim()
-        ? {
-            saksi: isian.saksi
-              .split(",")
-              .map((n) => sanitasiTeksInput(n.trim()))
-              .filter(Boolean),
-            catatan: isian.deskripsi
-          }
-        : undefined,
       statusSinkron: "lokal",
       createdAt: waktu,
       updatedAt: waktu,
@@ -171,12 +137,11 @@ export function useFormSurvei(idKader: string) {
     };
     item.kualitasData = hitungSkorKualitasData(item);
 
-    // Tetapkan atribut terstruktur PRM-AID (Polygon: label, luas_ha, keterangan, url, tepi, warna | Line: label, panjang_m, keterangan, url, warna | Point: label, kategori, keterangan, url, simbol)
     if (jenis === "polygon") {
       const atribut = susunAtributPolygonPrmAid({
         jenisGeometri: "polygon",
         judul: isian.judul,
-        kategori: isian.kategori,
+        kategori: item.kategori,
         deskripsi: isian.deskripsi,
         luasHa: item.luasHa,
         url: isian.url,
@@ -184,30 +149,33 @@ export function useFormSurvei(idKader: string) {
         warna: isian.warna
       });
       item.tepi = atribut.tepi;
-      item.warna = atribut.warna;
+      item.warna = isian.warna || atribut.warna;
+      item.simbol = isian.simbol || "Hijau zamrud";
       item.url = atribut.url || undefined;
     } else if (jenis === "line") {
       const atribut = susunAtributLinePrmAid({
         jenisGeometri: "line",
         judul: isian.judul,
-        kategori: isian.kategori,
+        kategori: item.kategori,
         deskripsi: isian.deskripsi,
         panjangKm: item.panjangKm,
         url: isian.url,
         warna: isian.warna
       });
-      item.warna = atribut.warna;
+      item.warna = isian.warna || "#f26101";
+      item.simbol = isian.simbol || "Jingga jejak";
       item.url = atribut.url || undefined;
     } else {
       const atribut = susunAtributPointPrmAid({
         jenisGeometri: "point",
         judul: isian.judul,
-        kategori: isian.kategori,
+        kategori: item.kategori,
         deskripsi: isian.deskripsi,
         url: isian.url,
         simbol: isian.simbol
       });
-      item.simbol = atribut.simbol;
+      item.warna = isian.warna || "#ef4444";
+      item.simbol = isian.simbol || "Pin Merah";
       item.url = atribut.url || undefined;
     }
 
@@ -224,7 +192,6 @@ export function useFormSurvei(idKader: string) {
     susunItem,
     setKategoriInput: (v: KategoriSurvei) => ubah("kategori", v),
     tambahMemo: (m: MemoSuara) => {
-      // Finalisasi audio dapat selesai setelah tab peta ditutup. Persistensi tidak bergantung pada render React.
       const d = bacaDraftSurvei(idKader);
       if (!d.memo.some((v) => v.id === m.id)) simpanDraftSurvei(idKader, { ...d, memo: [...d.memo, m] });
       setIsian((s) => ({ ...s, memo: s.memo.some((v) => v.id === m.id) ? s.memo : [...s.memo, m] }));
@@ -251,7 +218,6 @@ interface FormSurveiModalProps {
   onGantiSistemKoordinat?: (s: SistemKoordinat) => void;
   onUbahKoordinat?: (titik: KoordinatTitik) => void;
   aksiAwal?: "averaging" | "foto" | null;
-  kolamTematikList?: KolamTematik[];
   lapisanList?: LapisanSpasial[];
   lapisanAktif?: LapisanSpasial | null;
   onPilihLapisanAktif?: (id: string | null) => void;
@@ -273,7 +239,6 @@ export function FormSurveiModal({
   onGantiSistemKoordinat,
   onUbahKoordinat,
   aksiAwal = null,
-  kolamTematikList = [],
   lapisanList = [],
   lapisanAktif = null,
   onPilihLapisanAktif,
@@ -290,7 +255,6 @@ export function FormSurveiModal({
     [galatGps, setGalatGps] = useState(""),
     [galatSkema, setGalatSkema] = useState(""),
     [sorotFoto, setSorotFoto] = useState(false),
-    [modeTematikBaru, setModeTematikBaru] = useState(false),
     [bukaEditKoord, setBukaEditKoord] = useState(false),
     [bukaEditLapisan, setBukaEditLapisan] = useState(false),
     [bukaFotoPanel, setBukaFotoPanel] = useState(() => Boolean(aksiAwal === "foto" || form.isian.foto)),
@@ -298,7 +262,7 @@ export function FormSurveiModal({
     [bukaPilihCorak, setBukaPilihCorak] = useState(false),
     [bukaEditElevasi, setBukaEditElevasi] = useState(false),
     [bukaGrafikTrek, setBukaGrafikTrek] = useState(false),
-    [bukaAtributEkstra, setBukaAtributEkstra] = useState(false);
+    [bukaSkemaPanel, setBukaSkemaPanel] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const fotoBoxRef = useRef<HTMLDivElement | null>(null);
   const namaInputRef = useRef<HTMLInputElement | null>(null);
@@ -311,35 +275,16 @@ export function FormSurveiModal({
     return lapisanAktif.skemaGeometri[modeRekam] ?? [];
   }, [lapisanAktif, modeRekam]);
 
+  const grupTabelAktif = useMemo(() => {
+    if (!modeRekam || !lapisanAktif?.skemaGeometri) return [];
+    return kelompokkanFieldPerTabel(lapisanAktif.skemaGeometri, modeRekam).filter((g) => g.fields.length > 0);
+  }, [lapisanAktif, modeRekam]);
+
   const nilaiKustom = useMemo(() => isian.atributKustom ?? {}, [isian.atributKustom]);
   const ubahNilaiKustom = (fieldId: string, nilai: string) => {
     setGalatSkema("");
     ubah("atributKustom", { ...nilaiKustom, [fieldId]: nilai });
   };
-
-  const nilaiTematikSekarang = (isian.tematik || "").trim();
-  const kolamCocokSelect = useMemo(
-    () => kolamTematikList.find((k) => k.nama.toLowerCase() === nilaiTematikSekarang.toLowerCase()),
-    [kolamTematikList, nilaiTematikSekarang]
-  );
-  const opsiSelectTematik = !nilaiTematikSekarang ? (modeTematikBaru ? "__BARU__" : "") : kolamCocokSelect ? kolamCocokSelect.nama : "__BARU__";
-  const resolusiPratinjau = useMemo(
-    () =>
-      selesaikanKolamTematik({
-        namaTematik: nilaiTematikSekarang,
-        kategori: isian.kategori,
-        lapisanList: kolamTematikList.map((k, idx) => ({
-          id: k.lapisanId || `POOL-${idx}`,
-          nama: k.nama,
-          jumlahPeta: k.jumlahObjek,
-          kategoriDefault: k.kategori,
-          adalahTematik: true,
-          createdAt: ""
-        })),
-        dataSpasial: []
-      }),
-    [nilaiTematikSekarang, isian.kategori, kolamTematikList]
-  );
 
   const rataGps = async () => {
     abort.current?.abort();
@@ -360,6 +305,7 @@ export function FormSurveiModal({
       if (!kontrol.signal.aborted) setGpsSibuk(false);
     }
   };
+
   useEffect(() => {
     if (!aksiAwal) {
       sudahAksiAwalRef.current = null;
@@ -383,38 +329,34 @@ export function FormSurveiModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aksiAwal]);
-  const field = (k: "judul" | "namaLokal" | "namaIlmiah" | "jumlahIndividu" | "manfaat" | "kondisi", label: string, required = false) => (
-    <label>
-      {label}
-      <input
-        className="form-input"
-        type={k === "jumlahIndividu" ? "number" : "text"}
-        min={k === "jumlahIndividu" ? 1 : undefined}
-        required={required}
-        maxLength={500}
-        placeholder={k === "judul" ? "Masukkan nama objek" : undefined}
-        value={isian[k]}
-        onChange={(e) => ubah(k, e.target.value)}
-      />
-    </label>
-  );
+
   const titikUtama = koordinat[0];
-  const teksKoordSaatIni = titikUtama
-    ? formatKoordinat(titikUtama.lat, titikUtama.lng, sistemAktif).salin
-    : "-";
-  const elevasiTeks =
-    isian.elevasi?.trim()
-      ? `${isian.elevasi.replace(".", ",")} m`
-      : titikUtama?.elevasi !== undefined
-        ? `${titikUtama.elevasi.toFixed(2).replace(".", ",")} m`
-        : "---";
-  const corakAktif = PILIHAN_CORAK.find((c) => c.id === isian.simbol || c.warna === isian.warna) ??
+  const teksKoordSaatIni = titikUtama ? formatKoordinat(titikUtama.lat, titikUtama.lng, sistemAktif).salin : "-";
+  const elevasiTeks = isian.elevasi?.trim()
+    ? `${isian.elevasi.replace(".", ",")} m`
+    : titikUtama?.elevasi !== undefined
+      ? `${titikUtama.elevasi.toFixed(2).replace(".", ",")} m`
+      : "---";
+  const corakAktif =
+    PILIHAN_CORAK.find((c) => c.id === isian.simbol || c.warna === isian.warna) ??
     (modeRekam === "line" ? PILIHAN_CORAK[1] : modeRekam === "polygon" ? PILIHAN_CORAK[2] : PILIHAN_CORAK[0]);
 
   const sekarangObj = new Date();
   const dibuatTeks = `${String(sekarangObj.getDate()).padStart(2, "0")}/${String(sekarangObj.getMonth() + 1).padStart(2, "0")}/${String(
     sekarangObj.getFullYear()
   ).slice(-2)} pada ${String(sekarangObj.getHours()).padStart(2, "0")}.${String(sekarangObj.getMinutes()).padStart(2, "0")}`;
+
+  const durasiTrekTeks = useMemo(() => {
+    if (koordinat.length < 2 || !koordinat[0]?.timestamp || !koordinat[koordinat.length - 1]?.timestamp) return "00:00:00";
+    const t0 = Date.parse(koordinat[0].timestamp!);
+    const t1 = Date.parse(koordinat[koordinat.length - 1].timestamp!);
+    if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 <= t0) return "00:00:00";
+    const totalDetik = Math.floor((t1 - t0) / 1000);
+    const jam = String(Math.floor(totalDetik / 3600)).padStart(2, "0");
+    const mnt = String(Math.floor((totalDetik % 3600) / 60)).padStart(2, "0");
+    const dtk = String(totalDetik % 60).padStart(2, "0");
+    return `${jam}:${mnt}:${dtk}`;
+  }, [koordinat]);
 
   const bagikanDraft = () => {
     const nama = isian.judul.trim() || (modeRekam === "point" ? "Tanda tempat 1" : modeRekam === "line" ? "Trek" : "Area");
@@ -427,11 +369,11 @@ export function FormSurveiModal({
   };
 
   const renderFieldSkema = (f: FieldSkemaAtribut) => {
-    const val = nilaiKustom[f.id] ?? "";
+    const val = nilaiKustom[f.id] ?? f.nilaiBawaan ?? "";
     const labelReq = f.wajib ? " *" : "";
     if (f.tipe === "pilihan") {
       return (
-        <div key={f.id} className="avz-isian-baris">
+        <div key={f.id} className="avz-isian-baris avz-tabel-kolom">
           <div className="avz-isian-kepala">
             <strong>
               {f.nama}
@@ -457,7 +399,7 @@ export function FormSurveiModal({
     }
     if (f.tipe === "catatan") {
       return (
-        <div key={f.id} className="avz-isian-baris">
+        <div key={f.id} className="avz-isian-baris avz-tabel-kolom">
           <div className="avz-isian-kepala">
             <strong>
               {f.nama}
@@ -478,7 +420,7 @@ export function FormSurveiModal({
     }
     if (f.tipe === "foto") {
       return (
-        <div key={f.id} className="avz-isian-baris">
+        <div key={f.id} className="avz-isian-baris avz-tabel-kolom">
           <div className="avz-isian-kepala">
             <strong>
               {f.nama}
@@ -506,7 +448,7 @@ export function FormSurveiModal({
       );
     }
     return (
-      <div key={f.id} className="avz-isian-baris">
+      <div key={f.id} className="avz-isian-baris avz-tabel-kolom">
         <div className="avz-isian-kepala">
           <strong>
             {f.nama}
@@ -569,14 +511,10 @@ export function FormSurveiModal({
           <div className="avz-skema-banner">
             <div>
               <strong>{`Lapisan Tugas Admin: ${lapisanAktif.nama}`}</strong>
-              <small>{`Format isian mengikuti aturan tugas ${modeRekam?.toUpperCase()}.`}</small>
+              <small>{`Format tabel dan isian ${modeRekam?.toUpperCase()} dari Admin.`}</small>
             </div>
             {onPilihLapisanAktif && (
-              <button
-                type="button"
-                className="avz-aksi-hijau"
-                onClick={() => onPilihLapisanAktif(null)}
-              >
+              <button type="button" className="avz-aksi-hijau" onClick={() => onPilihLapisanAktif(null)}>
                 Default
               </button>
             )}
@@ -598,17 +536,13 @@ export function FormSurveiModal({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Nama</strong>
-            <button
-              type="button"
-              className="avz-aksi-hijau"
-              onClick={() => namaInputRef.current?.focus()}
-            >
+            <button type="button" className="avz-aksi-hijau" onClick={() => namaInputRef.current?.focus()}>
               Edit
             </button>
           </div>
           <input
             ref={namaInputRef}
-            className="form-input"
+            className="form-input avz-input-bersih"
             type="text"
             required
             maxLength={500}
@@ -623,11 +557,7 @@ export function FormSurveiModal({
           <div className="avz-isian-kepala">
             <strong>{modeRekam === "point" ? "Koordinat" : modeRekam === "line" ? "Jarak" : "Luas"}</strong>
             {modeRekam === "point" && (
-              <button
-                type="button"
-                className="avz-aksi-hijau"
-                onClick={() => setBukaEditKoord((v) => !v)}
-              >
+              <button type="button" className="avz-aksi-hijau" onClick={() => setBukaEditKoord((v) => !v)}>
                 {bukaEditKoord ? "Tutup" : "Edit"}
               </button>
             )}
@@ -671,131 +601,35 @@ export function FormSurveiModal({
           )}
         </div>
 
-        {/* 3. LAPISAN SAAT INI + EDIT LAPISAN */}
+        {/* 3. LAPISAN SAAT INI + EDIT LAPISAN (BERSIH TANPA KATEGORI BAWAAN) */}
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Lapisan saat ini</strong>
           </div>
-          <span className="avz-isian-nilai-panah">
-            {lapisanAktif?.nama || isian.tematik || "Lapisan 1"} <ChevronRight size={20} aria-hidden="true" />
-          </span>
           <button
             type="button"
-            className="avz-tombol-garis"
+            className="avz-isian-nilai-panah avz-corak-btn"
             onClick={() => setBukaEditLapisan((v) => !v)}
           >
+            <span>{lapisanAktif?.nama || "Lapisan 1"}</span>
+            <ChevronRight size={20} aria-hidden="true" />
+          </button>
+          <button type="button" className="avz-tombol-garis" onClick={() => setBukaEditLapisan((v) => !v)}>
             Edit Lapisan
           </button>
-
-          {/* Pilihan Kategori ringkas 1-ketuk (kompatibel penuh dengan tes & filter database) */}
-          <div className="avz-kategori-strip" role="group" aria-label="Pilihan kategori survei">
-            {KATEGORI_VISUAL.map(({ kategori, judul, Ikon }) => {
-              const aktif = isian.kategori === kategori;
-              return (
-                <button
-                  type="button"
-                  key={kategori}
-                  className={`form-kategori-chip ${aktif ? "aktif" : ""}`}
-                  aria-pressed={aktif}
-                  title={kategori}
-                  onClick={() => ubah("kategori", kategori)}
-                >
-                  <Ikon size={14} />
-                  <span>{judul}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="form-tematik-box" style={{ marginTop: 8 }}>
-            <label>
-              <span className="form-tematik-label">
-                <Layers size={15} /> Peta Tematik (Kolam Data)
-              </span>
-              <select
-                className="form-input"
-                aria-label="Pilih Peta Tematik"
-                value={opsiSelectTematik}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "") {
-                    setModeTematikBaru(false);
-                    ubah("tematik", "");
-                  } else if (v === "__BARU__") {
-                    setModeTematikBaru(true);
-                    if (kolamCocokSelect) ubah("tematik", "");
-                  } else {
-                    setModeTematikBaru(false);
-                    ubah("tematik", v);
-                  }
-                }}
-              >
-                <option value="">Kosongkan (Peta Biasa)</option>
-                {kolamTematikList.map((k) => {
-                  const teksOpsi = `${k.nama} (${k.kategori} · ${k.jumlahObjek})`;
-                  return (
-                    <option key={k.nama} value={k.nama} title={teksOpsi}>
-                      {teksOpsi.length > 36 ? `${teksOpsi.slice(0, 33).trimEnd()}…` : teksOpsi}
-                    </option>
-                  );
-                })}
-                <option value="__BARU__">+ Buat Peta Tematik Baru…</option>
-              </select>
-            </label>
-
-            {opsiSelectTematik === "__BARU__" && (
-              <label>
-                Nama Peta Tematik Baru
-                <input
-                  type="text"
-                  className="form-input"
-                  maxLength={80}
-                  placeholder="Misal: Sebaran Meranti, Batas Adat"
-                  value={isian.tematik || ""}
-                  onChange={(e) => ubah("tematik", e.target.value)}
-                />
-              </label>
-            )}
-
-            {resolusiPratinjau.status === "tematik_tersendiri" && kolamCocokSelect && (
-              <div className="form-tematik-info peringatan">
-                <span>
-                  Kolam <strong>{kolamCocokSelect.nama}</strong> berkategori <strong>{kolamCocokSelect.kategori}</strong>.
-                </span>
-                <button
-                  type="button"
-                  className="btn-outline-sm form-tematik-samakan-btn"
-                  onClick={() => ubah("kategori", kolamCocokSelect.kategori)}
-                >
-                  Samakan ke {kolamCocokSelect.kategori}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {(isian.kategori === "Tanda Batas" || isian.kategori === "Wilayah Adat / Lahan") && (
-            <label style={{ marginTop: 8 }}>
-              Saksi Lapangan / Tokoh Desa
-              <input
-                className="form-input"
-                value={isian.saksi}
-                maxLength={1000}
-                placeholder="Pisahkan beberapa nama dengan koma"
-                onChange={(e) => ubah("saksi", e.target.value)}
-              />
-            </label>
-          )}
-
           {bukaEditLapisan && onPilihLapisanAktif && (
             <div className="form-tematik-box" style={{ marginTop: 8 }}>
               <label>
-                Pilih Lapisan Tugas / Standar
+                Pilih Lapisan Peta
                 <select
                   className="form-input"
                   value={lapisanAktif?.id ?? ""}
-                  onChange={(e) => onPilihLapisanAktif(e.target.value || null)}
+                  onChange={(e) => {
+                    onPilihLapisanAktif(e.target.value || null);
+                    setBukaEditLapisan(false);
+                  }}
                 >
-                  <option value="">Lapisan 1 (Bawaan Standar)</option>
+                  <option value="">Lapisan 1 (Default)</option>
                   {lapisanList.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.nama}
@@ -808,18 +642,26 @@ export function FormSurveiModal({
           )}
         </div>
 
-        {/* KOLOM KUSTOM TUGAS ADMIN (AKTIF BILA DIPILIH DARI MENU LAPISAN) */}
-        {skemaAktifFields.length > 0 && skemaAktifFields.map((f) => renderFieldSkema(f))}
+        {/* TABEL & KOLOM KHUSUS TUGAS ADMIN (DITAMPILKAN SESUAI FORMAT ADMIN SAAT LAPISAN DIPILIH) */}
+        {grupTabelAktif.length > 0 && (
+          <div className="avz-tabel-grup-wrap">
+            {grupTabelAktif.map((grp) => (
+              <div key={grp.namaTabel} className="avz-tabel-kartu">
+                <div className="avz-tabel-kartu-head">
+                  <Table2 size={15} color="#0B6E4F" aria-hidden="true" />
+                  <strong>{grp.namaTabel}</strong>
+                </div>
+                <div className="avz-tabel-kartu-isi">{grp.fields.map((f) => renderFieldSkema(f))}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 4. FOTO */}
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Foto</strong>
-            <button
-              type="button"
-              className="avz-aksi-hijau"
-              onClick={() => setBukaFotoPanel((v) => !v)}
-            >
+            <button type="button" className="avz-aksi-hijau" onClick={() => setBukaFotoPanel((v) => !v)}>
               {isian.foto ? "Ubah" : bukaFotoPanel ? "Tutup" : "Tambah"}
             </button>
           </div>
@@ -833,16 +675,12 @@ export function FormSurveiModal({
                   capture="environment"
                   disabled={form.memprosesFoto}
                   onChange={(e) => {
-                    const labelTematik =
-                      resolusiPratinjau.status !== "non_tematik"
-                        ? resolusiPratinjau.tematik
-                        : isian.tematik?.trim() || undefined;
                     form.handlePilihFoto(e, {
                       posisi: koordinat[0] ?? { lat: 0, lng: 0 },
                       idKader: profil.idKader,
                       desa: profil.desaWilayah,
                       diambilPada: new Date().toISOString(),
-                      tematik: labelTematik,
+                      tematik: lapisanAktif?.nama || undefined,
                       stampVisual: true
                     });
                   }}
@@ -882,11 +720,7 @@ export function FormSurveiModal({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Deskripsi</strong>
-            <button
-              type="button"
-              className="avz-aksi-hijau"
-              onClick={() => setBukaDeskripsiPanel((v) => !v)}
-            >
+            <button type="button" className="avz-aksi-hijau" onClick={() => setBukaDeskripsiPanel((v) => !v)}>
               {isian.deskripsi ? "Edit" : bukaDeskripsiPanel ? "Tutup" : "Tambah"}
             </button>
           </div>
@@ -896,7 +730,7 @@ export function FormSurveiModal({
               rows={3}
               className="form-input"
               maxLength={10000}
-              placeholder="Cerita tempat, kondisi, atau catatan..."
+              placeholder="Catatan atau deskripsi objek..."
               value={isian.deskripsi}
               onChange={(e) => ubah("deskripsi", e.target.value)}
             />
@@ -908,16 +742,18 @@ export function FormSurveiModal({
           <div className="avz-isian-kepala">
             <strong>Corak</strong>
           </div>
-          <button
-            type="button"
-            className="avz-isian-nilai-panah avz-corak-btn"
-            onClick={() => setBukaPilihCorak((v) => !v)}
-          >
+          <button type="button" className="avz-isian-nilai-panah avz-corak-btn" onClick={() => setBukaPilihCorak((v) => !v)}>
+            <span>{corakAktif.label}</span>
             <span className="avz-corak-preview">
-              <span className="avz-corak-dot" style={{ background: corakAktif.warna }} aria-hidden="true" />
-              {corakAktif.label}
+              {modeRekam === "point" ? (
+                <MapPin size={20} color={corakAktif.warna} fill={corakAktif.warna} aria-hidden="true" />
+              ) : modeRekam === "line" ? (
+                <Route size={20} color={corakAktif.warna} aria-hidden="true" />
+              ) : (
+                <Hexagon size={20} color={corakAktif.warna} aria-hidden="true" />
+              )}
+              <ChevronRight size={20} aria-hidden="true" />
             </span>
-            <ChevronRight size={20} aria-hidden="true" />
           </button>
           {bukaPilihCorak && (
             <div className="avz-corak-chips">
@@ -959,30 +795,21 @@ export function FormSurveiModal({
               onChange={(e) => ubah("elevasi", e.target.value)}
             />
           )}
-          <button
-            type="button"
-            className="avz-tombol-garis"
-            disabled={gpsSibuk}
-            onClick={() => void rataGps()}
-          >
+          <button type="button" className="avz-tombol-garis" disabled={gpsSibuk} onClick={() => void rataGps()}>
             {gpsSibuk ? `Mengukur (${sampel} sampel)...` : "Ambil elevasi"}
           </button>
         </div>
 
-        {/* 8. TAMPILKAN GRAFIK & OPERASI (KHUSUS TREK / LINE, SESUAI SS 1) */}
+        {/* 8. TAMPILKAN GRAFIK & OPERASI (KHUSUS TREK / LINE, SESUAI SCREENSHOT 1) */}
         {modeRekam === "line" && (
           <>
             <div className="avz-isian-baris">
               <div className="avz-isian-kepala">
                 <strong>Tampilkan Grafik</strong>
               </div>
-              <button
-                type="button"
-                className="avz-isian-nilai-panah avz-corak-btn"
-                onClick={() => setBukaGrafikTrek((v) => !v)}
-              >
+              <button type="button" className="avz-isian-nilai-panah avz-corak-btn" onClick={() => setBukaGrafikTrek((v) => !v)}>
                 <span className="tabular-nums">
-                  Dist: {panjangDraftKm.toFixed(2).replace(".", ",")} km | {koordinat.length} titik
+                  Dist: {panjangDraftKm.toFixed(2).replace(".", ",")} km | {durasiTrekTeks}
                 </span>
                 <ChevronRight size={20} aria-hidden="true" />
               </button>
@@ -997,8 +824,8 @@ export function FormSurveiModal({
             <div className="avz-isian-baris">
               <div className="avz-isian-kepala">
                 <strong>Operasi</strong>
-                <span className="avz-lock-pill" title="Konversi trek menjadi poligon area">
-                  <Lock size={12} aria-hidden="true" />
+                <span className="avz-lock-yellow" title="Konversi trek menjadi poligon area">
+                  <Lock size={13} aria-hidden="true" />
                 </span>
               </div>
               <button
@@ -1013,48 +840,46 @@ export function FormSurveiModal({
           </>
         )}
 
-        {/* 9. DIBUAT */}
-        <div className="avz-isian-baris">
-          <div className="avz-isian-kepala">
-            <strong>Dibuat</strong>
+        {/* 9. DIBUAT & SKEMA ATRIBUT (UNTUK POINT & AREA DEFAULT, SESUAI SCREENSHOT 2) */}
+        {modeRekam !== "line" && (
+          <div className="avz-isian-baris">
+            <div className="avz-isian-kepala">
+              <strong>Dibuat</strong>
+            </div>
+            <span className="tabular-nums">{dibuatTeks}</span>
           </div>
-          <span className="tabular-nums">{dibuatTeks}</span>
-        </div>
+        )}
 
-        {/* 10. SKEMA ATRIBUT (DEFAULT AVENZA INFO + ATURAN EKSTRA OPSIONAL) */}
-        {skemaAktifFields.length === 0 && (
+        {skemaAktifFields.length === 0 && modeRekam !== "line" && (
           <div className="avz-isian-baris">
             <div className="avz-isian-kepala">
               <strong>Skema atribut</strong>
-              <button type="button" className="avz-aksi-hijau" onClick={() => setBukaAtributEkstra((v) => !v)}>
-                {bukaAtributEkstra ? "Tutup" : "Edit"}
+              <button type="button" className="avz-aksi-hijau" onClick={() => setBukaSkemaPanel((v) => !v)}>
+                {bukaSkemaPanel ? "Tutup" : "Edit"}
               </button>
             </div>
             <span className="avz-isian-kecil">
               Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
             </span>
-            {bukaAtributEkstra && (
+            {bukaSkemaPanel && (
               <div className="avz-atribut-ekstra">
-                <div className="form-row-2">
-                  {field("namaLokal", "Nama Lokal")}
-                  {field("namaIlmiah", "Nama Ilmiah")}
-                </div>
-                <div className="form-row-2">
-                  {field("jumlahIndividu", "Jumlah")}
-                  {field("manfaat", "Manfaat bagi masyarakat")}
-                </div>
-                {field("kondisi", "Kondisi saat ini")}
-                <label>
-                  Tautan atau URL Informasi (Opsional)
-                  <input
-                    type="url"
-                    className="form-input"
-                    maxLength={500}
-                    placeholder="https://walaya.prm.my.id/… atau tautan berkas"
-                    value={isian.url || ""}
-                    onChange={(e) => ubah("url", e.target.value)}
-                  />
-                </label>
+                {onPilihLapisanAktif && lapisanList.length > 0 && (
+                  <label>
+                    Gunakan Lapisan Tugas Admin
+                    <select
+                      className="form-input"
+                      value={lapisanAktif?.id ?? ""}
+                      onChange={(e) => onPilihLapisanAktif(e.target.value || null)}
+                    >
+                      <option value="">Lapisan 1 (Default)</option>
+                      {lapisanList.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nama}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <PerekamMemoSuara
                   memo={isian.memo}
                   onTambah={form.tambahMemo}
@@ -1066,17 +891,21 @@ export function FormSurveiModal({
           </div>
         )}
 
-        <footer className="modal-footer">
+        <footer className="modal-footer avz-footer-pills">
           {onNavigasiTitik && (
-            <button type="button" className="btn-outline-sm" onClick={onNavigasiTitik}>
+            <button type="button" className="avz-pill-outline-btn" onClick={onNavigasiTitik}>
               Navigasi
             </button>
           )}
-          <button type="button" className="btn-outline-sm" onClick={bagikanDraft}>
+          <button type="button" className="avz-pill-outline-btn" onClick={bagikanDraft}>
             Bagikan
           </button>
-          <button type="submit" className="btn-primary" disabled={gpsSibuk || memoSibuk || form.memprosesFoto || Boolean(galatGeometri)}>
-            Simpan Lokasi
+          <button
+            type="submit"
+            className="avz-pill-primary-btn"
+            disabled={gpsSibuk || memoSibuk || form.memprosesFoto || Boolean(galatGeometri)}
+          >
+            Simpan
           </button>
         </footer>
       </form>

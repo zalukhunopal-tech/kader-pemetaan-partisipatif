@@ -45,7 +45,6 @@ import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { kategoriProgressUnduh, UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
 import { daftarkanPenutupLapisan } from "../lib/penjagaKembali";
-import { kumpulkanKolamTematik } from "../lib/tematik";
 import {
   SampelSentuh,
   TahapDrawerGps,
@@ -225,12 +224,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [galatPencarian, setGalatPencarian] = useState("");
   const [koordinatDipilih, setKoordinatDipilih] = useState<{ lat: number; lng: number; label?: string } | null>(null);
   const [filterTematik, setFilterTematik] = useState<string | null>(null);
-  const kolamTematikList = useMemo(() => kumpulkanKolamTematik(lapisanList, dataSpasial), [lapisanList, dataSpasial]);
   const dataTampil = useMemo(() => {
     if (!filterTematik) return dataSpasial;
-    if (filterTematik === "__NON_TEMATIK__") return dataSpasial.filter((d) => !d.tematik);
     const kunci = filterTematik.trim().toLowerCase();
-    return dataSpasial.filter((d) => (d.tematik || "").trim().toLowerCase() === kunci);
+    return dataSpasial.filter((d) => (d.lapisanNama || d.tematik || "").trim().toLowerCase() === kunci);
   }, [dataSpasial, filterTematik]);
 
   const cariKoordinat = (teksKhusus?: string) => {
@@ -504,8 +501,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   // Isian form atribut survei
 
-  // Inspeksi Objek Existing
+  // Inspeksi Objek Existing & Peek Card Avenza
   const [objekTerpilih, setObjekTerpilih] = useState<DataSpasialItem | null>(null);
+  const [detailObjekTerbuka, setDetailObjekTerbuka] = useState<boolean>(false);
+  const [pinPeekTerbuka, setPinPeekTerbuka] = useState<boolean>(false);
   const [kondisiUpdateInput, setKondisiUpdateInput] = useState<string>("");
 
   // Modal Offline Downloader
@@ -1203,6 +1202,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           // 1. Cek semua vertex (<= 28px)
           for (const p of pikselCoords) {
             if (Math.hypot(ptLayar.x - p.x, ptLayar.y - p.y) <= 28) {
+              setPinPeekTerbuka(false);
+              setDetailObjekTerbuka(false);
               setObjekTerpilih(item);
               objekKena = true;
               return;
@@ -1213,6 +1214,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             const cX = pikselCoords.reduce((a, b) => a + b.x, 0) / pikselCoords.length;
             const cY = pikselCoords.reduce((a, b) => a + b.y, 0) / pikselCoords.length;
             if (Math.hypot(ptLayar.x - cX, ptLayar.y - cY) <= 36 || diDalamPoligon(ptLayar, pikselCoords)) {
+              setPinPeekTerbuka(false);
+              setDetailObjekTerbuka(false);
               setObjekTerpilih(item);
               objekKena = true;
               return;
@@ -1220,6 +1223,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             for (let i = 0; i < pikselCoords.length; i++) {
               const next = (i + 1) % pikselCoords.length;
               if (jarakKeSegmen(ptLayar, pikselCoords[i], pikselCoords[next]) <= 18) {
+                setPinPeekTerbuka(false);
+                setDetailObjekTerbuka(false);
                 setObjekTerpilih(item);
                 objekKena = true;
                 return;
@@ -1231,12 +1236,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             const midIdx = Math.floor(pikselCoords.length / 2);
             const midP = pikselCoords[midIdx];
             if (midP && Math.hypot(ptLayar.x - midP.x, ptLayar.y - midP.y) <= 36) {
+              setPinPeekTerbuka(false);
+              setDetailObjekTerbuka(false);
               setObjekTerpilih(item);
               objekKena = true;
               return;
             }
             for (let i = 0; i < pikselCoords.length - 1; i++) {
               if (jarakKeSegmen(ptLayar, pikselCoords[i], pikselCoords[i + 1]) <= 18) {
+                setPinPeekTerbuka(false);
+                setDetailObjekTerbuka(false);
                 setObjekTerpilih(item);
                 objekKena = true;
                 return;
@@ -1273,30 +1282,32 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   const mulaiModeRekam = (jenis: JenisGeometri, adalahUkur = jenis === "polygon") => {
     setBukaMenuAlat(false);
+    setPinPeekTerbuka(false);
     setObjekTerpilih(null);
+    setDetailObjekTerbuka(false);
     setModeGambarUkur(adalahUkur);
     setModeRekam(jenis);
     if (jenis === "point") {
       const ptAwal = titikDariBidikan(center, posisiNyata);
       setTitikDraft([ptAwal]);
-      form.setKategoriInput("Biodiversitas");
+      form.setKategoriInput("Lainnya");
       setBukaModalForm(false);
     } else if (adalahUkur) {
       // Mode Gambar dan Ukur: mulai dengan 0 titik agar pengguna membidik lewat "+ Tambahkan titik"
       setTitikDraft([]);
-      form.setKategoriInput(jenis === "polygon" ? "Wilayah Adat / Lahan" : "Biodiversitas");
+      form.setKategoriInput("Lainnya");
       perekamLatar.mulai(jenis, []);
       perekamLatar.jeda();
     } else if (jenis === "line") {
       // Pelacakan jalur GPS: awali dari posisi GPS nyata (bila sudah ada), bukan bidikan manual yang bisa jauh dari GPS
       const awalJalur = posisiNyata ? [posisiNyata] : [];
       setTitikDraft(awalJalur);
-      form.setKategoriInput("Biodiversitas");
+      form.setKategoriInput("Lainnya");
       perekamLatar.mulai("line", awalJalur);
     } else {
       const ptAwal = titikDariBidikan(center, posisiNyata);
       setTitikDraft([ptAwal]);
-      form.setKategoriInput("Wilayah Adat / Lahan");
+      form.setKategoriInput("Lainnya");
       // Mulai perekaman di latar belakang agar tetap merekam walaupun pindah tab
       perekamLatar.mulai("polygon", [ptAwal]);
     }
@@ -1305,7 +1316,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const pilihJenisUkur = (jenisBaru: "line" | "polygon") => {
     setModeGambarUkur(true);
     setModeRekam(jenisBaru);
-    form.setKategoriInput(jenisBaru === "polygon" ? "Wilayah Adat / Lahan" : "Biodiversitas");
+    form.setKategoriInput("Lainnya");
     const titikSaatIni = perekamLatar.getState().titik;
     perekamLatar.mulai(jenisBaru, titikSaatIni);
     perekamLatar.jeda();
@@ -1840,8 +1851,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setAksiAwalForm(null);
       return true;
     }
+    if (pinPeekTerbuka) {
+      setPinPeekTerbuka(false);
+      return true;
+    }
     if (objekTerpilih) {
-      setObjekTerpilih(null);
+      if (detailObjekTerbuka) {
+        setDetailObjekTerbuka(false);
+      } else {
+        setObjekTerpilih(null);
+      }
       return true;
     }
     if (menuLapisan !== null) {
@@ -1881,13 +1900,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   });
   const bukaPinDenganAksi = (aksi: "averaging" | "foto" | null = null) => {
     tutupSemuaPanel();
+    setPesanSalin("");
     setObjekTerpilih(null);
+    setDetailObjekTerbuka(false);
     const pt: KoordinatTitik = { ...titikDariBidikan(center, posisiNyata), timestamp: new Date().toISOString() };
     setModeRekam("point");
     setTitikDraft([pt]);
-    form.setKategoriInput("Biodiversitas");
+    form.setKategoriInput("Lainnya");
     setAksiAwalForm(aksi);
-    setBukaModalForm(true);
+    if (aksi === null) {
+      setPinPeekTerbuka(true);
+      setBukaModalForm(false);
+    } else {
+      setPinPeekTerbuka(false);
+      setBukaModalForm(true);
+    }
   };
   const jatuhkanPin = () => bukaPinDenganAksi(null);
   const tujuKoordinat = (teks: string): boolean => {
@@ -2081,13 +2108,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
         </div>
 
-        {/* Bidikan tengah peta: lingkaran dengan empat garis bidik dan titik pusat */}
-        <div className={`bidikan-peta avz-bidikan ${modeRekam ? "aktif" : ""}`} aria-hidden="true">
-          <div className="avz-reticle-circle" />
-          <span className="avz-bidikan-h" />
-          <span className="avz-bidikan-v" />
-          <span className="avz-bidikan-titik" />
-        </div>
+        {/* Bidikan tengah peta: lingkaran dengan empat garis bidik dan titik pusat; atau pin dijatuhkan */}
+        {pinPeekTerbuka ? (
+          <div className="avz-pin-bidik-preview" aria-hidden="true">
+            <span className="avz-corner tl" />
+            <span className="avz-corner tr" />
+            <span className="avz-corner bl" />
+            <span className="avz-corner br" />
+            <MapPin size={34} color="#ffffff" fill="#ef4444" strokeWidth={1.8} />
+          </div>
+        ) : (
+          <div className={`bidikan-peta avz-bidikan ${modeRekam ? "aktif" : ""}`} aria-hidden="true">
+            <div className="avz-reticle-circle" />
+            <span className="avz-bidikan-h" />
+            <span className="avz-bidikan-v" />
+            <span className="avz-bidikan-titik" />
+          </div>
+        )}
 
         {/* HUD PETA: satu grid (atas · tengah · bawah · bilah bawah) sehingga kontrol tidak pernah bertumpuk */}
         <div className="avz-hud">
@@ -3019,7 +3056,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 )}
                 <span>
                   <strong>{d.judul}</strong>
-                  <small>{d.kategori}</small>
+                  <small>{d.lapisanNama || d.jenisGeometri.toUpperCase()}</small>
                 </span>
               </button>
             ))}
@@ -3072,30 +3109,30 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </div>
           </div>
           <div className="avz-halaman-isi">
-            <h3 className="avz-seksi-judul">Kolam Peta Tematik</h3>
-            <div className="avz-tematik-filter-bar" role="group" aria-label="Filter peta tematik">
+            <h3 className="avz-seksi-judul">Filter Lapisan</h3>
+            <div className="avz-tematik-filter-bar" role="group" aria-label="Filter lapisan peta">
               <button
                 type="button"
                 className={`avz-tematik-chip ${filterTematik === null ? "aktif" : ""}`}
-                onClick={() => setFilterTematik(null)}
+                onClick={() => {
+                  setFilterTematik(null);
+                  onPilihLapisanAktif?.(null);
+                }}
               >
                 Semua ({dataSpasial.length})
               </button>
-              <button
-                type="button"
-                className={`avz-tematik-chip ${filterTematik === "__NON_TEMATIK__" ? "aktif" : ""}`}
-                onClick={() => setFilterTematik("__NON_TEMATIK__")}
-              >
-                Non-Tematik ({dataSpasial.filter((d) => !d.tematik).length})
-              </button>
-              {kolamTematikList.map((k) => (
+              {lapisanList.map((l) => (
                 <button
                   type="button"
-                  key={k.nama}
-                  className={`avz-tematik-chip ${filterTematik?.toLowerCase() === k.nama.toLowerCase() ? "aktif" : ""}`}
-                  onClick={() => setFilterTematik(k.nama)}
+                  key={l.id}
+                  className={`avz-tematik-chip ${lapisanAktif?.id === l.id ? "aktif" : ""}`}
+                  onClick={() => {
+                    onPilihLapisanAktif?.(l.id);
+                    setFilterTematik(l.nama);
+                  }}
                 >
-                  {k.nama} · {k.kategori} ({k.jumlahObjek})
+                  {l.nama}
+                  {l.tugasId ? " (Tugas Admin)" : ""}
                 </button>
               ))}
             </div>
@@ -3111,7 +3148,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   <Layers size={24} />
                 </span>
                 <span className="avz-lapisan-teks">
-                  <strong>{filterTematik === "__NON_TEMATIK__" ? "Data Non-Tematik" : filterTematik || "Data lapangan"}</strong>
+                  <strong>{lapisanAktif?.nama || filterTematik || "Lapisan 1 (Default)"}</strong>
                   <small>Objek {dataTampil.length}</small>
                   <em>Aktif</em>
                 </span>
@@ -3148,7 +3185,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     <span>
                       <strong>{d.judul}</strong>
                       <small>
-                        {d.kategori} · {d.tematik ? `Tematik: ${d.tematik}` : "Non-Tematik"}
+                        {d.lapisanNama || "Lapisan 1"} · {d.jenisGeometri.toUpperCase()}
                         {d.jenisGeometri === "line" ? ` · ${d.panjangKm} km` : d.jenisGeometri === "polygon" ? ` · ${d.luasHa} Ha` : ""}
                       </small>
                     </span>
@@ -3315,8 +3352,135 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* PANEL DETAIL OBJEK EXISTING KETIKA DIKLIK DI PETA */}
-      {objekTerpilih && (
+      {/* KARTU BAWAH RINGKAS PIN DIJATUHKAN (SCREENSHOT 4) */}
+      {pinPeekTerbuka && titikDraft[0] && !bukaModalForm && (
+        <section className="avz-peek-card" role="dialog" aria-label="Pin dijatuhkan">
+          <div className="avz-peek-handle" onClick={() => { setPinPeekTerbuka(false); setBukaModalForm(true); }}>
+            <span aria-hidden="true" />
+          </div>
+          <div className="avz-peek-body" onClick={() => { setPinPeekTerbuka(false); setBukaModalForm(true); }}>
+            <h2 className="avz-peek-title">Pin dijatuhkan</h2>
+            <div className="avz-peek-meta-row">
+              <MapPin size={17} color="#5f6368" aria-hidden="true" />
+              <span className="tabular-nums">
+                {titikDraft[0].lat.toFixed(6)}, {titikDraft[0].lng.toFixed(6)}
+              </span>
+            </div>
+            <div className="avz-peek-meta-row">
+              <Layers size={17} color="#5f6368" aria-hidden="true" />
+              <span>{lapisanAktif?.nama || "Lapisan 1"}</span>
+            </div>
+          </div>
+          <div className="avz-peek-actions">
+            <button
+              type="button"
+              className="avz-pill-outline-btn"
+              onClick={() => {
+                const k = titikDraft[0];
+                if (!k) return;
+                setTargetGoTo({ lat: k.lat, lng: k.lng, judul: "Pin dijatuhkan" });
+                setPinPeekTerbuka(false);
+              }}
+            >
+              Navigasi
+            </button>
+            <button
+              type="button"
+              className="avz-pill-outline-btn"
+              onClick={() => {
+                const k = titikDraft[0];
+                const teks = k ? `Pin dijatuhkan — ${k.lat.toFixed(6)}, ${k.lng.toFixed(6)}` : "Pin dijatuhkan";
+                if (navigator.share) {
+                  void navigator.share({ title: "Pin dijatuhkan", text: teks }).catch(() => undefined);
+                } else if (navigator.clipboard) {
+                  void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Koordinat pin disalin")).catch(() => undefined);
+                }
+              }}
+            >
+              Bagikan
+            </button>
+            <button
+              type="button"
+              className="avz-pill-outline-btn"
+              onClick={() => {
+                setPinPeekTerbuka(false);
+                setBukaModalForm(true);
+              }}
+            >
+              Simpan
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* KARTU BAWAH RINGKAS OBJEK TERPILIH (SCREENSHOT 3) */}
+      {objekTerpilih && !detailObjekTerbuka && (
+        <section className="avz-peek-card field-inspector-sheet" role="dialog" aria-label={objekTerpilih.judul}>
+          <div className="avz-peek-handle" onClick={() => setDetailObjekTerbuka(true)}>
+            <span aria-hidden="true" />
+          </div>
+          <div className="avz-peek-body" onClick={() => setDetailObjekTerbuka(true)}>
+            <h2 className="avz-peek-title">{objekTerpilih.judul}</h2>
+            <div className="avz-peek-meta-row">
+              {objekTerpilih.jenisGeometri === "point" ? (
+                <MapPin size={17} color="#5f6368" aria-hidden="true" />
+              ) : objekTerpilih.jenisGeometri === "line" ? (
+                <Route size={17} color="#5f6368" aria-hidden="true" />
+              ) : (
+                <Hexagon size={17} color="#5f6368" aria-hidden="true" />
+              )}
+              <span className="tabular-nums">
+                {objekTerpilih.jenisGeometri === "point" && objekTerpilih.koordinat[0]
+                  ? `${objekTerpilih.koordinat[0].lat.toFixed(6)}, ${objekTerpilih.koordinat[0].lng.toFixed(6)}`
+                  : objekTerpilih.jenisGeometri === "line"
+                    ? `${(objekTerpilih.panjangKm || 0).toFixed(2).replace(".", ",")} km`
+                    : `${(objekTerpilih.luasHa || 0).toFixed(2).replace(".", ",")} Ha`}
+              </span>
+            </div>
+            <div className="avz-peek-meta-row">
+              <Layers size={17} color="#5f6368" aria-hidden="true" />
+              <span>{objekTerpilih.lapisanNama || objekTerpilih.tematik || "Lapisan 1"}</span>
+            </div>
+          </div>
+          <div className="avz-peek-actions">
+            {objekTerpilih.koordinat[0] && (
+              <button
+                type="button"
+                className="avz-pill-outline-btn"
+                onClick={() => {
+                  const k = objekTerpilih.koordinat[0];
+                  setTargetGoTo({ lat: k.lat, lng: k.lng, judul: objekTerpilih.judul });
+                  setObjekTerpilih(null);
+                  setDetailObjekTerbuka(false);
+                }}
+              >
+                Navigasi
+              </button>
+            )}
+            <button
+              type="button"
+              className="avz-pill-outline-btn"
+              onClick={() => {
+                const k = objekTerpilih.koordinat[0];
+                const teks = k ? `${objekTerpilih.judul} — ${k.lat.toFixed(6)}, ${k.lng.toFixed(6)}` : objekTerpilih.judul;
+                if (navigator.share) {
+                  void navigator.share({ title: objekTerpilih.judul, text: teks }).catch(() => undefined);
+                } else if (navigator.clipboard) {
+                  void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Tautan objek disalin")).catch(() => undefined);
+                }
+              }}
+            >
+              Bagikan
+            </button>
+            <button type="button" className="avz-pill-outline-btn" onClick={() => setDetailObjekTerbuka(true)}>
+              Detail
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* HALAMAN DETAIL OBJEK EXISTING KETIKA DIBUKA PENUH */}
+      {objekTerpilih && detailObjekTerbuka && (
         <InspektorObjek
           objek={objekTerpilih}
           kondisiUpdateInput={kondisiUpdateInput}
@@ -3325,8 +3489,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onGoTo={(t) => {
             setTargetGoTo(t);
             setObjekTerpilih(null);
+            setDetailObjekTerbuka(false);
           }}
-          onTutup={() => setObjekTerpilih(null)}
+          onTutup={() => {
+            setObjekTerpilih(null);
+            setDetailObjekTerbuka(false);
+          }}
           onPesan={setPesanSalin}
         />
       )}
@@ -3349,6 +3517,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onSimpan={handleSimpanForm}
           onTutup={() => {
             setBukaModalForm(false);
+            setPinPeekTerbuka(false);
             setAksiAwalForm(null);
             // Pin yang belum disimpan dibuang saat form ditutup (tetap pulihkan perekaman latar jika sedang berjalan)
             if (modeRekam === "point") {
@@ -3363,7 +3532,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           }}
           sistemKoordinat={sistemKoord}
           onGantiSistemKoordinat={setSistemKoord}
-          kolamTematikList={kolamTematikList}
           lapisanList={lapisanList}
           lapisanAktif={lapisanAktif}
           onPilihLapisanAktif={onPilihLapisanAktif}

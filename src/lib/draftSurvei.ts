@@ -27,7 +27,7 @@ export interface DraftSurvei {
   atributKustom?: Record<string, string>;
 }
 export const DRAFT_KOSONG: DraftSurvei = {
-  kategori: "Biodiversitas",
+  kategori: "Lainnya",
   judul: "",
   namaLokal: "",
   namaIlmiah: "",
