@@ -197,18 +197,25 @@ export function sinkronkanLapisanDariTugas(
   const sudahAdaTugasId = new Set<string>();
 
   const buatSkemaDariTugas = (t: TugasPemetaan): SkemaAtributGeometri => {
-    if (t.skemaGeometri && (t.skemaGeometri.point.length > 0 || t.skemaGeometri.line.length > 0 || t.skemaGeometri.polygon.length > 0)) {
+    if (
+      t.skemaGeometri &&
+      (t.skemaGeometri.point.length > 0 || t.skemaGeometri.line.length > 0 || t.skemaGeometri.polygon.length > 0)
+    ) {
       return cloneSkemaGeometri(t.skemaGeometri);
     }
     const flds = (t.fields ?? []).map((f) => ({ ...f, tabel: f.tabel || "Data Isian Tugas" }));
+    if (flds.length === 0) {
+      return buatSkemaKosong();
+    }
+    const tipeAktif = t.tipeGeometriDiizinkan && t.tipeGeometriDiizinkan.length > 0 ? t.tipeGeometriDiizinkan : (["point", "line", "polygon"] as JenisGeometri[]);
     return {
-      point: [...flds],
-      line: [...flds],
-      polygon: [...flds],
+      point: tipeAktif.includes("point") ? [...flds] : [],
+      line: tipeAktif.includes("line") ? [...flds] : [],
+      polygon: tipeAktif.includes("polygon") ? [...flds] : [],
       daftarTabel: {
-        point: ["Data Isian Tugas"],
-        line: ["Data Isian Tugas"],
-        polygon: ["Data Isian Tugas"]
+        point: tipeAktif.includes("point") ? ["Data Isian Tugas"] : [],
+        line: tipeAktif.includes("line") ? ["Data Isian Tugas"] : [],
+        polygon: tipeAktif.includes("polygon") ? ["Data Isian Tugas"] : []
       }
     };
   };
@@ -227,6 +234,7 @@ export function sinkronkanLapisanDariTugas(
       nama: tugas.judul,
       kategoriDefault: undefined,
       targetKader: tugas.targetKader ? [...tugas.targetKader] : undefined,
+      tipeGeometriDiizinkan: tugas.tipeGeometriDiizinkan ? [...tugas.tipeGeometriDiizinkan] : undefined,
       fields: tugas.fields ? [...tugas.fields] : undefined,
       skemaGeometri: buatSkemaDariTugas(tugas),
       deskripsi: tugas.deskripsi
@@ -244,6 +252,7 @@ export function sinkronkanLapisanDariTugas(
       adalahTematik: false,
       tugasId: t.id,
       targetKader: t.targetKader ? [...t.targetKader] : undefined,
+      tipeGeometriDiizinkan: t.tipeGeometriDiizinkan ? [...t.tipeGeometriDiizinkan] : undefined,
       fields: t.fields ? [...t.fields] : undefined,
       skemaGeometri: buatSkemaDariTugas(t),
       deskripsi: t.deskripsi,

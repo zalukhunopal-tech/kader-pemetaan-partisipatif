@@ -56,8 +56,8 @@ describe("Validasi 7 Perbaikan Peta, Splash, Back, PeekSheet, Konversi Area, Ver
     const interactiveMap = readFileSync(resolve(AKAR, "components/InteractiveMap.tsx"), "utf8").replace(/\r\n/g, "\n");
 
     expect(petaKanvas).toContain('if (modeRekam && modeRekam !== "point" && titikDraft.length > 0)');
-    expect(interactiveMap).toContain('if (form.rekaman?.jenis && form.rekaman.jenis !== "point")');
-    expect(interactiveMap).toContain('if (modeRekam === "point") {\n      simpanGeometri(null, []);');
+    expect(interactiveMap).toContain('if (form.rekaman?.jenis && form.rekaman.jenis !== "point"');
+    expect(interactiveMap).toContain('if (modeRekam === "point" || modeGambarUkur) {\n      simpanGeometri(null, []);');
   });
 
   it("2. Logo Titik Tapak tampil satu kali tanpa garis putih di sekelilingnya", () => {
@@ -100,7 +100,7 @@ describe("Validasi 7 Perbaikan Peta, Splash, Back, PeekSheet, Konversi Area, Ver
     expect(htmlAreaRingkas).toContain("Beri tahu");
     expect(htmlAreaRingkas).toContain("Hapus");
 
-    // Mode detail Area (saat di-swipe ke atas): Area, Perimeter, Lapisan saat ini, Edit Lapisan, Foto, Deskripsi, Corak, Jingga area, Dibuat, Skema atribut
+    // Mode detail Area (saat di-swipe ke atas): Area, Perimeter, Lapisan saat ini, Edit Lapisan, Foto, Deskripsi, Corak, Jingga, Dibuat, Skema atribut
     const htmlAreaDetail = renderToString(
       <PeekSheetInteraktif
         mode="objek_terpilih"
@@ -123,7 +123,7 @@ describe("Validasi 7 Perbaikan Peta, Splash, Back, PeekSheet, Konversi Area, Ver
     expect(htmlAreaDetail).toContain("Foto");
     expect(htmlAreaDetail).toContain("Deskripsi");
     expect(htmlAreaDetail).toContain("Corak");
-    expect(htmlAreaDetail).toContain("Jingga area");
+    expect(htmlAreaDetail).toContain("Jingga");
     expect(htmlAreaDetail).toContain("Dibuat");
     expect(htmlAreaDetail).toContain("Skema atribut");
     expect(htmlAreaDetail).toContain("Ciutkan kartu ke mode ringkas");

@@ -55,8 +55,21 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   const judulTipe = objek.jenisGeometri === "point" ? "Pin dijatuhkan" : objek.jenisGeometri === "line" ? "Trek" : "Area";
   const warnaCorak =
     objek.warna || (objek.jenisGeometri === "line" ? "#f26101" : objek.jenisGeometri === "polygon" ? "#0d7344" : "#ef4444");
-  const labelCorak =
-    objek.simbol || (objek.jenisGeometri === "line" ? "Jingga jejak" : objek.jenisGeometri === "polygon" ? "Hijau zamrud" : "Pin Merah");
+  const labelCorakMentah =
+    objek.simbol || (objek.jenisGeometri === "line" ? "Jingga" : objek.jenisGeometri === "polygon" ? "Hijau" : "Merah");
+  const labelCorak = /merah/i.test(labelCorakMentah)
+    ? "Merah"
+    : /jingga|oren/i.test(labelCorakMentah)
+      ? "Jingga"
+      : /hijau/i.test(labelCorakMentah)
+        ? "Hijau"
+        : /biru/i.test(labelCorakMentah)
+          ? "Biru"
+          : /kuning/i.test(labelCorakMentah)
+            ? "Kuning"
+            : /ungu/i.test(labelCorakMentah)
+              ? "Ungu"
+              : labelCorakMentah;
 
   const tgl = objek.createdAt ? new Date(objek.createdAt) : new Date();
   const dibuatTeks = Number.isNaN(tgl.getTime())

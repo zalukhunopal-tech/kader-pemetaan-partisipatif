@@ -2750,6 +2750,39 @@
   color: #ffffff;
 }
 
+.avz-peta .avz-daftar-baris-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.avz-peta .avz-daftar-baris-wrap .avz-daftar-baris {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.avz-peta .avz-daftar-hapus-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.avz-peta .avz-daftar-hapus-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
 .avz-peta .avz-peek-detail-content {
   border-top: 1px solid #e2e8f0;
   padding-top: 12px;

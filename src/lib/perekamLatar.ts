@@ -30,6 +30,8 @@ export interface StatePerekamLatar {
   segmenMulaiMs: number | null;
   posisiTerakhir: KoordinatTitik | null;
   autoGpsAktif: boolean;
+  /** True bila sesi adalah Gambar dan Ukur manual, bukan Pelacakan/Perekaman GPS latar */
+  modeGambarUkur?: boolean;
   galat: string | null;
 }
 
@@ -46,6 +48,7 @@ const STATE_AWAL: StatePerekamLatar = {
   segmenMulaiMs: null,
   posisiTerakhir: null,
   autoGpsAktif: false,
+  modeGambarUkur: false,
   galat: null
 };
 
@@ -287,9 +290,27 @@ export const perekamLatar = {
       segmenMulaiMs: Date.now(),
       posisiTerakhir: titikAwal[titikAwal.length - 1] || state.posisiTerakhir,
       autoGpsAktif: autoGps,
+      modeGambarUkur: false,
       galat: null
     });
     mulaiWatch();
+  },
+
+  /** Memulai mode Gambar dan Ukur manual tanpa mengaktifkan pelacakan/perekaman latar */
+  mulaiGambarUkur(jenis: JenisRekamLatar, titikAwal: KoordinatTitik[] = []) {
+    hentikanWatch();
+    setState({
+      status: "dijeda",
+      jenis,
+      titik: titikAwal,
+      mulaiPada: new Date().toISOString(),
+      durasiTersimpanMs: 0,
+      segmenMulaiMs: null,
+      posisiTerakhir: titikAwal[titikAwal.length - 1] || state.posisiTerakhir,
+      autoGpsAktif: false,
+      modeGambarUkur: true,
+      galat: null
+    });
   },
 
   toggleAutoGps() {

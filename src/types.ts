@@ -319,6 +319,8 @@ export interface LapisanSpasial {
   tugasId?: string;
   /** Sasaran user/kader penerima tugas (idKader atau email). Kosong atau ['*'] = Semua Kader */
   targetKader?: string[];
+  /** Tipe data geometri yang dipilih Admin (Point, Line, Polygon). Kosong = default semua tipe */
+  tipeGeometriDiizinkan?: JenisGeometri[];
   /** Isian format data yang ditentukan Admin */
   fields?: FieldSkemaAtribut[];
   /** Konfigurasi isian atribut peta interaktif untuk Point, Line, dan Polygon */
@@ -404,6 +406,8 @@ export interface TugasPemetaan {
   batasPoligonAcuan?: KoordinatTitik[];
   /** Sasaran user/kader penerima tugas (idKader atau email). Kosong atau ['*'] = Semua Kader */
   targetKader?: string[];
+  /** Tipe data geometri yang dipilih Admin (Point, Line, Polygon). Kosong = default semua tipe */
+  tipeGeometriDiizinkan?: JenisGeometri[];
   /** Isian format data yang ditentukan Admin */
   fields?: FieldSkemaAtribut[];
   /** Konfigurasi isian peta interaktif (Point, Line, Polygon) yang diatur Admin */
