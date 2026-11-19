@@ -19,7 +19,8 @@ export interface MetrikKaderUser {
   level: number;
   tierNama: string;
   tierBadgeColor: string;
-    terakhirAktif: string;
+  terakhirAktif: string;
+  koordinatTerakhir?: { lat: number; lng: number };
 }
 
 export function hitungLevelKaderOtomatis(titik: number, jalurKm: number, poligonHa: number): {
@@ -106,7 +107,8 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
         level: lvl.level,
         tierNama: lvl.tierNama,
         tierBadgeColor: lvl.tierBadgeColor,
-        terakhirAktif: "Hari ini"
+        terakhirAktif: "Hari ini",
+        koordinatTerakhir: dataSaya.find((x) => x.koordinat[0])?.koordinat[0]
       });
     }
 
@@ -132,7 +134,8 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
           level: lvl.level,
           tierNama: lvl.tierNama,
           tierBadgeColor: lvl.tierBadgeColor,
-          terakhirAktif: d.createdAt ? new Date(d.createdAt).toLocaleDateString("id-ID") : "Baru saja"
+          terakhirAktif: d.createdAt ? new Date(d.createdAt).toLocaleDateString("id-ID") : "Baru saja",
+          koordinatTerakhir: dataDia.find((x) => x.koordinat[0])?.koordinat[0]
         });
       }
     });
@@ -174,7 +177,8 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                 ? "Menunggu Persetujuan Admin"
                 : dataDia.length > 0
                   ? "Aktif survei"
-                  : "Terdaftar"
+                  : "Terdaftar",
+            koordinatTerakhir: dataDia.find((x) => x.koordinat[0])?.koordinat[0]
           });
         }
       });
@@ -324,6 +328,22 @@ export const PanelDataUserLevel: React.FC<PanelDataUserLevelProps> = ({
                   <Award size={13} className="text-purple" />
                   <span>Kualitas: <b>{kader.skorKualitas}%</b></span>
                 </div>
+                {onFokusPetaKader && kader.koordinatTerakhir && (
+                  <button
+                    type="button"
+                    className="btn-outline-sm"
+                    style={{ marginLeft: "auto" }}
+                    onClick={() =>
+                      onFokusPetaKader(
+                        kader.koordinatTerakhir!.lat,
+                        kader.koordinatTerakhir!.lng,
+                        kader.nama
+                      )
+                    }
+                  >
+                    <MapPin size={13} /> Lihat di Peta
+                  </button>
+                )}
               </div>
 
               </div>

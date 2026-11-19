@@ -77,9 +77,14 @@ export function filterDataUntukEkspor(dataSpasial: DataSpasialItem[], opsi: Opsi
   }
 
   if (filterTematik === "__NON_TEMATIK__") {
-    hasil = hasil.filter((d) => !d.tematik?.trim());
+    hasil = hasil.filter(
+      (d) => !d.tematik?.trim() && (!d.lapisanNama?.trim() || d.lapisanNama.trim() === "Lapisan 1")
+    );
   } else if (filterTematik) {
-    hasil = hasil.filter((d) => (d.tematik ?? "").toLowerCase() === filterTematik.toLowerCase());
+    const target = filterTematik.toLowerCase();
+    hasil = hasil.filter(
+      (d) => (d.tematik ?? "").toLowerCase() === target || (d.lapisanNama ?? "").toLowerCase() === target
+    );
   }
 
   if (filterKategori) {

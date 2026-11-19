@@ -5,7 +5,7 @@ import { Bell, Calendar, CheckCircle2, Compass, MapPin, Target } from "lucide-re
 interface TugasPengumumanViewProps {
   pengumumanList: PengumumanBroadcast[];
   tugasList: TugasPemetaan[];
-  onBukaTargetDiPeta: (lat: number, lng: number, label: string) => void;
+  onBukaTargetDiPeta: (lat: number, lng: number, label: string, tugasId?: string) => void;
   onTandaiTugasSelesai: (id: string) => void;
 }
 
@@ -91,7 +91,7 @@ export const TugasPengumumanView: React.FC<TugasPengumumanViewProps> = ({
                 <button
                   type="button"
                   className="btn-primary-sm"
-                  onClick={() => onBukaTargetDiPeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul)}
+                  onClick={() => onBukaTargetDiPeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul, t.id)}
                 >
                   <MapPin size={14} /> Buka Lokasi Acuan di Peta
                 </button>

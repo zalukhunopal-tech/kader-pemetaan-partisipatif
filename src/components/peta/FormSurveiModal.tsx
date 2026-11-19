@@ -22,7 +22,7 @@ import {
   MemoSuara,
   ProfilKader
 } from "../../types";
-import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
+import { hitungLuasPoligonHa, hitungPanjangGarisKm, sanitasiAtributKustom, sanitasiTeksInput } from "../../lib/geoUtils";
 import { buatId } from "../../lib/id";
 import { capWilayah } from "../../lib/auth";
 import { kompresFoto, perkiraBytesDataUrl, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } from "../../lib/foto";
@@ -117,10 +117,10 @@ export function useFormSurvei(idKader: string) {
       lapisanId: lapisanTerpakai?.id || undefined,
       lapisanNama: lapisanTerpakai?.nama || "Lapisan 1",
       tugasId: lapisanTerpakai?.tugasId || undefined,
-      atributKustom: Object.keys(atributKustomMap).length > 0 ? atributKustomMap : undefined,
+      atributKustom: Object.keys(atributKustomMap).length > 0 ? sanitasiAtributKustom(atributKustomMap) : undefined,
       elevasi: elevasiFinal,
-      judul: isian.judul.trim(),
-      deskripsi: isian.deskripsi.trim(),
+      judul: sanitasiTeksInput(isian.judul),
+      deskripsi: sanitasiTeksInput(isian.deskripsi),
       koordinat: titik,
       panjangKm: jenis === "line" ? hitungPanjangGarisKm(titik) : 0,
       luasHa: jenis === "polygon" ? hitungLuasPoligonHa(titik) : 0,
@@ -319,7 +319,7 @@ export function FormSurveiModal({
       setBukaFotoPanel(true);
       setSorotFoto(true);
       const tScroll = window.setTimeout(() => {
-        fotoBoxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        fotoBoxRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
       }, 120);
       const tSorot = window.setTimeout(() => setSorotFoto(false), 3000);
       return () => {

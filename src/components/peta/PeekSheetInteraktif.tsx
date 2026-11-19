@@ -9,7 +9,7 @@ import {
   Check
 } from "lucide-react";
 import { DataSpasialItem, KoordinatTitik, LapisanSpasial } from "../../types";
-import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
+import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm, sanitasiTeksInput } from "../../lib/geoUtils";
 import { uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
 
 export type TahapPeek = "ringkas" | "sedang" | "penuh";
@@ -77,6 +77,7 @@ export interface PeekSheetInteraktifProps {
   onAmbilElevasiGps?: () => void;
   sedangUkurGps?: boolean;
   onKonversiKeArea?: () => void;
+  onBukaHalamanLapisan?: () => void;
   onUbahKoordinat?: (titik: KoordinatTitik) => void;
   onPerbaruiObjek?: (dataDiubah: DataSpasialItem) => void;
   namaDraft?: string;
@@ -178,6 +179,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   onAmbilElevasiGps,
   sedangUkurGps = false,
   onKonversiKeArea,
+  onBukaHalamanLapisan,
   onUbahKoordinat,
   onPerbaruiObjek,
   namaDraft,
@@ -346,7 +348,9 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   const atributEntries = Object.entries(objekTerpilih?.atributKustom ?? {}).filter(([, val]) => String(val ?? "").trim() !== "");
 
   const simpanEditNama = () => {
-    const bersih = namaInput.trim() || (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "Tanda tempat 1");
+    const bersih =
+      sanitasiTeksInput(namaInput) ||
+      (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "Tanda tempat 1");
     setNamaInput(bersih);
     setSedangEditNama(false);
     if (mode === "draft_pin") {
@@ -354,6 +358,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     } else if (objekTerpilih && onPerbaruiObjek && bersih !== objekTerpilih.judul) {
       onPerbaruiObjek({ ...objekTerpilih, judul: bersih });
     }
+    return bersih;
   };
 
   const mulaiEditKoordinat = () => {
@@ -386,13 +391,15 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   };
 
   const simpanEditDeskripsi = () => {
-    const bersih = deskripsiInput.trim();
+    const bersih = sanitasiTeksInput(deskripsiInput);
+    setDeskripsiInput(bersih);
     setSedangEditDeskripsi(false);
     if (mode === "draft_pin") {
       onUbahDeskripsiDraft?.(bersih);
     } else if (objekTerpilih && onPerbaruiObjek && bersih !== (objekTerpilih.deskripsi || "")) {
       onPerbaruiObjek({ ...objekTerpilih, deskripsi: bersih });
     }
+    return bersih;
   };
 
   const simpanEditElevasi = () => {
@@ -407,13 +414,37 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
         elevasi: bersih !== "" && Number.isFinite(angka) ? angka : undefined
       });
     }
+    return bersih;
   };
 
   const handleSimpanAksi = () => {
+    const namaFinal = sedangEditNama ? simpanEditNama() : sanitasiTeksInput(teksNamaTampil) || "Tanda tempat 1";
+    const deskFinal = sedangEditDeskripsi ? simpanEditDeskripsi() : sanitasiTeksInput(deskripsiInput);
+    const elevFinal = sedangEditElevasi ? simpanEditElevasi() : elevasiInput.trim();
+    if (sedangEditKoord) {
+      const hasil = uraikanTeksKoordinat(koordInput);
+      if (hasil) simpanEditKoordinat();
+    }
+    if (mode === "objek_terpilih") {
+      if (objekTerpilih && onPerbaruiObjek) {
+        const angkaElev = Number(elevFinal.replace(",", "."));
+        onPerbaruiObjek({
+          ...objekTerpilih,
+          judul: namaFinal,
+          deskripsi: deskFinal,
+          simbol: corakTerpilih.label,
+          warna: corakTerpilih.warna,
+          elevasi:
+            elevFinal !== "" && Number.isFinite(angkaElev) ? angkaElev : objekTerpilih.elevasi
+        });
+      }
+      gantiTahap("ringkas");
+      return;
+    }
     if (onSimpanLangsung) {
-      onSimpanLangsung(teksNamaTampil, corakTerpilih.label, corakTerpilih.warna, {
-        deskripsi: deskripsiInput.trim(),
-        elevasi: elevasiInput.trim()
+      onSimpanLangsung(namaFinal, corakTerpilih.label, corakTerpilih.warna, {
+        deskripsi: deskFinal,
+        elevasi: elevFinal
       });
     } else {
       onBukaFormLengkap();
@@ -496,18 +527,14 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
             <ChevronDown size={24} color="#0d7344" />
           </button>
           <h2 className="avz-peek-header-title">{judulTipe}</h2>
-          {mode === "draft_pin" ? (
-            <button
-              type="button"
-              className="avz-peek-btn-centang"
-              aria-label="Simpan pin tanda tempat"
-              onClick={handleSimpanAksi}
-            >
-              <Check size={24} color="#0d7344" />
-            </button>
-          ) : (
-            <div style={{ width: 36 }} aria-hidden="true" />
-          )}
+          <button
+            type="button"
+            className="avz-peek-btn-centang"
+            aria-label={mode === "draft_pin" ? "Simpan pin tanda tempat" : "Simpan perubahan objek"}
+            onClick={handleSimpanAksi}
+          >
+            <Check size={24} color="#0d7344" />
+          </button>
         </header>
       ) : (
         /* Handle Pegangan Ringkas Bersih (Swipe ke atas untuk detail, swipe ke bawah untuk tutup) */
@@ -756,6 +783,8 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   onClick={() => {
                     if (lapisanList.length > 0 && (onPilihLapisanAktif || onPerbaruiObjek)) {
                       setBukaEditLapisan((v) => !v);
+                    } else if (onBukaHalamanLapisan) {
+                      onBukaHalamanLapisan();
                     } else {
                       onPesan?.("Buka menu Lapisan untuk mengelola lapisan peta");
                     }
@@ -770,6 +799,8 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   onClick={() => {
                     if (lapisanList.length > 0 && (onPilihLapisanAktif || onPerbaruiObjek)) {
                       setBukaEditLapisan((v) => !v);
+                    } else if (onBukaHalamanLapisan) {
+                      onBukaHalamanLapisan();
                     } else {
                       onPesan?.("Buka menu Lapisan untuk mengelola lapisan peta");
                     }

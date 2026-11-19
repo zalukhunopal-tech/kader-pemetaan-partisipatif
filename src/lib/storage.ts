@@ -74,6 +74,7 @@ export const KADER_AKTIF_AWAL: KaderAktifPresence[] = [];
 export const KUNCI_DATA = [
   KEY_PROFIL,
   KEY_SPASIAL,
+  KEY_PENCADANGAN_SPASIAL,
   KEY_OFFLINE_MAPS,
   KEY_LAPISAN,
   KEY_SERTIFIKAT,

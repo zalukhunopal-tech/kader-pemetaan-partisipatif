@@ -48,8 +48,8 @@ describe("Menu aksi data admin di PC/Tablet & HP", () => {
   const sumber = readFileSync(resolve(__dirname, "../components/AdminDashboardView.tsx"), "utf8");
   const css = readFileSync(resolve(__dirname, "../styles/app.css"), "utf8");
 
-  it("semua aksi tersedia di menu daftar (peta, edit, sah, revisi, hapus)", () => {
-    for (const label of ["Peta", "Edit", "Sah", "Revisi", "Hapus"]) {
+  it("semua aksi tersedia di menu daftar (peta, edit, verifikasi, revisi, hapus)", () => {
+    for (const label of ["Peta", "Edit", "(?:Sah|Verifikasi)", "Revisi", "Hapus"]) {
       expect(sumber).toMatch(new RegExp(`aksi-sheet-item[\\s\\S]{0,900}${label}`));
     }
     expect(sumber).toContain("aksi-data-trigger");

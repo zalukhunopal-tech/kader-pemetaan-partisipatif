@@ -22,6 +22,17 @@ import {
   ExternalLink
 } from "lucide-react";
 import { KODE_APPS_SCRIPT, MANIFES_APPS_SCRIPT } from "../lib/skripAppsScript";
+import { useTombolEsc } from "../lib/useTombolEsc";
+
+function urlGambarSurveiAman(d: DataSpasialItem): string | undefined {
+  const kandidat = d.fotoBase64 || d.driveFileUrl;
+  if (!kandidat) return undefined;
+  const bersih = kandidat.trim();
+  if (bersih.startsWith("data:image/") || /^https?:\/\//i.test(bersih)) {
+    return bersih;
+  }
+  return undefined;
+}
 
 interface DatabaseSyncViewProps {
   dataSpasial: DataSpasialItem[];
@@ -68,6 +79,8 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
 
   // Modal Panduan & Salin Skrip Apps Script
   const [bukaPanduanScript, setBukaPanduanScript] = useState<boolean>(false);
+  useTombolEsc(previewFoto !== null, () => setPreviewFoto(null));
+  useTombolEsc(bukaPanduanScript, () => setBukaPanduanScript(false));
   const [salinCodeGs, setSalinCodeGs] = useState<boolean>(false);
   const [salinManifest, setSalinManifest] = useState<boolean>(false);
   const [tabPanduan, setTabPanduan] = useState<"code" | "manifest">("code");
@@ -80,7 +93,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   const dataTampil = dataSpasial.filter((d) => (filterStatus === "semua" ? true : d.statusSinkron === filterStatus));
 
   // Kumpulkan semua item yang memiliki foto
-  const dataDenganFoto = dataSpasial.filter((d) => Boolean(d.fotoBase64 || d.driveFileUrl));
+  const dataDenganFoto = dataSpasial.filter((d) => Boolean(urlGambarSurveiAman(d)));
 
   // Folder wilayah dan nama berkas tujuan di Drive, dari wilayah akun pembuat (diisi admin)
   const wilayahPerAkun = new Map(muatSemuaAkun().map((a) => [a.idKader, a.wilayah]));
@@ -318,7 +331,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               >
                 <div style={{ width: "100%", height: 130, position: "relative", background: "#f1f5f3" }}>
                   <img
-                    src={item.fotoBase64 || item.driveFileUrl}
+                    src={urlGambarSurveiAman(item)}
                     alt={item.judul}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
@@ -424,7 +437,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             <button
               type="button"
               className="btn-outline-sm"
-              onClick={() => unduhBerkasTeks("Database_Pemetaan_Kader.geojson", eksporKeGeoJSON(dataSpasial), "application/geo+json")}
+              onClick={() => unduhBerkasTeks("Database_Pemetaan_Kader.geojson", eksporKeGeoJSON(dataTampil), "application/geo+json")}
             >
               <Download size={13} /> GeoJSON
             </button>
@@ -432,7 +445,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               type="button"
               className="btn-outline-sm"
               onClick={() =>
-                unduhBerkasTeks("Database_Pemetaan_Kader.kml", eksporKeKML(dataSpasial), "application/vnd.google-earth.kml+xml")
+                unduhBerkasTeks("Database_Pemetaan_Kader.kml", eksporKeKML(dataTampil), "application/vnd.google-earth.kml+xml")
               }
             >
               <Download size={13} /> KML
@@ -441,7 +454,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               type="button"
               className="btn-outline-sm"
               onClick={() =>
-                unduhBerkasTeks("Database_Pemetaan_Kader.shp", eksporKeSHP(dataSpasial), "application/octet-stream")
+                unduhBerkasTeks("Database_Pemetaan_Kader.shp", eksporKeSHP(dataTampil), "application/octet-stream")
               }
             >
               <Download size={13} /> SHP
@@ -492,7 +505,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                       </div>
                     </td>
                     <td>
-                      {d.fotoBase64 || d.driveFileUrl ? (
+                      {urlGambarSurveiAman(d) ? (
                         <button
                           type="button"
                           className="btn-outline-sm"
@@ -567,7 +580,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
           >
             <div style={{ position: "relative", width: "100%", maxHeight: 320, background: "#000" }}>
               <img
-                src={previewFoto.fotoBase64 || previewFoto.driveFileUrl}
+                src={urlGambarSurveiAman(previewFoto)}
                 alt={previewFoto.judul}
                 style={{ width: "100%", height: "100%", maxHeight: 320, objectFit: "contain", display: "block" }}
               />

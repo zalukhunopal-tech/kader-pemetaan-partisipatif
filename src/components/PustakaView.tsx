@@ -142,6 +142,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [urutPeta, setUrutPeta] = useState<"baru_dilihat" | "nama" | "ukuran">("baru_dilihat");
   const [urutLapisan, setUrutLapisan] = useState<"terbaru" | "nama">("terbaru");
   const [filterItem, setFilterItem] = useState<"semua" | "geopdf" | "tiles">("semua");
+  const [filterLapisan, setFilterLapisan] = useState<"semua" | "tugas" | "umum">("semua");
   const [cariTerbuka, setCariTerbuka] = useState(true);
   const [tampilanKisi, setTampilanKisi] = useState(false);
   const [riwayat, setRiwayat] = useState<Record<string, number>>(() => {
@@ -218,6 +219,8 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const daftarLapisanTampil = lapisanList
     .filter((l) => {
       if (kataKunci.trim() && !l.nama.toLowerCase().includes(kataKunci.toLowerCase())) return false;
+      if (filterLapisan === "tugas" && !l.tugasId) return false;
+      if (filterLapisan === "umum" && Boolean(l.tugasId)) return false;
       if (sesiPengguna && sesiPengguna.peran === "kader") {
         if (!l.tugasId) return true;
         if (!l.targetKader || l.targetKader.length === 0 || l.targetKader.includes("*")) return true;
@@ -547,11 +550,23 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
 
           <div className="avenza-pill-select-wrap">
             <Filter size={15} className="avenza-pill-icon" />
-            <select className="avenza-pill-select" value={filterItem} onChange={(e) => setFilterItem(e.target.value as typeof filterItem)}>
-              <option value="semua">Semua item</option>
-              <option value="geopdf">GeoPDF / Peta</option>
-              <option value="tiles">Tile offline</option>
-            </select>
+            {subTab === "peta" ? (
+              <select className="avenza-pill-select" value={filterItem} onChange={(e) => setFilterItem(e.target.value as typeof filterItem)}>
+                <option value="semua">Semua item</option>
+                <option value="geopdf">GeoPDF / Peta</option>
+                <option value="tiles">Tile offline</option>
+              </select>
+            ) : (
+              <select
+                className="avenza-pill-select"
+                value={filterLapisan}
+                onChange={(e) => setFilterLapisan(e.target.value as typeof filterLapisan)}
+              >
+                <option value="semua">Semua lapisan</option>
+                <option value="tugas">Tugas lapangan</option>
+                <option value="umum">Lapisan umum</option>
+              </select>
+            )}
             <ChevronDown size={15} className="avenza-pill-caret" />
           </div>
         </div>
@@ -694,9 +709,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   }}
                   title="Lihat Pratinjau Lembar Peta"
                 >
-                  {item.thumbnailUrl || item.thumbnailDataUrl || item.petaKustomUrl || item.petaKustomDataUrl ? (
+                  {ambilUrlGambarThumbnail(item) ? (
                     <img
-                      src={item.thumbnailUrl || item.thumbnailDataUrl || item.petaKustomUrl || item.petaKustomDataUrl}
+                      src={ambilUrlGambarThumbnail(item)!}
                       alt={item.namaArea}
                       className="avenza-real-thumb-img"
                       width={52}
@@ -1187,9 +1202,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             <div className="avenza-preview-modal-body">
               {/* VIEWPORT LEMBAR PETA OTENTIK */}
               <div className="avenza-preview-stage">
-                {petaPratinjauAktif.petaKustomDataUrl || petaPratinjauAktif.petaKustomUrl || petaPratinjauAktif.thumbnailUrl ? (
+                {ambilUrlGambarThumbnail(petaPratinjauAktif) ? (
                   <img
-                    src={petaPratinjauAktif.petaKustomDataUrl || petaPratinjauAktif.petaKustomUrl || petaPratinjauAktif.thumbnailUrl}
+                    src={ambilUrlGambarThumbnail(petaPratinjauAktif)!}
                     alt={petaPratinjauAktif.namaArea}
                     className="avenza-preview-stage-img"
                   />

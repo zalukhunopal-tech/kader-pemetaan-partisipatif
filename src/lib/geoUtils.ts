@@ -372,16 +372,17 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
     const punyaLapisanKustom = Boolean(
       item.lapisanId || item.tugasId || (item.lapisanNama && item.lapisanNama !== "Lapisan 1")
     );
+    const atributAman = sanitasiAtributKustom(item.atributKustom);
     return {
       type: "Feature",
       id: item.id,
       geometry,
       properties: {
+        ...atributAman,
         ...atributPrmAid,
         ...(punyaLapisanKustom && item.lapisanNama ? { lapisan: item.lapisanNama } : {}),
         ...(item.tematik ? { tematik: item.tematik } : {}),
         ...(elevasiTitik !== undefined ? { elevasi_m: elevasiTitik } : {}),
-        ...(item.atributKustom ?? {}),
         ...(sim ? { simulasi: true } : {}),
         ...(imp ? { diimpor: true } : {})
       }
@@ -489,6 +490,22 @@ export function sanitasiTeksInput(teks: string | undefined | null): string {
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/[<>]/g, "")
     .trim();
+}
+
+const KUNCI_ATRIBUT_TERLARANG = new Set(["__proto__", "constructor", "prototype", "simulasi", "diimpor"]);
+
+/** Membersihkan peta atribut kustom dari kunci prototipe/sensitif dan menyaring nilai teks */
+export function sanitasiAtributKustom(atribut?: Record<string, string>): Record<string, string> {
+  const hasil: Record<string, string> = {};
+  if (!atribut || typeof atribut !== "object") return hasil;
+  for (const [kunciMentah, nilaiMentah] of Object.entries(atribut)) {
+    const kunci = sanitasiTeksInput(kunciMentah);
+    if (!kunci || KUNCI_ATRIBUT_TERLARANG.has(kunci.toLowerCase())) continue;
+    const strNilai = String(nilaiMentah ?? "").trim();
+    if (!strNilai) continue;
+    hasil[kunci] = strNilai.startsWith("data:image/") ? strNilai : sanitasiTeksInput(strNilai);
+  }
+  return hasil;
 }
 
 export function sanitasiFormulaCsv(str: string): string {
