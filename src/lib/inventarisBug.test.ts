@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  KUNCI_INVENTARIS_BUG,
   bacaInventarisBug,
+  bersihkanBugSudahDiperbaiki,
   catatBugManual,
   catatBugOtomatis,
   eksporInventarisBugJson,
@@ -9,7 +11,8 @@ import {
   hapusCatatanBug,
   kosongkanInventarisBug,
   pasangPenangkapBugGlobal,
-  resetCacheInventarisBugUntukUji
+  resetCacheInventarisBugUntukUji,
+  tandaiBugSudahDiperbaiki
 } from "./inventarisBug";
 
 describe("inventarisBug — penangkap otomatis, catat manual, & ekspor perbaikan", () => {
@@ -83,5 +86,43 @@ describe("inventarisBug — penangkap otomatis, catat manual, & ekspor perbaikan
       errSpy.mockRestore();
       kosongkanInventarisBug();
     }
+  });
+
+  it("otomatis menghapus bug yang sudah diperbaiki (termasuk setState-in-render dan bug lama sebelum rilis perbaikan) dari daftar inventaris bug", () => {
+    // Simulasikan bug lama (2026-11-17) dan bug setState-in-render yang masih tertinggal di localStorage perangkat
+    const bugLamaDiStorage = [
+      {
+        id: "BUG-LAMA-001",
+        sumber: "otomatis",
+        judul: "Warning: Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() cal",
+        deskripsi:
+          "Warning: Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() call inside `%s`, follow the stack trace as described in https://reactjs.org/link/setstate-in-render%s App App App",
+        lokasi: "peta",
+        perangkat: "375x667 (online)",
+        waktuPertama: "2026-11-17T03:15:42.874Z",
+        waktuTerakhir: "2026-11-17T03:15:42.874Z",
+        jumlahKejadian: 1,
+        status: "tercatat"
+      }
+    ];
+    localStorage.setItem(KUNCI_INVENTARIS_BUG, JSON.stringify(bugLamaDiStorage));
+    resetCacheInventarisBugUntukUji();
+
+    // Saat bacaInventarisBug() atau bersihkanBugSudahDiperbaiki() dipanggil, bug yang sudah diperbaiki otomatis terhapus
+    const daftarSetelahBaca = bacaInventarisBug();
+    expect(daftarSetelahBaca).toEqual([]);
+    expect(localStorage.getItem(KUNCI_INVENTARIS_BUG)).toBeNull();
+
+    // Bila ada bug baru yang kemudian ditandai sudah diperbaiki, bug tersebut otomatis terhapus dari daftar
+    const bugBaru = catatBugManual({
+      judul: "Kendala sementara uji",
+      deskripsi: "Bug ini akan ditandai sudah diperbaiki",
+      lokasi: "Peta Interaktif"
+    });
+    expect(bacaInventarisBug()).toHaveLength(1);
+
+    tandaiBugSudahDiperbaiki(bugBaru.id);
+    expect(bacaInventarisBug()).toEqual([]);
+    expect(bersihkanBugSudahDiperbaiki()).toBe(0);
   });
 });

@@ -3,7 +3,7 @@ import { buatId } from "./id";
 import { sanitasiTeksInput } from "./geoUtils";
 
 export type SumberBug = "otomatis" | "manual";
-export type StatusBug = "tercatat" | "siap_diperbaiki";
+export type StatusBug = "tercatat" | "siap_diperbaiki" | "diperbaiki";
 
 export interface CatatanBug {
   id: string;
@@ -21,11 +21,78 @@ export interface CatatanBug {
 }
 
 export const KUNCI_INVENTARIS_BUG = "geokader_inventaris_bug_v1";
+export const KUNCI_BUG_DIPERBAIKI = "geokader_bug_sudah_diperbaiki_v1";
+/** Batas waktu rilis perbaikan bug terbaru: catatan bug sebelum/pada waktu ini otomatis dibersihkan karena sudah diperbaiki */
+export const WAKTU_PERBAIKAN_BUG_TERAKHIR = "2026-11-19T02:30:00.000Z";
 const MAKS_CATATAN_BUG = 60;
+
+/** Daftar tanda tangan bug yang sudah diperbaiki secara permanen di kode */
+export const POLA_BUG_SUDAH_DIPERBAIKI: RegExp[] = [
+  /Cannot update a component\s*\(.*\)\s*while rendering a different component/i,
+  /reactjs\.org\/link\/setstate-in-render/i,
+  /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/i
+];
 
 const pendengar = new Set<() => void>();
 let sedangMenangkap = false;
 let cacheDaftar: CatatanBug[] | null = null;
+let notifikasiBugTertunda = false;
+
+function beritahuPendengarBugNanti(): void {
+  if (notifikasiBugTertunda) return;
+  notifikasiBugTertunda = true;
+  const tunda =
+    typeof queueMicrotask === "function"
+      ? queueMicrotask
+      : (fn: () => void) => {
+          void Promise.resolve().then(fn);
+        };
+  tunda(() => {
+    notifikasiBugTertunda = false;
+    pendengar.forEach((fn) => fn());
+  });
+}
+
+function bacaPenandaBugDiperbaiki(): string[] {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const raw = localStorage.getItem(KUNCI_BUG_DIPERBAIKI);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string" && x.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function adalahBugSudahDiperbaiki(
+  bug: Pick<CatatanBug, "id" | "judul" | "deskripsi" | "tumpukan" | "waktuTerakhir"> & { status?: StatusBug }
+): boolean {
+  if (bug.status === "diperbaiki") return true;
+  const gabungan = `${bug.judul || ""} ${bug.deskripsi || ""} ${bug.tumpukan || ""}`;
+  if (POLA_BUG_SUDAH_DIPERBAIKI.some((re) => re.test(gabungan))) return true;
+
+  const penanda = bacaPenandaBugDiperbaiki();
+  if (
+    penanda.some(
+      (p) =>
+        bug.id === p ||
+        bug.judul.toLowerCase() === p.toLowerCase() ||
+        gabungan.toLowerCase().includes(p.toLowerCase())
+    )
+  ) {
+    return true;
+  }
+
+  if (bug.waktuTerakhir) {
+    const tBug = Date.parse(bug.waktuTerakhir);
+    const tRilis = Date.parse(WAKTU_PERBAIKAN_BUG_TERAKHIR);
+    if (Number.isFinite(tBug) && Number.isFinite(tRilis) && tBug <= tRilis) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function bersihkanSensitif(teks: string, maksPanjang: number): string {
   const bersih = sanitasiTeksInput(teks)
@@ -44,7 +111,21 @@ function infoPerangkatRingkas(): string {
 }
 
 export function bacaInventarisBug(): CatatanBug[] {
-  if (cacheDaftar) return cacheDaftar;
+  if (cacheDaftar) {
+    const tersaringCache = cacheDaftar.filter((b) => !adalahBugSudahDiperbaiki(b));
+    if (tersaringCache.length !== cacheDaftar.length) {
+      cacheDaftar = tersaringCache;
+      try {
+        if (typeof localStorage !== "undefined") {
+          if (tersaringCache.length === 0) localStorage.removeItem(KUNCI_INVENTARIS_BUG);
+          else localStorage.setItem(KUNCI_INVENTARIS_BUG, JSON.stringify(tersaringCache));
+        }
+      } catch {
+        // abaikan
+      }
+    }
+    return cacheDaftar;
+  }
   try {
     if (typeof localStorage === "undefined") return [];
     const raw = localStorage.getItem(KUNCI_INVENTARIS_BUG);
@@ -57,18 +138,25 @@ export function bacaInventarisBug(): CatatanBug[] {
       cacheDaftar = [];
       return cacheDaftar;
     }
-    cacheDaftar = parsed.filter(
+    const sah = parsed.filter(
       (b): b is CatatanBug =>
         Boolean(b && typeof b.id === "string" && typeof b.judul === "string" && typeof b.deskripsi === "string")
     );
+    const belumDiperbaiki = sah.filter((b) => !adalahBugSudahDiperbaiki(b));
+    cacheDaftar = belumDiperbaiki;
+    if (belumDiperbaiki.length !== sah.length) {
+      if (belumDiperbaiki.length === 0) localStorage.removeItem(KUNCI_INVENTARIS_BUG);
+      else localStorage.setItem(KUNCI_INVENTARIS_BUG, JSON.stringify(belumDiperbaiki));
+    }
     return cacheDaftar;
   } catch {
     return [];
   }
 }
 
-function simpanInventaris(daftar: CatatanBug[]): CatatanBug[] {
-  const terbatas = daftar.slice(0, MAKS_CATATAN_BUG);
+function simpanInventaris(daftar: CatatanBug[], tundaNotifikasi = false): CatatanBug[] {
+  const belumDiperbaiki = daftar.filter((b) => !adalahBugSudahDiperbaiki(b));
+  const terbatas = belumDiperbaiki.slice(0, MAKS_CATATAN_BUG);
   cacheDaftar = terbatas;
   try {
     if (typeof localStorage !== "undefined") {
@@ -78,8 +166,68 @@ function simpanInventaris(daftar: CatatanBug[]): CatatanBug[] {
   } catch {
     // Abaikan kuota penyimpanan penuh agar tidak memicu loop error baru
   }
-  pendengar.forEach((fn) => fn());
+  if (tundaNotifikasi) {
+    beritahuPendengarBugNanti();
+  } else {
+    pendengar.forEach((fn) => fn());
+  }
   return terbatas;
+}
+
+/**
+ * Menghapus secara otomatis seluruh bug yang sudah diperbaiki dari inventaris bug.
+ * Mengembalikan jumlah catatan bug yang dihapus.
+ */
+export function bersihkanBugSudahDiperbaiki(): number {
+  cacheDaftar = null;
+  try {
+    if (typeof localStorage === "undefined") return 0;
+    const raw = localStorage.getItem(KUNCI_INVENTARIS_BUG);
+    if (!raw) {
+      cacheDaftar = [];
+      return 0;
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem(KUNCI_INVENTARIS_BUG);
+      cacheDaftar = [];
+      return 0;
+    }
+    const sebelum = parsed.filter(
+      (b): b is CatatanBug =>
+        Boolean(b && typeof b.id === "string" && typeof b.judul === "string" && typeof b.deskripsi === "string")
+    );
+    const sisa = sebelum.filter((b) => !adalahBugSudahDiperbaiki(b));
+    const dihapus = sebelum.length - sisa.length;
+    if (dihapus > 0) {
+      simpanInventaris(sisa);
+    } else {
+      cacheDaftar = sisa;
+    }
+    return dihapus;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Menandai sebuah bug (berdasarkan ID atau judul/pola pesan) sebagai sudah diperbaiki,
+ * sehingga langsung otomatis terhapus dari daftar bug di menu Bantuan dan tidak muncul kembali.
+ */
+export function tandaiBugSudahDiperbaiki(idAtauPola: string): void {
+  const bersih = idAtauPola.trim();
+  if (!bersih) return;
+  try {
+    if (typeof localStorage !== "undefined") {
+      const daftar = bacaPenandaBugDiperbaiki();
+      if (!daftar.includes(bersih)) {
+        localStorage.setItem(KUNCI_BUG_DIPERBAIKI, JSON.stringify([...daftar, bersih]));
+      }
+    }
+  } catch {
+    // abaikan
+  }
+  bersihkanBugSudahDiperbaiki();
 }
 
 export function resetCacheInventarisBugUntukUji(): void {
@@ -97,13 +245,16 @@ export function useInventarisBug(): CatatanBug[] {
   return useSyncExternalStore(subscribeInventarisBug, bacaInventarisBug, bacaInventarisBug);
 }
 
-export function catatBugOtomatis(masukan: {
-  judul: string;
-  deskripsi: string;
-  lokasi?: string;
-  tumpukan?: string;
-  pengguna?: string;
-}): CatatanBug[] {
+export function catatBugOtomatis(
+  masukan: {
+    judul: string;
+    deskripsi: string;
+    lokasi?: string;
+    tumpukan?: string;
+    pengguna?: string;
+  },
+  opsi: { tundaNotifikasi?: boolean } = {}
+): CatatanBug[] {
   const judul = bersihkanSensitif(masukan.judul || "Galat aplikasi", 160);
   const deskripsi = bersihkanSensitif(masukan.deskripsi || judul, 1200);
   if (!judul && !deskripsi) return bacaInventarisBug();
@@ -111,6 +262,13 @@ export function catatBugOtomatis(masukan: {
   const tumpukan = masukan.tumpukan ? bersihkanSensitif(masukan.tumpukan, 1500) : undefined;
   const pengguna = masukan.pengguna ? bersihkanSensitif(masukan.pengguna, 80) : undefined;
   const sekarang = new Date().toISOString();
+
+  if (
+    adalahPesanDiabaikan(`${judul} ${deskripsi} ${tumpukan ?? ""}`) ||
+    adalahBugSudahDiperbaiki({ id: "", judul, deskripsi, tumpukan, waktuTerakhir: sekarang })
+  ) {
+    return bacaInventarisBug();
+  }
 
   const daftar = [...bacaInventarisBug()];
   const idx = daftar.findIndex(
@@ -128,7 +286,7 @@ export function catatBugOtomatis(masukan: {
       jumlahKejadian: (lama.jumlahKejadian || 1) + 1
     };
     daftar.splice(idx, 1);
-    return simpanInventaris([diperbarui, ...daftar]);
+    return simpanInventaris([diperbarui, ...daftar], Boolean(opsi.tundaNotifikasi));
   }
 
   const baru: CatatanBug = {
@@ -145,7 +303,7 @@ export function catatBugOtomatis(masukan: {
     jumlahKejadian: 1,
     status: "tercatat"
   };
-  return simpanInventaris([baru, ...daftar]);
+  return simpanInventaris([baru, ...daftar], Boolean(opsi.tundaNotifikasi));
 }
 
 export function catatBugManual(masukan: {
@@ -212,7 +370,11 @@ export function eksporInventarisBugMarkdown(): string {
 }
 
 function adalahPesanDiabaikan(pesan: string): boolean {
-  return /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/i.test(pesan);
+  return (
+    /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/i.test(pesan) ||
+    /Cannot update a component\s*\(.*\)\s*while rendering a different component/i.test(pesan) ||
+    /reactjs\.org\/link\/setstate-in-render/i.test(pesan)
+  );
 }
 
 function ekstrakPesanGalat(argumen: unknown[]): { pesan: string; stack?: string } {
@@ -242,18 +404,26 @@ function ekstrakPesanGalat(argumen: unknown[]): { pesan: string; stack?: string 
 export function pasangPenangkapBugGlobal(getKonteks?: () => { lokasi?: string; pengguna?: string }): () => void {
   if (typeof window === "undefined") return () => undefined;
 
+  // Bersihkan otomatis setiap bug lama yang sudah diperbaiki saat aplikasi dijalankan
+  bersihkanBugSudahDiperbaiki();
+
   const catatAman = (judul: string, deskripsi: string, stack?: string) => {
     if (sedangMenangkap || adalahPesanDiabaikan(judul + " " + deskripsi)) return;
     sedangMenangkap = true;
     try {
       const ctx = getKonteks?.() ?? {};
-      catatBugOtomatis({
-        judul,
-        deskripsi,
-        lokasi: ctx.lokasi,
-        tumpukan: stack,
-        pengguna: ctx.pengguna
-      });
+      // Tunda notifikasi store ke microtask agar console.error yang terjadi saat render React
+      // tidak memicu re-render sinkron pada komponen pemakai useInventarisBug()
+      catatBugOtomatis(
+        {
+          judul,
+          deskripsi,
+          lokasi: ctx.lokasi,
+          tumpukan: stack,
+          pengguna: ctx.pengguna
+        },
+        { tundaNotifikasi: true }
+      );
     } catch {
       // Abaikan agar penangkap error tidak memicu error berantai
     } finally {

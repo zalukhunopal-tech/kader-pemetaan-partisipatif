@@ -47,8 +47,24 @@ let jadwal: ReturnType<typeof setTimeout> | null = null;
 let sedangMenulis: Promise<void> | null = null;
 const pendengar = new Set<() => void>();
 let status: StatusPenyimpanan = { mode: "localstorage", persisten: null, galat: null, kuotaPenuh: false, menunggu: false };
+let notifikasiTertunda = false;
 
-function ubahStatus(sebagian: Partial<StatusPenyimpanan>): void {
+function beritahuPendengarNanti(): void {
+  if (notifikasiTertunda) return;
+  notifikasiTertunda = true;
+  const tunda =
+    typeof queueMicrotask === "function"
+      ? queueMicrotask
+      : (fn: () => void) => {
+          void Promise.resolve().then(fn);
+        };
+  tunda(() => {
+    notifikasiTertunda = false;
+    pendengar.forEach((p) => p());
+  });
+}
+
+function ubahStatus(sebagian: Partial<StatusPenyimpanan>, tundaNotifikasi = false): void {
   const baru = { ...status, ...sebagian };
   if (
     baru.mode === status.mode &&
@@ -59,7 +75,11 @@ function ubahStatus(sebagian: Partial<StatusPenyimpanan>): void {
   )
     return;
   status = baru;
-  pendengar.forEach((p) => p());
+  if (tundaNotifikasi) {
+    beritahuPendengarNanti();
+  } else {
+    pendengar.forEach((p) => p());
+  }
 }
 
 export function ambilStatusPenyimpanan(): StatusPenyimpanan {
@@ -264,7 +284,9 @@ async function kirimAntrean(): Promise<void> {
 }
 
 function jadwalkan(): void {
-  ubahStatus({ menunggu: true });
+  // Tunda notifikasi pendengar ke microtask agar tulisTeks() yang terpanggil saat fase render
+  // atau useState initializer tidak memicu setState-in-render pada komponen pemakai useStatusPenyimpanan()
+  ubahStatus({ menunggu: true }, true);
   if (jadwal !== null) return;
   jadwal = setTimeout(() => {
     jadwal = null;
