@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   AkunSesi,
+  KategoriAsalPendaftar,
   MIN_PANJANG_SANDI,
   adaAdmin,
   autentikasiLogin,
@@ -14,6 +15,7 @@ import {
   ubahKataSandi,
   verifikasiKodeEmailPendaftaran
 } from "../lib/auth";
+import { PeranPengguna } from "../types";
 import { rahasiaUntukTampil } from "../lib/totp";
 import { useWallpaperLoginHarian } from "../lib/wallpaperLogin";
 import { KodeQrSvg } from "./KodeQrSvg";
@@ -122,17 +124,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
   const [hpSetup, setHpSetup] = useState("");
   const [sandiSetup, setSandiSetup] = useState("");
   const [sandiSetupUlang, setSandiSetupUlang] = useState("");
+  const [lihatSandiSetup, setLihatSandiSetup] = useState(false);
+  const [lihatSandiSetupUlang, setLihatSandiSetupUlang] = useState(false);
   const [kodeAktivasi, setKodeAktivasi] = useState("");
   const perluKodeAktivasi = Boolean((import.meta.env.VITE_KODE_ADMIN ?? "").trim());
 
   // Pendaftaran Akun Baru dengan Verifikasi Email
   const [namaDaftar, setNamaDaftar] = useState("");
   const [emailDaftar, setEmailDaftar] = useState("");
+  const [peranDaftar, setPeranDaftar] = useState<PeranPengguna>("kader");
+  const [kategoriAsalDaftar, setKategoriAsalDaftar] = useState<KategoriAsalPendaftar>("masyarakat_desa");
   const [wilayahDaftar, setWilayahDaftar] = useState(WILAYAH_KOSONG);
+  const [wilayahKerjaDaftar, setWilayahKerjaDaftar] = useState("");
   const [hpDaftar, setHpDaftar] = useState("");
   const [kelompokDaftar, setKelompokDaftar] = useState("");
   const [sandiDaftar, setSandiDaftar] = useState("");
   const [sandiDaftarUlang, setSandiDaftarUlang] = useState("");
+  const [lihatSandiDaftar, setLihatSandiDaftar] = useState(false);
+  const [lihatSandiDaftarUlang, setLihatSandiDaftarUlang] = useState(false);
   const [kodeOtpEmail, setKodeOtpEmail] = useState("");
   const [infoOtpEmail, setInfoOtpEmail] = useState<{
     email: string;
@@ -144,6 +153,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
   // Ganti sandi wajib
   const [sandiBaru, setSandiBaru] = useState("");
   const [sandiBaruUlang, setSandiBaruUlang] = useState("");
+  const [lihatSandiBaru, setLihatSandiBaru] = useState(false);
+  const [lihatSandiBaruUlang, setLihatSandiBaruUlang] = useState(false);
 
   // Pendaftaran Authenticator
   const [totp, setTotp] = useState<{ rahasia: string; uri: string } | null>(null);
@@ -351,11 +362,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
   };
 
   const kirimAtauUlangOtpEmail = async () => {
+    const desaAtauWilayahKerja =
+      kategoriAsalDaftar === "masyarakat_desa"
+        ? wilayahDaftar.desa
+        : wilayahKerjaDaftar.trim() || wilayahDaftar.desa;
     const res = await mulaiPendaftaranEmail({
       nama: namaDaftar,
       email: emailDaftar,
-      desaWilayah: wilayahDaftar.desa,
-      wilayah: wilayahLengkap(wilayahDaftar) ? wilayahDaftar : undefined,
+      peran: peranDaftar,
+      kategoriAsal: kategoriAsalDaftar,
+      desaWilayah: desaAtauWilayahKerja,
+      wilayah:
+        kategoriAsalDaftar === "masyarakat_desa" && wilayahLengkap(wilayahDaftar)
+          ? wilayahDaftar
+          : undefined,
       noHp: hpDaftar,
       kelompokMasyarakat: kelompokDaftar,
       kataSandi: sandiDaftar
@@ -420,11 +440,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
       setPasswordLogin("");
       setNamaDaftar("");
       setEmailDaftar("");
+      setPeranDaftar("kader");
+      setKategoriAsalDaftar("masyarakat_desa");
       setWilayahDaftar(WILAYAH_KOSONG);
+      setWilayahKerjaDaftar("");
       setHpDaftar("");
       setKelompokDaftar("");
       setSandiDaftar("");
       setSandiDaftarUlang("");
+      setLihatSandiDaftar(false);
+      setLihatSandiDaftarUlang(false);
       setKodeOtpEmail("");
       setInfoOtpEmail(null);
       setMode("login");
@@ -645,24 +670,64 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   style={gayaInput}
                 />
               </div>
-              <input
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder={`Kata sandi (min. ${MIN_PANJANG_SANDI} karakter)`}
-                value={sandiSetup}
-                onChange={(e) => setSandiSetup(e.target.value)}
-                style={gayaInput}
-              />
-              <input
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder="Ulangi kata sandi"
-                value={sandiSetupUlang}
-                onChange={(e) => setSandiSetupUlang(e.target.value)}
-                style={gayaInput}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  id="setup-sandi"
+                  type={lihatSandiSetup ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder={`Kata sandi (min. ${MIN_PANJANG_SANDI} karakter)`}
+                  value={sandiSetup}
+                  onChange={(e) => setSandiSetup(e.target.value)}
+                  style={{ ...gayaInput, paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  aria-label={lihatSandiSetup ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                  onClick={() => setLihatSandiSetup((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer"
+                  }}
+                >
+                  {lihatSandiSetup ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="setup-sandi-ulang"
+                  type={lihatSandiSetupUlang ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Ulangi kata sandi"
+                  value={sandiSetupUlang}
+                  onChange={(e) => setSandiSetupUlang(e.target.value)}
+                  style={{ ...gayaInput, paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  aria-label={lihatSandiSetupUlang ? "Sembunyikan ulangi kata sandi" : "Tampilkan ulangi kata sandi"}
+                  onClick={() => setLihatSandiSetupUlang((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer"
+                  }}
+                >
+                  {lihatSandiSetupUlang ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
               {perluKodeAktivasi && (
                 <input
                   type="text"
@@ -784,6 +849,95 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   Satu email hanya untuk satu akun. Kode OTP dikirim ke email Anda, lalu akun disetujui Administrator.
                 </p>
               </div>
+
+              {/* Pilihan Peran Akun: User (Kader) atau Admin */}
+              <div>
+                <label style={gayaLabel}>Daftar Sebagai</label>
+                <div
+                  role="radiogroup"
+                  aria-label="Pilihan peran akun"
+                  style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
+                >
+                  {(
+                    [
+                      { id: "kader" as const, domId: "daftar-peran-kader", judul: "User (Kader)", sub: "Pengambil data lapangan" },
+                      { id: "admin" as const, domId: "daftar-peran-admin", judul: "Admin", sub: "Verifikasi dan kelola GIS" }
+                    ]
+                  ).map((item) => {
+                    const aktif = peranDaftar === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        id={item.domId}
+                        type="button"
+                        role="radio"
+                        aria-checked={aktif}
+                        onClick={() => setPeranDaftar(item.id)}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 10,
+                          border: aktif ? "2px solid #0B6E4F" : "1.5px solid #cbd5e1",
+                          background: aktif ? "#ECFDF5" : "#ffffff",
+                          color: aktif ? "#065F46" : "#334155",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2
+                        }}
+                      >
+                        <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>{item.judul}</span>
+                        <span style={{ fontSize: "0.68rem", color: aktif ? "#047857" : "#64748b" }}>{item.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pilihan Asal Pendaftar: Masyarakat Desa, Staff Warsi, atau NGO Lain */}
+              <div>
+                <label style={gayaLabel}>Asal Pendaftar</label>
+                <div
+                  role="radiogroup"
+                  aria-label="Asal pendaftar"
+                  style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}
+                >
+                  {(
+                    [
+                      { id: "masyarakat_desa" as const, domId: "daftar-asal-masyarakat", label: "Masyarakat Desa" },
+                      { id: "staff_warsi" as const, domId: "daftar-asal-warsi", label: "Staff Warsi" },
+                      { id: "ngo_lain" as const, domId: "daftar-asal-ngo", label: "NGO Lain" }
+                    ]
+                  ).map((item) => {
+                    const aktif = kategoriAsalDaftar === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        id={item.domId}
+                        type="button"
+                        role="radio"
+                        aria-checked={aktif}
+                        onClick={() => setKategoriAsalDaftar(item.id)}
+                        style={{
+                          minHeight: 38,
+                          padding: "6px 6px",
+                          borderRadius: 9,
+                          border: aktif ? "2px solid #0B6E4F" : "1.5px solid #cbd5e1",
+                          background: aktif ? "#ECFDF5" : "#ffffff",
+                          color: aktif ? "#065F46" : "#334155",
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          textAlign: "center"
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <input
                 id="daftar-nama"
                 type="text"
@@ -797,7 +951,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 id="daftar-email"
                 type="email"
                 required
-                placeholder="Alamat email aktif (mis. nama@gmail.com)"
+                placeholder={
+                  kategoriAsalDaftar === "staff_warsi"
+                    ? "Email aktif Staff KKI Warsi"
+                    : kategoriAsalDaftar === "ngo_lain"
+                      ? "Email aktif NGO / lembaga"
+                      : "Alamat email aktif (mis. nama@gmail.com)"
+                }
                 value={emailDaftar}
                 onChange={(e) => setEmailDaftar(e.target.value)}
                 style={gayaInput}
@@ -814,33 +974,95 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 <input
                   id="daftar-kelompok"
                   type="text"
-                  placeholder="Kelompok / instansi"
+                  required={kategoriAsalDaftar === "ngo_lain"}
+                  placeholder={
+                    kategoriAsalDaftar === "staff_warsi"
+                      ? "Divisi / jabatan di KKI Warsi"
+                      : kategoriAsalDaftar === "ngo_lain"
+                        ? "Nama NGO / lembaga asal (wajib)"
+                        : "Kelompok masyarakat / KTH"
+                  }
                   value={kelompokDaftar}
                   onChange={(e) => setKelompokDaftar(e.target.value)}
                   style={gayaInput}
                 />
               </div>
-              <IsianWilayah idAwalan="daftar" nilai={wilayahDaftar} onUbah={setWilayahDaftar} saran={[]} wajib={false} />
-              <input
-                id="daftar-sandi"
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder={`Kata sandi (min. ${MIN_PANJANG_SANDI} karakter)`}
-                value={sandiDaftar}
-                onChange={(e) => setSandiDaftar(e.target.value)}
-                style={gayaInput}
-              />
-              <input
-                id="daftar-sandi-ulang"
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder="Ulangi kata sandi"
-                value={sandiDaftarUlang}
-                onChange={(e) => setSandiDaftarUlang(e.target.value)}
-                style={gayaInput}
-              />
+              {kategoriAsalDaftar === "masyarakat_desa" ? (
+                <IsianWilayah idAwalan="daftar" nilai={wilayahDaftar} onUbah={setWilayahDaftar} saran={[]} wajib={false} />
+              ) : (
+                <input
+                  id="daftar-wilayah-kerja"
+                  type="text"
+                  placeholder={
+                    kategoriAsalDaftar === "staff_warsi"
+                      ? "Wilayah kerja / lanskap KKI Warsi (mis. Jambi, Sumbar)"
+                      : "Wilayah kerja / lokasi pendampingan NGO (opsional)"
+                  }
+                  value={wilayahKerjaDaftar}
+                  onChange={(e) => setWilayahKerjaDaftar(e.target.value)}
+                  style={gayaInput}
+                />
+              )}
+              <div style={{ position: "relative" }}>
+                <input
+                  id="daftar-sandi"
+                  type={lihatSandiDaftar ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder={`Kata sandi (min. ${MIN_PANJANG_SANDI} karakter)`}
+                  value={sandiDaftar}
+                  onChange={(e) => setSandiDaftar(e.target.value)}
+                  style={{ ...gayaInput, paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  id="toggle-lihat-sandi-daftar"
+                  aria-label={lihatSandiDaftar ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                  onClick={() => setLihatSandiDaftar((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer"
+                  }}
+                >
+                  {lihatSandiDaftar ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="daftar-sandi-ulang"
+                  type={lihatSandiDaftarUlang ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Ulangi kata sandi"
+                  value={sandiDaftarUlang}
+                  onChange={(e) => setSandiDaftarUlang(e.target.value)}
+                  style={{ ...gayaInput, paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  id="toggle-lihat-sandi-daftar-ulang"
+                  aria-label={lihatSandiDaftarUlang ? "Sembunyikan ulangi kata sandi" : "Tampilkan ulangi kata sandi"}
+                  onClick={() => setLihatSandiDaftarUlang((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer"
+                  }}
+                >
+                  {lihatSandiDaftarUlang ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
                 {sedangProses ? "Mengirim OTP Email…" : "Kirim Kode Verifikasi Email"}
               </button>
@@ -1133,26 +1355,64 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Buat kata sandi baru</h4>
                 <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{emailLogin}</div>
               </div>
-              <input
-                id="sandi-baru"
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder={`Kata sandi baru (min. ${MIN_PANJANG_SANDI} karakter)`}
-                value={sandiBaru}
-                onChange={(e) => setSandiBaru(e.target.value)}
-                style={gayaInput}
-              />
-              <input
-                id="sandi-baru-ulang"
-                type="password"
-                required
-                autoComplete="new-password"
-                placeholder="Ulangi kata sandi baru"
-                value={sandiBaruUlang}
-                onChange={(e) => setSandiBaruUlang(e.target.value)}
-                style={gayaInput}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  id="sandi-baru"
+                  type={lihatSandiBaru ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder={`Kata sandi baru (min. ${MIN_PANJANG_SANDI} karakter)`}
+                  value={sandiBaru}
+                  onChange={(e) => setSandiBaru(e.target.value)}
+                  style={{ ...gayaInput, paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  aria-label={lihatSandiBaru ? "Sembunyikan kata sandi baru" : "Tampilkan kata sandi baru"}
+                  onClick={() => setLihatSandiBaru((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer"
+                  }}
+                >
+                  {lihatSandiBaru ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="sandi-baru-ulang"
+                  type={lihatSandiBaruUlang ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Ulangi kata sandi baru"
+                  value={sandiBaruUlang}
+                  onChange={(e) => setSandiBaruUlang(e.target.value)}
+                  style={{ ...gayaInput, paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  aria-label={lihatSandiBaruUlang ? "Sembunyikan ulangi kata sandi baru" : "Tampilkan ulangi kata sandi baru"}
+                  onClick={() => setLihatSandiBaruUlang((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer"
+                  }}
+                >
+                  {lihatSandiBaruUlang ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
                 {sedangProses ? "Menyimpan…" : "Simpan dan Lanjut"}
               </button>

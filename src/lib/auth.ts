@@ -53,11 +53,24 @@ export interface DataBiometrik {
 
 export type StatusPersetujuanAkun = "menunggu" | "disetujui" | "ditolak";
 
+export type KategoriAsalPendaftar = "masyarakat_desa" | "staff_warsi" | "ngo_lain";
+
+export function labelKategoriAsal(kategori?: KategoriAsalPendaftar, kelompokMasyarakat?: string): string {
+  if (kategori === "staff_warsi") return "Staff KKI Warsi";
+  if (kategori === "ngo_lain") return "NGO / Lembaga Lain";
+  if (kategori === "masyarakat_desa") return "Masyarakat Desa";
+  const k = (kelompokMasyarakat ?? "").trim().toLowerCase();
+  if (k.includes("warsi")) return "Staff KKI Warsi";
+  return "Masyarakat Desa";
+}
+
 export interface AkunPengguna {
   idKader: string;
   nama: string;
   email: string;
   peran: PeranPengguna;
+  /** Kategori asal pendaftar: masyarakat desa, staff KKI Warsi, atau NGO/lembaga lain */
+  kategoriAsal?: KategoriAsalPendaftar;
   desaWilayah: string;
   /** Wilayah tugas yang diisi admin; menentukan folder Google Drive tempat data akun ini disimpan */
   wilayah?: WilayahAdministrasi;
@@ -307,13 +320,15 @@ export function simpanSemuaAkun(accounts: AkunPengguna[]): void {
   }
 }
 
-export const adaAdmin = (): boolean => muatSemuaAkun().some((a) => a.peran === "admin");
+export const adaAdmin = (): boolean =>
+  muatSemuaAkun().some((a) => a.peran === "admin" && (!a.statusPersetujuan || a.statusPersetujuan === "disetujui"));
 
 export const keSesi = (a: AkunSesi): AkunSesi => ({
   idKader: a.idKader,
   nama: a.nama,
   email: a.email,
   peran: a.peran,
+  ...(a.kategoriAsal ? { kategoriAsal: a.kategoriAsal } : {}),
   desaWilayah: a.desaWilayah,
   ...(a.wilayah ? { wilayah: a.wilayah } : {}),
   noHp: a.noHp,
@@ -1539,6 +1554,8 @@ export function validasiEmailAsli(email: string): string | null {
 interface DataPendaftaranEmailTertunda {
   nama: string;
   email: string;
+  peran?: PeranPengguna;
+  kategoriAsal?: KategoriAsalPendaftar;
   desaWilayah: string;
   wilayah?: WilayahAdministrasi;
   noHp: string;
@@ -1582,10 +1599,17 @@ function buatKodeOtp6Digit(): string {
  * tertunda sampai pengguna memasukkan kode verifikasi 6 digit.
  */
 export async function mulaiPendaftaranEmail(
-  data: DataDaftar & { namaOrganisasi?: string }
+  data: DataDaftar & {
+    namaOrganisasi?: string;
+    peran?: PeranPengguna;
+    kategoriAsal?: KategoriAsalPendaftar;
+  }
 ): Promise<HasilMulaiPendaftaranEmail> {
   const emailBersih = data.email.trim().toLowerCase();
   if (!data.nama.trim()) return { sukses: false, pesan: "Nama lengkap wajib diisi." };
+  if (data.kategoriAsal === "ngo_lain" && !data.kelompokMasyarakat?.trim() && !data.namaOrganisasi?.trim()) {
+    return { sukses: false, pesan: "Nama NGO atau lembaga asal wajib diisi." };
+  }
   const galatEmail = validasiEmailAsli(emailBersih);
   if (galatEmail) return { sukses: false, pesan: galatEmail };
 
@@ -1675,13 +1699,33 @@ export async function mulaiPendaftaranEmail(
 
   const wilayah = rapikanWilayah(data.wilayah);
   const hashData = await buatHashSandi(data.kataSandi);
+  const peranDaftar: PeranPengguna = data.peran === "admin" ? "admin" : "kader";
+  const kategoriAsal: KategoriAsalPendaftar | undefined = data.kategoriAsal;
+  const inputKelompok = data.kelompokMasyarakat?.trim() || "";
+  const kelompokMasyarakat =
+    kategoriAsal === "staff_warsi"
+      ? !inputKelompok || /^kki\s+warsi$/i.test(inputKelompok)
+        ? "KKI Warsi"
+        : /warsi/i.test(inputKelompok)
+          ? inputKelompok
+          : `KKI Warsi — ${inputKelompok}`
+      : kategoriAsal === "ngo_lain"
+        ? inputKelompok || data.namaOrganisasi?.trim() || "NGO / Lembaga Mitra"
+        : inputKelompok || "-";
+  const desaWilayah =
+    wilayah.desa ||
+    data.desaWilayah?.trim() ||
+    (kategoriAsal === "staff_warsi" ? "KKI Warsi" : kategoriAsal === "ngo_lain" ? kelompokMasyarakat : "-");
+
   const tertunda: DataPendaftaranEmailTertunda = {
     nama: data.nama.trim(),
     email: emailBersih,
-    desaWilayah: wilayah.desa || data.desaWilayah?.trim() || "-",
+    peran: peranDaftar,
+    ...(kategoriAsal ? { kategoriAsal } : {}),
+    desaWilayah,
     ...(wilayahKosong(wilayah) ? {} : { wilayah }),
     noHp: data.noHp.trim() || "-",
-    kelompokMasyarakat: data.kelompokMasyarakat?.trim() || "-",
+    kelompokMasyarakat,
     namaOrganisasi: data.namaOrganisasi?.trim() || NAMA_ORGANISASI_BAWAAN,
     ...hashData,
     otpHash: hitungHashOtpEmail(emailBersih, kodeOtp, hashData.garam),
@@ -1757,7 +1801,9 @@ export async function verifikasiKodeEmailPendaftaran(email: string, kodeOtp: str
     return { sukses: false, pesan: "Email sudah terdaftar pada daftar akun." };
   }
 
-  const idBaru = () => `KDR-${acak(6).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`;
+  const peranDaftar: PeranPengguna = tertunda.peran === "admin" ? "admin" : "kader";
+  const awalanId = peranDaftar === "admin" ? "ADM" : "KDR";
+  const idBaru = () => `${awalanId}-${acak(6).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`;
   let idKader = idBaru();
   while (accounts.some((a) => a.idKader === idKader)) idKader = idBaru();
 
@@ -1766,7 +1812,8 @@ export async function verifikasiKodeEmailPendaftaran(email: string, kodeOtp: str
     idKader,
     nama: tertunda.nama,
     email: emailBersih,
-    peran: "kader",
+    peran: peranDaftar,
+    ...(tertunda.kategoriAsal ? { kategoriAsal: tertunda.kategoriAsal } : {}),
     desaWilayah: tertunda.desaWilayah,
     ...(tertunda.wilayah ? { wilayah: tertunda.wilayah } : {}),
     noHp: tertunda.noHp,
