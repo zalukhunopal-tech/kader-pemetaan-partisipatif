@@ -759,7 +759,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </button>
         </div>
 
-        <p id="status-sertifikat" className="text-muted" style={{ margin: "0 0 10px", fontSize: "0.84rem" }}>
+        <p id="status-sertifikat" className="text-muted status-sertifikat-teks">
           {sertifikatSaya
             ? `Sertifikat ${sertifikatSaya.nomorSertifikat} sudah diterbitkan.`
             : capaianTerverifikasi.berhakSertifikat
