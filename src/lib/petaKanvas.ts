@@ -1,4 +1,5 @@
 import { fraksiBarisGeografis } from "./rasterGeografis";
+import { adalahPetaTileOffline } from "./petaOffline";
 import { AreaPetaOffline, DataSpasialItem, JenisGeometri, KategoriSurvei, KoordinatTitik } from "../types";
 import { StatePosisiPerangkat, StatusGps } from "./posisiPerangkat";
 
@@ -274,9 +275,26 @@ export function gambarLapisanPeta(ctx: CanvasRenderingContext2D, lapisan: Lapisa
     titikBidikanUkur
   } = lapisan;
 
-  // 1. Gambar Lembar Peta GeoPDF Georeferensi (Jika sedang membuka peta kustom/GeoPDF)
+  // 1. Gambar Lembar Peta GeoPDF Georeferensi (HANYA untuk lembar cetak/raster; area XYZ Tiles/PMTiles/MBTiles memakai citra tile!)
   if (petaKustomAktif) {
-    gambarLembarPetaGeoPdf(ctx, petaKustomAktif, keLayar, zoom, W, H, saatGambarSiap);
+    if (adalahPetaTileOffline(petaKustomAktif)) {
+      const pTL = keLayar(petaKustomAktif.maxLat, petaKustomAktif.minLng);
+      const pBR = keLayar(petaKustomAktif.minLat, petaKustomAktif.maxLng);
+      const x0 = Math.min(pTL.x, pBR.x);
+      const y0 = Math.min(pTL.y, pBR.y);
+      const mapW = Math.abs(pBR.x - pTL.x);
+      const mapH = Math.abs(pBR.y - pTL.y);
+      if (mapW > 6 && mapH > 6) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(16, 185, 129, 0.85)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.strokeRect(x0, y0, mapW, mapH);
+        ctx.restore();
+      }
+    } else {
+      gambarLembarPetaGeoPdf(ctx, petaKustomAktif, keLayar, zoom, W, H, saatGambarSiap);
+    }
   }
 
   // 4. Objek tersimpan (gaya Avenza Maps): titik = pin merah, jalur = garis oranye, area = garis oranye

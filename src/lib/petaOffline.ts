@@ -18,6 +18,9 @@ export const BATAS_TILE_PER_AREA = 6000;
 /** Batas kapasitas penyimpanan cache tile otomatis saat browsing peta luring (4.000 tile / ±120 MB) */
 export const BATAS_MAKS_AUTO_TILE_CACHE = 4000;
 
+/** URL tile yang diunduh manual oleh pengguna agar tidak tergusur pembersihan LRU auto-cache */
+const urlDilindungiOffline = new Set<string>();
+
 let pembersihanLruBerjalan = false;
 async function pantauDanPangkasCacheLru(cache: Cache) {
   if (pembersihanLruBerjalan) return;
@@ -25,9 +28,10 @@ async function pantauDanPangkasCacheLru(cache: Cache) {
   try {
     const keys = await cache.keys();
     if (keys.length > BATAS_MAKS_AUTO_TILE_CACHE) {
-      const pangkas = Math.max(100, Math.floor(keys.length * 0.1));
-      for (let i = 0; i < pangkas && i < keys.length; i++) {
-        await cache.delete(keys[i]);
+      const kandidat = keys.filter((req) => !urlDilindungiOffline.has(req.url));
+      const pangkas = Math.max(100, Math.floor(kandidat.length * 0.1));
+      for (let i = 0; i < pangkas && i < kandidat.length; i++) {
+        await cache.delete(kandidat[i]);
       }
     }
   } catch {
@@ -377,7 +381,21 @@ export const perkiraanUkuranMb = (jumlahTile: number, basemap: BasemapTile) => (
 export const penyimpananTileDidukung = () => typeof caches !== "undefined";
 
 let janjiCache: Promise<Cache> | null = null;
-const bukaCache = () => (janjiCache ??= caches.open(NAMA_CACHE_TILE));
+const bukaCache = () => {
+  if (!janjiCache) {
+    janjiCache = caches.open(NAMA_CACHE_TILE).catch((err) => {
+      janjiCache = null;
+      throw err;
+    });
+  }
+  return janjiCache;
+};
+
+/** Hanya untuk pengujian: menyetel ulang pegangan Cache API antar kasus uji */
+export function setelUlangCacheUntukUji(): void {
+  janjiCache = null;
+  urlDilindungiOffline.clear();
+}
 
 function gambarDariUrl(src: string, cadangkanCors: boolean): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -389,10 +407,78 @@ function gambarDariUrl(src: string, cadangkanCors: boolean): Promise<HTMLImageEl
   });
 }
 
+/** Menentukan apakah sebuah AreaPetaOffline adalah peta berbasis tile offline (XYZ Tiles / PMTiles / MBTiles), bukan lembar GeoPDF/raster. */
+export function adalahPetaTileOffline(peta?: AreaPetaOffline | null): boolean {
+  if (!peta) return false;
+  const tpl = (peta.templateTile || peta.petaKustomUrl || "").trim();
+  if (tpl.startsWith("pmtiles://") || tpl.startsWith("mbtiles://")) return true;
+  return Boolean((peta.unduhanNyata || peta.jenisFile === "XYZ Tiles") && peta.templateTile);
+}
+
 /**
- * Memuat satu tile: dari penyimpanan offline bila ada, selain itu dari jaringan.
+ * Memilih sumber dan templat tile efektif yang mendukung fetch CORS untuk pengunduhan citra offline.
+ * - Sumber Google tanpa kunci API (`mt*.google.com`) memblokir fetch CORS sehingga dialihkan ke Citra Satelit Esri HD
+ *   yang mendukung CORS penuh agar unduhan citra offline selalu berhasil disimpan ke Cache API.
+ * - Sumber dengan `{sesi}` (Google Tiles API resmi) mengisi token sesi aktif atau beralih ke Esri HD bila sesi belum siap.
  */
-export async function muatGambarTile(url: string): Promise<HTMLImageElement> {
+export function sumberUnduhOfflineEfektif(basemap: BasemapType): {
+  nama: string;
+  basemapEfektif: BasemapTile;
+  template: string;
+  templateCadangan: string[];
+  zoomMaks: number;
+  dialihkanDariGoogle: boolean;
+} | null {
+  if (basemap === "taktis") return null;
+  const sumber = SUMBER_TILE[basemap];
+  if (!sumber?.tersedia) return null;
+
+  if (basemap === "google") {
+    const tpl = templateAktif("google");
+    if (tpl.includes("{sesi}")) {
+      const token = tokenSesiGoogle();
+      if (token) {
+        return {
+          nama: sumber.nama,
+          basemapEfektif: "google",
+          template: tpl.replace("{sesi}", encodeURIComponent(token)),
+          templateCadangan: [ESRI_WORLD_IMAGERY, ...ESRI_CADANGAN],
+          zoomMaks: sumber.zoomMaks,
+          dialihkanDariGoogle: false
+        };
+      }
+    }
+    // mt*.google.com tidak menyediakan header CORS untuk Cache API -> pakai Esri World Imagery HD agar citra offline pasti tersimpan
+    return {
+      nama: "Citra Satelit HD (Esri World Imagery)",
+      basemapEfektif: "esri",
+      template: ESRI_WORLD_IMAGERY,
+      templateCadangan: [...ESRI_CADANGAN],
+      zoomMaks: SUMBER_TILE.esri.zoomMaks,
+      dialihkanDariGoogle: true
+    };
+  }
+
+  const aktif = templateAktif(basemap);
+  const cadangan = (sumber.templateCadangan ?? []).filter((t) => !t.includes("google.com/vt/"));
+  const daftarCadangan = [...cadangan];
+  if ((basemap === "satelit" || basemap === "esri") && !daftarCadangan.includes(ESRI_WORLD_IMAGERY) && aktif !== ESRI_WORLD_IMAGERY) {
+    daftarCadangan.unshift(ESRI_WORLD_IMAGERY);
+  }
+  return {
+    nama: sumber.nama,
+    basemapEfektif: basemap,
+    template: aktif.includes("google.com/vt/") ? ESRI_WORLD_IMAGERY : aktif,
+    templateCadangan: daftarCadangan,
+    zoomMaks: sumber.zoomMaks,
+    dialihkanDariGoogle: false
+  };
+}
+
+/**
+ * Memuat satu tile HANYA dari penyimpanan offline (PMTiles / MBTiles / Cache API) tanpa memicu jaringan.
+ */
+export async function muatGambarTileDariCache(url: string): Promise<HTMLImageElement | null> {
   if (url.startsWith("pmtiles://")) {
     const match = url.replace("pmtiles://", "").match(/^([^/]+)\/(\d+)\/(\d+)\/(\d+)/);
     if (match) {
@@ -406,7 +492,7 @@ export async function muatGambarTile(url: string): Promise<HTMLImageElement> {
         }
       }
     }
-    throw new Error("Tile PMTiles tidak ditemukan");
+    return null;
   }
 
   if (url.startsWith("mbtiles://")) {
@@ -422,23 +508,45 @@ export async function muatGambarTile(url: string): Promise<HTMLImageElement> {
         }
       }
     }
-    throw new Error("Tile MBTiles tidak ditemukan");
+    return null;
   }
 
   if (penyimpananTileDidukung()) {
     try {
       const hit = await (await bukaCache()).match(url);
       if (hit) {
-        const blobUrl = URL.createObjectURL(await hit.blob());
-        try {
-          return await gambarDariUrl(blobUrl, false);
-        } finally {
-          URL.revokeObjectURL(blobUrl);
+        const blob = await hit.blob();
+        if (blob.size > 0) {
+          const blobUrl = URL.createObjectURL(blob);
+          try {
+            return await gambarDariUrl(blobUrl, false);
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+          }
         }
       }
     } catch {
-      // cache tidak terbaca: lanjut ke jaringan
+      return null;
     }
+  }
+  return null;
+}
+
+/**
+ * Memuat satu tile: dari penyimpanan offline bila ada, selain itu dari jaringan (kecuali hanyaCache = true).
+ */
+export async function muatGambarTile(url: string, opsi?: { hanyaCache?: boolean }): Promise<HTMLImageElement> {
+  const dariCache = await muatGambarTileDariCache(url);
+  if (dariCache) return dariCache;
+
+  if (url.startsWith("pmtiles://")) {
+    throw new Error("Tile PMTiles tidak ditemukan");
+  }
+  if (url.startsWith("mbtiles://")) {
+    throw new Error("Tile MBTiles tidak ditemukan");
+  }
+  if (opsi?.hanyaCache || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+    throw new Error("Tile belum tersedia di cache offline");
   }
 
   // AUTO-CACHE TILE CITRA & PETA: jika online dan Cache API tersedia, unduh via fetch CORS lalu simpan otomatis
@@ -490,34 +598,53 @@ export interface OpsiUnduh {
   onKemajuan?: (selesai: number, total: number, gagal: number) => void;
   /** Jika true, unduh ulang dari jaringan meski URL sudah ada di Cache API; hanya timpa bila unduhan sukses */
   paksaSegarkan?: boolean;
+  /** Daftar URL cadangan per URL utama (disimpan di bawah kunci URL utama agar langsung terbaca saat offline) */
+  pembuatUrlCadangan?: (url: string) => string[];
 }
 
 async function ambilSatuTile(
   cache: Cache,
   url: string,
   sinyal?: AbortSignal,
-  paksaSegarkan = false
+  paksaSegarkan = false,
+  urlCadangan: string[] = []
 ): Promise<{ status: "baru" | "ada" | "gagal" | "tidakAda"; adaSebelumnya: boolean; byte: number }> {
   const hit = await cache.match(url);
   const adaSebelumnya = Boolean(hit);
-  if (hit && !paksaSegarkan) return { status: "ada", adaSebelumnya: true, byte: (await hit.blob()).size };
-  for (let percobaan = 0; percobaan < 2; percobaan++) {
-    try {
-      const resp = await fetch(url, { mode: "cors", signal: sinyal });
-      if (resp.status === 404 || resp.status === 410) return { status: "tidakAda", adaSebelumnya, byte: 0 };
-      if (!resp.ok) return { status: "gagal", adaSebelumnya, byte: 0 };
-      const tipe = resp.headers.get("content-type") ?? "";
-      if (!tipe.startsWith("image/")) return { status: "gagal", adaSebelumnya, byte: 0 }; // mis. halaman galat berformat HTML
-      const blob = await resp.blob();
-      await cache.put(url, new Response(blob, { headers: { "content-type": tipe } }));
-      return { status: "baru", adaSebelumnya, byte: blob.size };
-    } catch (err) {
-      if (sinyal?.aborted) throw err;
-      if (err instanceof DOMException && err.name === "QuotaExceededError") throw err;
-      // galat jaringan: coba sekali lagi
+  if (hit && !paksaSegarkan) {
+    urlDilindungiOffline.add(url);
+    return { status: "ada", adaSebelumnya: true, byte: (await hit.blob()).size };
+  }
+  const kandidatUrl = [url, ...urlCadangan.filter((u) => u && u !== url)];
+  let semuaTidakAda = true;
+  for (let idx = 0; idx < kandidatUrl.length; idx++) {
+    const targetUrl = kandidatUrl[idx];
+    const maksCoba = idx === 0 ? 2 : 1;
+    for (let percobaan = 0; percobaan < maksCoba; percobaan++) {
+      try {
+        const resp = await fetch(targetUrl, { mode: "cors", signal: sinyal });
+        if (resp.status === 404 || resp.status === 410) {
+          break; // lanjut cek cadangan bila ada
+        }
+        semuaTidakAda = false;
+        if (!resp.ok) break;
+        const tipe = resp.headers.get("content-type") ?? "";
+        if (!tipe.startsWith("image/")) break; // mis. halaman galat berformat HTML
+        const blob = await resp.blob();
+        if (blob.size === 0) break;
+        // Simpan selalu di bawah kunci `url` utama agar muatGambarTile(url) langsung hit di mode offline
+        await cache.put(url, new Response(blob, { headers: { "content-type": tipe } }));
+        urlDilindungiOffline.add(url);
+        return { status: "baru", adaSebelumnya, byte: blob.size };
+      } catch (err) {
+        if (sinyal?.aborted) throw err;
+        if (err instanceof DOMException && err.name === "QuotaExceededError") throw err;
+        semuaTidakAda = false;
+        // galat jaringan: coba sekali lagi
+      }
     }
   }
-  return { status: "gagal", adaSebelumnya, byte: 0 };
+  return { status: semuaTidakAda ? "tidakAda" : "gagal", adaSebelumnya, byte: 0 };
 }
 
 /** Mengunduh daftar URL tile ke penyimpanan offline dengan beberapa permintaan paralel */
@@ -541,7 +668,8 @@ export async function unduhTile(daftarUrl: string[], opsi: OpsiUnduh = {}): Prom
     while (indeks < total && !hasil.dihentikan && !hasil.kuotaPenuh) {
       const url = daftarUrl[indeks++];
       try {
-        const r = await ambilSatuTile(cache, url, opsi.sinyal, Boolean(opsi.paksaSegarkan));
+        const cadangan = opsi.pembuatUrlCadangan ? opsi.pembuatUrlCadangan(url) : [];
+        const r = await ambilSatuTile(cache, url, opsi.sinyal, Boolean(opsi.paksaSegarkan), cadangan);
         if (r.status === "baru") {
           hasil.tersimpan++;
           if (!r.adaSebelumnya) hasil.urlBaru.push(url);
