@@ -52,7 +52,7 @@ import { buatId } from "../lib/id";
 import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
 import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "../lib/sertifikatBawaan";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
-import { Check, ChevronDown, PlusCircle, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
+import { Check, ChevronDown, Hexagon, PlusCircle, Route, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
 import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface AdminDashboardViewProps {
@@ -114,7 +114,13 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
   // Menu aksi data (mobile): satu daftar pilihan yang muncul saat tombol "Aksi" ditekan
   const [menuAksiData, setMenuAksiData] = useState<DataSpasialItem | null>(null);
+  const [revisiDataTarget, setRevisiDataTarget] = useState<DataSpasialItem | null>(null);
+  const [catatanRevisiInput, setCatatanRevisiInput] = useState<string>("");
   useTombolEsc(menuAksiData !== null, () => setMenuAksiData(null));
+  useTombolEsc(revisiDataTarget !== null, () => {
+    setRevisiDataTarget(null);
+    setCatatanRevisiInput("");
+  });
 
   const tinjauPetaData = (d: DataSpasialItem) => {
     const p = d.koordinat[0];
@@ -122,16 +128,30 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   };
 
   const mintaRevisiData = (d: DataSpasialItem) => {
-    const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
-    if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
+    setRevisiDataTarget(d);
+    setCatatanRevisiInput(d.catatanAdmin ?? "");
   };
 
-  // Form Tugas Spasial & Format Data Lapisan
+  const kirimCatatanRevisi = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revisiDataTarget || !catatanRevisiInput.trim()) return;
+    onVerifikasiData(revisiDataTarget.id, "ditolak", catatanRevisiInput.trim());
+    setRevisiDataTarget(null);
+    setCatatanRevisiInput("");
+  };
+
+  // Form Tugas Spasial & Format Data Lapisan (per tipe data Point, Line, Polygon atau Default)
   const [tugasDieditId, setTugasDieditId] = useState<string | null>(null);
   const [temaKegiatan, setTemaKegiatan] = useState("");
   const [targetKaderTipe, setTargetKaderTipe] = useState<"semua" | "tertentu">("semua");
   const [targetKaderTerpilih, setTargetKaderTerpilih] = useState<string[]>([]);
-  const [daftarIsianData, setDaftarIsianData] = useState<FieldSkemaAtribut[]>([]);
+  const [tipeGeometriTerpilih, setTipeGeometriTerpilih] = useState<JenisGeometri[]>([]);
+  const [tabFormatGeometri, setTabFormatGeometri] = useState<JenisGeometri>("point");
+  const [isianPerGeometri, setIsianPerGeometri] = useState<Record<JenisGeometri, FieldSkemaAtribut[]>>({
+    point: [],
+    line: [],
+    polygon: []
+  });
   const [galatFormTugas, setGalatFormTugas] = useState<string>("");
 
   const daftarKaderTerdaftar = useMemo(() => {
@@ -200,7 +220,9 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
     setTemaKegiatan("");
     setTargetKaderTipe("semua");
     setTargetKaderTerpilih([]);
-    setDaftarIsianData([]);
+    setTipeGeometriTerpilih([]);
+    setTabFormatGeometri("point");
+    setIsianPerGeometri({ point: [], line: [], polygon: [] });
     setGalatFormTugas("");
   };
 
@@ -214,39 +236,82 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
       setTargetKaderTipe("tertentu");
       setTargetKaderTerpilih([...t.targetKader]);
     }
-    const fields = t.fields && t.fields.length > 0 ? t.fields : (t.skemaGeometri?.point ?? []);
-    setDaftarIsianData(fields.map((f) => ({ ...f })));
+    const tipeDiizinkan = t.tipeGeometriDiizinkan && t.tipeGeometriDiizinkan.length > 0 ? [...t.tipeGeometriDiizinkan] : [];
+    const skema = t.skemaGeometri;
+    const fPoint = skema?.point?.length ? skema.point.map((f) => ({ ...f })) : (t.fields ?? []).map((f) => ({ ...f }));
+    const fLine = skema?.line?.length ? skema.line.map((f) => ({ ...f })) : (t.fields ?? []).map((f) => ({ ...f }));
+    const fPoly = skema?.polygon?.length ? skema.polygon.map((f) => ({ ...f })) : (t.fields ?? []).map((f) => ({ ...f }));
+    const adaFormatKhusus = fPoint.length > 0 || fLine.length > 0 || fPoly.length > 0;
+    const tipeFinal: JenisGeometri[] =
+      tipeDiizinkan.length > 0
+        ? tipeDiizinkan
+        : adaFormatKhusus
+          ? (["point", "line", "polygon"] as JenisGeometri[]).filter((g) =>
+              g === "point" ? fPoint.length > 0 : g === "line" ? fLine.length > 0 : fPoly.length > 0
+            )
+          : [];
+    setTipeGeometriTerpilih(tipeFinal);
+    setTabFormatGeometri(tipeFinal[0] ?? "point");
+    setIsianPerGeometri({
+      point: tipeFinal.includes("point") ? fPoint : [],
+      line: tipeFinal.includes("line") ? fLine : [],
+      polygon: tipeFinal.includes("polygon") ? fPoly : []
+    });
     setGalatFormTugas("");
   };
 
+  const toggleTipeGeometri = (jenis: JenisGeometri) => {
+    setTipeGeometriTerpilih((prev) => {
+      const urutan: JenisGeometri[] = ["point", "line", "polygon"];
+      const baru = prev.includes(jenis) ? prev.filter((x) => x !== jenis) : urutan.filter((x) => prev.includes(x) || x === jenis);
+      if (baru.length > 0 && !baru.includes(tabFormatGeometri)) {
+        setTabFormatGeometri(baru[0]);
+      } else if (!prev.includes(jenis)) {
+        setTabFormatGeometri(jenis);
+      }
+      return baru;
+    });
+  };
+
+  const daftarIsianAktif = isianPerGeometri[tabFormatGeometri] ?? [];
+
   const tambahFieldIsian = () => {
-    setDaftarIsianData((prev) => [
+    setIsianPerGeometri((prev) => ({
       ...prev,
-      buatFieldSkemaBaru({
-        nama: "",
-        tipe: "teks",
-        wajib: true,
-        tabel: "Data Isian Tugas"
-      })
-    ]);
+      [tabFormatGeometri]: [
+        ...(prev[tabFormatGeometri] ?? []),
+        buatFieldSkemaBaru({
+          nama: "",
+          tipe: "teks",
+          wajib: true,
+          tabel: `Data ${tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"}`
+        })
+      ]
+    }));
   };
 
   const perbaruiFieldIsian = (id: string, patch: Partial<FieldSkemaAtribut>) => {
-    setDaftarIsianData((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+    setIsianPerGeometri((prev) => ({
+      ...prev,
+      [tabFormatGeometri]: (prev[tabFormatGeometri] ?? []).map((f) => (f.id === id ? { ...f, ...patch } : f))
+    }));
   };
 
   const hapusFieldIsian = (id: string) => {
-    setDaftarIsianData((prev) => prev.filter((f) => f.id !== id));
+    setIsianPerGeometri((prev) => ({
+      ...prev,
+      [tabFormatGeometri]: (prev[tabFormatGeometri] ?? []).filter((f) => f.id !== id)
+    }));
   };
 
   const geserFieldIsian = (idx: number, arah: -1 | 1) => {
-    setDaftarIsianData((prev) => {
-      const daftar = [...prev];
+    setIsianPerGeometri((prev) => {
+      const daftar = [...(prev[tabFormatGeometri] ?? [])];
       const target = idx + arah;
       if (target < 0 || target >= daftar.length) return prev;
       const [dipindah] = daftar.splice(idx, 1);
       daftar.splice(target, 0, dipindah);
-      return daftar;
+      return { ...prev, [tabFormatGeometri]: daftar };
     });
   };
 
@@ -268,37 +333,61 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
       setGalatFormTugas("Pilih minimal satu kader penerima jika opsi 'Pilih Kader Tertentu' aktif.");
       return;
     }
-    for (let i = 0; i < daftarIsianData.length; i++) {
-      if (!daftarIsianData[i].nama.trim()) {
-        setGalatFormTugas(`Nama data isian nomor #${i + 1} belum diisi.`);
-        return;
+
+    const labelGeo: Record<JenisGeometri, string> = { point: "Point", line: "Line", polygon: "Polygon" };
+    const modeDefault = tipeGeometriTerpilih.length === 0;
+    const tipeDipakai: JenisGeometri[] = modeDefault ? ["point", "line", "polygon"] : tipeGeometriTerpilih;
+
+    if (!modeDefault) {
+      for (const g of tipeDipakai) {
+        const list = isianPerGeometri[g] ?? [];
+        for (let i = 0; i < list.length; i++) {
+          if (!list[i].nama.trim()) {
+            setTabFormatGeometri(g);
+            setGalatFormTugas(`Nama data isian #${i + 1} pada format ${labelGeo[g]} belum diisi.`);
+            return;
+          }
+        }
       }
     }
 
+    const fPoint = !modeDefault && tipeDipakai.includes("point") ? isianPerGeometri.point.map((f) => ({ ...f, tabel: "Data Point" })) : [];
+    const fLine = !modeDefault && tipeDipakai.includes("line") ? isianPerGeometri.line.map((f) => ({ ...f, tabel: "Data Line" })) : [];
+    const fPoly = !modeDefault && tipeDipakai.includes("polygon") ? isianPerGeometri.polygon.map((f) => ({ ...f, tabel: "Data Polygon" })) : [];
+    const totalIsian = fPoint.length + fLine.length + fPoly.length;
+
     const skemaGeom: SkemaAtributGeometri = {
-      point: daftarIsianData.map((f) => ({ ...f, tabel: "Data Isian Tugas" })),
-      line: daftarIsianData.map((f) => ({ ...f, tabel: "Data Isian Tugas" })),
-      polygon: daftarIsianData.map((f) => ({ ...f, tabel: "Data Isian Tugas" })),
+      point: fPoint,
+      line: fLine,
+      polygon: fPoly,
       daftarTabel: {
-        point: ["Data Isian Tugas"],
-        line: ["Data Isian Tugas"],
-        polygon: ["Data Isian Tugas"]
+        point: fPoint.length > 0 ? ["Data Point"] : [],
+        line: fLine.length > 0 ? ["Data Line"] : [],
+        polygon: fPoly.length > 0 ? ["Data Polygon"] : []
       }
     };
+
+    const ringkasTipe = modeDefault
+      ? "Default (Point, Line, Polygon)"
+      : tipeDipakai.map((g) => labelGeo[g]).join(", ");
 
     const payload: TugasPemetaan = {
       id: tugasDieditId ?? buatId("TSK"),
       judul: tema,
-      deskripsi: `Format tugas "${tema}" dengan ${daftarIsianData.length} isian data.`,
+      deskripsi:
+        totalIsian > 0
+          ? `Format tugas "${tema}" (${ringkasTipe}) dengan ${totalIsian} isian data.`
+          : `Tugas "${tema}" (${ringkasTipe}) menggunakan format bawaan default.`,
       targetWilayah: "Seluruh Wilayah",
-      jenisTargetGeometri: "point",
-      targetKuantitas: `${daftarIsianData.length} isian data`,
+      jenisTargetGeometri: tipeDipakai[0] ?? "point",
+      tipeGeometriDiizinkan: modeDefault ? undefined : [...tipeDipakai],
+      targetKuantitas: totalIsian > 0 ? `${totalIsian} isian data` : "Format default",
       batasWaktu: "-",
       koordinatAcuan: { lat: 2.8575, lng: 117.3775 },
       status: tugasDieditId ? (tugasList.find((x) => x.id === tugasDieditId)?.status ?? "aktif") : "aktif",
       dibuatOleh: sesiAdmin?.nama || "Admin GIS",
       targetKader: targetKaderTipe === "semua" ? ["*"] : targetKaderTerpilih,
-      fields: daftarIsianData.map((f) => ({ ...f, tabel: "Data Isian Tugas" })),
+      fields: totalIsian > 0 ? [...fPoint, ...fLine, ...fPoly] : undefined,
       skemaGeometri: skemaGeom
     };
 
@@ -549,10 +638,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                                 type="button"
                                 className="btn-outline-sm"
                                 title="Minta revisi data kepada kader"
-                                onClick={() => {
-                                  const catatan = window.prompt("Catatan revisi untuk kader", d.catatanAdmin ?? "");
-                                  if (catatan?.trim()) onVerifikasiData(d.id, "ditolak", catatan.trim());
-                                }}
+                                onClick={() => mintaRevisiData(d)}
                               >
                                 <X size={13} /> Revisi
                               </button>
@@ -914,155 +1000,242 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               )}
             </div>
 
-            {/* 3. FORMAT DATA YANG DIISI OLEH USER (WAJIB DAN OPSIONAL) */}
+            {/* 3. PILIHAN TIPE DATA YANG DIAMBIL DAN PENGATURAN FORMAT PER TIPE (ATAU DEFAULT) */}
             <div className="tugas-section-box" style={{ marginTop: 14 }}>
               <div className="tugas-section-header">
                 <div>
-                  <h4 style={{ margin: 0, fontSize: "0.98rem", display: "flex", alignItems: "center", gap: 8 }}>
+                  <h4 style={{ margin: 0, fontSize: "0.98rem", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <ClipboardList size={17} color="#0B6E4F" aria-hidden="true" />
-                    Format Data yang Diisi oleh User
+                    Tipe Data yang Diambil
                   </h4>
-                  <p className="text-xs text-muted" style={{ margin: "2px 0 0" }}>
-                    Tentukan data apa saja yang harus diisi kader saat pemetaan di lapangan. Atur status wajib atau opsional dan tipe nilainya.
+                  <p className="text-xs text-muted" style={{ margin: "3px 0 0" }}>
+                    Pilih tipe data yang ingin diambil (misal Point saja, Point dan Line, atau ketiganya). Bila tidak dipilih, tugas memakai format default.
                   </p>
                 </div>
               </div>
 
-              {daftarIsianData.length === 0 ? (
-                <div className="tugas-empty-builder">
-                  <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Belum ada data isian yang ditambahkan</p>
+              <div className="tugas-geom-picker" role="group" aria-label="Pilih tipe data yang diambil">
+                {(
+                  [
+                    { id: "point" as const, label: "Point", ket: "Titik lokasi", Ikon: MapPin },
+                    { id: "line" as const, label: "Line", ket: "Jalur / garis", Ikon: Route },
+                    { id: "polygon" as const, label: "Polygon", ket: "Area / bidang", Ikon: Hexagon }
+                  ] as const
+                ).map(({ id, label, ket, Ikon }) => {
+                  const aktif = tipeGeometriTerpilih.includes(id);
+                  const jml = isianPerGeometri[id]?.length ?? 0;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`tugas-geom-chip ${aktif ? "aktif" : ""}`}
+                      aria-pressed={aktif}
+                      onClick={() => toggleTipeGeometri(id)}
+                    >
+                      <span className="tugas-geom-chip-icon" aria-hidden="true">
+                        <Ikon size={16} />
+                      </span>
+                      <span className="tugas-geom-chip-text">
+                        <strong>{label}</strong>
+                        <small>{aktif ? (jml > 0 ? `${jml} isian` : "Format default") : ket}</small>
+                      </span>
+                      <span className="tugas-geom-chip-check" aria-hidden="true">
+                        {aktif ? "✓" : "+"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {tipeGeometriTerpilih.length === 0 ? (
+                <div className="tugas-empty-builder" style={{ marginTop: 10 }}>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#0f172a" }}>Mode Default Aktif</p>
                   <p className="text-xs text-muted" style={{ margin: 0 }}>
-                    Klik tombol <b>"+ Tambah Data Isian"</b> di bawah untuk menentukan data yang harus dicatat oleh kader (contoh: Nama Pemilik, Kondisi, Biaya, Tanggal).
+                    Kader dapat mengisi data <b>Point, Line, dan Polygon</b> dengan format standar bawaan. Pilih salah satu atau beberapa tipe data di atas bila ingin mengatur format isian khusus.
                   </p>
                 </div>
               ) : (
-                <div className="tugas-builder-field-list">
-                  {daftarIsianData.map((f, idx) => (
-                    <div key={f.id} className="tugas-builder-field-card">
-                      <div className="tugas-field-card-top">
-                        <span className="tugas-field-index">#{idx + 1}</span>
-                        <input
-                          type="text"
-                          className="form-input tugas-field-name-input"
-                          placeholder="Nama data (contoh: Nama Pemilik, Kondisi Fisik, Estimasi Biaya)..."
-                          value={f.nama}
-                          onChange={(e) => perbaruiFieldIsian(f.id, { nama: e.target.value })}
-                          required
-                        />
+                <div className="tugas-format-per-tipe" style={{ marginTop: 12 }}>
+                  <div className="tugas-format-tabs" role="tablist" aria-label="Pengaturan format per tipe data">
+                    {tipeGeometriTerpilih.map((g) => {
+                      const label = g === "point" ? "Point" : g === "line" ? "Line" : "Polygon";
+                      const jml = isianPerGeometri[g]?.length ?? 0;
+                      const sedangAktif = tabFormatGeometri === g;
+                      return (
                         <button
+                          key={g}
                           type="button"
-                          className={`tugas-wajib-toggle ${f.wajib ? "wajib" : ""}`}
-                          onClick={() => perbaruiFieldIsian(f.id, { wajib: !f.wajib })}
-                          title="Klik untuk mengubah status isian wajib atau opsional"
+                          role="tab"
+                          aria-selected={sedangAktif}
+                          className={`tugas-format-tab ${sedangAktif ? "aktif" : ""}`}
+                          onClick={() => setTabFormatGeometri(g)}
                         >
-                          {f.wajib ? "✓ Wajib" : "Opsional"}
+                          <span>Format {label}</span>
+                          <span className="tugas-format-tab-count">{jml}</span>
                         </button>
-                      </div>
+                      );
+                    })}
+                  </div>
 
-                      <div className="tugas-field-card-controls">
-                        <div className="tugas-control-item">
-                          <label className="text-xs text-muted">Tipe Nilai Data</label>
-                          <select
-                            className="form-input"
-                            value={f.tipe}
-                            onChange={(e) => perbaruiFieldIsian(f.id, { tipe: e.target.value as TipeFieldSkema })}
-                          >
-                            <option value="teks">Teks Singkat</option>
-                            <option value="angka">Angka / Bilangan</option>
-                            <option value="nominal">Nominal Rupiah (Rp)</option>
-                            <option value="tanggal">Tanggal (Date Picker)</option>
-                            <option value="pilihan">Pilihan (Dropdown)</option>
-                            <option value="catatan">Catatan Panjang</option>
-                            <option value="foto">Foto Bukti</option>
-                          </select>
-                        </div>
+                  <p className="text-xs text-muted" style={{ margin: "8px 0 10px" }}>
+                    Atur kolom isian khusus untuk data{" "}
+                    <b>{tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"}</b>. Jika dibiarkan kosong, tipe ini memakai format default.
+                  </p>
 
-                        {f.tipe === "pilihan" && (
-                          <div className="tugas-control-item flex-2">
-                            <label className="text-xs text-muted">Daftar Pilihan Nilai (pisahkan dengan koma)</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              placeholder="Misal: Baik, Rusak Ringan, Rusak Berat"
-                              value={(f.opsi ?? []).join(", ")}
-                              onChange={(e) =>
-                                perbaruiFieldIsian(f.id, {
-                                  opsi: e.target.value
-                                    .split(",")
-                                    .map((x) => x.trim())
-                                    .filter(Boolean)
-                                })
-                              }
-                            />
-                          </div>
-                        )}
-
-                        {f.tipe === "nominal" && (
-                          <div className="tugas-control-item flex-2">
-                            <label className="text-xs text-muted">Format Mata Uang</label>
-                            <div className="tugas-nominal-hint">
-                              Otomatis memformat angka dengan awalan <b>Rp</b> dan pemisah ribuan saat kader mengisi data.
+                  {daftarIsianAktif.length === 0 ? (
+                    <div className="tugas-empty-builder">
+                      <p style={{ margin: "0 0 6px", fontWeight: 600 }}>
+                        Format {tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"} masih Default
+                      </p>
+                      <p className="text-xs text-muted" style={{ margin: 0 }}>
+                        Klik tombol <b>"+ Tambah Data Isian"</b> di bawah untuk menambahkan kolom data kustom (contoh: Nama Pemilik, Kondisi, Biaya, Tanggal).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="tugas-builder-field-list">
+                      {daftarIsianAktif.map((f, idx) => (
+                        <div key={f.id} className="tugas-builder-field-card">
+                          {/* Baris atas: nomor urut, toggle Wajib/Opsional, dan tombol aksi sejajar rapi */}
+                          <div className="tugas-field-card-head">
+                            <div className="tugas-field-head-left">
+                              <span className="tugas-field-index">#{idx + 1}</span>
+                              <button
+                                type="button"
+                                className={`tugas-wajib-toggle ${f.wajib ? "wajib" : ""}`}
+                                onClick={() => perbaruiFieldIsian(f.id, { wajib: !f.wajib })}
+                                title="Klik untuk mengubah status isian wajib atau opsional"
+                              >
+                                {f.wajib ? "✓ Wajib" : "Opsional"}
+                              </button>
+                            </div>
+                            <div className="tugas-field-actions">
+                              <button
+                                type="button"
+                                className="btn-outline-sm tugas-field-act-btn"
+                                disabled={idx === 0}
+                                aria-label={`Naikkan ${f.nama || `Isian #${idx + 1}`}`}
+                                onClick={() => geserFieldIsian(idx, -1)}
+                                title="Pindah ke atas"
+                              >
+                                <ArrowUp size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-outline-sm tugas-field-act-btn"
+                                disabled={idx === daftarIsianAktif.length - 1}
+                                aria-label={`Turunkan ${f.nama || `Isian #${idx + 1}`}`}
+                                onClick={() => geserFieldIsian(idx, 1)}
+                                title="Pindah ke bawah"
+                              >
+                                <ArrowDown size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-danger-sm tugas-field-act-btn"
+                                aria-label={`Hapus ${f.nama || `Isian #${idx + 1}`}`}
+                                onClick={() => hapusFieldIsian(f.id)}
+                                title="Hapus isian ini"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           </div>
-                        )}
 
-                        {f.tipe !== "pilihan" && f.tipe !== "nominal" && f.tipe !== "foto" && (
-                          <div className="tugas-control-item flex-2">
-                            <label className="text-xs text-muted">Teks Petunjuk / Placeholder (Opsional)</label>
+                          {/* Baris nama data lebar penuh agar tidak terpotong di HP maupun PC */}
+                          <div className="tugas-field-name-wrap">
+                            <label className="tugas-field-sublabel" htmlFor={`field-nama-${f.id}`}>
+                              Nama Data
+                            </label>
                             <input
+                              id={`field-nama-${f.id}`}
                               type="text"
-                              className="form-input"
-                              placeholder="Petunjuk untuk kader saat mengisi..."
-                              value={f.placeholder || ""}
-                              onChange={(e) => perbaruiFieldIsian(f.id, { placeholder: e.target.value })}
+                              className="form-input tugas-field-name-input"
+                              placeholder="Contoh: Nama Pemilik, Kondisi Fisik, Estimasi Biaya..."
+                              value={f.nama}
+                              onChange={(e) => perbaruiFieldIsian(f.id, { nama: e.target.value })}
+                              required
                             />
                           </div>
-                        )}
 
-                        <div className="tugas-field-actions">
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            disabled={idx === 0}
-                            aria-label={`Naikkan ${f.nama || `Isian #${idx + 1}`}`}
-                            onClick={() => geserFieldIsian(idx, -1)}
-                            title="Pindah ke atas"
-                          >
-                            <ArrowUp size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-outline-sm"
-                            disabled={idx === daftarIsianData.length - 1}
-                            aria-label={`Turunkan ${f.nama || `Isian #${idx + 1}`}`}
-                            onClick={() => geserFieldIsian(idx, 1)}
-                            title="Pindah ke bawah"
-                          >
-                            <ArrowDown size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger-sm"
-                            aria-label={`Hapus ${f.nama || `Isian #${idx + 1}`}`}
-                            onClick={() => hapusFieldIsian(f.id)}
-                            title="Hapus isian ini"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          {/* Baris kontrol tipe nilai dan pengaturan tambahan dalam grid 2 kolom rapi */}
+                          <div className="tugas-field-card-controls">
+                            <div className="tugas-control-item">
+                              <label className="tugas-field-sublabel" htmlFor={`field-tipe-${f.id}`}>
+                                Tipe Nilai Data
+                              </label>
+                              <select
+                                id={`field-tipe-${f.id}`}
+                                className="form-input"
+                                value={f.tipe}
+                                onChange={(e) => perbaruiFieldIsian(f.id, { tipe: e.target.value as TipeFieldSkema })}
+                              >
+                                <option value="teks">Teks Singkat</option>
+                                <option value="angka">Angka / Bilangan</option>
+                                <option value="nominal">Nominal Rupiah (Rp)</option>
+                                <option value="tanggal">Tanggal (Date Picker)</option>
+                                <option value="pilihan">Pilihan (Dropdown)</option>
+                                <option value="catatan">Catatan Panjang</option>
+                                <option value="foto">Foto Bukti</option>
+                              </select>
+                            </div>
+
+                            {f.tipe === "pilihan" && (
+                              <div className="tugas-control-item">
+                                <label className="tugas-field-sublabel">Daftar Pilihan (pisahkan koma)</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="Misal: Baik, Rusak Ringan, Rusak Berat"
+                                  value={(f.opsi ?? []).join(", ")}
+                                  onChange={(e) =>
+                                    perbaruiFieldIsian(f.id, {
+                                      opsi: e.target.value
+                                        .split(",")
+                                        .map((x) => x.trim())
+                                        .filter(Boolean)
+                                    })
+                                  }
+                                />
+                              </div>
+                            )}
+
+                            {f.tipe === "nominal" && (
+                              <div className="tugas-control-item">
+                                <label className="tugas-field-sublabel">Format Mata Uang</label>
+                                <div className="tugas-nominal-hint">
+                                  Otomatis memformat angka dengan awalan <b>Rp</b> dan pemisah ribuan.
+                                </div>
+                              </div>
+                            )}
+
+                            {f.tipe !== "pilihan" && f.tipe !== "nominal" && f.tipe !== "foto" && (
+                              <div className="tugas-control-item">
+                                <label className="tugas-field-sublabel">Petunjuk / Placeholder (Opsional)</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="Petunjuk untuk kader saat mengisi..."
+                                  value={f.placeholder || ""}
+                                  onChange={(e) => perbaruiFieldIsian(f.id, { placeholder: e.target.value })}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  <button
+                    type="button"
+                    className="tugas-btn-tambah-field"
+                    onClick={tambahFieldIsian}
+                  >
+                    <Plus size={16} /> Tambah Data Isian{" "}
+                    {tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"}
+                  </button>
                 </div>
               )}
-
-              <button
-                type="button"
-                className="tugas-btn-tambah-field"
-                onClick={tambahFieldIsian}
-              >
-                <Plus size={16} /> Tambah Data Isian Baru
-              </button>
             </div>
 
             {galatFormTugas && (
@@ -1090,7 +1263,20 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
             {tugasList.length > 0 ? (
               <div className="admin-tugas-grid">
                 {tugasList.map((t) => {
-                  const daftarF = t.fields && t.fields.length > 0 ? t.fields : (t.skemaGeometri?.point ?? []);
+                  const skema = t.skemaGeometri;
+                  const tipeList =
+                    t.tipeGeometriDiizinkan && t.tipeGeometriDiizinkan.length > 0
+                      ? t.tipeGeometriDiizinkan
+                      : (["point", "line", "polygon"] as JenisGeometri[]);
+                  const labelTipe = (g: JenisGeometri) => (g === "point" ? "Point" : g === "line" ? "Line" : "Polygon");
+                  const teksTipe =
+                    t.tipeGeometriDiizinkan && t.tipeGeometriDiizinkan.length > 0
+                      ? tipeList.map(labelTipe).join(", ")
+                      : "Default (Point, Line, Polygon)";
+                  const daftarF =
+                    skema && (skema.point.length > 0 || skema.line.length > 0 || skema.polygon.length > 0)
+                      ? [...skema.point, ...skema.line, ...skema.polygon]
+                      : (t.fields ?? []);
                   const untukSemua = !t.targetKader || t.targetKader.length === 0 || t.targetKader.includes("*");
                   return (
                     <div key={t.id} className="admin-tugas-card">
@@ -1113,10 +1299,10 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                         </div>
                         <h4 style={{ margin: "8px 0 4px", fontSize: "0.98rem", color: "#0f172a" }}>{t.judul}</h4>
                         <div className="text-xs text-muted" style={{ marginBottom: 8 }}>
-                          Tersedia di menu Lapisan untuk pengisian Point, Line, dan Polygon.
+                          Tipe data di Lapisan: <b>{teksTipe}</b>
                         </div>
 
-                        {daftarF.length > 0 && (
+                        {daftarF.length > 0 ? (
                           <div className="tugas-fields-preview-wrap">
                             <span className="text-xs text-muted" style={{ display: "block", marginBottom: 4 }}>
                               Format Data ({daftarF.length} isian):
@@ -1128,6 +1314,10 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                                 </span>
                               ))}
                             </div>
+                          </div>
+                        ) : (
+                          <div className="tugas-fields-preview-wrap">
+                            <span className="text-xs text-muted">Menggunakan format isian standar (Default).</span>
                           </div>
                         )}
                       </div>
@@ -1421,6 +1611,55 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* MODAL CATATAN REVISI DATA (menggantikan window.prompt yang diblokir di iframe/PWA) */}
+      {revisiDataTarget && (
+        <div
+          className="konfirmasi-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-revisi-judul"
+          onClick={() => {
+            setRevisiDataTarget(null);
+            setCatatanRevisiInput("");
+          }}
+        >
+          <form className="konfirmasi-modal-card" onSubmit={kirimCatatanRevisi} onClick={(e) => e.stopPropagation()}>
+            <div className="konfirmasi-modal-head">
+              <h4 id="modal-revisi-judul" className="konfirmasi-modal-title">
+                Catatan Revisi Data
+              </h4>
+            </div>
+            <p className="konfirmasi-modal-desc">
+              Tuliskan catatan perbaikan untuk objek <strong>{revisiDataTarget.judul}</strong> agar dapat diperbaiki kader:
+            </p>
+            <textarea
+              className="form-input"
+              rows={3}
+              placeholder="Contoh: Koordinat belum tepat atau foto kurang jelas..."
+              value={catatanRevisiInput}
+              onChange={(e) => setCatatanRevisiInput(e.target.value)}
+              autoFocus
+              required
+            />
+            <div className="konfirmasi-modal-actions">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => {
+                  setRevisiDataTarget(null);
+                  setCatatanRevisiInput("");
+                }}
+              >
+                Batalkan
+              </button>
+              <button type="submit" className="btn-primary">
+                Kirim Revisi
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

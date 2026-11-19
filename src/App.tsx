@@ -176,10 +176,17 @@ export const App: React.FC = () => {
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const inventarisBug = useInventarisBug();
   const konteksBugRef = useRef<{ lokasi?: string; pengguna?: string }>({});
-  konteksBugRef.current = { lokasi: tabAktif, pengguna: sesiPengguna?.nama };
+  useEffect(() => {
+    konteksBugRef.current = { lokasi: tabAktif, pengguna: sesiPengguna?.nama };
+  }, [tabAktif, sesiPengguna?.nama]);
   useEffect(() => pasangPenangkapBugGlobal(() => konteksBugRef.current), []);
   // id naik setiap toast baru, sehingga efek di bawah memulai ulang hitung mundurnya
   const [notifToast, setNotifToast] = useState<{ pesan: string; id: number; urungkan?: () => void } | null>(null);
+  /** Toast singkat; dengan `urungkan`, toast memuat tombol Urungkan dan tampil lebih lama */
+  const tampilkanToast = useCallback(
+    (pesan: string, urungkan?: () => void) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1, urungkan })),
+    []
+  );
   const statusPenyimpanan = useStatusPenyimpanan();
   const [ruangPenyimpanan, setRuangPenyimpanan] = useState<PerkiraanPenyimpanan | null>(null);
 
@@ -386,11 +393,6 @@ export const App: React.FC = () => {
   const autoSync = useAutoSyncGDrive(dataSpasial, handleTandaiTersinkron);
   const antreanLokalCount = dataSpasial.filter((d) => d.statusSinkron === "lokal").length;
 
-  /** Toast singkat; dengan `urungkan`, toast memuat tombol Urungkan dan tampil lebih lama */
-  const tampilkanToast = useCallback(
-    (pesan: string, urungkan?: () => void) => setNotifToast((lama) => ({ pesan, id: (lama?.id ?? 0) + 1, urungkan })),
-    []
-  );
   // Toast hilang 3,2 detik setelah toast TERAKHIR (toast baru membatalkan hitung mundur yang lama)
   useEffect(() => {
     if (!notifToast) return;
@@ -1122,7 +1124,7 @@ export const App: React.FC = () => {
       sesi={sesiPengguna}
       mode={layarKunci}
       tujuan={peran === "admin" ? "aplikasi+admin" : "aplikasi"}
-      sedangMerekam={rekamLatar.status !== "idle"}
+      sedangMerekam={rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur}
       onTerbuka={(pesan) => {
         segarkanKeamanan();
         setTabAktif("peta");
@@ -1234,8 +1236,8 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (di tab lain; di peta, panel rekam sudah memuat waktu dan tombol Jeda) */}
-      {rekamLatar.status !== "idle" && tabAktif !== "peta" && (
+      {/* TANDA SEDANG MEREKAM DI LATAR BELAKANG (di tab lain; bukan untuk mode Gambar dan Ukur) */}
+      {rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur && tabAktif !== "peta" && (
         <BannerPerekaman
           rekamLatar={rekamLatar}
           detikRekamTick={detikRekamTick}

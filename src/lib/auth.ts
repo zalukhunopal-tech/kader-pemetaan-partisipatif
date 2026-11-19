@@ -1474,6 +1474,19 @@ export function hapusAkunOlehAdmin(
   simpanSemuaAkun(accounts);
   hapusGagal(emailBersih);
   lepasKunciSesiLokal(emailBersih);
+  peranMemori.delete(emailBersih);
+  statusMemori.delete(emailBersih);
+  try {
+    const rawDaftar = localStorage.getItem(KEY_PENDAFTARAN_EMAIL);
+    if (rawDaftar) {
+      const parsed = JSON.parse(rawDaftar) as { email?: string };
+      if ((parsed.email ?? "").trim().toLowerCase() === emailBersih) {
+        localStorage.removeItem(KEY_PENDAFTARAN_EMAIL);
+      }
+    }
+  } catch {
+    // abaikan
+  }
   if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
     void hapusAkunGDrive(emailBersih);
   }

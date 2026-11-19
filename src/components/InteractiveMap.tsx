@@ -88,6 +88,7 @@ import {
   Navigation,
   Navigation2,
   Plus,
+  Trash2,
   Route,
   Satellite,
   Search,
@@ -391,19 +392,28 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return () => window.clearTimeout(t);
   }, [pesanSalin]);
   const [modeRekam, setModeRekam] = useState<JenisGeometri | null>(() => {
-    if (rekamLatar.status !== "idle" && rekamLatar.jenis) return rekamLatar.jenis;
-    // Jangan pulihkan titik pin sementara (point) dari draft agar tidak meninggalkan titik oranye di peta saat pindah tab
-    if (form.rekaman?.jenis && form.rekaman.jenis !== "point") return form.rekaman.jenis;
+    // Hanya pulihkan perekaman pelacakan GPS nyata (bukan mode Gambar dan Ukur atau pin sementara)
+    if (rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur && rekamLatar.jenis) return rekamLatar.jenis;
+    if (form.rekaman?.jenis && form.rekaman.jenis !== "point" && !rekamLatar.modeGambarUkur) return form.rekaman.jenis;
     return null;
   });
-  const [modeGambarUkur, setModeGambarUkur] = useState<boolean>(() =>
-    rekamLatar.status !== "idle" ? rekamLatar.jenis === "polygon" : form.rekaman?.jenis === "polygon"
-  );
+  const [modeGambarUkur, setModeGambarUkur] = useState<boolean>(false);
   const [titikDraft, setTitikDraft] = useState<KoordinatTitik[]>(() => {
-    if (rekamLatar.status !== "idle") return rekamLatar.titik;
-    if (form.rekaman?.jenis && form.rekaman.jenis !== "point") return form.rekaman.titik ?? [];
+    if (rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur) return rekamLatar.titik;
+    if (form.rekaman?.jenis && form.rekaman.jenis !== "point" && !rekamLatar.modeGambarUkur) return form.rekaman.titik ?? [];
     return [];
   });
+  const modeGambarUkurRef = useRef<boolean>(modeGambarUkur);
+  modeGambarUkurRef.current = modeGambarUkur;
+  useEffect(() => {
+    // Saat keluar dari halaman Peta ketika sedang di Gambar dan Ukur, hentikan bersih agar tidak berubah menjadi perekaman jalur/layar
+    return () => {
+      if (modeGambarUkurRef.current || perekamLatar.getState().modeGambarUkur) {
+        perekamLatar.batal();
+        simpanGeometri(null, []);
+      }
+    };
+  }, [simpanGeometri]);
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
   const [aksiAwalForm, setAksiAwalForm] = useState<"averaging" | "foto" | null>(null);
   const [monitorGeofenceAktif, setMonitorGeofenceAktif] = useState<boolean>(false);
@@ -452,13 +462,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   const [detikTick, setDetikTick] = useState<number>(0);
   useEffect(() => {
-    // Titik pin sementara tidak disimpan ke rekaman persisten agar tidak tertinggal sebagai titik oranye saat pindah tab
-    if (modeRekam === "point") {
+    // Titik pin sementara maupun mode Gambar dan Ukur tidak disimpan ke rekaman persisten agar tidak tertinggal atau berubah menjadi perekaman jalur
+    if (modeRekam === "point" || modeGambarUkur) {
       simpanGeometri(null, []);
       return;
     }
     simpanGeometri(modeRekam, titikDraft);
-  }, [modeRekam, titikDraft, simpanGeometri]);
+  }, [modeRekam, modeGambarUkur, titikDraft, simpanGeometri]);
 
   // Simpan posisi peta (ditunda sedikit) dan pastikan tersimpan saat aplikasi ditutup/disembunyikan
   const posisiRef = useRef({ ...center, zoom, basemap, bearing: bearingAktif });
@@ -1306,11 +1316,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       form.setKategoriInput("Lainnya");
       setBukaModalForm(false);
     } else if (adalahUkur) {
-      // Mode Gambar dan Ukur: mulai dengan 0 titik agar pengguna membidik lewat "+ Tambahkan titik"
+      // Mode Gambar dan Ukur: mulai dengan 0 titik (default garis/line) tanpa mengaktifkan perekaman GPS latar
       setTitikDraft([]);
       form.setKategoriInput("Lainnya");
-      perekamLatar.mulai(jenis, []);
-      perekamLatar.jeda();
+      perekamLatar.mulaiGambarUkur(jenis === "polygon" ? "polygon" : "line", []);
     } else if (jenis === "line") {
       // Pelacakan jalur GPS: awali dari posisi GPS nyata (bila sudah ada), bukan bidikan manual yang bisa jauh dari GPS
       const awalJalur = posisiNyata ? [posisiNyata] : [];
@@ -1332,8 +1341,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     form.setKategoriInput("Lainnya");
     const titikLatar = perekamLatar.getState().titik;
     const titikSaatIni = titikLatar.length ? titikLatar : titikDraft;
-    perekamLatar.mulai(jenisBaru, titikSaatIni);
-    perekamLatar.jeda();
+    perekamLatar.mulaiGambarUkur(jenisBaru, titikSaatIni);
     setTitikDraft(titikSaatIni);
     setPesanSalin(
       jenisBaru === "polygon"
@@ -1873,6 +1881,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
     if (pinPeekTerbuka) {
       setPinPeekTerbuka(false);
+      if (modeRekam === "point") {
+        setModeRekam(null);
+        setTitikDraft([]);
+      }
+      return true;
+    }
+    if (modeGambarUkur) {
+      batalkanRekaman();
       return true;
     }
     if (objekTerpilih) {
@@ -2466,7 +2482,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <>
             <div className="avz-tutup-transparan" onClick={() => setBukaMenuAlat(false)} aria-hidden="true" />
             <div className="avz-tool-popup-menu" role="menu">
-              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("polygon", true)}>
+              <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("line", true)}>
                 Gambar dan Ukur
               </button>
               <button type="button" role="menuitem" className="avz-tool-popup-item" onClick={() => mulaiModeRekam("line", false)}>
@@ -3054,31 +3070,51 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               </button>
             )}
             {daftarCari.map((d) => (
-              <button
-                type="button"
-                key={d.id}
-                className="avz-daftar-baris coord-chip-saran-item"
-                onClick={() => {
-                  const t = d.koordinat[0];
-                  if (!t) return;
-                  setCenter(t);
-                  setZoom((z) => Math.max(z, 16));
-                  setObjekTerpilih(d);
-                  setCariKoordTerbuka(false);
-                }}
-              >
-                {d.jenisGeometri === "point" ? (
-                  <MapPin size={20} />
-                ) : d.jenisGeometri === "line" ? (
-                  <Route size={20} />
-                ) : (
-                  <Hexagon size={20} />
+              <div key={d.id} className="avz-daftar-baris-wrap">
+                <button
+                  type="button"
+                  className="avz-daftar-baris coord-chip-saran-item"
+                  onClick={() => {
+                    const t = d.koordinat[0];
+                    if (!t) return;
+                    setCenter(t);
+                    setZoom((z) => Math.max(z, 16));
+                    setObjekTerpilih(d);
+                    setDetailObjekTerbuka(false);
+                    setCariKoordTerbuka(false);
+                  }}
+                >
+                  {d.jenisGeometri === "point" ? (
+                    <MapPin size={20} />
+                  ) : d.jenisGeometri === "line" ? (
+                    <Route size={20} />
+                  ) : (
+                    <Hexagon size={20} />
+                  )}
+                  <span>
+                    <strong>{d.judul}</strong>
+                    <small>{d.lapisanNama || d.jenisGeometri.toUpperCase()}</small>
+                  </span>
+                </button>
+                {onHapusData && (
+                  <button
+                    type="button"
+                    className="avz-daftar-hapus-btn"
+                    aria-label={`Hapus ${d.judul}`}
+                    title={`Hapus ${d.jenisGeometri === "point" ? "titik" : d.jenisGeometri === "line" ? "garis" : "area"}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onHapusData(d.id);
+                      if (objekTerpilih?.id === d.id) {
+                        setObjekTerpilih(null);
+                        setDetailObjekTerbuka(false);
+                      }
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 )}
-                <span>
-                  <strong>{d.judul}</strong>
-                  <small>{d.lapisanNama || d.jenisGeometri.toUpperCase()}</small>
-                </span>
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -3185,31 +3221,51 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             {lapisanTerbuka && (
               <div className="avz-objek-daftar">
                 {objekLapisan.map((d) => (
-                  <button
-                    type="button"
-                    key={d.id}
-                    className="avz-daftar-baris strip-chip"
-                    onClick={() => {
-                      setObjekTerpilih(d);
-                      if (d.koordinat[0]) setCenter({ lat: d.koordinat[0].lat, lng: d.koordinat[0].lng });
-                      setBukaHalamanLapisan(false);
-                    }}
-                  >
-                    {d.jenisGeometri === "point" ? (
-                      <MapPin size={20} />
-                    ) : d.jenisGeometri === "line" ? (
-                      <Route size={20} />
-                    ) : (
-                      <Hexagon size={20} />
+                  <div key={d.id} className="avz-daftar-baris-wrap">
+                    <button
+                      type="button"
+                      className="avz-daftar-baris strip-chip"
+                      onClick={() => {
+                        setObjekTerpilih(d);
+                        setDetailObjekTerbuka(false);
+                        if (d.koordinat[0]) setCenter({ lat: d.koordinat[0].lat, lng: d.koordinat[0].lng });
+                        setBukaHalamanLapisan(false);
+                      }}
+                    >
+                      {d.jenisGeometri === "point" ? (
+                        <MapPin size={20} />
+                      ) : d.jenisGeometri === "line" ? (
+                        <Route size={20} />
+                      ) : (
+                        <Hexagon size={20} />
+                      )}
+                      <span>
+                        <strong>{d.judul}</strong>
+                        <small>
+                          {d.lapisanNama || "Lapisan 1"} · {d.jenisGeometri.toUpperCase()}
+                          {d.jenisGeometri === "line" ? ` · ${d.panjangKm} km` : d.jenisGeometri === "polygon" ? ` · ${d.luasHa} Ha` : ""}
+                        </small>
+                      </span>
+                    </button>
+                    {onHapusData && (
+                      <button
+                        type="button"
+                        className="avz-daftar-hapus-btn"
+                        aria-label={`Hapus ${d.judul}`}
+                        title={`Hapus ${d.jenisGeometri === "point" ? "titik" : d.jenisGeometri === "line" ? "garis" : "area"}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onHapusData(d.id);
+                          if (objekTerpilih?.id === d.id) {
+                            setObjekTerpilih(null);
+                            setDetailObjekTerbuka(false);
+                          }
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     )}
-                    <span>
-                      <strong>{d.judul}</strong>
-                      <small>
-                        {d.lapisanNama || "Lapisan 1"} · {d.jenisGeometri.toUpperCase()}
-                        {d.jenisGeometri === "line" ? ` · ${d.panjangKm} km` : d.jenisGeometri === "polygon" ? ` · ${d.luasHa} Ha` : ""}
-                      </small>
-                    </span>
-                  </button>
+                  </div>
                 ))}
                 {objekLapisan.length === 0 && <p className="avz-nav-kosong">Tidak ada objek.</p>}
               </div>
@@ -3475,9 +3531,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onPesan={setPesanSalin}
           onKonversiKeArea={() => {
             if (objekTerpilih.jenisGeometri === "line" && objekTerpilih.koordinat.length >= 3) {
+              setModeGambarUkur(true);
               setModeRekam("polygon");
-              perekamLatar.mulai("polygon", objekTerpilih.koordinat);
-              perekamLatar.jeda();
+              perekamLatar.mulaiGambarUkur("polygon", objekTerpilih.koordinat);
               setTitikDraft(objekTerpilih.koordinat);
               setObjekTerpilih(null);
               setDetailObjekTerbuka(false);
@@ -3536,9 +3592,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             setBukaModalForm(false);
             setPinPeekTerbuka(false);
             setAksiAwalForm(null);
-            // Pin yang belum disimpan dibuang saat form ditutup (tetap pulihkan perekaman latar jika sedang berjalan)
+            // Pin yang belum disimpan dibuang saat form ditutup (tetap pulihkan perekaman latar nyata jika sedang berjalan)
             if (modeRekam === "point") {
-              if (rekamLatar.status !== "idle" && rekamLatar.jenis) {
+              if (rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur && rekamLatar.jenis) {
                 setModeRekam(rekamLatar.jenis);
                 setTitikDraft(rekamLatar.titik);
               } else {
@@ -3555,9 +3611,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onKonversiKeArea={
             modeRekam === "line" && titikDraft.length >= 3
               ? () => {
+                  setModeGambarUkur(true);
                   setModeRekam("polygon");
-                  perekamLatar.mulai("polygon", titikDraft);
-                  perekamLatar.jeda();
+                  perekamLatar.mulaiGambarUkur("polygon", titikDraft);
                   setPesanSalin("Jalur dikonversi menjadi Area (Polygon).");
                 }
               : undefined

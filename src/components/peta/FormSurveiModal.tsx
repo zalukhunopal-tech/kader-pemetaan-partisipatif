@@ -37,12 +37,12 @@ import { KartuLokasiTitik } from "./KartuLokasiTitik";
 import { bacaSistemKoordinat, formatKoordinat, simpanSistemKoordinat, SistemKoordinat } from "../../lib/sistemKoordinat";
 
 const PILIHAN_CORAK = [
-  { id: "Pin Merah", label: "Pin Merah", warna: "#ef4444" },
-  { id: "Jingga jejak", label: "Jingga jejak", warna: "#f26101" },
-  { id: "Hijau zamrud", label: "Hijau zamrud", warna: "#0d7344" },
-  { id: "Biru langit", label: "Biru langit", warna: "#0284c7" },
-  { id: "Kuning emas", label: "Kuning emas", warna: "#eab308" },
-  { id: "Ungu peta", label: "Ungu peta", warna: "#7c3aed" }
+  { id: "Merah", label: "Merah", warna: "#ef4444" },
+  { id: "Jingga", label: "Jingga", warna: "#f26101" },
+  { id: "Hijau", label: "Hijau", warna: "#0d7344" },
+  { id: "Biru", label: "Biru", warna: "#0284c7" },
+  { id: "Kuning", label: "Kuning", warna: "#eab308" },
+  { id: "Ungu", label: "Ungu", warna: "#7c3aed" }
 ] as const;
 
 /** Draf per akun di IndexedDB. Tidak memuat akun, sandi atau token. */
@@ -150,7 +150,7 @@ export function useFormSurvei(idKader: string) {
       });
       item.tepi = atribut.tepi;
       item.warna = isian.warna || atribut.warna;
-      item.simbol = isian.simbol || "Hijau zamrud";
+      item.simbol = isian.simbol || "Hijau";
       item.url = atribut.url || undefined;
     } else if (jenis === "line") {
       const atribut = susunAtributLinePrmAid({
@@ -163,7 +163,7 @@ export function useFormSurvei(idKader: string) {
         warna: isian.warna
       });
       item.warna = isian.warna || "#f26101";
-      item.simbol = isian.simbol || "Jingga jejak";
+      item.simbol = isian.simbol || "Jingga";
       item.url = atribut.url || undefined;
     } else {
       const atribut = susunAtributPointPrmAid({
@@ -175,7 +175,7 @@ export function useFormSurvei(idKader: string) {
         simbol: isian.simbol
       });
       item.warna = isian.warna || "#ef4444";
-      item.simbol = isian.simbol || "Pin Merah";
+      item.simbol = isian.simbol || "Merah";
       item.url = atribut.url || undefined;
     }
 
@@ -536,6 +536,27 @@ export function FormSurveiModal({
           onSimpan(e);
         }}
       >
+        {lapisanAktif?.tipeGeometriDiizinkan &&
+          lapisanAktif.tipeGeometriDiizinkan.length > 0 &&
+          modeRekam &&
+          !lapisanAktif.tipeGeometriDiizinkan.includes(modeRekam) && (
+            <div className="avz-skema-banner" role="status" style={{ background: "#fef3c7", borderColor: "#f59e0b", color: "#92400e" }}>
+              <div>
+                <strong>{`Tipe ${modeRekam.toUpperCase()} memakai format default`}</strong>
+                <small>
+                  {`Tugas "${lapisanAktif.nama}" dikhususkan untuk: ${lapisanAktif.tipeGeometriDiizinkan
+                    .map((g) => (g === "point" ? "Point" : g === "line" ? "Line" : "Polygon"))
+                    .join(", ")}.`}
+                </small>
+              </div>
+              {onPilihLapisanAktif && (
+                <button type="button" className="avz-aksi-hijau" onClick={() => onPilihLapisanAktif(null)}>
+                  Ganti Default
+                </button>
+              )}
+            </div>
+          )}
+
         {lapisanAktif && skemaAktifFields.length > 0 && (
           <div className="avz-skema-banner">
             <div>

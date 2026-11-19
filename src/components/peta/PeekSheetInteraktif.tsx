@@ -14,14 +14,25 @@ import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm } from "../
 export type TahapPeek = "ringkas" | "sedang" | "penuh";
 
 const PILIHAN_WARNA_CORAK = [
-  { id: "merah", warna: "#ef4444", label: "Pin Merah" },
-  { id: "biru", warna: "#0284c7", label: "Pin Biru" },
-  { id: "zamrud", warna: "#0d7344", label: "Pin Hijau" },
-  { id: "jingga", warna: "#f26101", label: "Jingga jejak" },
-  { id: "jingga_area", warna: "#f26101", label: "Jingga area" },
-  { id: "kuning", warna: "#eab308", label: "Pin Kuning" },
-  { id: "ungu", warna: "#a855f7", label: "Pin Ungu" }
+  { id: "merah", warna: "#ef4444", label: "Merah" },
+  { id: "biru", warna: "#0284c7", label: "Biru" },
+  { id: "hijau", warna: "#0d7344", label: "Hijau" },
+  { id: "jingga", warna: "#f26101", label: "Jingga" },
+  { id: "kuning", warna: "#eab308", label: "Kuning" },
+  { id: "ungu", warna: "#a855f7", label: "Ungu" }
 ];
+
+function ringkasNamaWarna(label?: string): string {
+  if (!label) return "";
+  const l = label.toLowerCase();
+  if (l.includes("merah")) return "Merah";
+  if (l.includes("jingga") || l.includes("oren") || l.includes("oranye")) return "Jingga";
+  if (l.includes("hijau")) return "Hijau";
+  if (l.includes("biru")) return "Biru";
+  if (l.includes("kuning")) return "Kuning";
+  if (l.includes("ungu")) return "Ungu";
+  return label;
+}
 
 function hitungPerimeterPoligonKm(titik: KoordinatTitik[]): number {
   if (titik.length < 2) return 0;
@@ -160,10 +171,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   const [bukaEditLapisan, setBukaEditLapisan] = useState(false);
   const [bukaPilihCorak, setBukaPilihCorak] = useState(false);
   const [corakTerpilih, setCorakTerpilih] = useState(() => {
-    if (mode === "objek_terpilih" && objekTerpilih?.jenisGeometri === "polygon") {
-      return PILIHAN_WARNA_CORAK[4];
-    }
-    if (mode === "objek_terpilih" && objekTerpilih?.jenisGeometri === "line") {
+    if (mode === "objek_terpilih" && (objekTerpilih?.jenisGeometri === "polygon" || objekTerpilih?.jenisGeometri === "line")) {
       return PILIHAN_WARNA_CORAK[3];
     }
     return PILIHAN_WARNA_CORAK[0];
@@ -646,10 +654,10 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                 >
                   <span>
                     {jenisGeo === "polygon"
-                      ? objekTerpilih?.simbol || "Jingga area"
+                      ? ringkasNamaWarna(objekTerpilih?.simbol) || "Jingga"
                       : jenisGeo === "line"
-                        ? objekTerpilih?.simbol || "Jingga jejak"
-                        : corakTerpilih.label}
+                        ? ringkasNamaWarna(objekTerpilih?.simbol) || "Jingga"
+                        : ringkasNamaWarna(objekTerpilih?.simbol) || corakTerpilih.label}
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {jenisGeo === "polygon" ? (

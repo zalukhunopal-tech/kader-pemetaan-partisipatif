@@ -31,7 +31,16 @@ import {
 import { DataSpasialItem, SertifikatKader, WilayahAdministrasi } from "../types";
 import { WILAYAH_KOSONG, teksWilayah, wilayahLengkap } from "../lib/wilayah";
 import { migrasiFolderWilayahKeGDrive } from "../lib/gdriveSync";
+import { useTombolEsc } from "../lib/useTombolEsc";
 import { IsianWilayah } from "./IsianWilayah";
+
+interface KonfirmasiAkunState {
+  judul: string;
+  pesan: string;
+  labelSetuju: string;
+  berbahaya?: boolean;
+  onKonfirmasi: () => void | Promise<void>;
+}
 
 interface AkunAdminPanelProps {
   sesiAdmin: AkunSesi | null;
@@ -60,7 +69,14 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   const akun = muatSemuaAkun();
   const kunciSesi = daftarKunciSesiAktif();
   const [menuAksiAkun, setMenuAksiAkun] = useState<(typeof akun)[number] | null>(null);
+  const [konfirmasiAksi, setKonfirmasiAksi] = useState<KonfirmasiAkunState | null>(null);
+  const [sedangMemprosesKonfirmasi, setSedangMemprosesKonfirmasi] = useState(false);
   void versi;
+
+  useTombolEsc(Boolean(konfirmasiAksi), () => {
+    if (!sedangMemprosesKonfirmasi) setKonfirmasiAksi(null);
+  });
+  useTombolEsc(Boolean(menuAksiAkun) && !konfirmasiAksi, () => setMenuAksiAkun(null));
 
   const segarkanDariCloud = useCallback(async (tampilkanPesan = false) => {
     setSedangSinkron(true);
@@ -126,41 +142,56 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   };
 
   const aturUlangAuthenticator = (email: string, nama: string) => {
-    if (!window.confirm(`Hapus Google Authenticator milik ${nama}? Ia harus mendaftarkan yang baru saat masuk berikutnya.`)) return;
-    bersihkan();
-    const r = aturUlangAuthenticatorOlehAdmin(sesiAdmin, email);
-    if (!r.sukses) setGalat(r.pesan);
-    else setInfo(r.pesan);
-    setVersi((v) => v + 1);
+    setKonfirmasiAksi({
+      judul: "Reset Google Authenticator",
+      pesan: `Yakin ingin menghapus Google Authenticator milik ${nama}? Pengguna harus mendaftarkan kode baru saat masuk berikutnya.`,
+      labelSetuju: "Ya, Reset",
+      berbahaya: true,
+      onKonfirmasi: () => {
+        bersihkan();
+        const r = aturUlangAuthenticatorOlehAdmin(sesiAdmin, email);
+        if (!r.sukses) setGalat(r.pesan);
+        else setInfo(r.pesan);
+        setVersi((v) => v + 1);
+      }
+    });
   };
 
   const lepasKunciSesi = (email: string, nama: string) => {
-    if (!window.confirm(`Lepas kunci perangkat aktif untuk ${nama} (${email})? Sesi sebelumnya akan dihentikan.`)) return;
-    bersihkan();
-    const r = lepasKunciSesiOlehAdmin(sesiAdmin, email);
-    if (!r.sukses) setGalat(r.pesan);
-    else setInfo(r.pesan);
-    setVersi((v) => v + 1);
+    setKonfirmasiAksi({
+      judul: "Lepas Kunci Perangkat",
+      pesan: `Yakin ingin melepas kunci perangkat aktif untuk ${nama} (${email})? Sesi sebelumnya akan dihentikan.`,
+      labelSetuju: "Ya, Lepas Sesi",
+      berbahaya: false,
+      onKonfirmasi: () => {
+        bersihkan();
+        const r = lepasKunciSesiOlehAdmin(sesiAdmin, email);
+        if (!r.sukses) setGalat(r.pesan);
+        else setInfo(r.pesan);
+        setVersi((v) => v + 1);
+      }
+    });
   };
 
   const hapusAkun = (email: string, nama: string) => {
-    if (
-      !window.confirm(
-        `Hapus akun ${nama} (${email})?\n\nAkun ini tidak akan dapat masuk lagi. Data lapangan yang sudah tersimpan tetap aman.`
-      )
-    ) {
-      return;
-    }
-    bersihkan();
-    const r = hapusAkunOlehAdmin(sesiAdmin, email);
-    if (!r.sukses) {
-      setGalat(r.pesan);
-    } else {
-      setInfo(r.pesan);
-      if (detailEmail === email) setDetailEmail(null);
-      if (ubahWilayah?.email === email) setUbahWilayah(null);
-    }
-    setVersi((v) => v + 1);
+    setKonfirmasiAksi({
+      judul: "Konfirmasi Hapus Akun",
+      pesan: `Apakah Anda yakin ingin menghapus akun ${nama} (${email})? Akun ini akan dihapus permanen dan tidak dapat masuk lagi. Data lapangan yang sudah tersimpan tetap aman.`,
+      labelSetuju: "Ya, Hapus Akun",
+      berbahaya: true,
+      onKonfirmasi: () => {
+        bersihkan();
+        const r = hapusAkunOlehAdmin(sesiAdmin, email);
+        if (!r.sukses) {
+          setGalat(r.pesan);
+        } else {
+          setInfo(r.pesan);
+          if (detailEmail === email) setDetailEmail(null);
+          if (ubahWilayah?.email === email) setUbahWilayah(null);
+        }
+        setVersi((v) => v + 1);
+      }
+    });
   };
 
   const setujuiAkun = (email: string) => {
@@ -172,29 +203,49 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   };
 
   const tolakAkun = (email: string, nama: string) => {
-    if (!window.confirm(`Tolak pendaftaran akun ${nama} (${email})? Akun ini tidak akan bisa aktif sampai disetujui.`)) return;
-    bersihkan();
-    const r = tolakAkunOlehAdmin(sesiAdmin, email);
-    if (!r.sukses) setGalat(r.pesan);
-    else setInfo(r.pesan);
-    setVersi((v) => v + 1);
+    setKonfirmasiAksi({
+      judul: "Tolak Pendaftaran Akun",
+      pesan: `Yakin ingin menolak pendaftaran akun ${nama} (${email})? Akun ini tidak akan aktif sampai disetujui.`,
+      labelSetuju: "Ya, Tolak",
+      berbahaya: true,
+      onKonfirmasi: () => {
+        bersihkan();
+        const r = tolakAkunOlehAdmin(sesiAdmin, email);
+        if (!r.sukses) setGalat(r.pesan);
+        else setInfo(r.pesan);
+        setVersi((v) => v + 1);
+      }
+    });
   };
 
-  const resetSemuaAkun = async () => {
-    if (
-      !window.confirm(
-        "Reset dan hapus SEMUA akun kader terdaftar saat ini (lokal dan server)?\n\nHanya akun Administrator yang dipertahankan. Pengguna lain harus mendaftar ulang dengan verifikasi OTP email."
-      )
-    ) {
-      return;
+  const resetSemuaAkun = () => {
+    setKonfirmasiAksi({
+      judul: "Konfirmasi Reset Semua Akun",
+      pesan:
+        "Apakah Anda yakin ingin menghapus semua akun kader terdaftar saat ini (lokal dan server)? Hanya akun Administrator yang dipertahankan. Pengguna lain harus mendaftar ulang dengan verifikasi OTP email.",
+      labelSetuju: "Ya, Hapus Semua",
+      berbahaya: true,
+      onKonfirmasi: async () => {
+        bersihkan();
+        const r = await resetSemuaAkunOlehAdmin(sesiAdmin);
+        if (!r.sukses) setGalat(r.pesan);
+        else setInfo(r.pesan);
+        setDetailEmail(null);
+        setUbahWilayah(null);
+        setVersi((v) => v + 1);
+      }
+    });
+  };
+
+  const jalankanKonfirmasiAksi = async () => {
+    if (!konfirmasiAksi || sedangMemprosesKonfirmasi) return;
+    setSedangMemprosesKonfirmasi(true);
+    try {
+      await konfirmasiAksi.onKonfirmasi();
+      setKonfirmasiAksi(null);
+    } finally {
+      setSedangMemprosesKonfirmasi(false);
     }
-    bersihkan();
-    const r = await resetSemuaAkunOlehAdmin(sesiAdmin);
-    if (!r.sukses) setGalat(r.pesan);
-    else setInfo(r.pesan);
-    setDetailEmail(null);
-    setUbahWilayah(null);
-    setVersi((v) => v + 1);
   };
 
   const salin = async () => {
@@ -671,6 +722,48 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
             <button type="button" className="aksi-sheet-batal" onClick={() => setMenuAksiAkun(null)}>
               Batal
             </button>
+          </div>
+        </div>
+      )}
+
+      {konfirmasiAksi && (
+        <div
+          className="konfirmasi-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="konfirmasi-akun-judul"
+          onClick={() => {
+            if (!sedangMemprosesKonfirmasi) setKonfirmasiAksi(null);
+          }}
+        >
+          <div className="konfirmasi-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="konfirmasi-modal-head">
+              <span className={`konfirmasi-modal-icon ${konfirmasiAksi.berbahaya ? "danger" : ""}`} aria-hidden="true">
+                {konfirmasiAksi.berbahaya ? <Trash2 size={20} /> : <ShieldAlert size={20} />}
+              </span>
+              <h4 id="konfirmasi-akun-judul" className="konfirmasi-modal-title">
+                {konfirmasiAksi.judul}
+              </h4>
+            </div>
+            <p className="konfirmasi-modal-desc">{konfirmasiAksi.pesan}</p>
+            <div className="konfirmasi-modal-actions">
+              <button
+                type="button"
+                className="btn-outline"
+                disabled={sedangMemprosesKonfirmasi}
+                onClick={() => setKonfirmasiAksi(null)}
+              >
+                Batalkan
+              </button>
+              <button
+                type="button"
+                className={konfirmasiAksi.berbahaya ? "btn-danger-solid" : "btn-primary"}
+                disabled={sedangMemprosesKonfirmasi}
+                onClick={() => void jalankanKonfirmasiAksi()}
+              >
+                {sedangMemprosesKonfirmasi ? "Memproses..." : konfirmasiAksi.labelSetuju}
+              </button>
+            </div>
           </div>
         </div>
       )}
