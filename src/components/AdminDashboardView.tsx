@@ -1691,9 +1691,6 @@ const [filterLapisanAdmin, setFilterLapisanAdmin] = useState<string>("semua");
                   <option value="kader">Kode Unik Kader (0001/SKPP-GIS/[ID-KADER]/XI/2026)</option>
                   <option value="warsi">Resmi KKI Warsi (SKPP-WARSI/2026/XI/0001-[KADER])</option>
                 </select>
-                <p className="text-muted" style={{ fontSize: "0.76rem", margin: "4px 0 0" }}>
-                  ⚡ Automasi aktif: Setiap user dijamin mendapatkan nomor sertifikat unik yang berbeda.
-                </p>
               </div>
 
               <div>
@@ -1708,9 +1705,6 @@ const [filterLapisanAdmin, setFilterLapisanAdmin] = useState<string>("semua");
                   onChange={(e) => setNomorSertBaru(e.target.value)}
                   placeholder="Nomor sertifikat otomatis..."
                 />
-                <p className="text-muted" style={{ fontSize: "0.76rem", margin: "4px 0 0" }}>
-                  Nomor terhitung otomatis berurutan dari data sertifikat yang sudah ada.
-                </p>
               </div>
             </div>
 

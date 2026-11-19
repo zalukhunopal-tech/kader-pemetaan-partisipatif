@@ -2536,16 +2536,6 @@ body {
   margin-bottom: 12px;
 }
 
-#status-sertifikat,
-.status-sertifikat-teks {
-  margin: 0 0 10px;
-  font-size: 0.84rem;
-  line-height: 1.5;
-  text-align: justify;
-  text-justify: inter-word;
-  hyphens: auto;
-}
-
 .certificate-canvas-stage {
   width: 100%;
   background: #f1f5f9;

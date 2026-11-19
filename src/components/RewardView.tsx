@@ -711,11 +711,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
         />
       </div>
 
-      <p id="capaian-terverifikasi" className="text-muted" style={{ margin: "-4px 4px 0", fontSize: "0.8rem", textAlign: "center" }}>
-        Terverifikasi admin: {capaianTerverifikasi.totalPoinTitik} titik • {capaianTerverifikasi.totalTrackingKm.toFixed(1)} km •{" "}
-        {capaianTerverifikasi.totalPoligonHa.toFixed(1)} Ha
-      </p>
-
       {/* 3. PREVIEW SERTIFIKAT BERGAMBAR + TOMBOL ATUR FOTO, LOGO & TANDA TANGAN */}
       <div className="section-card certificate-section-card">
         <div className="certificate-header-bar">
@@ -779,14 +774,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
             <Download size={16} aria-hidden="true" /> Unduh
           </button>
         </div>
-
-        <p id="status-sertifikat" className="text-muted status-sertifikat-teks">
-          {sertifikatSaya
-            ? `Sertifikat ${sertifikatSaya.nomorSertifikat} sudah diterbitkan.`
-            : capaianTerverifikasi.berhakSertifikat
-              ? "Capaian terverifikasi sudah memenuhi syarat (50 titik, 5 km jalur, dan 5 Ha poligon). Nomor sertifikat unik Anda akan diterbitkan secara otomatis oleh admin."
-              : "Sertifikat diterbitkan admin dengan penomoran unik otomatis setelah Anda mengambil 50 titik, 5 km jalur, dan 5 Ha poligon yang diverifikasi di menu admin."}
-        </p>
 
         {galatMedia && (
           <p role="alert" className="field-error" style={{ marginTop: 6 }}>
