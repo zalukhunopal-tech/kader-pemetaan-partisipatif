@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { DataSpasialItem, KoordinatTitik, LapisanSpasial } from "../../types";
 import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm } from "../../lib/geoUtils";
+import { uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
 
 export type TahapPeek = "ringkas" | "sedang" | "penuh";
 
@@ -76,7 +77,22 @@ export interface PeekSheetInteraktifProps {
   onAmbilElevasiGps?: () => void;
   sedangUkurGps?: boolean;
   onKonversiKeArea?: () => void;
-  onSimpanLangsung?: (nama: string, simbol?: string, warna?: string) => void;
+  onUbahKoordinat?: (titik: KoordinatTitik) => void;
+  onPerbaruiObjek?: (dataDiubah: DataSpasialItem) => void;
+  namaDraft?: string;
+  onUbahNamaDraft?: (nama: string) => void;
+  deskripsiDraft?: string;
+  onUbahDeskripsiDraft?: (teks: string) => void;
+  elevasiDraft?: string;
+  onUbahElevasiDraft?: (elevasi: string) => void;
+  onUbahCorakDraft?: (simbol: string, warna: string) => void;
+  fotoDraft?: string;
+  onSimpanLangsung?: (
+    nama: string,
+    simbol?: string,
+    warna?: string,
+    ekstra?: { deskripsi?: string; elevasi?: string }
+  ) => void;
 }
 
 /** Ikon kotak berarsir diagonal (Area) sesuai tampilan ringkas Avenza */
@@ -162,15 +178,49 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   onAmbilElevasiGps,
   sedangUkurGps = false,
   onKonversiKeArea,
+  onUbahKoordinat,
+  onPerbaruiObjek,
+  namaDraft,
+  onUbahNamaDraft,
+  deskripsiDraft,
+  onUbahDeskripsiDraft,
+  elevasiDraft,
+  onUbahElevasiDraft,
+  onUbahCorakDraft,
+  fotoDraft,
   onSimpanLangsung
 }) => {
   const [tahap, setTahap] = useState<TahapPeek>(tahapAwal);
   const [sedangSeret, setSedangSeret] = useState(false);
-  const [namaInput, setNamaInput] = useState(mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "");
+  const [namaInput, setNamaInput] = useState(
+    mode === "draft_pin" ? namaDraft || "Tanda tempat 1" : objekTerpilih?.judul || ""
+  );
   const [sedangEditNama, setSedangEditNama] = useState(false);
+  const [sedangEditKoord, setSedangEditKoord] = useState(false);
+  const [koordInput, setKoordInput] = useState("");
+  const [galatKoord, setGalatKoord] = useState("");
+  const [deskripsiInput, setDeskripsiInput] = useState(
+    mode === "draft_pin" ? deskripsiDraft || "" : objekTerpilih?.deskripsi || ""
+  );
+  const [sedangEditDeskripsi, setSedangEditDeskripsi] = useState(false);
+  const [elevasiInput, setElevasiInput] = useState(
+    mode === "draft_pin"
+      ? elevasiDraft || ""
+      : objekTerpilih?.elevasi !== undefined
+        ? String(objekTerpilih.elevasi)
+        : ""
+  );
+  const [sedangEditElevasi, setSedangEditElevasi] = useState(false);
   const [bukaEditLapisan, setBukaEditLapisan] = useState(false);
   const [bukaPilihCorak, setBukaPilihCorak] = useState(false);
   const [corakTerpilih, setCorakTerpilih] = useState(() => {
+    const namaSimbol = ringkasNamaWarna(objekTerpilih?.simbol);
+    const cocok =
+      (objekTerpilih?.warna
+        ? PILIHAN_WARNA_CORAK.find((c) => c.warna.toLowerCase() === objekTerpilih.warna?.toLowerCase())
+        : undefined) ??
+      (namaSimbol ? PILIHAN_WARNA_CORAK.find((c) => c.label.toLowerCase() === namaSimbol.toLowerCase()) : undefined);
+    if (cocok) return cocok;
     if (mode === "objek_terpilih" && (objekTerpilih?.jenisGeometri === "polygon" || objekTerpilih?.jenisGeometri === "line")) {
       return PILIHAN_WARNA_CORAK[3];
     }
@@ -281,18 +331,90 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
         : teksArea;
 
   const elevasiVal =
-    mode === "draft_pin"
-      ? (elevasiMeter ?? titikUtama?.elevasi)
-      : (objekTerpilih?.elevasi ?? titikUtama?.elevasi);
+    elevasiInput.trim() !== "" && Number.isFinite(Number(elevasiInput.replace(",", ".")))
+      ? Number(elevasiInput.replace(",", "."))
+      : mode === "draft_pin"
+        ? (elevasiMeter ?? titikUtama?.elevasi)
+        : (objekTerpilih?.elevasi ?? titikUtama?.elevasi);
+
+  const fotoTampil = mode === "draft_pin" ? fotoDraft : objekTerpilih?.fotoBase64;
+  const teksNamaTampil = namaInput.trim() || (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "Tanda tempat 1");
 
   const tglDibuat = objekTerpilih?.createdAt ? new Date(objekTerpilih.createdAt) : new Date();
   const formatTgl = `${String(tglDibuat.getDate()).padStart(2, "0")}/${String(tglDibuat.getMonth() + 1).padStart(2, "0")}/${String(tglDibuat.getFullYear()).slice(-2)} pada ${String(tglDibuat.getHours()).padStart(2, "0")}.${String(tglDibuat.getMinutes()).padStart(2, "0")}`;
 
   const atributEntries = Object.entries(objekTerpilih?.atributKustom ?? {}).filter(([, val]) => String(val ?? "").trim() !== "");
 
+  const simpanEditNama = () => {
+    const bersih = namaInput.trim() || (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "Tanda tempat 1");
+    setNamaInput(bersih);
+    setSedangEditNama(false);
+    if (mode === "draft_pin") {
+      onUbahNamaDraft?.(bersih);
+    } else if (objekTerpilih && onPerbaruiObjek && bersih !== objekTerpilih.judul) {
+      onPerbaruiObjek({ ...objekTerpilih, judul: bersih });
+    }
+  };
+
+  const mulaiEditKoordinat = () => {
+    setKoordInput(teksKoordinat === "-" ? "" : teksKoordinat);
+    setGalatKoord("");
+    setSedangEditKoord(true);
+  };
+
+  const simpanEditKoordinat = () => {
+    const hasil = uraikanTeksKoordinat(koordInput);
+    if (!hasil) {
+      setGalatKoord("Format koordinat tidak dikenali. Contoh: -6.200000, 106.816666");
+      return;
+    }
+    setGalatKoord("");
+    const titikBaru: KoordinatTitik = {
+      ...(titikUtama ?? { lat: hasil.lat, lng: hasil.lng }),
+      lat: hasil.lat,
+      lng: hasil.lng,
+      akurasi: undefined
+    };
+    if (mode === "draft_pin") {
+      onUbahKoordinat?.(titikBaru);
+    } else if (objekTerpilih && onPerbaruiObjek) {
+      const sisa = objekTerpilih.koordinat.slice(1);
+      onPerbaruiObjek({ ...objekTerpilih, koordinat: [titikBaru, ...sisa] });
+    }
+    setSedangEditKoord(false);
+    onPesan?.("Koordinat titik diperbarui");
+  };
+
+  const simpanEditDeskripsi = () => {
+    const bersih = deskripsiInput.trim();
+    setSedangEditDeskripsi(false);
+    if (mode === "draft_pin") {
+      onUbahDeskripsiDraft?.(bersih);
+    } else if (objekTerpilih && onPerbaruiObjek && bersih !== (objekTerpilih.deskripsi || "")) {
+      onPerbaruiObjek({ ...objekTerpilih, deskripsi: bersih });
+    }
+  };
+
+  const simpanEditElevasi = () => {
+    const bersih = elevasiInput.trim();
+    setSedangEditElevasi(false);
+    const angka = Number(bersih.replace(",", "."));
+    if (mode === "draft_pin") {
+      onUbahElevasiDraft?.(bersih);
+    } else if (objekTerpilih && onPerbaruiObjek) {
+      onPerbaruiObjek({
+        ...objekTerpilih,
+        elevasi: bersih !== "" && Number.isFinite(angka) ? angka : undefined
+      });
+    }
+  };
+
   const handleSimpanAksi = () => {
     if (onSimpanLangsung) {
-      onSimpanLangsung(namaInput, corakTerpilih.label, corakTerpilih.warna);
+      onSimpanLangsung(teksNamaTampil, corakTerpilih.label, corakTerpilih.warna, {
+        deskripsi: deskripsiInput.trim(),
+        elevasi: elevasiInput.trim()
+      });
     } else {
       onBukaFormLengkap();
     }
@@ -322,6 +444,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   };
 
   const handleBodyTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("input, textarea, select")) return;
     if (tahap === "ringkas") {
       if (e.touches[0]) mulaiSeret(e.touches[0].clientY);
       return;
@@ -473,10 +596,10 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                     type="button"
                     className="avz-aksi-hijau"
                     onClick={() => {
-                      if (mode === "draft_pin") {
-                        setSedangEditNama((v) => !v);
+                      if (sedangEditNama) {
+                        simpanEditNama();
                       } else {
-                        onBukaDetailLengkap();
+                        setSedangEditNama(true);
                       }
                     }}
                   >
@@ -484,25 +607,40 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   </button>
                 </div>
                 {sedangEditNama ? (
-                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <div className="avz-inline-edit-row">
                     <input
                       type="text"
                       className="form-input avz-input-bersih"
                       value={namaInput}
-                      onChange={(e) => setNamaInput(e.target.value)}
-                      placeholder="Nama tanda tempat..."
+                      onChange={(e) => {
+                        setNamaInput(e.target.value);
+                        if (mode === "draft_pin") onUbahNamaDraft?.(e.target.value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          simpanEditNama();
+                        } else if (e.key === "Escape") {
+                          setSedangEditNama(false);
+                        }
+                      }}
+                      placeholder="Tanda tempat 1"
+                      aria-label="Edit nama"
                       autoFocus
                     />
-                    <button
-                      type="button"
-                      className="avz-aksi-hijau"
-                      onClick={() => setSedangEditNama(false)}
-                    >
+                    <button type="button" className="avz-aksi-hijau" onClick={simpanEditNama}>
                       Selesai
                     </button>
                   </div>
                 ) : (
-                  <span>{namaInput || (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul)}</span>
+                  <button
+                    type="button"
+                    className="avz-isian-nilai-edit"
+                    onClick={() => setSedangEditNama(true)}
+                    aria-label={`Edit nama ${teksNamaTampil}`}
+                  >
+                    {teksNamaTampil}
+                  </button>
                 )}
               </div>
 
@@ -515,14 +653,60 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                       type="button"
                       className="avz-aksi-hijau"
                       onClick={() => {
-                        void navigator.clipboard?.writeText(teksKoordinat);
-                        onPesan?.("Koordinat disalin: " + teksKoordinat);
+                        if (sedangEditKoord) {
+                          simpanEditKoordinat();
+                        } else {
+                          mulaiEditKoordinat();
+                        }
                       }}
                     >
-                      Salin
+                      Edit
                     </button>
                   </div>
-                  <span className="tabular-nums">{teksKoordinat}</span>
+                  {sedangEditKoord ? (
+                    <div className="avz-inline-edit-col">
+                      <div className="avz-inline-edit-row">
+                        <input
+                          type="text"
+                          className="form-input avz-input-bersih tabular-nums"
+                          value={koordInput}
+                          onChange={(e) => {
+                            setKoordInput(e.target.value);
+                            if (galatKoord) setGalatKoord("");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              simpanEditKoordinat();
+                            } else if (e.key === "Escape") {
+                              setSedangEditKoord(false);
+                              setGalatKoord("");
+                            }
+                          }}
+                          placeholder="Contoh: -6.200000, 106.816666"
+                          aria-label="Edit titik koordinat"
+                          autoFocus
+                        />
+                        <button type="button" className="avz-aksi-hijau" onClick={simpanEditKoordinat}>
+                          Selesai
+                        </button>
+                      </div>
+                      {galatKoord && (
+                        <span className="field-error" role="alert">
+                          {galatKoord}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="avz-isian-nilai-edit tabular-nums"
+                      onClick={mulaiEditKoordinat}
+                      aria-label="Edit titik koordinat"
+                    >
+                      {teksKoordinat}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -566,15 +750,25 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                 <div className="avz-isian-kepala">
                   <strong>Lapisan saat ini</strong>
                 </div>
-                <div className="avz-isian-nilai-panah">
+                <button
+                  type="button"
+                  className="avz-isian-nilai-panah avz-corak-btn"
+                  onClick={() => {
+                    if (lapisanList.length > 0 && (onPilihLapisanAktif || onPerbaruiObjek)) {
+                      setBukaEditLapisan((v) => !v);
+                    } else {
+                      onPesan?.("Buka menu Lapisan untuk mengelola lapisan peta");
+                    }
+                  }}
+                >
                   <span>{namaLapisan}</span>
                   <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
-                </div>
+                </button>
                 <button
                   type="button"
                   className="avz-tombol-garis"
                   onClick={() => {
-                    if (lapisanList.length > 0 && onPilihLapisanAktif) {
+                    if (lapisanList.length > 0 && (onPilihLapisanAktif || onPerbaruiObjek)) {
                       setBukaEditLapisan((v) => !v);
                     } else {
                       onPesan?.("Buka menu Lapisan untuk mengelola lapisan peta");
@@ -583,13 +777,25 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                 >
                   Edit Lapisan
                 </button>
-                {bukaEditLapisan && lapisanList.length > 0 && onPilihLapisanAktif && (
+                {bukaEditLapisan && lapisanList.length > 0 && (onPilihLapisanAktif || onPerbaruiObjek) && (
                   <select
-                    className="form-input"
+                    className="form-input avz-input-bersih"
                     style={{ marginTop: 8 }}
-                    value={lapisanAktif?.id ?? ""}
+                    value={mode === "draft_pin" ? lapisanAktif?.id ?? "" : objekTerpilih?.lapisanId ?? ""}
                     onChange={(e) => {
-                      onPilihLapisanAktif(e.target.value || null);
+                      const idBaru = e.target.value || null;
+                      if (mode === "draft_pin") {
+                        onPilihLapisanAktif?.(idBaru);
+                      } else if (objekTerpilih && onPerbaruiObjek) {
+                        const cocok = lapisanList.find((l) => l.id === idBaru);
+                        onPerbaruiObjek({
+                          ...objekTerpilih,
+                          lapisanId: cocok?.id,
+                          lapisanNama: cocok?.nama || "Lapisan 1"
+                        });
+                      } else {
+                        onPilihLapisanAktif?.(idBaru);
+                      }
                       setBukaEditLapisan(false);
                     }}
                   >
@@ -610,18 +816,32 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-aksi-hijau"
-                    onClick={() => onBukaFormLengkap()}
+                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
-                    Tambah
+                    {fotoTampil ? "Edit" : "Tambah"}
                   </button>
                 </div>
-                {objekTerpilih?.fotoBase64 && (
-                  <img
-                    className="avz-isian-foto"
-                    src={objekTerpilih.fotoBase64}
-                    alt={`Foto ${namaInput}`}
-                    style={{ marginTop: 6, maxHeight: 160, objectFit: "cover", borderRadius: 8 }}
-                  />
+                {fotoTampil ? (
+                  <button
+                    type="button"
+                    className="avz-isian-nilai-edit"
+                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                  >
+                    <img
+                      className="avz-isian-foto"
+                      src={fotoTampil}
+                      alt={`Foto ${teksNamaTampil}`}
+                      style={{ marginTop: 4, maxHeight: 160, objectFit: "cover", borderRadius: 8 }}
+                    />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="avz-isian-nilai-edit avz-isian-kosong"
+                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                  >
+                    Ketuk untuk menambah foto...
+                  </button>
                 )}
               </div>
 
@@ -632,38 +852,71 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-aksi-hijau"
-                    onClick={() => onBukaFormLengkap()}
+                    onClick={() => {
+                      if (sedangEditDeskripsi) {
+                        simpanEditDeskripsi();
+                      } else {
+                        setSedangEditDeskripsi(true);
+                      }
+                    }}
                   >
-                    Tambah
+                    {deskripsiInput.trim() ? "Edit" : "Tambah"}
                   </button>
                 </div>
-                {objekTerpilih?.deskripsi ? (
-                  <span>{objekTerpilih.deskripsi}</span>
-                ) : null}
+                {sedangEditDeskripsi ? (
+                  <div className="avz-inline-edit-col">
+                    <textarea
+                      rows={3}
+                      className="form-input avz-input-bersih"
+                      value={deskripsiInput}
+                      onChange={(e) => {
+                        setDeskripsiInput(e.target.value);
+                        if (mode === "draft_pin") onUbahDeskripsiDraft?.(e.target.value);
+                      }}
+                      placeholder="Catatan atau deskripsi objek..."
+                      aria-label="Edit deskripsi"
+                      autoFocus
+                    />
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button type="button" className="avz-aksi-hijau" onClick={simpanEditDeskripsi}>
+                        Selesai
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={`avz-isian-nilai-edit ${deskripsiInput.trim() ? "" : "avz-isian-kosong"}`}
+                    onClick={() => setSedangEditDeskripsi(true)}
+                  >
+                    {deskripsiInput.trim() || "Ketuk untuk menambah deskripsi..."}
+                  </button>
+                )}
               </div>
 
               {/* 6. Baris Corak */}
               <div className="avz-isian-baris">
                 <div className="avz-isian-kepala">
                   <strong>Corak</strong>
+                  <button type="button" className="avz-aksi-hijau" onClick={() => setBukaPilihCorak((v) => !v)}>
+                    Edit
+                  </button>
                 </div>
-                <div
-                  className="avz-isian-nilai-panah"
-                  style={{ cursor: "pointer" }}
+                <button
+                  type="button"
+                  className="avz-isian-nilai-panah avz-corak-btn"
                   onClick={() => setBukaPilihCorak((v) => !v)}
                 >
-                  <span>
-                    {jenisGeo === "polygon"
-                      ? ringkasNamaWarna(objekTerpilih?.simbol) || "Jingga"
-                      : jenisGeo === "line"
-                        ? ringkasNamaWarna(objekTerpilih?.simbol) || "Jingga"
-                        : ringkasNamaWarna(objekTerpilih?.simbol) || corakTerpilih.label}
-                  </span>
+                  <span>{corakTerpilih.label}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {jenisGeo === "polygon" ? (
-                      <IkonCorakAreaJingga warna={objekTerpilih?.warna || corakTerpilih.warna} />
+                      <IkonCorakAreaJingga warna={corakTerpilih.warna} />
                     ) : jenisGeo === "line" ? (
-                      <span className="avz-corak-trek-badge" aria-label="Simbol trek jingga">
+                      <span
+                        className="avz-corak-trek-badge"
+                        style={{ color: corakTerpilih.warna, borderColor: corakTerpilih.warna }}
+                        aria-label={`Simbol trek ${corakTerpilih.label}`}
+                      >
                         S
                       </span>
                     ) : (
@@ -671,7 +924,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                     )}
                     <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
                   </div>
-                </div>
+                </button>
                 {bukaPilihCorak && (
                   <div className="avz-corak-chips" style={{ marginTop: 8 }}>
                     {PILIHAN_WARNA_CORAK.map((c) => (
@@ -682,6 +935,11 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                         onClick={() => {
                           setCorakTerpilih(c);
                           setBukaPilihCorak(false);
+                          if (mode === "draft_pin") {
+                            onUbahCorakDraft?.(c.label, c.warna);
+                          } else if (objekTerpilih && onPerbaruiObjek) {
+                            onPerbaruiObjek({ ...objekTerpilih, simbol: c.label, warna: c.warna });
+                          }
                         }}
                       >
                         <span className="avz-corak-dot" style={{ background: c.warna }} aria-hidden="true" />
@@ -697,21 +955,62 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                 <div className="avz-isian-baris">
                   <div className="avz-isian-kepala">
                     <strong>{jenisGeo === "point" ? "Elevasi" : "Perolehan elevasi total"}</strong>
-                    {jenisGeo === "point" && onAmbilElevasiGps && (
-                      <button
-                        type="button"
-                        className="avz-aksi-hijau"
-                        onClick={() => onAmbilElevasiGps()}
-                      >
-                        Edit
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="avz-aksi-hijau"
+                      onClick={() => {
+                        if (sedangEditElevasi) {
+                          simpanEditElevasi();
+                        } else {
+                          setElevasiInput(elevasiVal !== undefined && elevasiVal !== null ? String(elevasiVal) : "");
+                          setSedangEditElevasi(true);
+                        }
+                      }}
+                    >
+                      Edit
+                    </button>
                   </div>
-                  <span className="tabular-nums">
-                    {elevasiVal !== undefined && elevasiVal !== null
-                      ? `${Number(elevasiVal).toFixed(2).replace(".", ",")} m`
-                      : "- - -"}
-                  </span>
+                  {sedangEditElevasi ? (
+                    <div className="avz-inline-edit-row">
+                      <input
+                        type="number"
+                        step="any"
+                        className="form-input avz-input-bersih tabular-nums"
+                        value={elevasiInput}
+                        onChange={(e) => {
+                          setElevasiInput(e.target.value);
+                          if (mode === "draft_pin") onUbahElevasiDraft?.(e.target.value);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            simpanEditElevasi();
+                          } else if (e.key === "Escape") {
+                            setSedangEditElevasi(false);
+                          }
+                        }}
+                        placeholder="Elevasi (meter)"
+                        aria-label="Edit elevasi"
+                        autoFocus
+                      />
+                      <button type="button" className="avz-aksi-hijau" onClick={simpanEditElevasi}>
+                        Selesai
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="avz-isian-nilai-edit tabular-nums"
+                      onClick={() => {
+                        setElevasiInput(elevasiVal !== undefined && elevasiVal !== null ? String(elevasiVal) : "");
+                        setSedangEditElevasi(true);
+                      }}
+                    >
+                      {elevasiVal !== undefined && elevasiVal !== null
+                        ? `${Number(elevasiVal).toFixed(2).replace(".", ",")} m`
+                        : "- - -"}
+                    </button>
+                  )}
                   {onAmbilElevasiGps && (
                     <button
                       type="button"
@@ -746,18 +1045,28 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   </button>
                 </div>
                 {atributEntries.length > 0 ? (
-                  <div className="avz-atribut-daftar">
-                    {atributEntries.map(([kunci, nilai]) => (
-                      <div key={kunci} className="avz-atribut-baris">
-                        <span className="avz-atribut-kunci">{kunci}</span>
-                        <span className="avz-atribut-nilai">{String(nilai)}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    className="avz-isian-nilai-edit"
+                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                  >
+                    <div className="avz-atribut-daftar">
+                      {atributEntries.map(([kunci, nilai]) => (
+                        <div key={kunci} className="avz-atribut-baris">
+                          <span className="avz-atribut-kunci">{kunci}</span>
+                          <span className="avz-atribut-nilai">{String(nilai)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </button>
                 ) : (
-                  <span className="avz-isian-kecil">
+                  <button
+                    type="button"
+                    className="avz-isian-nilai-edit avz-isian-kecil"
+                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                  >
                     Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
-                  </span>
+                  </button>
                 )}
               </div>
 

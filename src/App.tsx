@@ -759,6 +759,14 @@ export const App: React.FC = () => {
     tampilkanToast(`✓ Data "${dataDiubah.judul}" berhasil diperbarui oleh Admin.`);
   };
 
+  // Handler Perbarui Data Spasial langsung dari Peta Interaktif (edit nama, koordinat, deskripsi, corak, elevasi, foto, lapisan)
+  const handlePerbaruiDataDariPeta = (dataDiubah: DataSpasialItem) => {
+    setDataSpasial((prev) =>
+      prev.map((d) => (d.id === dataDiubah.id ? { ...dataDiubah, updatedAt: new Date().toISOString() } : d))
+    );
+    tampilkanToast(`✓ Perubahan "${dataDiubah.judul}" disimpan.`);
+  };
+
   // Handler Hapus Data Spasial oleh Admin -> pindah ke Pencadangan 90 Hari (lokal + Google Drive Pencadangan_90_Hari)
   const handleHapusDataSpasial = (id: string) => {
     const indeks = dataSpasial.findIndex((d) => d.id === id);
@@ -1296,6 +1304,7 @@ export const App: React.FC = () => {
               fokusKoordinat={fokusKoordinat}
               onFokusDipakai={() => setFokusKoordinat(null)}
               onSimpanDataBaru={handleSimpanDataBaru}
+              onPerbaruiData={handlePerbaruiDataDariPeta}
               onTambahPembaruanObjek={handleTambahPembaruanObjek}
               onSimpanAreaOffline={(a) => setAreaOffline((prev) => [a, ...prev])}
               onHapusAreaOffline={handleHapusAreaOffline}

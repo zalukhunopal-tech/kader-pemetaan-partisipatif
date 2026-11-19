@@ -586,7 +586,14 @@ export function FormSurveiModal({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Nama</strong>
-            <button type="button" className="avz-aksi-hijau" onClick={() => namaInputRef.current?.focus()}>
+            <button
+              type="button"
+              className="avz-aksi-hijau"
+              onClick={() => {
+                namaInputRef.current?.focus();
+                namaInputRef.current?.select();
+              }}
+            >
               Edit
             </button>
           </div>
@@ -596,7 +603,7 @@ export function FormSurveiModal({
             type="text"
             required
             maxLength={500}
-            placeholder="Masukkan nama objek"
+            placeholder={modeRekam === "point" ? "Tanda tempat 1" : modeRekam === "line" ? "Trek 1" : "Area 1"}
             value={isian.judul}
             onChange={(e) => ubah("judul", e.target.value)}
           />
@@ -613,7 +620,16 @@ export function FormSurveiModal({
             )}
           </div>
           {modeRekam === "point" ? (
-            <span className="tabular-nums">{teksKoordSaatIni}</span>
+            !bukaEditKoord && (
+              <button
+                type="button"
+                className="avz-isian-nilai-edit tabular-nums"
+                onClick={() => setBukaEditKoord(true)}
+                aria-label="Edit koordinat titik"
+              >
+                {teksKoordSaatIni}
+              </button>
+            )
           ) : (
             <span className="avz-isian-nilai-panah tabular-nums">
               {modeRekam === "line"
@@ -623,7 +639,7 @@ export function FormSurveiModal({
             </span>
           )}
           {modeRekam === "point" && bukaEditKoord && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 4 }}>
               <KartuLokasiTitik
                 titik={koordinat[0]}
                 sistem={sistemAktif}
@@ -646,6 +662,8 @@ export function FormSurveiModal({
                     : undefined
                 }
                 galatGps={galatGps}
+                autoFokus
+                sembunyikanLabel
               />
             </div>
           )}
@@ -715,6 +733,15 @@ export function FormSurveiModal({
               {isian.foto ? "Ubah" : bukaFotoPanel ? "Tutup" : "Tambah"}
             </button>
           </div>
+          {!bukaFotoPanel && !isian.foto && (
+            <button
+              type="button"
+              className="avz-isian-nilai-edit avz-isian-kosong"
+              onClick={() => setBukaFotoPanel(true)}
+            >
+              Ketuk untuk menambah foto...
+            </button>
+          )}
           {(bukaFotoPanel || isian.foto) && (
             <div ref={fotoBoxRef} className={`form-photo-box ${isian.foto ? "punya-foto" : ""} ${sorotFoto ? "sorot-aksi-foto" : ""}`}>
               <label className="btn-media-simbol" aria-label="Ambil atau pilih foto" title="Ambil atau pilih foto">
@@ -774,14 +801,23 @@ export function FormSurveiModal({
               {isian.deskripsi ? "Edit" : bukaDeskripsiPanel ? "Tutup" : "Tambah"}
             </button>
           </div>
-          {isian.deskripsi && !bukaDeskripsiPanel && <span className="avz-isian-kecil">{isian.deskripsi}</span>}
+          {!bukaDeskripsiPanel && (
+            <button
+              type="button"
+              className={`avz-isian-nilai-edit ${isian.deskripsi ? "" : "avz-isian-kosong"}`}
+              onClick={() => setBukaDeskripsiPanel(true)}
+            >
+              {isian.deskripsi || "Ketuk untuk menambah deskripsi..."}
+            </button>
+          )}
           {bukaDeskripsiPanel && (
             <textarea
               rows={3}
-              className="form-input"
+              className="form-input avz-input-bersih"
               maxLength={10000}
               placeholder="Catatan atau deskripsi objek..."
               value={isian.deskripsi}
+              autoFocus
               onChange={(e) => ubah("deskripsi", e.target.value)}
             />
           )}
@@ -834,14 +870,22 @@ export function FormSurveiModal({
               {bukaEditElevasi ? "Tutup" : "Edit"}
             </button>
           </div>
-          <span className="tabular-nums">{elevasiTeks}</span>
-          {bukaEditElevasi && (
+          {!bukaEditElevasi ? (
+            <button
+              type="button"
+              className="avz-isian-nilai-edit tabular-nums"
+              onClick={() => setBukaEditElevasi(true)}
+            >
+              {elevasiTeks}
+            </button>
+          ) : (
             <input
               type="number"
               step="any"
-              className="form-input"
+              className="form-input avz-input-bersih"
               placeholder="Elevasi (meter)"
               value={isian.elevasi ?? ""}
+              autoFocus
               onChange={(e) => ubah("elevasi", e.target.value)}
             />
           )}
@@ -908,9 +952,13 @@ export function FormSurveiModal({
                 {bukaSkemaPanel ? "Tutup" : "Edit"}
               </button>
             </div>
-            <span className="avz-isian-kecil">
+            <button
+              type="button"
+              className="avz-isian-nilai-edit avz-isian-kecil"
+              onClick={() => setBukaSkemaPanel((v) => !v)}
+            >
               Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
-            </span>
+            </button>
             {bukaSkemaPanel && (
               <div className="avz-atribut-ekstra">
                 {onPilihLapisanAktif && lapisanList.length > 0 && (

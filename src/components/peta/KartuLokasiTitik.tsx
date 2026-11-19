@@ -14,6 +14,8 @@ interface KartuLokasiTitikProps {
   onBatalUkur: () => void;
   infoAveraging?: string;
   galatGps?: string;
+  autoFokus?: boolean;
+  sembunyikanLabel?: boolean;
 }
 
 /** Tiga sistem koordinat utama yang dapat diganti berurutan lewat tombol simbol atau swipe. */
@@ -45,11 +47,14 @@ export function KartuLokasiTitik({
   onUkurGps,
   onBatalUkur,
   infoAveraging,
-  galatGps
+  galatGps,
+  autoFokus = false,
+  sembunyikanLabel = false
 }: KartuLokasiTitikProps) {
   const [teksEdit, setTeksEdit] = useState("");
   const [sedangEdit, setSedangEdit] = useState(false);
   const [galatEdit, setGalatEdit] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const startXRef = useRef<number | null>(null);
   const lastSwipeMsRef = useRef<number>(0);
 
@@ -62,6 +67,13 @@ export function KartuLokasiTitik({
       setGalatEdit("");
     }
   }, [teksNilai, sedangEdit]);
+
+  useEffect(() => {
+    if (autoFokus && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [autoFokus]);
 
   if (!titik) {
     return <p className="field-error">Belum ada titik.</p>;
@@ -121,11 +133,14 @@ export function KartuLokasiTitik({
       onPointerUp={(e) => selesaiSentuh(e.clientX)}
     >
       <div className="loc-coord-label">
-        <label htmlFor="input-koordinat-titik" className="loc-coord-label-text">
-          Koordinat
-        </label>
+        {!sembunyikanLabel && (
+          <label htmlFor="input-koordinat-titik" className="loc-coord-label-text">
+            Koordinat
+          </label>
+        )}
         <div className="loc-coord-row">
           <input
+            ref={inputRef}
             id="input-koordinat-titik"
             type="text"
             className="form-input loc-coord-input"
