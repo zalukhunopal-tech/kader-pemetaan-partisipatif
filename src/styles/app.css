@@ -14631,6 +14631,88 @@ html[data-field-theme="matahari"] .section-card h2 {
   box-shadow: 0 2px 8px rgba(11, 110, 79, 0.12);
 }
 
+/* Penanda warna berbeda per tipe data saat dipilih */
+/* 1. Point (Biru) */
+.tugas-geom-chip.terpilih-point.aktif,
+.tugas-geom-chip-point.aktif {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.16);
+}
+.tugas-geom-chip.terpilih-point.aktif .tugas-geom-chip-icon,
+.tugas-geom-chip-point.aktif .tugas-geom-chip-icon {
+  background: #2563eb;
+  color: #ffffff;
+}
+.tugas-geom-chip.terpilih-point.aktif .tugas-geom-chip-text strong,
+.tugas-geom-chip-point.aktif .tugas-geom-chip-text strong {
+  color: #1d4ed8;
+}
+.tugas-geom-chip.terpilih-point.aktif .tugas-geom-chip-check,
+.tugas-geom-chip-point.aktif .tugas-geom-chip-check {
+  background: #2563eb;
+  color: #ffffff;
+}
+.tugas-format-tab.aktif-point {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* 2. Line (Jingga / Oranye) */
+.tugas-geom-chip.terpilih-line.aktif,
+.tugas-geom-chip-line.aktif {
+  border-color: #f97316;
+  background: #fff7ed;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.16);
+}
+.tugas-geom-chip.terpilih-line.aktif .tugas-geom-chip-icon,
+.tugas-geom-chip-line.aktif .tugas-geom-chip-icon {
+  background: #ea580c;
+  color: #ffffff;
+}
+.tugas-geom-chip.terpilih-line.aktif .tugas-geom-chip-text strong,
+.tugas-geom-chip-line.aktif .tugas-geom-chip-text strong {
+  color: #c2410c;
+}
+.tugas-geom-chip.terpilih-line.aktif .tugas-geom-chip-check,
+.tugas-geom-chip-line.aktif .tugas-geom-chip-check {
+  background: #ea580c;
+  color: #ffffff;
+}
+.tugas-format-tab.aktif-line {
+  border-color: #ea580c;
+  background: #ea580c;
+  color: #ffffff;
+}
+
+/* 3. Polygon (Zamrud / Hijau) */
+.tugas-geom-chip.terpilih-polygon.aktif,
+.tugas-geom-chip-polygon.aktif {
+  border-color: #10b981;
+  background: #ecfdf5;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.16);
+}
+.tugas-geom-chip.terpilih-polygon.aktif .tugas-geom-chip-icon,
+.tugas-geom-chip-polygon.aktif .tugas-geom-chip-icon {
+  background: #059669;
+  color: #ffffff;
+}
+.tugas-geom-chip.terpilih-polygon.aktif .tugas-geom-chip-text strong,
+.tugas-geom-chip-polygon.aktif .tugas-geom-chip-text strong {
+  color: #047857;
+}
+.tugas-geom-chip.terpilih-polygon.aktif .tugas-geom-chip-check,
+.tugas-geom-chip-polygon.aktif .tugas-geom-chip-check {
+  background: #059669;
+  color: #ffffff;
+}
+.tugas-format-tab.aktif-polygon {
+  border-color: #059669;
+  background: #059669;
+  color: #ffffff;
+}
+
 .tugas-geom-chip-icon {
   width: 32px;
   height: 32px;
