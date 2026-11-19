@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { AreaPetaOffline, BasemapType, DataSpasialItem, JenisGeometri, KoordinatTitik, LapisanSpasial, ProfilKader } from "../types";
 import { singkatkanLabelPeta } from "../lib/labelPeta";
 import { objekCocokLapisan } from "../lib/tematik";
+import { punyaSkemaAktif } from "../lib/skemaTugas";
 import {
   eksporKeGeoJSON,
   formatKoordinatTeks,
@@ -123,7 +124,7 @@ interface InteractiveMapProps {
   petaKustomAktif?: AreaPetaOffline | null;
   onTutupPetaKustom?: () => void;
   onPilihPetaKustom?: (area: AreaPetaOffline) => void;
-  fokusKoordinat?: { lat: number; lng: number; label?: string } | null;
+  fokusKoordinat?: { lat: number; lng: number; label?: string; aktifkanNavigasi?: boolean } | null;
   /** Dipanggil setelah fokus dipakai, agar fokus lama tidak menimpa posisi terakhir saat peta dibuka lagi */
   onFokusDipakai?: () => void;
   onSimpanDataBaru: (item: DataSpasialItem) => void;
@@ -394,6 +395,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     lng: number;
     judul: string;
   } | null>(null);
+  useEffect(() => {
+    // Saat berpindah lapisan peta (kolam data), pastikan tidak ada garis navigasi tersisa
+    setTargetGoTo(null);
+  }, [lapisanAktifId]);
 
   // Mode Perekaman Spasial (terhubung dengan Perekam Latar Belakang)
   const rekamLatar = usePerekamLatar();
@@ -738,7 +743,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const frame = requestAnimationFrame(() => {
         setCenter({ lat: fokusKoordinat.lat, lng: fokusKoordinat.lng });
         setZoom(16);
-        if (fokusKoordinat.label) {
+        if (fokusKoordinat.aktifkanNavigasi && fokusKoordinat.label) {
           setTargetGoTo({
             lat: fokusKoordinat.lat,
             lng: fokusKoordinat.lng,
@@ -1581,7 +1586,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // ---------- Nilai tampilan gaya Avenza Maps ----------
   const putaran = Math.round(((bearingAktif % 360) + 360) % 360);
   const judulPeta =
-    putaran !== 0 ? formatArahKardinal(putaran) : petaKustomAktif ? formatJudulAvenza(petaKustomAktif.namaArea) : namaBasemap(basemap);
+    putaran !== 0
+      ? formatArahKardinal(putaran)
+      : petaKustomAktif
+        ? formatJudulAvenza(petaKustomAktif.namaArea)
+        : lapisanAktif
+          ? formatJudulAvenza(lapisanAktif.nama)
+          : namaBasemap(basemap);
   const formatPill = daftarFormatSalin.find((f) => f.id === formatPillId) ?? daftarFormatSalin[0];
   const arahHadap = kompasDerajat ?? null;
   const posisiGpsTeks = posisiNyata ? formatKoordinat(posisiNyata.lat, posisiNyata.lng, sistemKoord).ringkas : "---";
@@ -2002,7 +2013,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setTitikDraft([pt]);
     form.setKategoriInput("Lainnya");
     setAksiAwalForm(aksi);
-    if (aksi === null) {
+    const pakaiFormatTugasPoint = punyaSkemaAktif(lapisanAktif, "point");
+    if (aksi === null && !pakaiFormatTugasPoint) {
       setPinPeekTerbuka(true);
       setBukaModalForm(false);
     } else {
@@ -2111,7 +2123,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             >
               <ArrowLeft size={24} />
             </button>
-            <h2 className="avenza-head-title avz-titlebar-teks" title={petaKustomAktif ? petaKustomAktif.namaArea : namaBasemap(basemap)}>
+            <h2
+              className="avenza-head-title avz-titlebar-teks"
+              title={petaKustomAktif ? petaKustomAktif.namaArea : lapisanAktif ? `Lapisan aktif: ${lapisanAktif.nama}` : namaBasemap(basemap)}
+            >
               {judulPeta}
             </h2>
             <div className="avenza-head-actions">
@@ -3531,7 +3546,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           titikDraft={titikDraft}
           lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
-          onPilihLapisanAktif={onPilihLapisanAktif}
+          onPilihLapisanAktif={(idBaru) => {
+            onPilihLapisanAktif?.(idBaru);
+            const lapisanBaru = idBaru ? lapisanList.find((l) => l.id === idBaru) ?? null : null;
+            if (punyaSkemaAktif(lapisanBaru, "point")) {
+              setPinPeekTerbuka(false);
+              setBukaModalForm(true);
+            }
+          }}
           namaDraft={form.isian.judul}
           onUbahNamaDraft={(nama) => form.ubah("judul", nama)}
           deskripsiDraft={form.isian.deskripsi}

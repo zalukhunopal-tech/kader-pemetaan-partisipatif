@@ -483,7 +483,7 @@ export function FormSurveiModal({
             {f.nama}
             {labelReq}
           </strong>
-          <span className="avz-skema-tag">{f.wajib ? "Wajib" : f.tipe}</span>
+          <span className="avz-skema-tag">{f.wajib ? "Wajib" : LABEL_TIPE_FIELD[f.tipe] ?? f.tipe}</span>
         </div>
         <input
           type={f.tipe === "angka" ? "number" : f.tipe === "tanggal" ? "date" : "text"}
