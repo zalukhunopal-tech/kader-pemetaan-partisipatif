@@ -262,7 +262,9 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
   const statusAkun = (a: (typeof akun)[number]) => {
     if (a.statusPersetujuan === "menunggu") return "Menunggu persetujuan";
     if (a.statusPersetujuan === "ditolak") return "Ditolak";
-    return a.totpRahasia ? "Aktif (Authenticator terpasang)" : "Disetujui (Belum Authenticator)";
+    if (a.totpRahasia) return "Aktif (Authenticator terpasang)";
+    if (a.totpDilewati) return "Aktif (Authenticator dilewati)";
+    return "Disetujui (Belum Authenticator)";
   };
 
   const akunMenunggu = akun.filter((a) => a.statusPersetujuan === "menunggu");
@@ -576,7 +578,9 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                               <dd>
                                 {a.totpRahasia
                                   ? `Terpasang · ${a.kodePemulihanHash?.length ?? 0} kode pemulihan tersisa`
-                                  : "Belum terpasang"}
+                                  : a.totpDilewati
+                                    ? "Dilewati (Opsional)"
+                                    : "Belum terpasang"}
                               </dd>
                             </div>
                             <div>
@@ -716,7 +720,8 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
               role="menuitem"
               className="aksi-sheet-item"
               disabled={
-                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase() || !menuAksiAkun.totpRahasia
+                menuAksiAkun.email.toLowerCase() === sesiAdmin?.email.toLowerCase() ||
+                (!menuAksiAkun.totpRahasia && !menuAksiAkun.totpDilewati)
               }
               onClick={() => {
                 const target = menuAksiAkun;

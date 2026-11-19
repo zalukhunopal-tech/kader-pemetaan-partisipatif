@@ -48,7 +48,7 @@ function samaWaktuTetap(a: Uint8Array, b: Uint8Array): boolean {
 function akunSesi(sesi: AkunSesi | null): AkunPengguna | null {
   if (!sesi) return null;
   const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === sesi.email.trim().toLowerCase());
-  return akun && akun.idKader === sesi.idKader && akun.totpRahasia && !akun.wajibGantiSandi ? akun : null;
+  return akun && akun.idKader === sesi.idKader && (akun.totpRahasia || akun.totpDilewati) && !akun.wajibGantiSandi ? akun : null;
 }
 
 export function metodeKunciCepat(email: string | undefined | null): { pin: boolean; biometrik: boolean } {

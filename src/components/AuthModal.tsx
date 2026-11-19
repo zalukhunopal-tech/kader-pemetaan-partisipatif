@@ -7,6 +7,7 @@ import {
   autentikasiLogin,
   buatAdminPertama,
   klaimKunciSesiAkun,
+  lewatiPendaftaranTotp,
   mulaiPendaftaranEmail,
   mulaiPendaftaranTotp,
   muatSemuaAkun,
@@ -314,6 +315,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
     e.preventDefault();
     resetAlert();
     if (!totp) return;
+    if (!kodeKonfirmasi.trim()) {
+      setPesanError("Masukkan kode 6 digit dari Google Authenticator untuk mengaktifkan.");
+      return;
+    }
     setSedangProses(true);
     try {
       const res = await selesaikanPendaftaranTotp(emailLogin, passwordLogin, totp.rahasia, kodeKonfirmasi);
@@ -325,6 +330,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
       setSudahDisimpan(false);
       setTersalin(false);
       setMode("kode_pemulihan");
+    } finally {
+      setSedangProses(false);
+    }
+  };
+
+  const handleSkipTotp = async () => {
+    resetAlert();
+    setSedangProses(true);
+    try {
+      const res = await lewatiPendaftaranTotp(emailLogin, passwordLogin);
+      if (!res.sukses || !res.akun) {
+        setPesanError(res.pesan || "Gagal melewati pendaftaran Google Authenticator.");
+        return;
+      }
+      setPasswordLogin("");
+      masukKeAplikasi(res.akun, `Selamat datang, ${res.akun.nama}!`);
     } finally {
       setSedangProses(false);
     }
@@ -573,7 +594,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   ? "Daftar Akun Baru"
                   : mode === "verifikasi_email"
                     ? "Autentikasi Email Pendaftaran"
-                    : "Masuk ke Titik Tapak"}
+                    : mode === "daftar_totp"
+                      ? "Google Authenticator (Opsional)"
+                      : "Masuk ke Titik Tapak"}
             </h2>
             <p>
               {mode === "setup_admin"
@@ -582,7 +605,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   ? "Daftarkan email asli Anda untuk verifikasi dan persetujuan Administrator."
                   : mode === "verifikasi_email"
                     ? "Masukkan kode OTP 6 digit untuk membuktikan keaslian email Anda."
-                    : "Silakan masukkan email dan kata sandi akun Anda."}
+                    : mode === "daftar_totp"
+                      ? "Pasang Google Authenticator atau lewati (skip) untuk langsung masuk ke aplikasi."
+                      : "Silakan masukkan email dan kata sandi akun Anda."}
             </p>
           </div>
 
@@ -1195,8 +1220,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
             <form id="form-daftar-totp" onSubmit={handleKonfirmasiTotp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ textAlign: "center", marginBottom: 2 }}>
                 <Smartphone size={30} color="#0d7344" />
-                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Pasang Google Authenticator</h4>
+                <h4 style={{ margin: "6px 0 2px", fontSize: "1rem" }}>Pasang Google Authenticator (Opsional)</h4>
                 <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{emailLogin}</div>
+              </div>
+              <div
+                style={{
+                  background: "#ECFDF5",
+                  border: "1px solid #A7F3D0",
+                  borderRadius: 10,
+                  padding: "8px 12px",
+                  fontSize: "0.76rem",
+                  color: "#065F46",
+                  lineHeight: 1.45,
+                  textAlign: "center"
+                }}
+              >
+                Pemasangan Google Authenticator bersifat <strong>opsional</strong>. Anda dapat mengaktifkannya untuk verifikasi dua langkah, atau tekan tombol <strong>Skip</strong> di bawah untuk langsung masuk ke aplikasi.
               </div>
               <ol style={{ margin: 0, paddingLeft: 18, fontSize: "0.8rem", color: "#334155", lineHeight: 1.6 }}>
                 <li>
@@ -1235,14 +1274,53 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={7}
-                required
-                placeholder="Kode 6 digit"
+                placeholder="Kode 6 digit (jika ingin mengaktifkan)"
                 value={kodeKonfirmasi}
                 onChange={(e) => setKodeKonfirmasi(e.target.value)}
                 style={{ ...gayaInput, height: 46, textAlign: "center", fontSize: "1.2rem", letterSpacing: "0.18em", fontWeight: 700 }}
               />
               <button type="submit" disabled={sedangProses} style={gayaTombol(sedangProses)}>
                 {sedangProses ? "Memeriksa…" : "Aktifkan Authenticator"}
+              </button>
+              <button
+                type="button"
+                id="tombol-skip-totp"
+                className="tombol-skip-totp"
+                disabled={sedangProses}
+                onClick={() => void handleSkipTotp()}
+                style={{
+                  width: "100%",
+                  minHeight: 44,
+                  borderRadius: 10,
+                  border: "1.5px solid #0d7344",
+                  background: "#ECFDF5",
+                  color: "#065F46",
+                  fontSize: "0.88rem",
+                  fontWeight: 700,
+                  cursor: sedangProses ? "wait" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  boxSizing: "border-box",
+                  padding: "0 12px"
+                }}
+              >
+                <span
+                  style={{
+                    background: "#0d7344",
+                    color: "#ffffff",
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    fontSize: "0.75rem",
+                    fontWeight: 800,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase"
+                  }}
+                >
+                  Skip
+                </span>
+                <span>Langsung Masuk ke Aplikasi</span>
               </button>
               <button type="button" onClick={kembaliKeLogin} style={gayaTautan}>
                 ← Batal

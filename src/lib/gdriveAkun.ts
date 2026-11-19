@@ -22,6 +22,7 @@ export interface AkunCloudRecord {
   totpRahasia?: string;
   totpLangkahTerakhir?: number;
   kodePemulihanHash?: string[];
+  totpDilewati?: boolean;
   wajibGantiSandi?: boolean;
   idSesiAktif?: string;
   infoPerangkatAktif?: string;
