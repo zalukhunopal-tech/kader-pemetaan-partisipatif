@@ -207,11 +207,9 @@ export const App: React.FC = () => {
   });
 
   const [dataSpasial, setDataSpasial] = useState<DataSpasialItem[]>(() => muatDataSpasial());
-  const [pencadanganList, setPencadanganList] = useState<ItemPencadanganSpasial[]>(() => {
-    const hasil = pisahkanPencadanganKedaluwarsa(muatPencadanganSpasial());
-    if (hasil.kedaluwarsa.length > 0) simpanPencadanganSpasial(hasil.aktif);
-    return hasil.aktif;
-  });
+  const [pencadanganList, setPencadanganList] = useState<ItemPencadanganSpasial[]>(
+    () => pisahkanPencadanganKedaluwarsa(muatPencadanganSpasial()).aktif
+  );
   const [sedangRekonsiliasi, setSedangRekonsiliasi] = useState<boolean>(false);
   const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() => muatAreaOffline());
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());

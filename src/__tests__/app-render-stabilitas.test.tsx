@@ -112,4 +112,36 @@ describe("Stabilitas Render App (bebas setState-in-render)", () => {
 
     expect(pesanSetState).toEqual([]);
   });
+
+  it("otomatis membersihkan catatan bug setState-in-render lama dari daftar bug di menu Bantuan saat App dirender", async () => {
+    localStorage.setItem(
+      "geokader_inventaris_bug_v1",
+      JSON.stringify([
+        {
+          id: "BUG-SETSTATE-OLD",
+          sumber: "otomatis",
+          judul: "Warning: Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() cal",
+          deskripsi:
+            "Warning: Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() call inside `%s`, follow the stack trace as described in https://reactjs.org/link/setstate-in-render%s App App App",
+          lokasi: "peta",
+          perangkat: "375x667 (online)",
+          waktuPertama: "2026-11-17T03:15:42.874Z",
+          waktuTerakhir: "2026-11-17T03:15:42.874Z",
+          jumlahKejadian: 1,
+          status: "tercatat"
+        }
+      ])
+    );
+
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    });
+
+    expect(localStorage.getItem("geokader_inventaris_bug_v1")).toBeNull();
+  });
 });

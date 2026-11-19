@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, Bug, Check, Copy, Download, HelpCircle, Send, Trash2 } from "lucide-react";
 import {
+  bersihkanBugSudahDiperbaiki,
   catatBugManual,
   eksporInventarisBugJson,
   eksporInventarisBugMarkdown,
@@ -30,6 +31,9 @@ const PILIHAN_AREA = [
 
 export const BantuanBugView: React.FC<BantuanBugViewProps> = ({ onTutup, tabAsal, namaPengguna, onPesan }) => {
   useTombolEsc(true, onTutup);
+  useEffect(() => {
+    bersihkanBugSudahDiperbaiki();
+  }, []);
   const daftarBug = useInventarisBug();
   const [judul, setJudul] = useState("");
   const [area, setArea] = useState("Peta Interaktif");
