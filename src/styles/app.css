@@ -12230,6 +12230,18 @@ html[data-field-theme="matahari"] .section-card h2 {
   flex-direction: column;
 }
 
+.bantuan-page .avenza-subpage-header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  align-items: center;
+}
+
+.bantuan-page .avenza-subpage-header h2 {
+  margin: 0;
+  text-align: center;
+  justify-self: center;
+}
+
 .bantuan-content {
   width: 100%;
   max-width: 760px;
