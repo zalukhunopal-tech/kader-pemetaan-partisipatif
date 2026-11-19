@@ -874,7 +874,17 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
               return (
                 <div
                   key={lapisan.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Buka lapisan ${lapisan.nama} di peta interaktif`}
                   className={`avenza-layer-row ${modePilihAktif && dipilih ? "selected" : ""}`}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      if (modePilihAktif) togglePilihId(lapisan.id);
+                      else bukaLapisan();
+                    }
+                  }}
                   onClick={() => (modePilihAktif ? togglePilihId(lapisan.id) : bukaLapisan())}
                 >
                   {modePilihAktif && (
@@ -911,10 +921,18 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                             ? `Point ${ringkasSkema.tabelPoint}T (${ringkasSkema.point}) · Line ${ringkasSkema.tabelLine}T (${ringkasSkema.line}) · Polygon ${ringkasSkema.tabelPolygon}T (${ringkasSkema.polygon})`
                             : "Format Lapisan"
                         : `${lapisan.jumlahPeta} Peta`}
-                      {jmlObjek > 0 && (
+                      {jmlObjek > 0 ? (
                         <>
                           {" "}
                           <span className="dot-sep">•</span> Objek {jmlObjek}
+                        </>
+                      ) : (
+                        <>
+                          {" "}
+                          <span className="dot-sep">•</span>{" "}
+                          <span className="text-emerald" style={{ fontWeight: 600 }}>
+                            Belum diisi · Buka peta
+                          </span>
                         </>
                       )}
                     </div>

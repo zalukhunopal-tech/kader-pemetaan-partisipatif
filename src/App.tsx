@@ -76,7 +76,15 @@ import {
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
 import { hitungSkorKualitasData } from "./lib/kualitasData";
 import { buatId } from "./lib/id";
-import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
+import {
+  abaikanGeserDari,
+  adalahGeserLurusHorizontal,
+  arahGeser,
+  Sentuhan,
+  SIMPANGAN_VERTIKAL_MAKS_PX,
+  tabTujuan
+} from "./lib/geserTab";
+import { bacaDraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "./lib/draftSurvei";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
 import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta, rehidrasiArsipGeoPdf } from "./lib/penyimpananPetaLuring";
@@ -510,21 +518,58 @@ export const App: React.FC = () => {
     }
   };
 
-  // Geser kiri/kanan di area konten untuk berpindah tab (mengikuti urutan bilah navigasi bawah)
-  const urutanTab: MenuTab[] =
-    peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
+  // Geser kiri/kanan di area konten untuk berpindah tab (hanya aktif ketika geser benar-benar lurus)
+  const urutanTab: MenuTab[] = useMemo(
+    () => (peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"]),
+    [peran]
+  );
   const awalGeserRef = useRef<Sentuhan | null>(null);
-  const [animasiGeser, setAnimasiGeser] = useState<"kiri" | "kanan" | null>(null);
+  const prevTabRef = useRef<MenuTab>(tabAktif);
+  const [animasiGeser, setAnimasiGeser] = useState<"kiri" | "kanan" | "halus" | null>(null);
+
+  useEffect(() => {
+    const lama = prevTabRef.current;
+    if (lama === tabAktif) return;
+    prevTabRef.current = tabAktif;
+    const idxLama = urutanTab.indexOf(lama);
+    const idxBaru = urutanTab.indexOf(tabAktif);
+    if (idxLama !== -1 && idxBaru !== -1) {
+      setAnimasiGeser(idxBaru > idxLama ? "kiri" : "kanan");
+    } else {
+      setAnimasiGeser("halus");
+    }
+  }, [tabAktif, urutanTab]);
+
   const handleGeserMulai = (e: React.TouchEvent) => {
     const t = e.touches[0];
-    awalGeserRef.current = e.touches.length === 1 && !abaikanGeserDari(e.target) ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+    awalGeserRef.current =
+      e.touches.length === 1 && t && !abaikanGeserDari(e.target)
+        ? { x: t.clientX, y: t.clientY, t: Date.now(), maksSimpanganY: 0 }
+        : null;
+  };
+  const handleGeserGerak = (e: React.TouchEvent) => {
+    const awal = awalGeserRef.current;
+    if (!awal) return;
+    if (e.touches.length !== 1 || !e.touches[0]) {
+      awalGeserRef.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    const dx = t.clientX - awal.x;
+    const dy = t.clientY - awal.y;
+    const maksY = Math.max(awal.maksSimpanganY ?? 0, Math.abs(dy));
+    awal.maksSimpanganY = maksY;
+    // Batalkan segera jika menyimpang vertikal/miring agar swap hanya aktif saat geser lurus
+    if (maksY > SIMPANGAN_VERTIKAL_MAKS_PX || (Math.hypot(dx, dy) >= 18 && !adalahGeserLurusHorizontal(dx, dy, maksY))) {
+      awalGeserRef.current = null;
+    }
   };
   const handleGeserSelesai = (e: React.TouchEvent) => {
     const awal = awalGeserRef.current;
     awalGeserRef.current = null;
     const t = e.changedTouches[0];
     if (!awal || !t) return;
-    const arah = arahGeser(awal, { x: t.clientX, y: t.clientY, t: Date.now() });
+    const arah = arahGeser(awal, { x: t.clientX, y: t.clientY, t: Date.now(), maksSimpanganY: awal.maksSimpanganY });
     const tujuan = tabTujuan(urutanTab, tabAktif, arah);
     if (tujuan === tabAktif) return;
     setAnimasiGeser(arah === 1 ? "kiri" : "kanan");
@@ -532,7 +577,7 @@ export const App: React.FC = () => {
   };
   useEffect(() => {
     if (!animasiGeser) return;
-    const t = window.setTimeout(() => setAnimasiGeser(null), 260);
+    const t = window.setTimeout(() => setAnimasiGeser(null), 280);
     return () => window.clearTimeout(t);
   }, [animasiGeser, tabAktif]);
 
@@ -777,15 +822,28 @@ export const App: React.FC = () => {
     tampilkanToast(`✓ Perubahan "${itemFinal.judul}" disimpan.`);
   };
 
-  // Handler Hapus Data Spasial oleh Admin -> pindah ke Pencadangan 90 Hari (lokal + Google Drive Pencadangan_90_Hari)
+  // Handler Hapus Data Spasial -> pindah ke Pencadangan 90 Hari (lokal + Google Drive Pencadangan_90_Hari)
   const handleHapusDataSpasial = (id: string) => {
     const indeks = dataSpasial.findIndex((d) => d.id === id);
     const item = dataSpasial[indeks];
     if (!item) return;
 
     const entri = pindahkanKePencadangan(item, sesiPengguna?.nama || "Admin GIS");
-    setDataSpasial((prev) => prev.filter((d) => d.id !== id));
+    setDataSpasial((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      simpanDataSpasial(next);
+      return next;
+    });
     setPencadanganList((prev) => [entri, ...prev.filter((p) => p.id !== id)]);
+
+    // Bersihkan draf survei bila masih menyimpan judul/sisa data yang baru saja dihapus
+    const draftSaatIni = bacaDraftSurvei(profil.idKader);
+    if (draftSaatIni.judul && draftSaatIni.judul.trim().toLowerCase() === item.judul.trim().toLowerCase()) {
+      simpanDraftSurvei(profil.idKader, { ...DRAFT_KOSONG });
+    }
+    if (fokusKoordinat?.label && fokusKoordinat.label.trim().toLowerCase() === item.judul.trim().toLowerCase()) {
+      setFokusKoordinat(null);
+    }
 
     if (gdriveTerpasang() && sedangOnline && (item.statusSinkron === "tersinkron" || item.statusSinkron === "terverifikasi")) {
       void pindahKePencadanganGDrive(entri).then((res) => {
@@ -1035,6 +1093,9 @@ export const App: React.FC = () => {
     if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
       setFokusKoordinat({ lat, lng, label });
     }
+    setBukaPemberitahuan(false);
+    setBukaPengaturanEkspor(false);
+    setBukaBantuan(false);
     setTabAktif("peta");
   };
 
@@ -1176,40 +1237,46 @@ export const App: React.FC = () => {
 
   if (bukaPemberitahuan) {
     return denganKunci(
-      <PemberitahuanView
-        pengumumanList={pengumumanList}
-        tugasList={tugasListUntukUser}
-        onTutup={() => setBukaPemberitahuan(false)}
-        onBukaTargetDiPeta={handleFokusKePeta}
-        onTandaiTugasSelesai={handleTandaiTugasSelesai}
-      />,
+      <div className="subhalaman-transisi">
+        <PemberitahuanView
+          pengumumanList={pengumumanList}
+          tugasList={tugasListUntukUser}
+          onTutup={() => setBukaPemberitahuan(false)}
+          onBukaTargetDiPeta={handleFokusKePeta}
+          onTandaiTugasSelesai={handleTandaiTugasSelesai}
+        />
+      </div>,
       true
     );
   }
 
   if (bukaPengaturanEkspor) {
     return denganKunci(
-      <PengaturanEksporView
-        dataSpasial={dataSpasial}
-        areaOffline={areaOffline}
-        konteksEkspor={konteksEkspor}
-        onTutup={() => {
-          setBukaPengaturanEkspor(false);
-          setKonteksEkspor(null);
-        }}
-      />,
+      <div className="subhalaman-transisi">
+        <PengaturanEksporView
+          dataSpasial={dataSpasial}
+          areaOffline={areaOffline}
+          konteksEkspor={konteksEkspor}
+          onTutup={() => {
+            setBukaPengaturanEkspor(false);
+            setKonteksEkspor(null);
+          }}
+        />
+      </div>,
       true
     );
   }
 
   if (bukaBantuan) {
     return denganKunci(
-      <BantuanBugView
-        tabAsal={tabAktif}
-        namaPengguna={sesiPengguna.nama}
-        onPesan={tampilkanToast}
-        onTutup={() => setBukaBantuan(false)}
-      />,
+      <div className="subhalaman-transisi">
+        <BantuanBugView
+          tabAsal={tabAktif}
+          namaPengguna={sesiPengguna.nama}
+          onPesan={tampilkanToast}
+          onTutup={() => setBukaBantuan(false)}
+        />
+      </div>,
       true
     );
   }
@@ -1289,6 +1356,7 @@ export const App: React.FC = () => {
       <main
         className={`app-main ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
         onTouchStart={handleGeserMulai}
+        onTouchMove={handleGeserGerak}
         onTouchEnd={handleGeserSelesai}
         onTouchCancel={() => (awalGeserRef.current = null)}
       >
@@ -1354,15 +1422,21 @@ export const App: React.FC = () => {
                   setPetaKustomAktif(null);
                   setLapisanAktifId(lapisan.id);
                   const cocokTugas = lapisan.tugasId ? tugasList.find((t) => t.id === lapisan.tugasId) : undefined;
-                  if (cocokTugas?.koordinatAcuan) {
+                  const acuan = cocokTugas?.koordinatAcuan;
+                  if (
+                    acuan &&
+                    Number.isFinite(acuan.lat) &&
+                    Number.isFinite(acuan.lng) &&
+                    !(acuan.lat === 0 && acuan.lng === 0)
+                  ) {
                     setFokusKoordinat({
-                      lat: cocokTugas.koordinatAcuan.lat,
-                      lng: cocokTugas.koordinatAcuan.lng,
+                      lat: acuan.lat,
+                      lng: acuan.lng,
                       label: cocokTugas.judul
                     });
                   }
                   setTabAktif("peta");
-                  tampilkanToast(`Lapisan "${lapisan.nama}" aktif di Peta.`);
+                  tampilkanToast(`Lapisan "${lapisan.nama}" aktif di Peta Interaktif.`);
                 }}
                 onBukaAreaPeta={(area) => {
                   setPetaKustomAktif(area);

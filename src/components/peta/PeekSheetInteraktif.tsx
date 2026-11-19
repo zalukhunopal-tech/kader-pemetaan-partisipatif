@@ -11,6 +11,7 @@ import {
 import { DataSpasialItem, KoordinatTitik, LapisanSpasial } from "../../types";
 import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm, sanitasiTeksInput } from "../../lib/geoUtils";
 import { uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
+import { adalahGeserLurusVertikal, SIMPANGAN_HORIZONTAL_MAKS_PX } from "../../lib/geserTab";
 
 export type TahapPeek = "ringkas" | "sedang" | "penuh";
 
@@ -231,8 +232,16 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
 
   const sheetRef = useRef<HTMLElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const seretAwalRef = useRef<{ y: number; time: number; tinggiAwal: number } | null>(null);
-  const totalGeserRef = useRef(0);
+  const seretAwalRef = useRef<{
+    x: number;
+    y: number;
+    time: number;
+    tinggiAwal: number;
+    maksDx: number;
+    lurusAktif: boolean;
+    dibatalkan: boolean;
+  } | null>(null);
+  const totalGeserRef = useRef({ dx: 0, dy: 0 });
 
   useEffect(() => {
     onTahapChange?.(tahap);
@@ -242,18 +251,53 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     setTahap(tahapBaru);
   };
 
-  // Handler Drag halus Touch dan Pointer (berlaku di HP dan PC, baik naik maupun turun)
-  const mulaiSeret = (clientY: number) => {
+  // Handler Drag halus Touch dan Pointer — hanya aktif jika sapuan lurus vertikal (bukan miring/diagonal)
+  const mulaiSeret = (clientX: number, clientY: number) => {
     const tinggiSaatIni = sheetRef.current?.offsetHeight || 160;
-    seretAwalRef.current = { y: clientY, time: Date.now(), tinggiAwal: tinggiSaatIni };
-    totalGeserRef.current = 0;
-    setSedangSeret(true);
+    seretAwalRef.current = {
+      x: clientX,
+      y: clientY,
+      time: Date.now(),
+      tinggiAwal: tinggiSaatIni,
+      maksDx: 0,
+      lurusAktif: false,
+      dibatalkan: false
+    };
+    totalGeserRef.current = { dx: 0, dy: 0 };
   };
 
-  const lakukanSeret = (clientY: number) => {
-    if (!seretAwalRef.current || !sheetRef.current) return;
-    const dy = clientY - seretAwalRef.current.y;
-    totalGeserRef.current = dy;
+  const lakukanSeret = (clientX: number, clientY: number) => {
+    const awal = seretAwalRef.current;
+    if (!awal || awal.dibatalkan || !sheetRef.current) return;
+    const dx = clientX - awal.x;
+    const dy = clientY - awal.y;
+    awal.maksDx = Math.max(awal.maksDx, Math.abs(dx));
+    totalGeserRef.current = { dx, dy };
+
+    // Tolak segera bila menyimpang miring/horizontal (bukan swap lurus vertikal)
+    if (awal.maksDx > SIMPANGAN_HORIZONTAL_MAKS_PX) {
+      awal.dibatalkan = true;
+      sheetRef.current.style.transform = "";
+      setSedangSeret(false);
+      return;
+    }
+    const jarakTotal = Math.hypot(dx, dy);
+    if (!awal.lurusAktif) {
+      if (jarakTotal < 10) return;
+      if (!adalahGeserLurusVertikal(dx, dy, awal.maksDx)) {
+        awal.dibatalkan = true;
+        sheetRef.current.style.transform = "";
+        setSedangSeret(false);
+        return;
+      }
+      awal.lurusAktif = true;
+      setSedangSeret(true);
+    } else if (!adalahGeserLurusVertikal(dx, dy, awal.maksDx)) {
+      awal.dibatalkan = true;
+      sheetRef.current.style.transform = "";
+      setSedangSeret(false);
+      return;
+    }
 
     // Di mode detail, batasi geser ke atas agar terasa kokoh dan responsif saat digeser ke bawah
     const minY = tahap === "ringkas" ? -320 : -24;
@@ -263,14 +307,17 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   };
 
   const selesaikanSeret = () => {
-    if (!seretAwalRef.current || !sheetRef.current) return;
-    const dy = totalGeserRef.current;
-    const dt = Math.max(20, Date.now() - seretAwalRef.current.time);
+    const awal = seretAwalRef.current;
+    if (!awal || !sheetRef.current) return;
+    const { dx, dy } = totalGeserRef.current;
+    const dt = Math.max(20, Date.now() - awal.time);
     const v = dy / dt; // negatif = naik, positif = turun
+    const validLurus = !awal.dibatalkan && awal.lurusAktif && adalahGeserLurusVertikal(dx, dy, awal.maksDx);
 
     sheetRef.current.style.transform = "";
     setSedangSeret(false);
     seretAwalRef.current = null;
+    if (!validLurus) return;
 
     const naik = dy < -28 || v < -0.32;
     const turun = dy > 28 || v > 0.32;
@@ -456,38 +503,41 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
       // Jangan cegat klik tombol di dalam header
       if ((e.target as HTMLElement).closest("button")) return;
-      e.currentTarget.setPointerCapture(e.pointerId);
-      mulaiSeret(e.clientY);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      mulaiSeret(e.clientX, e.clientY);
     },
     onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
-      if (seretAwalRef.current) lakukanSeret(e.clientY);
+      if (seretAwalRef.current) lakukanSeret(e.clientX, e.clientY);
     },
     onPointerUp: () => selesaikanSeret(),
     onPointerCancel: () => selesaikanSeret(),
     onTouchStart: (e: React.TouchEvent<HTMLElement>) => {
       if ((e.target as HTMLElement).closest("button")) return;
-      if (e.touches[0]) mulaiSeret(e.touches[0].clientY);
+      if (e.touches.length === 1 && e.touches[0]) mulaiSeret(e.touches[0].clientX, e.touches[0].clientY);
     },
     onTouchMove: (e: React.TouchEvent<HTMLElement>) => {
-      if (seretAwalRef.current && e.touches[0]) lakukanSeret(e.touches[0].clientY);
+      if (seretAwalRef.current && e.touches.length === 1 && e.touches[0]) {
+        lakukanSeret(e.touches[0].clientX, e.touches[0].clientY);
+      }
     },
     onTouchEnd: () => selesaikanSeret()
   };
 
   const handleBodyTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("input, textarea, select")) return;
+    if (e.touches.length !== 1 || !e.touches[0]) return;
     if (tahap === "ringkas") {
-      if (e.touches[0]) mulaiSeret(e.touches[0].clientY);
+      mulaiSeret(e.touches[0].clientX, e.touches[0].clientY);
       return;
     }
-    // Saat di mode detail dan scroll berada di paling atas, izinkan swipe ke bawah untuk kembali ke mode ringkas
-    if (bodyRef.current && bodyRef.current.scrollTop <= 2 && e.touches[0]) {
-      mulaiSeret(e.touches[0].clientY);
+    // Saat di mode detail dan scroll berada di paling atas, izinkan swipe lurus ke bawah untuk kembali ke mode ringkas
+    if (bodyRef.current && bodyRef.current.scrollTop <= 2) {
+      mulaiSeret(e.touches[0].clientX, e.touches[0].clientY);
     }
   };
 
   const handleBodyTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!seretAwalRef.current || !e.touches[0]) return;
+    if (!seretAwalRef.current || e.touches.length !== 1 || !e.touches[0]) return;
     const dy = e.touches[0].clientY - seretAwalRef.current.y;
     // Pada mode detail, hanya tarik sheet ke bawah jika user menggeser ke bawah di posisi paling atas scroll
     if (tahap !== "ringkas" && dy < 0) {
@@ -496,7 +546,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       if (sheetRef.current) sheetRef.current.style.transform = "";
       return;
     }
-    lakukanSeret(e.touches[0].clientY);
+    lakukanSeret(e.touches[0].clientX, e.touches[0].clientY);
   };
 
   const handleBodyTouchEnd = () => {
@@ -545,7 +595,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
           aria-label={`Tahap panel ${tahap}. Geser ke atas untuk detail, geser ke bawah untuk menutup.`}
           {...propsSeretHeader}
           onClick={(e) => {
-            if (Math.abs(totalGeserRef.current) < 10) {
+            if (Math.hypot(totalGeserRef.current.dx, totalGeserRef.current.dy) < 10) {
               e.stopPropagation();
               gantiTahap("penuh");
             }
@@ -572,7 +622,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
         onTouchMove={handleBodyTouchMove}
         onTouchEnd={handleBodyTouchEnd}
         onClick={() => {
-          if (tahap === "ringkas" && Math.abs(totalGeserRef.current) < 10) {
+          if (tahap === "ringkas" && Math.hypot(totalGeserRef.current.dx, totalGeserRef.current.dy) < 10) {
             gantiTahap("penuh");
           }
         }}

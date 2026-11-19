@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { ArrowDown, Check, Loader2 } from "lucide-react";
+import { adalahGeserLurusVertikal, SIMPANGAN_HORIZONTAL_MAKS_PX } from "../../lib/geserTab";
 
 export interface PullToRefreshProps {
   onRefresh: () => Promise<unknown> | void;
@@ -34,7 +35,9 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   const [sudahSelesai, setSudahSelesai] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const startXRef = useRef<number | null>(null);
   const startYRef = useRef<number | null>(null);
+  const maksDxRef = useRef<number>(0);
   const isDraggingRef = useRef(false);
 
   const cekBisaTarik = useCallback(() => {
@@ -45,18 +48,38 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
     return el.scrollTop <= 2 && window.scrollY <= 2;
   }, [disabled, sedangMenyegarkan]);
 
-  // Touch handlers
+  const batalTarik = () => {
+    isDraggingRef.current = false;
+    startXRef.current = null;
+    startYRef.current = null;
+    maksDxRef.current = 0;
+    setPullDistance(0);
+  };
+
+  // Touch handlers (hanya aktif ketika tarikan lurus ke bawah)
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (cekBisaTarik() && e.touches[0]) {
+    if (cekBisaTarik() && e.touches.length === 1 && e.touches[0]) {
+      startXRef.current = e.touches[0].clientX;
       startYRef.current = e.touches[0].clientY;
+      maksDxRef.current = 0;
       isDraggingRef.current = true;
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current || startYRef.current === null || sedangMenyegarkan) return;
-    const currentY = e.touches[0].clientY;
-    const dy = currentY - startYRef.current;
+    if (!isDraggingRef.current || startYRef.current === null || startXRef.current === null || sedangMenyegarkan) return;
+    if (e.touches.length !== 1 || !e.touches[0]) {
+      batalTarik();
+      return;
+    }
+    const dx = e.touches[0].clientX - startXRef.current;
+    const dy = e.touches[0].clientY - startYRef.current;
+    maksDxRef.current = Math.max(maksDxRef.current, Math.abs(dx));
+
+    if (maksDxRef.current > SIMPANGAN_HORIZONTAL_MAKS_PX || (Math.hypot(dx, dy) >= 12 && !adalahGeserLurusVertikal(dx, dy, maksDxRef.current))) {
+      batalTarik();
+      return;
+    }
 
     if (dy > 0 && cekBisaTarik()) {
       // Damping resistance
@@ -70,7 +93,9 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   const handleTouchEnd = async () => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
+    startXRef.current = null;
     startYRef.current = null;
+    maksDxRef.current = 0;
 
     if (pullDistance >= THRESHOLD && !sedangMenyegarkan) {
       await picuRefresh();
@@ -82,14 +107,24 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   // Pointer drag for PC/Desktop
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0 && cekBisaTarik()) {
+      startXRef.current = e.clientX;
       startYRef.current = e.clientY;
+      maksDxRef.current = 0;
       isDraggingRef.current = true;
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || startYRef.current === null || sedangMenyegarkan) return;
+    if (!isDraggingRef.current || startYRef.current === null || startXRef.current === null || sedangMenyegarkan) return;
+    const dx = e.clientX - startXRef.current;
     const dy = e.clientY - startYRef.current;
+    maksDxRef.current = Math.max(maksDxRef.current, Math.abs(dx));
+
+    if (maksDxRef.current > SIMPANGAN_HORIZONTAL_MAKS_PX || (Math.hypot(dx, dy) >= 12 && !adalahGeserLurusVertikal(dx, dy, maksDxRef.current))) {
+      batalTarik();
+      return;
+    }
+
     if (dy > 0 && cekBisaTarik()) {
       const damped = Math.min(MAX_PULL, Math.pow(dy, 0.78) * 1.8);
       setPullDistance(damped);
@@ -101,7 +136,9 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   const handleMouseUp = async () => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
+    startXRef.current = null;
     startYRef.current = null;
+    maksDxRef.current = 0;
 
     if (pullDistance >= THRESHOLD && !sedangMenyegarkan) {
       await picuRefresh();
