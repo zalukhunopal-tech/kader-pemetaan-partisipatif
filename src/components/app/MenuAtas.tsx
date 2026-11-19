@@ -3,7 +3,6 @@ import {
   Bell,
   CloudUpload,
   Fingerprint,
-  Folder,
   HelpCircle,
   KeyRound,
   LogOut,
@@ -44,7 +43,7 @@ interface MenuAtasProps {
   tampilkanToast: (pesan: string) => void;
   onBukaPemberitahuan: () => void;
   onBukaEkspor: () => void;
-  onModePilihPustaka: () => void;
+  onModePilihPustaka?: () => void;
   onBukaKeamanan: () => void;
   onBukaGantiSandi: () => void;
   onBukaBantuan?: () => void;
@@ -70,7 +69,6 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
   tampilkanToast,
   onBukaPemberitahuan,
   onBukaEkspor,
-  onModePilihPustaka,
   onBukaKeamanan,
   onBukaGantiSandi,
   onBukaBantuan,
@@ -176,18 +174,6 @@ export const MenuAtas: React.FC<MenuAtasProps> = ({
             }}
           >
             <Share size={16} /> Ekspor
-          </button>
-
-          <button
-            type="button"
-            className="avenza-overflow-item"
-            onClick={() => {
-              setBukaMenuTitikTiga(false);
-              setTabAktif("pustaka");
-              onModePilihPustaka();
-            }}
-          >
-            <Folder size={16} /> Pilih
           </button>
 
           <button
