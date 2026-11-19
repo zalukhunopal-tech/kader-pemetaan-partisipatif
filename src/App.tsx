@@ -1485,6 +1485,17 @@ export const App: React.FC = () => {
                   setSertifikatList((prev) => [sert, ...prev]);
                   tampilkanToast(`✓ Sertifikat ${sert.nomorSertifikat} diterbitkan untuk ${sert.namaKader}.`);
                 })}
+                onTerbitkanBanyakSertifikat={wajibAdmin((daftarSert: SertifikatKader[]) => {
+                  setSertifikatList((prev) => {
+                    const idsLama = new Set(prev.map((s) => s.idKader));
+                    const noLama = new Set(prev.map((s) => s.nomorSertifikat.toLowerCase()));
+                    const valid = daftarSert.filter(
+                      (s) => !idsLama.has(s.idKader) && !noLama.has(s.nomorSertifikat.toLowerCase())
+                    );
+                    return [...valid, ...prev];
+                  });
+                  tampilkanToast(`✓ ${daftarSert.length} sertifikat otomatis berhasil diterbitkan dengan nomor unik.`);
+                })}
                 onUbahPenandatanganSertifikat={wajibAdmin(
                   (nama: string, jabatan: string, daftarPenandatangan?: PenandatanganSertifikatItem[]) => {
                     handleUbahPenandatanganSertifikat(nama, jabatan, daftarPenandatangan);

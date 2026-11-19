@@ -12,6 +12,7 @@ import {
   ProfilKader,
   SertifikatKader,
   SkemaAtributGeometri,
+  SkemaPengkodeanSertifikat,
   StatusSinkron,
   TipeFieldSkema,
   TugasPemetaan
@@ -49,7 +50,13 @@ import {
   Users
 } from "lucide-react";
 import { buatId } from "../lib/id";
-import { nomorSertifikatBerikut, ringkasanKader, siapkanSertifikat } from "../lib/sertifikat";
+import {
+  buatNomorSertifikatOtomatis,
+  nomorSertifikatBerikut,
+  ringkasanKader,
+  siapkanSemuaSertifikatOtomatis,
+  siapkanSertifikat
+} from "../lib/sertifikat";
 import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "../lib/sertifikatBawaan";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
 import { Check, ChevronDown, Hexagon, PlusCircle, Route, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
@@ -71,6 +78,7 @@ interface AdminDashboardViewProps {
   onRekonsiliasiGDrive?: () => Promise<void> | void;
   sedangRekonsiliasi?: boolean;
   onTerbitkanSertifikat: (sert: SertifikatKader) => void;
+  onTerbitkanBanyakSertifikat?: (daftar: SertifikatKader[]) => void;
   onUbahPenandatanganSertifikat?: (
     nama: string,
     jabatan: string,
@@ -101,6 +109,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onRekonsiliasiGDrive,
   sedangRekonsiliasi = false,
   onTerbitkanSertifikat,
+  onTerbitkanBanyakSertifikat,
   onUbahPenandatanganSertifikat,
   onTambahTugas,
   onUbahTugas,
@@ -176,11 +185,53 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   // Form Penerbitan & Pengaturan Penandatangan Sertifikat
   // Nomor berikutnya mengikuti jumlah sertifikat yang sudah terbit; nomor yang diketik admin berlaku
   // sampai jumlah itu berubah (mis. setelah menerbitkan), lalu kembali ke nomor otomatis berikutnya
+  const [skemaSertifikat, setSkemaSertifikat] = useState<SkemaPengkodeanSertifikat>(
+    profilKader.skemaPengkodeanSertifikat || "standar"
+  );
   const [nomorDiketik, setNomorDiketik] = useState<{ untukJumlah: number; nilai: string } | null>(null);
   const nomorSertBaru =
-    nomorDiketik && nomorDiketik.untukJumlah === sertifikatList.length ? nomorDiketik.nilai : nomorSertifikatBerikut(sertifikatList);
+    nomorDiketik && nomorDiketik.untukJumlah === sertifikatList.length
+      ? nomorDiketik.nilai
+      : nomorSertifikatBerikut(sertifikatList, new Date(), { skema: skemaSertifikat });
   const setNomorSertBaru = (nilai: string) => setNomorDiketik({ untukJumlah: sertifikatList.length, nilai });
   const [pesanTerbit, setPesanTerbit] = useState<{ teks: string; ok: boolean } | null>(null);
+
+  const daftarRingkasanKader = useMemo(
+    () => ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget),
+    [dataSpasial, sertifikatList, profilKader.modeKombinasiTarget]
+  );
+  const daftarKaderBerhakBelumTerbit = useMemo(
+    () => daftarRingkasanKader.filter((k) => k.capaian.berhakSertifikat && !k.sudahTerbit),
+    [daftarRingkasanKader]
+  );
+
+  const handleTerbitkanSemuaOtomatis = () => {
+    if (daftarKaderBerhakBelumTerbit.length === 0) return;
+    const hasilBatch = siapkanSemuaSertifikatOtomatis(daftarKaderBerhakBelumTerbit, sertifikatList, {
+      namaOrganisasi: profilKader.namaOrganisasi,
+      ditandatanganiOleh: penandatangan,
+      jabatanPenandatangan,
+      penandatanganList: daftarPenandatangan,
+      skemaPengkodean: skemaSertifikat
+    });
+
+    if (hasilBatch.berhasil.length > 0) {
+      if (onTerbitkanBanyakSertifikat) {
+        onTerbitkanBanyakSertifikat(hasilBatch.berhasil);
+      } else {
+        hasilBatch.berhasil.forEach((s) => onTerbitkanSertifikat(s));
+      }
+      setPesanTerbit({
+        teks: `✓ Berhasil menerbitkan ${hasilBatch.berhasil.length} sertifikat otomatis dengan nomor berbeda untuk setiap kader.`,
+        ok: true
+      });
+    } else if (hasilBatch.gagal.length > 0) {
+      setPesanTerbit({
+        teks: `⚠️ Gagal menerbitkan sertifikat: ${hasilBatch.gagal[0].alasan}`,
+        ok: false
+      });
+    }
+  };
   const susunEmpatPenandatangan = (): PenandatanganSertifikatItem[] => {
     const tersimpan = profilKader.penandatanganList ?? [];
     return DEFAULT_PENANDATANGAN_SERTIFIKAT.map((bawaan, idx) => {
@@ -1393,9 +1444,43 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               <LogoSertifikatResmiSvg size={20} variant="zamrud" /> Sertifikat
             </h3>
 
-            <div style={{ marginBottom: 12 }}>
-              <label>Nomor sertifikat berikutnya</label>
-              <input type="text" className="form-input" value={nomorSertBaru} onChange={(e) => setNomorSertBaru(e.target.value)} />
+            <div style={{ marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+              <div>
+                <label htmlFor="pilih-skema-pengkodean" style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: 4, display: "block" }}>
+                  Skema Automasi Pengkodean Sertifikat
+                </label>
+                <select
+                  id="pilih-skema-pengkodean"
+                  className="form-input"
+                  value={skemaSertifikat}
+                  onChange={(e) => setSkemaSertifikat(e.target.value as SkemaPengkodeanSertifikat)}
+                >
+                  <option value="standar">Standar Berurutan (0001/SKPP-GIS/WILAYAH/XI/2026)</option>
+                  <option value="wilayah">Berbasis Wilayah Desa (0001/SKPP-GIS/[DESA]/XI/2026)</option>
+                  <option value="kader">Kode Unik Kader (0001/SKPP-GIS/[ID-KADER]/XI/2026)</option>
+                  <option value="warsi">Resmi KKI Warsi (SKPP-WARSI/2026/XI/0001-[KADER])</option>
+                </select>
+                <p className="text-muted" style={{ fontSize: "0.76rem", margin: "4px 0 0" }}>
+                  ⚡ Automasi aktif: Setiap user dijamin mendapatkan nomor sertifikat unik yang berbeda.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="input-nomor-berikutnya" style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: 4, display: "block" }}>
+                  Pratinjau nomor berikutnya (atau kustom)
+                </label>
+                <input
+                  id="input-nomor-berikutnya"
+                  type="text"
+                  className="form-input"
+                  value={nomorSertBaru}
+                  onChange={(e) => setNomorSertBaru(e.target.value)}
+                  placeholder="Nomor sertifikat otomatis..."
+                />
+                <p className="text-muted" style={{ fontSize: "0.76rem", margin: "4px 0 0" }}>
+                  Nomor terhitung otomatis berurutan dari data sertifikat yang sudah ada.
+                </p>
+              </div>
             </div>
 
             <div className="admin-signers-grid">
@@ -1505,7 +1590,21 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
               </button>
             </div>
 
-            <h4 style={{ margin: "16px 0 8px", fontSize: "0.92rem" }}>Kader dan capaian terverifikasi</h4>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, margin: "16px 0 8px" }}>
+              <h4 style={{ margin: 0, fontSize: "0.92rem" }}>Kader dan capaian terverifikasi</h4>
+              {daftarKaderBerhakBelumTerbit.length > 0 && (
+                <button
+                  type="button"
+                  id="btn-terbitkan-semua-otomatis"
+                  className="btn-primary-sm"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                  onClick={handleTerbitkanSemuaOtomatis}
+                  title="Terbitkan sertifikat dengan nomor otomatis berbeda untuk seluruh kader yang memenuhi syarat"
+                >
+                  <LogoSertifikatResmiSvg size={14} variant="zamrud" /> Terbitkan Semua Otomatis ({daftarKaderBerhakBelumTerbit.length})
+                </button>
+              )}
+            </div>
             {pesanTerbit && (
               <div
                 role="status"
@@ -1519,7 +1618,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                 {pesanTerbit.teks}
               </div>
             )}
-            {ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget).length === 0 ? (
+            {daftarRingkasanKader.length === 0 ? (
               <p className="text-muted" style={{ fontSize: "0.84rem", margin: 0 }}>
                 Belum ada data kader. Sertifikat bisa diterbitkan setelah data kader diverifikasi.
               </p>
@@ -1531,59 +1630,85 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                       <th>Kader</th>
                       <th>Terverifikasi</th>
                       <th>Status</th>
+                      <th>Nomor Sertifikat (Otomatis)</th>
                       <th>Tindakan</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {ringkasanKader(dataSpasial, sertifikatList, profilKader.modeKombinasiTarget).map((k) => (
-                      <tr key={k.idKader}>
-                        <td>
-                          <strong>{k.namaKader}</strong>
-                          <div className="text-xs text-muted">
-                            {k.idKader} • {k.desaWilayah}
-                          </div>
-                        </td>
-                        <td className="text-xs">
-                          {k.capaian.totalPoinTitik} titik • {k.capaian.totalTrackingKm.toFixed(1)} km •{" "}
-                          {k.capaian.totalPoligonHa.toFixed(1)} Ha
-                        </td>
-                        <td>
-                          <span
-                            className={`badge-sync ${k.sudahTerbit ? "status-terverifikasi" : k.capaian.berhakSertifikat ? "status-tersinkron" : "status-lokal"}`}
-                            style={{ marginLeft: 0 }}
-                          >
-                            {k.sudahTerbit ? "TERBIT" : k.capaian.berhakSertifikat ? "SIAP TERBIT" : "BELUM"}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn-primary-sm"
-                            disabled={k.sudahTerbit || !k.capaian.berhakSertifikat}
-                            title={
-                              k.sudahTerbit
-                                ? "Sertifikat sudah diterbitkan"
-                                : k.capaian.berhakSertifikat
-                                  ? "Terbitkan sertifikat untuk kader ini"
-                                  : "Belum memenuhi syarat sertifikasi (50 titik, 5 km jalur, dan 5 Ha poligon terverifikasi)"
-                            }
-                            onClick={() => {
-                              const hasil = siapkanSertifikat(k, nomorSertBaru, sertifikatList, {
-                                namaOrganisasi: profilKader.namaOrganisasi,
-                                ditandatanganiOleh: penandatangan,
-                                jabatanPenandatangan,
-                                penandatanganList: daftarPenandatangan,
-                                fotoKaderBase64: k.idKader === profilKader.idKader ? profilKader.fotoKaderBase64 : undefined
-                              });
-                              setPesanTerbit({ teks: hasil.pesan, ok: hasil.ok });
-                              if (hasil.ok && hasil.sertifikat) onTerbitkanSertifikat(hasil.sertifikat);
-                            }}
-                          >
-                            <LogoSertifikatResmiSvg size={14} variant="zamrud" /> Terbitkan
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {daftarRingkasanKader.map((k) => {
+                      const sertSudah = sertifikatList.find((s) => s.idKader === k.idKader);
+                      const nomorOtomatisPreview = sertSudah
+                        ? sertSudah.nomorSertifikat
+                        : buatNomorSertifikatOtomatis(k, sertifikatList, undefined, { skema: skemaSertifikat });
+                      return (
+                        <tr key={k.idKader}>
+                          <td>
+                            <strong>{k.namaKader}</strong>
+                            <div className="text-xs text-muted">
+                              {k.idKader} • {k.desaWilayah}
+                            </div>
+                          </td>
+                          <td className="text-xs">
+                            {k.capaian.totalPoinTitik} titik • {k.capaian.totalTrackingKm.toFixed(1)} km •{" "}
+                            {k.capaian.totalPoligonHa.toFixed(1)} Ha
+                          </td>
+                          <td>
+                            <span
+                              className={`badge-sync ${k.sudahTerbit ? "status-terverifikasi" : k.capaian.berhakSertifikat ? "status-tersinkron" : "status-lokal"}`}
+                              style={{ marginLeft: 0 }}
+                            >
+                              {k.sudahTerbit ? "TERBIT" : k.capaian.berhakSertifikat ? "SIAP TERBIT" : "BELUM"}
+                            </span>
+                          </td>
+                          <td>
+                            <code
+                              style={{
+                                fontSize: "0.78rem",
+                                background: k.sudahTerbit ? "#ecfdf5" : "#f1f5f9",
+                                color: k.sudahTerbit ? "#065f46" : "#334155",
+                                padding: "3px 6px",
+                                borderRadius: 4,
+                                border: `1px solid ${k.sudahTerbit ? "#a7f3d0" : "#cbd5e1"}`
+                              }}
+                            >
+                              {nomorOtomatisPreview}
+                            </code>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn-primary-sm"
+                              disabled={k.sudahTerbit || !k.capaian.berhakSertifikat}
+                              title={
+                                k.sudahTerbit
+                                  ? "Sertifikat sudah diterbitkan"
+                                  : k.capaian.berhakSertifikat
+                                    ? `Terbitkan sertifikat otomatis nomor ${nomorOtomatisPreview}`
+                                    : "Belum memenuhi syarat sertifikasi (50 titik, 5 km jalur, dan 5 Ha poligon terverifikasi)"
+                              }
+                              onClick={() => {
+                                const nomorPakai =
+                                  nomorDiketik && nomorDiketik.untukJumlah === sertifikatList.length
+                                    ? nomorDiketik.nilai
+                                    : nomorOtomatisPreview;
+                                const hasil = siapkanSertifikat(k, nomorPakai, sertifikatList, {
+                                  namaOrganisasi: profilKader.namaOrganisasi,
+                                  ditandatanganiOleh: penandatangan,
+                                  jabatanPenandatangan,
+                                  penandatanganList: daftarPenandatangan,
+                                  fotoKaderBase64: k.idKader === profilKader.idKader ? profilKader.fotoKaderBase64 : undefined,
+                                  skemaPengkodean: skemaSertifikat
+                                });
+                                setPesanTerbit({ teks: hasil.pesan, ok: hasil.ok });
+                                if (hasil.ok && hasil.sertifikat) onTerbitkanSertifikat(hasil.sertifikat);
+                              }}
+                            >
+                              <LogoSertifikatResmiSvg size={14} variant="zamrud" /> Terbitkan
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
