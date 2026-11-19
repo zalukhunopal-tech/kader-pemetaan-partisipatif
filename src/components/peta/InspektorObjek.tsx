@@ -1,10 +1,20 @@
 import { sanitasiTeksInput } from "../../lib/geoUtils";
-import React from "react";
+import React, { useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Check, Lock, MapPin, Route, Hexagon } from "lucide-react";
-import { hitungSkorKualitasData } from "../../lib/kualitasData";
-import { DataSpasialItem } from "../../types";
+import { DataSpasialItem, LapisanSpasial } from "../../types";
 import { JEDA_PEMBARUAN_JAM } from "../../lib/rewardEngine";
 import { useTombolEsc } from "../../lib/useTombolEsc";
+import { uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
+import { kompresFoto, SISI_MAKS_FOTO, TARGET_BYTE_FOTO } from "../../lib/foto";
+
+const PILIHAN_CORAK_INSPEKTOR = [
+  { id: "merah", warna: "#ef4444", label: "Merah" },
+  { id: "jingga", warna: "#f26101", label: "Jingga" },
+  { id: "hijau", warna: "#0d7344", label: "Hijau" },
+  { id: "biru", warna: "#0284c7", label: "Biru" },
+  { id: "kuning", warna: "#eab308", label: "Kuning" },
+  { id: "ungu", warna: "#7c3aed", label: "Ungu" }
+] as const;
 
 interface InspektorObjekProps {
   objek: DataSpasialItem;
@@ -12,18 +22,14 @@ interface InspektorObjekProps {
   kondisiUpdateInput: string;
   setKondisiUpdateInput: (nilai: string) => void;
   onTambahPembaruanObjek: (idData: string, kondisiTerbaru: string, catatan: string) => boolean;
+  onPerbaruiObjek?: (dataDiubah: DataSpasialItem) => void;
+  lapisanList?: LapisanSpasial[];
   onGoTo: (target: { lat: number; lng: number; judul: string }) => void;
   onTutup: () => void;
   onHapus?: (idData: string) => void;
-  /** Pesan singkat di peta (mis. "Koordinat disalin") */
+  /** Pesan singkat di peta (mis. "Koordinat diperbarui") */
   onPesan?: (pesan: string) => void;
 }
-
-const LABEL_STATUS: Record<string, string> = {
-  lokal: "Tersimpan di HP",
-  tersinkron: "Tersinkron ke Drive",
-  terverifikasi: "Terverifikasi admin"
-};
 
 /**
  * Halaman detail objek yang diketuk di peta (Pin dijatuhkan / Trek / Area),
@@ -34,13 +40,29 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
   kondisiUpdateInput,
   setKondisiUpdateInput,
   onTambahPembaruanObjek,
+  onPerbaruiObjek,
+  lapisanList = [],
   onGoTo,
   onTutup,
   onHapus,
   onPesan
 }) => {
   useTombolEsc(true, onTutup);
-  const dqa = hitungSkorKualitasData(objek);
+  const [sedangEditNama, setSedangEditNama] = useState(false);
+  const [namaInput, setNamaInput] = useState(objek.judul);
+  const [sedangEditKoord, setSedangEditKoord] = useState(false);
+  const [koordInput, setKoordInput] = useState("");
+  const [galatKoord, setGalatKoord] = useState("");
+  const [bukaEditLapisan, setBukaEditLapisan] = useState(false);
+  const [sedangEditDeskripsi, setSedangEditDeskripsi] = useState(false);
+  const [deskripsiInput, setDeskripsiInput] = useState(objek.deskripsi || "");
+  const [bukaPilihCorak, setBukaPilihCorak] = useState(false);
+  const [sedangEditElevasi, setSedangEditElevasi] = useState(false);
+  const [elevasiInput, setElevasiInput] = useState(
+    objek.elevasi !== undefined ? String(objek.elevasi) : ""
+  );
+  const fotoInputRef = useRef<HTMLInputElement | null>(null);
+
   const koordUtama = objek.koordinat[0];
   const teksKoordinat = koordUtama ? `${koordUtama.lat.toFixed(6)}, ${koordUtama.lng.toFixed(6)}` : "-";
   const ukuran =
@@ -93,6 +115,74 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
 
   const elevasiVal = objek.elevasi ?? koordUtama?.elevasi;
 
+  const simpanNama = () => {
+    const bersih = sanitasiTeksInput(namaInput.trim());
+    setSedangEditNama(false);
+    if (!bersih) {
+      setNamaInput(objek.judul);
+      return;
+    }
+    setNamaInput(bersih);
+    if (bersih !== objek.judul) {
+      onPerbaruiObjek?.({ ...objek, judul: bersih });
+    }
+  };
+
+  const mulaiEditKoordinat = () => {
+    setKoordInput(teksKoordinat === "-" ? "" : teksKoordinat);
+    setGalatKoord("");
+    setSedangEditKoord(true);
+  };
+
+  const simpanKoordinat = () => {
+    const hasil = uraikanTeksKoordinat(koordInput);
+    if (!hasil) {
+      setGalatKoord("Format koordinat tidak dikenali. Contoh: -6.200000, 106.816666");
+      return;
+    }
+    setGalatKoord("");
+    const titikBaru = {
+      ...(koordUtama ?? { lat: hasil.lat, lng: hasil.lng }),
+      lat: hasil.lat,
+      lng: hasil.lng,
+      akurasi: undefined
+    };
+    onPerbaruiObjek?.({ ...objek, koordinat: [titikBaru, ...objek.koordinat.slice(1)] });
+    setSedangEditKoord(false);
+    onPesan?.("Koordinat titik diperbarui");
+  };
+
+  const simpanDeskripsi = () => {
+    const bersih = sanitasiTeksInput(deskripsiInput.trim());
+    setSedangEditDeskripsi(false);
+    setDeskripsiInput(bersih);
+    if (bersih !== (objek.deskripsi || "")) {
+      onPerbaruiObjek?.({ ...objek, deskripsi: bersih });
+    }
+  };
+
+  const simpanElevasi = () => {
+    const bersih = elevasiInput.trim();
+    setSedangEditElevasi(false);
+    const angka = Number(bersih.replace(",", "."));
+    onPerbaruiObjek?.({
+      ...objek,
+      elevasi: bersih !== "" && Number.isFinite(angka) ? angka : undefined
+    });
+  };
+
+  const handleUbahFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    void kompresFoto(file, SISI_MAKS_FOTO, TARGET_BYTE_FOTO)
+      .then((url) => {
+        onPerbaruiObjek?.({ ...objek, fotoBase64: url });
+        onPesan?.("Foto objek diperbarui");
+      })
+      .catch(() => onPesan?.("Foto tidak dapat diproses"));
+    e.target.value = "";
+  };
+
   return (
     <section className="avz-halaman avz-detail-objek field-inspector-sheet" role="dialog" aria-label={objek.judul}>
       <header className="avz-halaman-kepala">
@@ -111,58 +201,272 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Nama</strong>
-            <button type="button" className="avz-aksi-hijau" onClick={() => salin(objek.judul)}>
+            <button
+              type="button"
+              className="avz-aksi-hijau"
+              onClick={() => {
+                if (sedangEditNama) {
+                  simpanNama();
+                } else {
+                  setNamaInput(objek.judul);
+                  setSedangEditNama(true);
+                }
+              }}
+            >
               Edit
             </button>
           </div>
-          <span>{objek.judul}</span>
+          {sedangEditNama ? (
+            <div className="avz-inline-edit-row">
+              <input
+                type="text"
+                className="avz-input avz-input-bersih"
+                value={namaInput}
+                onChange={(e) => setNamaInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    simpanNama();
+                  } else if (e.key === "Escape") {
+                    setSedangEditNama(false);
+                  }
+                }}
+                aria-label="Edit nama objek"
+                autoFocus
+              />
+              <button type="button" className="avz-aksi-hijau" onClick={simpanNama}>
+                Selesai
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="avz-isian-nilai-edit"
+              onClick={() => {
+                setNamaInput(objek.judul);
+                setSedangEditNama(true);
+              }}
+            >
+              {objek.judul}
+            </button>
+          )}
         </div>
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>{objek.jenisGeometri === "point" ? "Koordinat" : objek.jenisGeometri === "line" ? "Jarak" : "Luas"}</strong>
             {objek.jenisGeometri === "point" ? (
-              <button type="button" className="avz-aksi-hijau" onClick={() => salin(teksKoordinat)}>
+              <button
+                type="button"
+                className="avz-aksi-hijau"
+                onClick={() => {
+                  if (sedangEditKoord) {
+                    simpanKoordinat();
+                  } else {
+                    mulaiEditKoordinat();
+                  }
+                }}
+              >
                 Edit
               </button>
             ) : (
               <ChevronRight size={20} color="#5f6368" aria-hidden="true" />
             )}
           </div>
-          <span className="tabular-nums">{objek.jenisGeometri === "point" ? teksKoordinat : ukuran}</span>
-          {objek.jenisGeometri !== "point" && <small className="avz-isian-kecil">{teksKoordinat}</small>}
+          {objek.jenisGeometri === "point" ? (
+            sedangEditKoord ? (
+              <div className="avz-inline-edit-col">
+                <div className="avz-inline-edit-row">
+                  <input
+                    type="text"
+                    className="avz-input avz-input-bersih tabular-nums"
+                    value={koordInput}
+                    onChange={(e) => {
+                      setKoordInput(e.target.value);
+                      if (galatKoord) setGalatKoord("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        simpanKoordinat();
+                      } else if (e.key === "Escape") {
+                        setSedangEditKoord(false);
+                        setGalatKoord("");
+                      }
+                    }}
+                    placeholder="Contoh: -6.200000, 106.816666"
+                    aria-label="Edit titik koordinat"
+                    autoFocus
+                  />
+                  <button type="button" className="avz-aksi-hijau" onClick={simpanKoordinat}>
+                    Selesai
+                  </button>
+                </div>
+                {galatKoord && (
+                  <span className="field-error" role="alert">
+                    {galatKoord}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="avz-isian-nilai-edit tabular-nums"
+                onClick={mulaiEditKoordinat}
+                aria-label="Edit titik koordinat"
+              >
+                {teksKoordinat}
+              </button>
+            )
+          ) : (
+            <>
+              <span className="tabular-nums">{ukuran}</span>
+              <small className="avz-isian-kecil">{teksKoordinat}</small>
+            </>
+          )}
         </div>
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Lapisan saat ini</strong>
           </div>
-          <span className="avz-isian-nilai-panah">
-            {objek.lapisanNama || objek.tematik || "Lapisan 1"} <ChevronRight size={20} />
-          </span>
-          <button type="button" className="avz-tombol-garis" onClick={() => onPesan?.("Buka menu Lapisan untuk mengelola lapisan")}>
+          <button
+            type="button"
+            className="avz-isian-nilai-panah avz-corak-btn"
+            onClick={() => {
+              if (lapisanList.length > 0 && onPerbaruiObjek) {
+                setBukaEditLapisan((v) => !v);
+              } else {
+                onPesan?.("Buka menu Lapisan untuk mengelola lapisan");
+              }
+            }}
+          >
+            <span>{objek.lapisanNama || objek.tematik || "Lapisan 1"}</span>
+            <ChevronRight size={20} />
+          </button>
+          <button
+            type="button"
+            className="avz-tombol-garis"
+            onClick={() => {
+              if (lapisanList.length > 0 && onPerbaruiObjek) {
+                setBukaEditLapisan((v) => !v);
+              } else {
+                onPesan?.("Buka menu Lapisan untuk mengelola lapisan");
+              }
+            }}
+          >
             Edit Lapisan
           </button>
+          {bukaEditLapisan && lapisanList.length > 0 && onPerbaruiObjek && (
+            <select
+              className="avz-input avz-input-bersih"
+              value={objek.lapisanId ?? ""}
+              onChange={(e) => {
+                const idBaru = e.target.value || undefined;
+                const cocok = lapisanList.find((l) => l.id === idBaru);
+                onPerbaruiObjek({
+                  ...objek,
+                  lapisanId: cocok?.id,
+                  lapisanNama: cocok?.nama || "Lapisan 1"
+                });
+                setBukaEditLapisan(false);
+              }}
+            >
+              <option value="">Lapisan 1 (Bawaan)</option>
+              {lapisanList.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.nama}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Foto</strong>
-            <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.(objek.fotoBase64 ? "Foto tersimpan" : "Foto dapat ditambahkan pada formulir rekam")}>
-              {objek.fotoBase64 ? "Lihat" : "Tambah"}
+            <button
+              type="button"
+              className="avz-aksi-hijau"
+              onClick={() => fotoInputRef.current?.click()}
+            >
+              {objek.fotoBase64 ? "Edit" : "Tambah"}
             </button>
           </div>
-          {objek.fotoBase64 && <img className="avz-isian-foto" src={objek.fotoBase64} alt={`Foto ${objek.judul}`} />}
+          <input
+            ref={fotoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={handleUbahFoto}
+          />
+          {objek.fotoBase64 ? (
+            <button
+              type="button"
+              className="avz-isian-nilai-edit"
+              onClick={() => fotoInputRef.current?.click()}
+            >
+              <img className="avz-isian-foto" src={objek.fotoBase64} alt={`Foto ${objek.judul}`} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="avz-isian-nilai-edit avz-isian-kosong"
+              onClick={() => fotoInputRef.current?.click()}
+            >
+              Ketuk untuk menambah foto...
+            </button>
+          )}
         </div>
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Deskripsi</strong>
-            <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.(objek.deskripsi ? "Deskripsi tersimpan" : "Deskripsi dapat ditambahkan pada formulir rekam")}>
+            <button
+              type="button"
+              className="avz-aksi-hijau"
+              onClick={() => {
+                if (sedangEditDeskripsi) {
+                  simpanDeskripsi();
+                } else {
+                  setDeskripsiInput(objek.deskripsi || "");
+                  setSedangEditDeskripsi(true);
+                }
+              }}
+            >
               {objek.deskripsi ? "Edit" : "Tambah"}
             </button>
           </div>
-          {objek.deskripsi ? <span>{objek.deskripsi}</span> : null}
+          {sedangEditDeskripsi ? (
+            <div className="avz-inline-edit-col">
+              <textarea
+                rows={3}
+                className="avz-input avz-input-bersih avz-textarea-bersih"
+                value={deskripsiInput}
+                onChange={(e) => setDeskripsiInput(e.target.value)}
+                placeholder="Catatan atau deskripsi objek..."
+                aria-label="Edit deskripsi objek"
+                autoFocus
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button type="button" className="avz-aksi-hijau" onClick={simpanDeskripsi}>
+                  Selesai
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={`avz-isian-nilai-edit ${objek.deskripsi ? "" : "avz-isian-kosong"}`}
+              onClick={() => {
+                setDeskripsiInput(objek.deskripsi || "");
+                setSedangEditDeskripsi(true);
+              }}
+            >
+              {objek.deskripsi || "Ketuk untuk menambah deskripsi..."}
+            </button>
+          )}
           <small className="avz-isian-kecil">
             {objek.namaKader} · {objek.desaWilayah}
           </small>
@@ -171,8 +475,15 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>Corak</strong>
+            <button type="button" className="avz-aksi-hijau" onClick={() => setBukaPilihCorak((v) => !v)}>
+              Edit
+            </button>
           </div>
-          <span className="avz-isian-nilai-panah">
+          <button
+            type="button"
+            className="avz-isian-nilai-panah avz-corak-btn"
+            onClick={() => setBukaPilihCorak((v) => !v)}
+          >
             <span>{labelCorak}</span>
             <span className="avz-corak-preview">
               {objek.jenisGeometri === "point" ? (
@@ -184,20 +495,86 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
               )}
               <ChevronRight size={18} aria-hidden="true" />
             </span>
-          </span>
+          </button>
+          {bukaPilihCorak && (
+            <div className="avz-corak-chips">
+              {PILIHAN_CORAK_INSPEKTOR.map((c) => (
+                <button
+                  type="button"
+                  key={c.id}
+                  className={`avz-corak-chip ${labelCorak.toLowerCase() === c.label.toLowerCase() ? "aktif" : ""}`}
+                  onClick={() => {
+                    onPerbaruiObjek?.({ ...objek, simbol: c.label, warna: c.warna });
+                    setBukaPilihCorak(false);
+                  }}
+                >
+                  <span className="avz-corak-dot" style={{ background: c.warna }} aria-hidden="true" />
+                  <span>{c.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="avz-isian-baris">
           <div className="avz-isian-kepala">
             <strong>{objek.jenisGeometri === "point" ? "Elevasi" : "Perolehan elevasi total"}</strong>
-            {objek.jenisGeometri === "point" && (
-              <button type="button" className="avz-aksi-hijau" onClick={() => onPesan?.("Elevasi: " + (elevasiVal !== undefined ? `${elevasiVal.toFixed(2)} m` : "---"))}>
-                Edit
-              </button>
-            )}
+            <button
+              type="button"
+              className="avz-aksi-hijau"
+              onClick={() => {
+                if (sedangEditElevasi) {
+                  simpanElevasi();
+                } else {
+                  setElevasiInput(elevasiVal !== undefined ? String(elevasiVal) : "");
+                  setSedangEditElevasi(true);
+                }
+              }}
+            >
+              Edit
+            </button>
           </div>
-          <span className="tabular-nums">{elevasiVal !== undefined ? `${elevasiVal.toFixed(2).replace(".", ",")} m` : "- - -"}</span>
-          <button type="button" className="avz-tombol-garis" onClick={() => onPesan?.("Elevasi terkini: " + (elevasiVal !== undefined ? `${elevasiVal.toFixed(2)} m` : "otomatis GPS"))}>
+          {sedangEditElevasi ? (
+            <div className="avz-inline-edit-row">
+              <input
+                type="number"
+                step="any"
+                className="avz-input avz-input-bersih tabular-nums"
+                value={elevasiInput}
+                onChange={(e) => setElevasiInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    simpanElevasi();
+                  } else if (e.key === "Escape") {
+                    setSedangEditElevasi(false);
+                  }
+                }}
+                placeholder="Elevasi (meter)"
+                aria-label="Edit elevasi objek"
+                autoFocus
+              />
+              <button type="button" className="avz-aksi-hijau" onClick={simpanElevasi}>
+                Selesai
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="avz-isian-nilai-edit tabular-nums"
+              onClick={() => {
+                setElevasiInput(elevasiVal !== undefined ? String(elevasiVal) : "");
+                setSedangEditElevasi(true);
+              }}
+            >
+              {elevasiVal !== undefined ? `${elevasiVal.toFixed(2).replace(".", ",")} m` : "- - -"}
+            </button>
+          )}
+          <button
+            type="button"
+            className="avz-tombol-garis"
+            onClick={() => onPesan?.("Elevasi terkini: " + (elevasiVal !== undefined ? `${elevasiVal.toFixed(2)} m` : "otomatis GPS"))}
+          >
             Ambil elevasi
           </button>
         </div>
@@ -264,9 +641,13 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
                     Edit
                   </button>
                 </div>
-                <span className="avz-isian-kecil">
+                <button
+                  type="button"
+                  className="avz-isian-nilai-edit avz-isian-kecil"
+                  onClick={() => onPesan?.("Skema atribut mengikuti lapisan aktif")}
+                >
                   Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
-                </span>
+                </button>
               </div>
             )}
           </>
@@ -285,7 +666,7 @@ export const InspektorObjek: React.FC<InspektorObjekProps> = ({
           )}
           <input
             type="text"
-            className="avz-input"
+            className="avz-input avz-input-bersih"
             placeholder="Kondisi terbaru..."
             value={kondisiUpdateInput}
             onChange={(e) => setKondisiUpdateInput(e.target.value)}

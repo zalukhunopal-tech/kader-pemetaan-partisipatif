@@ -1633,14 +1633,21 @@
 
 .avz-peta .avz-input {
   width: 100%;
-  min-height: 48px;
+  min-height: 46px;
   padding: 0 14px;
   border: 1.5px solid var(--avz-hijau);
-  border-radius: 4px;
+  border-radius: 10px;
   font-size: 1rem;
   color: var(--avz-teks);
   background: var(--avz-putih);
   box-sizing: border-box;
+}
+
+.avz-peta .avz-textarea-bersih {
+  min-height: 84px;
+  padding: 10px 14px;
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .avz-peta .avz-tombol-garis {
@@ -1701,8 +1708,8 @@
 
 .avz-peta .avz-halaman-form .form-input {
   border: 1.5px solid var(--avz-hijau) !important;
-  border-radius: 4px !important;
-  min-height: 48px;
+  border-radius: 10px !important;
+  min-height: 46px;
   font-size: 1rem;
   width: 100%;
   max-width: 100%;
@@ -2963,4 +2970,79 @@
   white-space: nowrap;
   font-size: 0.88rem;
   padding: 0 12px;
+}
+
+/* Isian yang dapat diketuk langsung untuk edit (Nama, Koordinat, Deskripsi, Elevasi, Foto, Skema) */
+.avz-peta .avz-isian-nilai-edit {
+  display: block;
+  width: calc(100% + 12px);
+  margin: 0 -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--avz-teks);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+  box-sizing: border-box;
+}
+
+.avz-peta .avz-isian-nilai-edit:hover,
+.avz-peta .avz-isian-nilai-edit:focus-visible {
+  background: rgba(4, 122, 72, 0.07);
+  outline: none;
+}
+
+.avz-peta .avz-isian-nilai-edit.avz-isian-kosong {
+  color: var(--avz-teks-2);
+}
+
+.avz-peta .avz-inline-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.avz-peta .avz-inline-edit-row input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.avz-peta .avz-inline-edit-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Samakan desain kotak pembaruan titik/kondisi & kotak edit koordinat dengan baris isian di atasnya */
+.avz-peta .avz-isian-baris.inspector-update-box,
+.avz-peta .field-inspector-sheet .inspector-update-box {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--avz-garis);
+  border-radius: 0;
+  padding: 14px 0;
+}
+
+.avz-peta .avz-isian-baris .loc-card.loc-card-field {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 0;
+}
+
+.avz-peta .avz-isian-baris .loc-card.loc-card-field .btn-media-simbol.loc-action-simbol {
+  height: 46px;
+  min-height: 46px;
+  width: 46px;
+  border-radius: 10px;
 }

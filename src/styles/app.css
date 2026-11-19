@@ -1921,10 +1921,11 @@ body {
 }
 
 .inspector-update-box {
-  background: #f8faf9;
-  border: 1px solid #d5dcd8;
-  border-radius: 12px;
-  padding: 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--avz-garis, #e2e8f0);
+  border-radius: 0;
+  padding: 14px 0;
 }
 
 .inspector-update-box h5 {
@@ -12020,8 +12021,11 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 .field-inspector-sheet .inspector-update-box {
-  padding: 10px 12px;
-  border-radius: 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--avz-garis, #e2e8f0);
+  border-radius: 0;
+  padding: 14px 0;
 }
 
 /* =========================================================

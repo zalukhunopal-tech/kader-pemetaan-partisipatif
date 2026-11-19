@@ -125,6 +125,7 @@ interface InteractiveMapProps {
   /** Dipanggil setelah fokus dipakai, agar fokus lama tidak menimpa posisi terakhir saat peta dibuka lagi */
   onFokusDipakai?: () => void;
   onSimpanDataBaru: (item: DataSpasialItem) => void;
+  onPerbaruiData?: (item: DataSpasialItem) => void;
   onTambahPembaruanObjek: (idData: string, kondisiTerbaru: string, catatan: string, fotoBase64?: string) => boolean;
   onSimpanAreaOffline: (area: AreaPetaOffline) => void;
   onImporBerkas: (namaBerkas: string, isi: string) => boolean;
@@ -206,6 +207,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   fokusKoordinat,
   onFokusDipakai,
   onSimpanDataBaru,
+  onPerbaruiData,
   onTambahPembaruanObjek,
   onSimpanAreaOffline,
   onImporBerkas,
@@ -3436,17 +3438,45 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
           onPilihLapisanAktif={onPilihLapisanAktif}
-          onSimpanLangsung={(nama, simbol, warna) => {
+          namaDraft={form.isian.judul}
+          onUbahNamaDraft={(nama) => form.ubah("judul", nama)}
+          deskripsiDraft={form.isian.deskripsi}
+          onUbahDeskripsiDraft={(teks) => form.ubah("deskripsi", teks)}
+          elevasiDraft={form.isian.elevasi}
+          onUbahElevasiDraft={(elev) => form.ubah("elevasi", elev)}
+          onUbahCorakDraft={(simbol, warna) => {
+            form.ubah("simbol", simbol);
+            form.ubah("warna", warna);
+          }}
+          fotoDraft={form.isian.foto}
+          onUbahKoordinat={(titikBaru) => {
+            setTitikDraft([titikBaru]);
+            setCenter(titikBaru);
+          }}
+          onSimpanLangsung={(nama, simbol, warna, ekstra) => {
             if (!titikDraft[0]) return;
-            form.ubah("judul", nama || "Tanda tempat 1");
-            if (simbol) form.ubah("simbol", simbol);
-            if (warna) form.ubah("warna", warna);
-            const itemBaru = form.susunItem(profil, "point", titikDraft, kompasDerajat, {
+            const judulFinal = (nama || form.isian.judul || "Tanda tempat 1").trim();
+            const deskripsiFinal = (ekstra?.deskripsi ?? form.isian.deskripsi ?? "").trim();
+            const elevasiTeks = ekstra?.elevasi ?? form.isian.elevasi ?? "";
+            const elevasiAngka = Number(String(elevasiTeks).replace(",", "."));
+            const itemDasar = form.susunItem(profil, "point", titikDraft, kompasDerajat, {
               lapisanList,
               dataSpasial,
               lapisanAktif
             });
+            const itemBaru: DataSpasialItem = {
+              ...itemDasar,
+              judul: judulFinal,
+              deskripsi: deskripsiFinal,
+              simbol: simbol || itemDasar.simbol,
+              warna: warna || itemDasar.warna,
+              elevasi:
+                String(elevasiTeks).trim() !== "" && Number.isFinite(elevasiAngka)
+                  ? elevasiAngka
+                  : itemDasar.elevasi
+            };
             onSimpanDataBaru(itemBaru);
+            form.kosongkan();
             setPinPeekTerbuka(false);
             setModeRekam(null);
             setTitikDraft([]);
@@ -3485,6 +3515,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           elevasiMeter={perangkat.posisi?.elevasi}
           onAmbilElevasiGps={() => {
             if (perangkat.posisi?.elevasi !== undefined) {
+              form.ubah("elevasi", perangkat.posisi.elevasi.toFixed(1));
               setPesanSalin(`Elevasi GPS: ${perangkat.posisi.elevasi.toFixed(1)} m`);
             } else {
               setPesanSalin("Menghubungkan sinyal elevasi GPS...");
@@ -3504,6 +3535,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
           onPilihLapisanAktif={onPilihLapisanAktif}
+          onPerbaruiObjek={(dataDiubah) => {
+            onPerbaruiData?.(dataDiubah);
+            setObjekTerpilih(dataDiubah);
+            if (dataDiubah.jenisGeometri === "point" && dataDiubah.koordinat[0]) {
+              setCenter(dataDiubah.koordinat[0]);
+            }
+          }}
           onBukaFormLengkap={() => setDetailObjekTerbuka(true)}
           onBukaDetailLengkap={() => setDetailObjekTerbuka(true)}
           onTutup={() => setObjekTerpilih(null)}
@@ -3550,6 +3588,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           kondisiUpdateInput={kondisiUpdateInput}
           setKondisiUpdateInput={setKondisiUpdateInput}
           onTambahPembaruanObjek={onTambahPembaruanObjek}
+          onPerbaruiObjek={(dataDiubah) => {
+            onPerbaruiData?.(dataDiubah);
+            setObjekTerpilih(dataDiubah);
+            if (dataDiubah.jenisGeometri === "point" && dataDiubah.koordinat[0]) {
+              setCenter(dataDiubah.koordinat[0]);
+            }
+          }}
+          lapisanList={lapisanList}
           onGoTo={(t) => {
             setTargetGoTo(t);
             setObjekTerpilih(null);
