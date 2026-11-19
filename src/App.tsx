@@ -306,6 +306,7 @@ export const App: React.FC = () => {
     lat: number;
     lng: number;
     label?: string;
+    aktifkanNavigasi?: boolean;
   } | null>(null);
   const [sedangSinkron, setSedangSinkron] = useState<boolean>(false);
   const [pesanSinkron, setPesanSinkron] = useState<string | null>(null);
@@ -1085,13 +1086,14 @@ export const App: React.FC = () => {
     }
   };
 
-  // Handler Fokus ke Titik Koordinat di Peta (dan aktifkan lapisan tugas bila dipicu dari kartu Tugas)
+  // Handler Fokus ke Titik Koordinat di Peta (atau buka lapisan tugas sebagai kolam data tanpa garis navigasi otomatis)
   const handleFokusKePeta = (lat: number, lng: number, label: string, tugasId?: string) => {
     if (tugasId) {
+      setPetaKustomAktif(null);
       setLapisanAktifId(`LAP-TGS-${tugasId}`);
-    }
-    if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
-      setFokusKoordinat({ lat, lng, label });
+      setFokusKoordinat(null);
+    } else if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
+      setFokusKoordinat({ lat, lng, label, aktifkanNavigasi: false });
     }
     setBukaPemberitahuan(false);
     setBukaPengaturanEkspor(false);
@@ -1420,21 +1422,8 @@ export const App: React.FC = () => {
                 }}
                 onBukaLapisanDiPeta={(lapisan) => {
                   setPetaKustomAktif(null);
+                  setFokusKoordinat(null);
                   setLapisanAktifId(lapisan.id);
-                  const cocokTugas = lapisan.tugasId ? tugasList.find((t) => t.id === lapisan.tugasId) : undefined;
-                  const acuan = cocokTugas?.koordinatAcuan;
-                  if (
-                    acuan &&
-                    Number.isFinite(acuan.lat) &&
-                    Number.isFinite(acuan.lng) &&
-                    !(acuan.lat === 0 && acuan.lng === 0)
-                  ) {
-                    setFokusKoordinat({
-                      lat: acuan.lat,
-                      lng: acuan.lng,
-                      label: cocokTugas.judul
-                    });
-                  }
                   setTabAktif("peta");
                   tampilkanToast(`Lapisan "${lapisan.nama}" aktif di Peta Interaktif.`);
                 }}
