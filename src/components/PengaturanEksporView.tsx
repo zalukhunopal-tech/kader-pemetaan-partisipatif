@@ -76,7 +76,12 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     else onTutup();
   });
 
-  const [namaFile, setNamaFile] = useState("Lapisan 1");
+  const [namaFile, setNamaFile] = useState(
+    () =>
+      konteksEkspor?.lapisanDipilih?.[0]?.nama ||
+      konteksEkspor?.petaDipilih?.[0]?.namaArea ||
+      "Lapisan 1"
+  );
   const adaKonteksTerpilih = Boolean(
     konteksEkspor?.petaDipilih?.length || konteksEkspor?.lapisanDipilih?.length || konteksEkspor?.fiturTerpilihIds?.length
   );
@@ -99,6 +104,9 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     const setNama = new Set<string>();
     dataSpasial.forEach((d) => {
       if (d.tematik?.trim()) setNama.add(d.tematik.trim());
+      if (d.lapisanNama?.trim() && d.lapisanNama.trim() !== "Lapisan 1") {
+        setNama.add(d.lapisanNama.trim());
+      }
     });
     return [...setNama].sort((a, b) => a.localeCompare(b, "id"));
   }, [dataSpasial]);

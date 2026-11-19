@@ -1,4 +1,6 @@
 import { usePosisiPerangkat } from "../lib/posisiPerangkat";
+import { sanitasiTeksInput } from "../lib/geoUtils";
+import { useTombolEsc } from "../lib/useTombolEsc";
 import React, { useState, useRef, useEffect } from "react";
 import { PeranPengguna, PesanKomunikasi, ProfilKader } from "../types";
 import { CatatanPerangkat } from "./CatatanPerangkat";
@@ -86,6 +88,16 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   const [balasPesan, setBalasPesan] = useState<PesanKomunikasi | null>(null);
   const [modalTeruskanTerbuka, setModalTeruskanTerbuka] = useState(false);
   const [toastTeks, setToastTeks] = useState<string | null>(null);
+
+  useTombolEsc(modalTeruskanTerbuka, () => setModalTeruskanTerbuka(false));
+  useTombolEsc(pesanTerpilih !== null && !modalTeruskanTerbuka, () => setPesanTerpilih(null));
+
+  useEffect(() => {
+    if (perangkat.posisi && !bukaInputPin) {
+      setLatPin(perangkat.posisi.lat.toFixed(6));
+      setLngPin(perangkat.posisi.lng.toFixed(6));
+    }
+  }, [perangkat.posisi, bukaInputPin]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -184,8 +196,14 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
     setToastTeks(`✓ Pesan diteruskan ke ${tujuan === "komunitas" ? "Komunitas" : "Admin GIS"}`);
   };
 
+  const bolehHapusPesanTerpilih = Boolean(
+    pesanTerpilih &&
+      onHapusPesan &&
+      (peranPengguna === "admin" || pesanTerpilih.idPengirim === profil.idKader)
+  );
+
   const handleAksiHapus = () => {
-    if (!pesanTerpilih) return;
+    if (!pesanTerpilih || !bolehHapusPesanTerpilih) return;
     onHapusPesan?.(pesanTerpilih.id);
     setPesanTerpilih(null);
     setToastTeks("✓ Pesan berhasil dihapus");
@@ -200,12 +218,12 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [daftarPesanSaluran.length, saluranAktif]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const pesanTeks = teksPesan.trim();
+    const pesanTeks = sanitasiTeksInput(teksPesan);
     if (!pesanTeks) return;
 
     const pesanKirim = balasPesan
@@ -276,12 +294,13 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
   };
 
   const kirimLokasiCepat = () => {
+    const labelBersih = sanitasiTeksInput(labelPin) || "Posisi GPS Lapangan";
     const pin = {
-      lat: Number(latPin) || -0.9472,
-      lng: Number(lngPin) || 100.418,
-      label: labelPin.trim() || "Posisi GPS Lapangan"
+      lat: Number(latPin) || perangkat.posisi?.lat || -0.9472,
+      lng: Number(lngPin) || perangkat.posisi?.lng || 100.418,
+      label: labelBersih
     };
-    onKirimPesan(saluranAktif, `📍 Berbagi Titik Koordinat: ${labelPin}`, pin);
+    onKirimPesan(saluranAktif, `📍 Berbagi Titik Koordinat: ${labelBersih}`, pin);
     setBukaInputPin(false);
     setMenuLampiranTerbuka(false);
   };
@@ -518,7 +537,7 @@ export const KomunikasiView: React.FC<KomunikasiViewProps> = ({
             >
               <Forward size={20} />
             </button>
-            {onHapusPesan && (
+            {bolehHapusPesanTerpilih && (
               <button
                 type="button"
                 className="wa-action-icon wa-action-delete"

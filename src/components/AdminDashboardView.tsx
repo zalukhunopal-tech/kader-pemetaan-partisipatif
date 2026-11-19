@@ -28,7 +28,7 @@ import {
   tambahTabelSkema,
   ubahNamaTabelSkema
 } from "../lib/skemaTugas";
-import { adalahDataImpor, adalahDataSimulasi } from "../lib/geoUtils";
+import { adalahDataImpor, adalahDataSimulasi, sanitasiTeksInput } from "../lib/geoUtils";
 import { kompresFotoKeDataUrl } from "../lib/foto";
 import { sisaHariPencadangan } from "../lib/pencadanganData";
 import { AkunSesi, muatSemuaAkun } from "../lib/auth";
@@ -82,7 +82,7 @@ interface AdminDashboardViewProps {
   onVerifikasiTugas?: (id: string) => void;
   onHapusTugas: (id: string) => void;
   onBalasPesanAdmin: (teks: string) => void;
-  onFokusKePeta: (lat: number, lng: number, label: string) => void;
+  onFokusKePeta: (lat: number, lng: number, label: string, tugasId?: string) => void;
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
@@ -116,6 +116,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const [menuAksiData, setMenuAksiData] = useState<DataSpasialItem | null>(null);
   const [revisiDataTarget, setRevisiDataTarget] = useState<DataSpasialItem | null>(null);
   const [catatanRevisiInput, setCatatanRevisiInput] = useState<string>("");
+  useTombolEsc(itemDiedit !== null, () => setItemDiedit(null));
   useTombolEsc(menuAksiData !== null, () => setMenuAksiData(null));
   useTombolEsc(revisiDataTarget !== null, () => {
     setRevisiDataTarget(null);
@@ -134,8 +135,9 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
 
   const kirimCatatanRevisi = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!revisiDataTarget || !catatanRevisiInput.trim()) return;
-    onVerifikasiData(revisiDataTarget.id, "ditolak", catatanRevisiInput.trim());
+    const catatanBersih = sanitasiTeksInput(catatanRevisiInput);
+    if (!revisiDataTarget || !catatanBersih) return;
+    onVerifikasiData(revisiDataTarget.id, "ditolak", catatanBersih);
     setRevisiDataTarget(null);
     setCatatanRevisiInput("");
   };
@@ -324,7 +326,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const handleBagikanTugas = (e: React.FormEvent) => {
     e.preventDefault();
     setGalatFormTugas("");
-    const tema = temaKegiatan.trim();
+    const tema = sanitasiTeksInput(temaKegiatan);
     if (!tema) {
       setGalatFormTugas("Tema kegiatan wajib diisi.");
       return;
@@ -402,7 +404,12 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const handleSimpanEditData = (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemDiedit) return;
-    onUbahDataSpasial(itemDiedit);
+    onUbahDataSpasial({
+      ...itemDiedit,
+      judul: sanitasiTeksInput(itemDiedit.judul) || itemDiedit.judul,
+      deskripsi: sanitasiTeksInput(itemDiedit.deskripsi),
+      lapisanNama: sanitasiTeksInput(itemDiedit.lapisanNama) || "Lapisan 1"
+    });
     setItemDiedit(null);
   };
 
@@ -785,7 +792,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                 onVerifikasiData(d.id, "terverifikasi");
               }}
             >
-              <Check size={18} /> Sah
+              <Check size={18} /> Verifikasi
             </button>
             <button
               type="button"
@@ -862,7 +869,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                   >
                     <option value="lokal">Lokal (HP)</option>
                     <option value="tersinkron">Tersinkron GDrive</option>
-                    <option value="terverifikasi">Terverifikasi Sah</option>
+                    <option value="terverifikasi">Terverifikasi</option>
                     <option value="ditolak">Ditolak</option>
                   </select>
                 </div>
@@ -1344,7 +1351,17 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                         <button
                           type="button"
                           className="btn-outline-sm"
-                          onClick={() => onFokusKePeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul)}
+                          onClick={() => {
+                            const objekTugas = dataSpasial.find(
+                              (d) =>
+                                (d.tugasId === t.id ||
+                                  d.lapisanId === `LAP-TGS-${t.id}` ||
+                                  (d.lapisanNama ?? "").toLowerCase() === t.judul.toLowerCase()) &&
+                                d.koordinat[0]
+                            );
+                            const koord = objekTugas?.koordinat[0] ?? t.koordinatAcuan;
+                            onFokusKePeta(koord.lat, koord.lng, t.judul, t.id);
+                          }}
                           title="Lihat acuan di peta"
                         >
                           <Compass size={13} /> Peta

@@ -7,7 +7,7 @@ interface PemberitahuanViewProps {
   pengumumanList: PengumumanBroadcast[];
   tugasList: TugasPemetaan[];
   onTutup: () => void;
-  onBukaTargetDiPeta: (lat: number, lng: number, label: string) => void;
+  onBukaTargetDiPeta: (lat: number, lng: number, label: string, tugasId?: string) => void;
   onTandaiTugasSelesai: (id: string) => void;
 }
 
@@ -19,7 +19,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
   onTandaiTugasSelesai
 }) => {
   useTombolEsc(true, onTutup);
-  const [lihatRiwayat, setLihatRiwayat] = useState(false);
+  const [lihatRiwayat, setLihatRiwayat] = useState(() => pengumumanList.length + tugasList.length > 0);
 
   return (
     <div className="avenza-fullpage-overlay">
@@ -133,7 +133,7 @@ export const PemberitahuanView: React.FC<PemberitahuanViewProps> = ({
                             className="btn-primary-sm"
                             onClick={() => {
                               onTutup();
-                              onBukaTargetDiPeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul);
+                              onBukaTargetDiPeta(t.koordinatAcuan.lat, t.koordinatAcuan.lng, t.judul, t.id);
                             }}
                           >
                             <MapPin size={14} /> Buka di Peta

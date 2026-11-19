@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AreaPetaOffline, BasemapType, DataSpasialItem, JenisGeometri, KoordinatTitik, LapisanSpasial, ProfilKader } from "../types";
 import { singkatkanLabelPeta } from "../lib/labelPeta";
+import { objekCocokLapisan } from "../lib/tematik";
 import {
   eksporKeGeoJSON,
   formatKoordinatTeks,
@@ -231,10 +232,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [koordinatDipilih, setKoordinatDipilih] = useState<{ lat: number; lng: number; label?: string } | null>(null);
   const [filterTematik, setFilterTematik] = useState<string | null>(null);
   const dataTampil = useMemo(() => {
+    const cocokLapisan = filterTematik
+      ? lapisanList.find((l) => l.nama.trim().toLowerCase() === filterTematik.trim().toLowerCase())
+      : lapisanAktifId
+        ? lapisanList.find((l) => l.id === lapisanAktifId)
+        : undefined;
+    if (cocokLapisan) {
+      return dataSpasial.filter((d) => objekCocokLapisan(d, cocokLapisan));
+    }
     if (!filterTematik) return dataSpasial;
     const kunci = filterTematik.trim().toLowerCase();
     return dataSpasial.filter((d) => (d.lapisanNama || d.tematik || "").trim().toLowerCase() === kunci);
-  }, [dataSpasial, filterTematik]);
+  }, [dataSpasial, filterTematik, lapisanList, lapisanAktifId]);
 
   const cariKoordinat = (teksKhusus?: string) => {
     setGalatPencarian("");
@@ -3171,7 +3180,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             <div className="avz-tematik-filter-bar" role="group" aria-label="Filter lapisan peta">
               <button
                 type="button"
-                className={`avz-tematik-chip ${filterTematik === null ? "aktif" : ""}`}
+                className={`avz-tematik-chip ${filterTematik === null && !lapisanAktif ? "aktif" : ""}`}
                 onClick={() => {
                   setFilterTematik(null);
                   onPilihLapisanAktif?.(null);
@@ -3521,6 +3530,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               setPesanSalin("Menghubungkan sinyal elevasi GPS...");
             }
           }}
+          onBukaHalamanLapisan={() => {
+            setPinPeekTerbuka(false);
+            setBukaHalamanLapisan(true);
+          }}
           sedangUkurGps={perangkat.statusGps === "mencari"}
           onPesan={setPesanSalin}
         />
@@ -3535,6 +3548,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
           onPilihLapisanAktif={onPilihLapisanAktif}
+          onBukaHalamanLapisan={() => {
+            setObjekTerpilih(null);
+            setBukaHalamanLapisan(true);
+          }}
+          elevasiMeter={perangkat.posisi?.elevasi}
+          onAmbilElevasiGps={() => {
+            if (perangkat.posisi?.elevasi !== undefined) {
+              const dibulatkan = Number(perangkat.posisi.elevasi.toFixed(2));
+              const diubah = { ...objekTerpilih, elevasi: dibulatkan };
+              onPerbaruiData?.(diubah);
+              setObjekTerpilih(diubah);
+              setPesanSalin(`Elevasi GPS: ${dibulatkan.toFixed(1)} m`);
+            } else {
+              setPesanSalin("Menghubungkan sinyal elevasi GPS...");
+            }
+          }}
+          sedangUkurGps={perangkat.statusGps === "mencari"}
           onPerbaruiObjek={(dataDiubah) => {
             onPerbaruiData?.(dataDiubah);
             setObjekTerpilih(dataDiubah);
@@ -3596,6 +3626,25 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             }
           }}
           lapisanList={lapisanList}
+          elevasiGpsMeter={perangkat.posisi?.elevasi}
+          onBukaHalamanLapisan={() => {
+            setObjekTerpilih(null);
+            setDetailObjekTerbuka(false);
+            setBukaHalamanLapisan(true);
+          }}
+          onKonversiKeArea={
+            objekTerpilih.jenisGeometri === "line" && objekTerpilih.koordinat.length >= 3
+              ? () => {
+                  setModeGambarUkur(true);
+                  setModeRekam("polygon");
+                  perekamLatar.mulaiGambarUkur("polygon", objekTerpilih.koordinat);
+                  setTitikDraft(objekTerpilih.koordinat);
+                  setObjekTerpilih(null);
+                  setDetailObjekTerbuka(false);
+                  setBukaModalForm(true);
+                }
+              : undefined
+          }
           onGoTo={(t) => {
             setTargetGoTo(t);
             setObjekTerpilih(null);

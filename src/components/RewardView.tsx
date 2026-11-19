@@ -81,7 +81,11 @@ interface RewardViewProps {
   pesanList?: PesanKomunikasi[];
   tugasList?: TugasPemetaan[];
   onUbahProfil: (p: ProfilKader) => void;
-  onUbahPenandatanganSertifikat?: (nama: string, jabatan: string) => void;
+  onUbahPenandatanganSertifikat?: (
+    nama: string,
+    jabatan: string,
+    daftarPenandatangan?: PenandatanganSertifikatItem[]
+  ) => void;
 }
 
 export const RewardView: React.FC<RewardViewProps> = ({
@@ -98,6 +102,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const certCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputFotoRef = useRef<HTMLInputElement | null>(null);
   const [bukaAturSertifikat, setBukaAturSertifikat] = useState(false);
+  const [galatMedia, setGalatMedia] = useState<string>("");
 
   const idsCadangan = useMemo(() => idsDiPencadangan(pencadanganList), [pencadanganList]);
   // Kemajuan yang terlihat kader memakai semua data non-cadangan; kelayakan sertifikat hanya dari data terverifikasi
@@ -149,6 +154,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
     !temaMentah || temaMentah.trim() === JUDUL_SERTIFIKAT_LAMA ? JUDUL_SERTIFIKAT_BAWAAN : temaMentah;
 
   const handleUbahTemaKegiatan = (teks: string) => {
+    if (peran !== "admin") return;
     onUbahProfil({
       ...profil,
       temaKegiatanSertifikat: teks
@@ -236,11 +242,12 @@ export const RewardView: React.FC<RewardViewProps> = ({
   const handlePilihFotoSertifikat = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setGalatMedia("");
     try {
       const dataUrl = await kompresFotoKeDataUrl(file, 480);
       onUbahProfil({ ...profil, fotoKaderBase64: dataUrl });
     } catch {
-      alert("Gagal memuat foto. Silakan pilih file gambar lain.");
+      setGalatMedia("Gagal memuat foto. Silakan pilih file gambar lain.");
     } finally {
       e.target.value = "";
     }
@@ -250,8 +257,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
     onUbahProfil({ ...profil, fotoKaderBase64: undefined });
   };
 
-  // Handler Kelola Logo Sertifikat
+  // Handler Kelola Logo Sertifikat (Khusus Administrator)
   const handleTambahLogo = () => {
+    if (peran !== "admin") return;
     const warnaPalet = ["#eab308", "#38bdf8", "#22c55e", "#a855f7", "#f97316"];
     const itemBaru: LogoSertifikatItem = {
       id: `logo-${Date.now()}`,
@@ -265,21 +273,24 @@ export const RewardView: React.FC<RewardViewProps> = ({
   };
 
   const handleUbahLogo = (id: string, patch: Partial<LogoSertifikatItem>) => {
+    if (peran !== "admin") return;
     const baru = logoListAktif.map((l) => (l.id === id ? { ...l, ...patch } : l));
     onUbahProfil({ ...profil, logoSertifikatList: baru });
   };
 
   const handleUnggahGambarLogo = async (id: string, file?: File) => {
-    if (!file) return;
+    if (peran !== "admin" || !file) return;
+    setGalatMedia("");
     try {
       const dataUrl = await kompresFotoKeDataUrl(file, 260);
       handleUbahLogo(id, { imageBase64: dataUrl });
     } catch {
-      alert("Gagal memuat gambar logo.");
+      setGalatMedia("Gagal memuat gambar logo.");
     }
   };
 
   const handleHapusLogo = (id: string) => {
+    if (peran !== "admin") return;
     const baru = logoListAktif.filter((l) => l.id !== id);
     onUbahProfil({ ...profil, logoSertifikatList: baru });
   };
@@ -298,6 +309,9 @@ export const RewardView: React.FC<RewardViewProps> = ({
       ...profil,
       penandatanganList: baru
     });
+    if (baru[0]) {
+      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan, baru);
+    }
   };
 
   const handleUbahPenandatanganItem = (id: string, patch: Partial<PenandatanganSertifikatItem>) => {
@@ -310,17 +324,18 @@ export const RewardView: React.FC<RewardViewProps> = ({
       jabatanPenandatanganSertifikat: baru[0]?.jabatan
     });
     if (baru[0]) {
-      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan);
+      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan, baru);
     }
   };
 
   const handleUnggahGambarTtd = async (id: string, file?: File) => {
     if (peran !== "admin" || !file) return;
+    setGalatMedia("");
     try {
       const dataUrl = await kompresFotoKeDataUrl(file, 360);
       handleUbahPenandatanganItem(id, { tandaTanganBase64: dataUrl });
     } catch {
-      alert("Gagal memuat gambar tanda tangan.");
+      setGalatMedia("Gagal memuat gambar tanda tangan.");
     }
   };
 
@@ -329,8 +344,13 @@ export const RewardView: React.FC<RewardViewProps> = ({
     const baru = penandatanganListAktif.filter((p) => p.id !== id);
     onUbahProfil({
       ...profil,
-      penandatanganList: baru
+      penandatanganList: baru,
+      namaPenandatanganSertifikat: baru[0]?.nama,
+      jabatanPenandatanganSertifikat: baru[0]?.jabatan
     });
+    if (baru[0]) {
+      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan, baru);
+    }
   };
 
   const handleResetPenandatanganKkiWarsi = () => {
@@ -343,7 +363,8 @@ export const RewardView: React.FC<RewardViewProps> = ({
     });
     onUbahPenandatanganSertifikat?.(
       DEFAULT_PENANDATANGAN_SERTIFIKAT[0].nama,
-      DEFAULT_PENANDATANGAN_SERTIFIKAT[0].jabatan
+      DEFAULT_PENANDATANGAN_SERTIFIKAT[0].jabatan,
+      DEFAULT_PENANDATANGAN_SERTIFIKAT
     );
   };
 
@@ -362,7 +383,7 @@ export const RewardView: React.FC<RewardViewProps> = ({
       jabatanPenandatanganSertifikat: baru[0]?.jabatan
     });
     if (baru[0]) {
-      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan);
+      onUbahPenandatanganSertifikat?.(baru[0].nama, baru[0].jabatan, baru);
     }
   };
 
@@ -766,6 +787,12 @@ export const RewardView: React.FC<RewardViewProps> = ({
               ? "Capaian terverifikasi sudah memenuhi syarat (50 titik, 5 km jalur, dan 5 Ha poligon). Menunggu admin menerbitkan sertifikat."
               : "Sertifikat diterbitkan admin setelah Anda mengambil 50 titik, 5 km jalur, dan 5 Ha poligon yang diverifikasi di menu admin."}
         </p>
+
+        {galatMedia && (
+          <p role="alert" className="field-error" style={{ marginTop: 6 }}>
+            {galatMedia}
+          </p>
+        )}
 
         <div className="certificate-canvas-stage" id="certificate-print-area">
           <canvas ref={certCanvasRef} className="certificate-wysiwyg-canvas" aria-label={`Sertifikat ${sertifikatTampil.namaKader}`} />

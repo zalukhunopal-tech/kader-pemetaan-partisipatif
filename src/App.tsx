@@ -1,4 +1,3 @@
-import { useDesktop } from "./lib/tampilanLapangan";
 import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -75,6 +74,7 @@ import {
   rekonsiliasiDatabaseDenganGDrive
 } from "./lib/pencadanganData";
 import { adalahDataSimulasi, dihitungUntukCapaian } from "./lib/geoUtils";
+import { hitungSkorKualitasData } from "./lib/kualitasData";
 import { buatId } from "./lib/id";
 import { abaikanGeserDari, arahGeser, Sentuhan, tabTujuan } from "./lib/geserTab";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
@@ -112,7 +112,6 @@ import { sinkronkanLapisanDariTugas } from "./lib/skemaTugas";
 import { PullToRefresh } from "./components/common/PullToRefresh";
 
 export const App: React.FC = () => {
-  const desktop = useDesktop();
   const [tampilSplashTaka, setTampilSplashTaka] = useState<boolean>(() => !sudahTampilSplashTakaSesiIni());
   // Sesi Pengguna Login
   const [sesiPengguna, setSesiPengguna] = useState<AkunSesi | null>(() => muatSesiPengguna());
@@ -151,7 +150,7 @@ export const App: React.FC = () => {
     // Pintasan aplikasi terpasang (mis. tekan lama ikon > "Peta") membuka ?tab=...
     try {
       const diminta = new URLSearchParams(window.location.search).get("tab");
-      const boleh: MenuTab[] = ["pustaka", "peta", "data_sync", "reward", "komunikasi"];
+      const boleh: MenuTab[] = ["pustaka", "peta", "data_sync", "reward", "tugas", "komunikasi"];
       if (diminta && boleh.includes(diminta as MenuTab)) {
         window.history.replaceState(null, "", window.location.pathname);
         return diminta as MenuTab;
@@ -761,10 +760,23 @@ export const App: React.FC = () => {
 
   // Handler Perbarui Data Spasial langsung dari Peta Interaktif (edit nama, koordinat, deskripsi, corak, elevasi, foto, lapisan)
   const handlePerbaruiDataDariPeta = (dataDiubah: DataSpasialItem) => {
-    setDataSpasial((prev) =>
-      prev.map((d) => (d.id === dataDiubah.id ? { ...dataDiubah, updatedAt: new Date().toISOString() } : d))
-    );
-    tampilkanToast(`✓ Perubahan "${dataDiubah.judul}" disimpan.`);
+    const lama = dataSpasial.find((d) => d.id === dataDiubah.id);
+    if (!lama) return;
+    const bolehAdmin = aksesAdmin && aksesAdminSah(sesiPengguna);
+    if (!bolehAdmin && lama.idKader && lama.idKader !== profil.idKader) {
+      tampilkanToast("⛔ Hanya pemilik data atau Admin yang dapat mengubah objek ini.");
+      return;
+    }
+    const statusBerikut: StatusSinkron =
+      !bolehAdmin && lama.statusSinkron === "tersinkron" ? "lokal" : dataDiubah.statusSinkron;
+    const itemFinal: DataSpasialItem = {
+      ...dataDiubah,
+      statusSinkron: statusBerikut,
+      updatedAt: new Date().toISOString()
+    };
+    itemFinal.kualitasData = hitungSkorKualitasData(itemFinal);
+    setDataSpasial((prev) => prev.map((d) => (d.id === itemFinal.id ? itemFinal : d)));
+    tampilkanToast(`✓ Perubahan "${itemFinal.judul}" disimpan.`);
   };
 
   // Handler Hapus Data Spasial oleh Admin -> pindah ke Pencadangan 90 Hari (lokal + Google Drive Pencadangan_90_Hari)
@@ -1017,9 +1029,14 @@ export const App: React.FC = () => {
     }
   };
 
-  // Handler Fokus ke Titik Koordinat di Peta
-  const handleFokusKePeta = (lat: number, lng: number, label: string) => {
-    setFokusKoordinat({ lat, lng, label });
+  // Handler Fokus ke Titik Koordinat di Peta (dan aktifkan lapisan tugas bila dipicu dari kartu Tugas)
+  const handleFokusKePeta = (lat: number, lng: number, label: string, tugasId?: string) => {
+    if (tugasId) {
+      setLapisanAktifId(`LAP-TGS-${tugasId}`);
+    }
+    if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
+      setFokusKoordinat({ lat, lng, label });
+    }
     setTabAktif("peta");
   };
 
@@ -1060,6 +1077,13 @@ export const App: React.FC = () => {
   };
 
   const handleHapusPesan = (idPesan: string) => {
+    const target = pesanList.find((p) => p.id === idPesan);
+    if (!target) return;
+    const bolehAdmin = aksesAdmin && aksesAdminSah(sesiPengguna);
+    if (!bolehAdmin && target.idPengirim !== profil.idKader) {
+      tampilkanToast("⛔ Anda hanya dapat menghapus pesan milik Anda sendiri.");
+      return;
+    }
     setPesanList((prev) => prev.filter((p) => p.id !== idPesan));
     tampilkanToast("Pesan dihapus dari obrolan.");
   };
@@ -1393,7 +1417,7 @@ export const App: React.FC = () => {
                 pesanSinkronGagal={pesanSinkronGagal}
                 sedangOnline={sedangOnline}
                 onSinkronkanSekarang={() => void handleSinkronkanSekarang(false)}
-                onFokusKePeta={(lat, lng, label) => (desktop ? setFokusKoordinat({ lat, lng, label }) : handleFokusKePeta(lat, lng, label))}
+                onFokusKePeta={handleFokusKePeta}
               />
             )}
 
@@ -1482,7 +1506,7 @@ export const App: React.FC = () => {
                 })}
                 onHapusTugas={wajibAdmin(handleHapusTugas)}
                 onBalasPesanAdmin={wajibAdmin((teks: string) => handleKirimPesan("admin", teks))}
-                onFokusKePeta={(lat, lng, label) => (desktop ? setFokusKoordinat({ lat, lng, label }) : handleFokusKePeta(lat, lng, label))}
+                onFokusKePeta={handleFokusKePeta}
               />
             )}
           </PullToRefresh>
