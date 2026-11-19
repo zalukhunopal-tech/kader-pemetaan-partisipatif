@@ -11,7 +11,6 @@ import {
   ArrowUpDown,
   Check,
   ChevronDown,
-  Download,
   Eye,
   FileUp,
   Filter,
@@ -45,9 +44,9 @@ interface PustakaViewProps {
   onBukaAreaPeta: (area: AreaPetaOffline) => void;
   onTambahAreaOffline: (area: AreaPetaOffline) => void;
   onHapusAreaOffline: (id: string) => void;
-  onTambahLapisan: (lapisan: LapisanSpasial) => void;
+  onTambahLapisan?: (lapisan: LapisanSpasial) => void;
   onHapusLapisan: (id: string) => void;
-  onImporBerkas: (namaBerkas: string, isi: string) => boolean;
+  onImporBerkas?: (namaBerkas: string, isi: string) => boolean;
   onBukaPengaturanEkspor: (konteks?: KonteksEkspor) => void;
 }
 
@@ -136,9 +135,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   onBukaAreaPeta,
   onTambahAreaOffline,
   onHapusAreaOffline,
-  onTambahLapisan,
   onHapusLapisan,
-  onImporBerkas,
   onBukaPengaturanEkspor
 }) => {
   const [subTab, setSubTab] = useState<"peta" | "lapisan">("peta");
@@ -195,10 +192,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [kalibLatBawah, setKalibLatBawah] = useState("");
   const [kalibLngTimur, setKalibLngTimur] = useState("");
 
-  const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
   useTombolEsc(bukaModalPetaBaru, () => setBukaModalPetaBaru(false));
-  useTombolEsc(bukaModalLapisanBaru, () => setBukaModalLapisanBaru(false));
-  const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
   const [petaPratinjauAktif, setPetaPratinjauAktif] = useState<AreaPetaOffline | null>(null);
   useTombolEsc(petaPratinjauAktif !== null, () => setPetaPratinjauAktif(null));
 
@@ -491,44 +485,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     setBukaModalPetaBaru(false);
     // Tampilkan pratinjau peta setelah berhasil di-upload ke aplikasi
     setPetaPratinjauAktif(itemBaru);
-  };
-
-  const handleSimpanLapisanBaru = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!namaLapisanBaru.trim()) return;
-    const lyrBaru: LapisanSpasial = {
-      id: buatId("LYR"),
-      nama: namaLapisanBaru.trim(),
-      jumlahPeta: 1,
-      createdAt: new Date().toISOString()
-    };
-    onTambahLapisan(lyrBaru);
-    setNamaLapisanBaru("");
-    setBukaModalLapisanBaru(false);
-  };
-
-  const handleImporFileLapisan = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = input.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      // Lapisan dicatat hanya bila isi berkas benar-benar terbaca dan berisi objek
-      if (onImporBerkas(file.name, String(reader.result || ""))) {
-        onTambahLapisan({
-          id: buatId("LYR"),
-          nama: file.name.replace(/\.[^/.]+$/, ""),
-          jumlahPeta: 1,
-          createdAt: new Date().toISOString()
-        });
-      }
-      input.value = "";
-    };
-    reader.onerror = () => {
-      onImporBerkas(file.name, "");
-      input.value = "";
-    };
-    reader.readAsText(file);
   };
 
   const formatAngkaIndo = (num: number) => num.toString().replace(".", ",");
@@ -1019,37 +975,10 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </div>
                 <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>Belum Ada Lapisan</h4>
                 <p style={{ margin: "0 auto", fontSize: "0.84rem", color: "#64748b", maxWidth: 300 }}>
-                  Gunakan tombol "Buat lapisan" atau "Impor" di kanan bawah.
+                  Lapisan pemetaan akan tampil di sini saat tersedia.
                 </p>
               </div>
             )}
-          </div>
-
-          <div className="avenza-fab-stack">
-            <div className="avenza-fab-row">
-              <span className="avenza-fab-label" onClick={() => setBukaModalLapisanBaru(true)}>
-                Buat lapisan
-              </span>
-              <button type="button" className="avenza-fab-orange" onClick={() => setBukaModalLapisanBaru(true)} title="Buat Lapisan Baru">
-                <Layers size={22} />
-              </button>
-            </div>
-
-            <div className="avenza-fab-row">
-              <label className="avenza-fab-label" htmlFor="impor-lapisan-input">
-                Impor
-              </label>
-              <label htmlFor="impor-lapisan-input" className="avenza-fab-orange" title="Impor File Lapisan (.kml, .geojson, .gpx)">
-                <Download size={22} />
-                <input
-                  id="impor-lapisan-input"
-                  type="file"
-                  accept=".geojson,.json,.kml,.gpx"
-                  style={{ display: "none" }}
-                  onChange={handleImporFileLapisan}
-                />
-              </label>
-            </div>
           </div>
         </div>
       )}
@@ -1241,40 +1170,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         </div>
       )}
 
-      {/* MODAL BUAT LAPISAN SPASIAL BARU */}
-      {bukaModalLapisanBaru && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Lapisan</h3>
-              <button type="button" className="btn-icon-close" onClick={() => setBukaModalLapisanBaru(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleSimpanLapisanBaru} className="modal-form">
-              <div>
-                <label>Nama Lapisan</label>
-                <input
-                  type="text"
-                  required
-                  className="form-input"
-                  placeholder="Masukkan nama lapisan"
-                  value={namaLapisanBaru}
-                  onChange={(e) => setNamaLapisanBaru(e.target.value)}
-                />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-outline-sm" onClick={() => setBukaModalLapisanBaru(false)}>
-                  Batal
-                </button>
-                <button type="submit" className="btn-primary">
-                  Buat Lapisan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {/* MODAL PRATINJAU LEMBAR PETA SETELAH DI-UPLOAD KE APLIKASI */}
       {petaPratinjauAktif && (
         <div className="modal-backdrop" onClick={() => setPetaPratinjauAktif(null)}>

@@ -109,17 +109,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
     [dataSpasial, profil, pesanList, tugasList, idsCadangan]
   );
 
-  const statistikDatabaseLevel = useMemo(() => {
-    const milikSaya = dataSpasial.filter((d) => d.idKader === profil.idKader && !idsCadangan.has(d.id));
-    const menungguSync = milikSaya.filter((d) => d.statusSinkron === "lokal" || d.statusSinkron === "mengunggah").length;
-    const diCadangan = pencadanganList.filter((c) => c.data.idKader === profil.idKader).length;
-    return {
-      sahDiDatabase: peringkatGis.rincianSkor.detailStatistik.totalObjek,
-      menungguSync,
-      diCadangan
-    };
-  }, [dataSpasial, pencadanganList, profil.idKader, idsCadangan, peringkatGis.rincianSkor.detailStatistik.totalObjek]);
-
   const { levelSaatIni, persenProgresLevel } = peringkatGis;
 
   // State navigasi level ke kiri / ke kanan (1 s/d 20)
@@ -658,12 +647,6 @@ export const RewardView: React.FC<RewardViewProps> = ({
           </small>
         </div>
       </div>
-
-      <p id="info-korelasi-level-database" className="level-db-correlation-note">
-        Syarat Level dihitung hanya dari data valid di database aktif ({statistikDatabaseLevel.sahDiDatabase} data).
-        {statistikDatabaseLevel.menungguSync > 0 && ` Menunggu sinkron: ${statistikDatabaseLevel.menungguSync}.`}
-        {statistikDatabaseLevel.diCadangan > 0 && ` Di Pencadangan 90 Hari (tidak dihitung): ${statistikDatabaseLevel.diCadangan}.`}
-      </p>
 
       {/* 2. GRAFIK CINCIN VISUAL: CAPAIAN SPASIAL (TITIK, JALUR, POLIGON) */}
       <div className="visual-rings-grid">
