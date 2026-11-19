@@ -65,7 +65,7 @@ describe("Audit & Pengujian Keamanan Aplikasi Titik Tapak", () => {
         kategori: "Agama",
         keterangan: "Tempat ibadah warga",
         url: "https://walaya.prm.my.id/masjid.jpg",
-        simbol: "mosque.png"
+        simbol: ""
       });
     });
 

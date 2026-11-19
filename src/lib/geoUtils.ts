@@ -35,15 +35,23 @@ export function hitungJarakMeter(a: KoordinatTitik, b: KoordinatTitik): number {
 }
 
 /**
- * Menghitung panjang total garis/lintasan tracking dalam Kilometer (km)
+ * Menghitung panjang total garis/lintasan dalam meter secara geodesik (Haversine)
  */
-export function hitungPanjangGarisKm(titik: KoordinatTitik[]): number {
+export function hitungPanjangGarisMeter(titik: KoordinatTitik[]): number {
   if (titik.length < 2) return 0;
   let totalMeter = 0;
   for (let i = 1; i < titik.length; i++) {
     totalMeter += hitungJarakMeter(titik[i - 1], titik[i]);
   }
-  return Number((totalMeter / 1000).toFixed(3));
+  return Number(totalMeter.toFixed(2));
+}
+
+/**
+ * Menghitung panjang total garis/lintasan tracking dalam Kilometer (km)
+ */
+export function hitungPanjangGarisKm(titik: KoordinatTitik[]): number {
+  if (titik.length < 2) return 0;
+  return Number((hitungPanjangGarisMeter(titik) / 1000).toFixed(3));
 }
 
 /**
@@ -324,38 +332,77 @@ export function keWKT(item: DataSpasialItem): string {
   return `POLYGON((${pts}))`;
 }
 
-/** Posisi GeoJSON: elevasi hanya ditulis bila diketahui (tidak diganti 0) */
-const posisiGeoJSON = (p: KoordinatTitik): number[] => (p.elevasi !== undefined ? [p.lng, p.lat, p.elevasi] : [p.lng, p.lat]);
+const bulat7 = (n: number): number => Number(n.toFixed(7));
+
+/** Posisi GeoJSON: presisi 7 angka desimal (~1 cm), elevasi hanya ditulis bila diketahui (tidak diganti 0) */
+const posisiGeoJSON = (p: KoordinatTitik): number[] =>
+  p.elevasi !== undefined ? [bulat7(p.lng), bulat7(p.lat), p.elevasi] : [bulat7(p.lng), bulat7(p.lat)];
 
 const posisiKML = (p: KoordinatTitik): string => (p.elevasi !== undefined ? `${p.lng},${p.lat},${p.elevasi}` : `${p.lng},${p.lat}`);
 
 const eleGPX = (p: KoordinatTitik, awalan = ""): string => (p.elevasi !== undefined ? `${awalan}<ele>${p.elevasi}</ele>\n` : "");
 
+export interface OpsiEksporGeoJson {
+  /** Sertakan kolom tambahan (atribut tugas terpisah, lapisan, elevasi_m) di luar standar WebGIS Kecamatan */
+  sertakanKolomEkstra?: boolean;
+}
+
+function panjangMeterAkurat(item: DataSpasialItem): number {
+  const meterGeom = hitungPanjangGarisMeter(item.koordinat);
+  const meterTersimpan = Number(item.panjangKm ?? 0) * 1000;
+  if (!meterTersimpan || meterTersimpan <= 0) return meterGeom;
+  const rasioSelisih = meterGeom > 0 ? Math.abs(meterTersimpan - meterGeom) / meterGeom : 0;
+  if (meterGeom > 0 && meterGeom < 100 && rasioSelisih > 0.015 && rasioSelisih <= 0.05) {
+    return meterGeom;
+  }
+  return Number(meterTersimpan.toFixed(2));
+}
+
+function luasHaAkurat(item: DataSpasialItem): number {
+  const haGeom = Number((hitungLuasPoligonMeter2(item.koordinat) / 10000).toFixed(4));
+  const haTersimpan = Number(item.luasHa ?? 0);
+  if (!haTersimpan || haTersimpan <= 0) return haGeom;
+  const rasioSelisih = haGeom > 0 ? Math.abs(haTersimpan - haGeom) / haGeom : 0;
+  if (haGeom > 0 && haGeom < 0.1 && rasioSelisih > 0.015 && rasioSelisih <= 0.05) {
+    return haGeom;
+  }
+  return Number(haTersimpan.toFixed(4));
+}
+
 /**
- * Ekspor daftar DataSpasialItem menjadi string GeoJSON FeatureCollection standar WebGIS PRM-AID / QGIS / ArcGIS.
+ * Ekspor daftar DataSpasialItem menjadi string GeoJSON FeatureCollection standar WebGIS Kecamatan v1.0 / QGIS / ArcGIS.
  * Struktur atribut tabel (`properties`) menyesuaikan jenis geometri:
- * - Polygon : | label | luas_ha | keterangan | url | tepi | warna |
+ * - Polygon : | label | luas_ha | keterangan | url | warna | tepi |
  * - Line    : | label | panjang_m | keterangan | url | warna |
  * - Point   : | label | kategori | keterangan | url | simbol |
+ *
+ * Atribut kustom dari Tab Tugas Admin (kolam data) otomatis dirangkum ke `keterangan` agar langsung
+ * tampil di popup WebGIS Kecamatan tanpa melanggar standar kolom.
  */
-export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
+export function eksporKeGeoJSON(daftar: DataSpasialItem[], opsi: OpsiEksporGeoJson = {}): string {
+  const sertakanEkstra = opsi.sertakanKolomEkstra === true;
   const features = daftar.map((item) => {
+    const atributAman = sanitasiAtributKustom(item.atributKustom);
+    const itemBersih: DataSpasialItem = {
+      ...item,
+      atributKustom: Object.keys(atributAman).length > 0 ? atributAman : undefined
+    };
     let geometry: Record<string, unknown>;
-    let atributPrmAid: Record<string, unknown>;
+    let atributWebgis: Record<string, unknown>;
     if (item.jenisGeometri === "point") {
       const p = item.koordinat[0] || { lat: 0, lng: 0 };
       geometry = {
         type: "Point",
         coordinates: posisiGeoJSON(p)
       };
-      atributPrmAid = { ...susunAtributPointPrmAid(item) };
+      atributWebgis = { ...susunAtributPointPrmAid(itemBersih) };
     } else if (item.jenisGeometri === "line") {
       geometry = {
         type: "LineString",
         coordinates: item.koordinat.map(posisiGeoJSON)
       };
-      const panjangKm = item.panjangKm || hitungPanjangGarisKm(item.koordinat);
-      atributPrmAid = { ...susunAtributLinePrmAid({ ...item, panjangKm }) };
+      const panjang_m = panjangMeterAkurat(item);
+      atributWebgis = { ...susunAtributLinePrmAid({ ...itemBersih, panjang_m }) };
     } else {
       const ring = item.koordinat.map(posisiGeoJSON);
       if (ring.length > 0) ring.push([...ring[0]]);
@@ -363,8 +410,8 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
         type: "Polygon",
         coordinates: [ring]
       };
-      const luasHa = item.luasHa || hitungLuasPoligonHa(item.koordinat);
-      atributPrmAid = { ...susunAtributPolygonPrmAid({ ...item, luasHa }) };
+      const luas_ha = luasHaAkurat(item);
+      atributWebgis = { ...susunAtributPolygonPrmAid({ ...itemBersih, luas_ha }) };
     }
     const sim = adalahDataSimulasi(item);
     const imp = adalahDataImpor(item);
@@ -372,17 +419,16 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[]): string {
     const punyaLapisanKustom = Boolean(
       item.lapisanId || item.tugasId || (item.lapisanNama && item.lapisanNama !== "Lapisan 1")
     );
-    const atributAman = sanitasiAtributKustom(item.atributKustom);
     return {
       type: "Feature",
       id: item.id,
       geometry,
       properties: {
-        ...atributAman,
-        ...atributPrmAid,
-        ...(punyaLapisanKustom && item.lapisanNama ? { lapisan: item.lapisanNama } : {}),
-        ...(item.tematik ? { tematik: item.tematik } : {}),
-        ...(elevasiTitik !== undefined ? { elevasi_m: elevasiTitik } : {}),
+        ...(sertakanEkstra ? atributAman : {}),
+        ...atributWebgis,
+        ...(sertakanEkstra && punyaLapisanKustom && item.lapisanNama ? { lapisan: item.lapisanNama } : {}),
+        ...(sertakanEkstra && item.tematik ? { tematik: item.tematik } : {}),
+        ...(sertakanEkstra && elevasiTitik !== undefined ? { elevasi_m: elevasiTitik } : {}),
         ...(sim ? { simulasi: true } : {}),
         ...(imp ? { diimpor: true } : {})
       }
@@ -519,13 +565,13 @@ export function sanitasiFormulaCsv(str: string): string {
 }
 
 /**
- * Ekspor ke CSV Tabel Atribut standar WebGIS PRM-AID:
- * - Bila seluruh daftar berupa Polygon : | label | luas_ha | keterangan | url | tepi | warna |
+ * Ekspor ke CSV Tabel Atribut standar WebGIS Kecamatan v1.0:
+ * - Bila seluruh daftar berupa Polygon : | label | luas_ha | keterangan | url | warna | tepi |
  * - Bila seluruh daftar berupa Line    : | label | panjang_m | keterangan | url | warna |
  * - Bila seluruh daftar berupa Point   : | label | kategori | keterangan | url | simbol |
- * - Bila campuran berbagai geometri    : menggabungkan kolom PRM-AID + jenis_geometri + koordinat_wkt
+ * - Bila campuran berbagai geometri    : menggabungkan kolom standar WebGIS + jenis_geometri + koordinat_wkt
  */
-export function eksporKeCSV(daftar: DataSpasialItem[]): string {
+export function eksporKeCSV(daftar: DataSpasialItem[], opsi: { sertakanAtributTugas?: boolean } = {}): string {
   const escCsv = (val: unknown) => {
     const str = sanitasiFormulaCsv(String(val ?? ""));
     if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
@@ -534,35 +580,57 @@ export function eksporKeCSV(daftar: DataSpasialItem[]): string {
     return str;
   };
 
+  const kolomTugasEkstra: string[] = [];
+  if (opsi.sertakanAtributTugas) {
+    const dilihat = new Set<string>();
+    for (const d of daftar) {
+      const bersih = sanitasiAtributKustom(d.atributKustom);
+      for (const [k, v] of Object.entries(bersih)) {
+        if (!v.startsWith("data:image/") && !dilihat.has(k)) {
+          dilihat.add(k);
+          kolomTugasEkstra.push(k);
+        }
+      }
+    }
+  }
+  const ambilEkstra = (d: DataSpasialItem) => {
+    if (!kolomTugasEkstra.length) return [];
+    const bersih = sanitasiAtributKustom(d.atributKustom);
+    return kolomTugasEkstra.map((k) => {
+      const v = bersih[k] ?? "";
+      return v.startsWith("data:image/") ? "[Foto]" : v;
+    });
+  };
+
   const semuaPolygon = daftar.length > 0 && daftar.every((d) => d.jenisGeometri === "polygon");
   const semuaLine = daftar.length > 0 && daftar.every((d) => d.jenisGeometri === "line");
   const semuaPoint = daftar.length > 0 && daftar.every((d) => d.jenisGeometri === "point");
 
   if (semuaPolygon) {
-    const header = [...KOLOM_TABEL_POLYGON_PRM_AID];
+    const header = [...KOLOM_TABEL_POLYGON_PRM_AID, ...kolomTugasEkstra];
     const rows = daftar.map((d) => {
-      const luasHa = d.luasHa || hitungLuasPoligonHa(d.koordinat);
-      const a = susunAtributPolygonPrmAid({ ...d, luasHa });
-      return [a.label, a.luas_ha, a.keterangan, a.url, a.tepi, a.warna].map(escCsv).join(",");
+      const luas_ha = luasHaAkurat(d);
+      const a = susunAtributPolygonPrmAid({ ...d, luas_ha });
+      return [a.label, a.luas_ha, a.keterangan, a.url, a.warna, a.tepi, ...ambilEkstra(d)].map(escCsv).join(",");
     });
     return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
   }
 
   if (semuaLine) {
-    const header = [...KOLOM_TABEL_LINE_PRM_AID];
+    const header = [...KOLOM_TABEL_LINE_PRM_AID, ...kolomTugasEkstra];
     const rows = daftar.map((d) => {
-      const panjangKm = d.panjangKm || hitungPanjangGarisKm(d.koordinat);
-      const a = susunAtributLinePrmAid({ ...d, panjangKm });
-      return [a.label, a.panjang_m, a.keterangan, a.url, a.warna].map(escCsv).join(",");
+      const panjang_m = panjangMeterAkurat(d);
+      const a = susunAtributLinePrmAid({ ...d, panjang_m });
+      return [a.label, a.panjang_m, a.keterangan, a.url, a.warna, ...ambilEkstra(d)].map(escCsv).join(",");
     });
     return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
   }
 
   if (semuaPoint) {
-    const header = [...KOLOM_TABEL_POINT_PRM_AID];
+    const header = [...KOLOM_TABEL_POINT_PRM_AID, ...kolomTugasEkstra];
     const rows = daftar.map((d) => {
       const a = susunAtributPointPrmAid(d);
-      return [a.label, a.kategori, a.keterangan, a.url, a.simbol].map(escCsv).join(",");
+      return [a.label, a.kategori, a.keterangan, a.url, a.simbol, ...ambilEkstra(d)].map(escCsv).join(",");
     });
     return "\uFEFF" + [header.join(","), ...rows].join("\r\n");
   }
@@ -575,28 +643,29 @@ export function eksporKeCSV(daftar: DataSpasialItem[]): string {
     "kategori",
     "keterangan",
     "url",
-    "tepi",
     "warna",
+    "tepi",
     "simbol",
-    "koordinat_wkt"
+    "koordinat_wkt",
+    ...kolomTugasEkstra
   ];
   const rows = daftar.map((d) => {
     if (d.jenisGeometri === "polygon") {
-      const luasHa = d.luasHa || hitungLuasPoligonHa(d.koordinat);
-      const a = susunAtributPolygonPrmAid({ ...d, luasHa });
-      return [a.label, "polygon", a.luas_ha, "", d.kategori, a.keterangan, a.url, a.tepi, a.warna, "", keWKT(d)]
+      const luas_ha = luasHaAkurat(d);
+      const a = susunAtributPolygonPrmAid({ ...d, luas_ha });
+      return [a.label, "polygon", a.luas_ha, "", "", a.keterangan, a.url, a.warna, a.tepi, "", keWKT(d), ...ambilEkstra(d)]
         .map(escCsv)
         .join(",");
     }
     if (d.jenisGeometri === "line") {
-      const panjangKm = d.panjangKm || hitungPanjangGarisKm(d.koordinat);
-      const a = susunAtributLinePrmAid({ ...d, panjangKm });
-      return [a.label, "line", "", a.panjang_m, d.kategori, a.keterangan, a.url, "", a.warna, "", keWKT(d)]
+      const panjang_m = panjangMeterAkurat(d);
+      const a = susunAtributLinePrmAid({ ...d, panjang_m });
+      return [a.label, "line", "", a.panjang_m, "", a.keterangan, a.url, a.warna, "", "", keWKT(d), ...ambilEkstra(d)]
         .map(escCsv)
         .join(",");
     }
     const a = susunAtributPointPrmAid(d);
-    return [a.label, "point", "", "", a.kategori, a.keterangan, a.url, "", "", a.simbol, keWKT(d)]
+    return [a.label, "point", "", "", a.kategori, a.keterangan, a.url, "", "", a.simbol, keWKT(d), ...ambilEkstra(d)]
       .map(escCsv)
       .join(",");
   });

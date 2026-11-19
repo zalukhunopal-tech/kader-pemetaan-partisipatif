@@ -1,5 +1,10 @@
 import { AreaPetaOffline, DataSpasialItem, JenisGeometri } from "../types";
-import { hitungLuasPoligonHa, hitungPanjangGarisKm } from "./geoUtils";
+import { hitungLuasPoligonMeter2, hitungPanjangGarisMeter, sanitasiAtributKustom } from "./geoUtils";
+import {
+  susunAtributLinePrmAid,
+  susunAtributPointPrmAid,
+  susunAtributPolygonPrmAid
+} from "./atributPrmAid";
 
 export const WGS84_PRJ =
   'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]';
@@ -185,40 +190,70 @@ interface KolomDbf {
   ambil: (d: DataSpasialItem) => string;
 }
 
-const KOLOM_DBF: KolomDbf[] = [
-  { nama: "ID", tipe: "C", panjang: 24, desimal: 0, ambil: (d) => d.id },
-  { nama: "JUDUL", tipe: "C", panjang: 60, desimal: 0, ambil: (d) => d.judul },
-  { nama: "KATEGORI", tipe: "C", panjang: 24, desimal: 0, ambil: (d) => d.kategori },
-  { nama: "GEOMETRI", tipe: "C", panjang: 12, desimal: 0, ambil: (d) => d.jenisGeometri },
-  { nama: "KADER", tipe: "C", panjang: 40, desimal: 0, ambil: (d) => d.namaKader },
-  { nama: "WILAYAH", tipe: "C", panjang: 40, desimal: 0, ambil: (d) => d.desaWilayah },
-  { nama: "TANGGAL", tipe: "C", panjang: 20, desimal: 0, ambil: (d) => d.createdAt.slice(0, 19) },
-  {
-    nama: "PANJANG_KM",
-    tipe: "N",
-    panjang: 12,
-    desimal: 3,
-    ambil: (d) => {
-      const val = d.panjangKm || (d.jenisGeometri === "line" ? hitungPanjangGarisKm(d.koordinat) : 0);
-      return val.toFixed(3);
-    }
-  },
-  {
-    nama: "LUAS_HA",
-    tipe: "N",
-    panjang: 12,
-    desimal: 3,
-    ambil: (d) => {
-      const val = d.luasHa || (d.jenisGeometri === "polygon" ? hitungLuasPoligonHa(d.koordinat) : 0);
-      return val.toFixed(3);
-    }
-  }
-];
+function susunItemBersihDbf(d: DataSpasialItem): DataSpasialItem {
+  const atr = sanitasiAtributKustom(d.atributKustom);
+  return { ...d, atributKustom: Object.keys(atr).length > 0 ? atr : undefined };
+}
 
-function buatDbf(daftar: DataSpasialItem[]): Uint8Array {
+/**
+ * Kolom DBF Shapefile sesuai Standar Atribut WebGIS Kecamatan v1.0 (19 Nov 2026).
+ * Seluruh nama kolom <= 10 karakter ASCII (sesuai batas dBASE III):
+ * - Point   : label | kategori | keterangan | url | simbol
+ * - Line    : label | panjang_m | keterangan | url | warna
+ * - Polygon : label | luas_ha | keterangan | url | warna | tepi
+ */
+function ambilKolomDbfWebgis(jenis: JenisGeometri): KolomDbf[] {
+  if (jenis === "point") {
+    return [
+      { nama: "label", tipe: "C", panjang: 80, desimal: 0, ambil: (d) => susunAtributPointPrmAid(susunItemBersihDbf(d)).label },
+      { nama: "kategori", tipe: "C", panjang: 50, desimal: 0, ambil: (d) => susunAtributPointPrmAid(susunItemBersihDbf(d)).kategori },
+      { nama: "keterangan", tipe: "C", panjang: 250, desimal: 0, ambil: (d) => susunAtributPointPrmAid(susunItemBersihDbf(d)).keterangan },
+      { nama: "url", tipe: "C", panjang: 120, desimal: 0, ambil: (d) => susunAtributPointPrmAid(susunItemBersihDbf(d)).url },
+      { nama: "simbol", tipe: "C", panjang: 40, desimal: 0, ambil: (d) => susunAtributPointPrmAid(susunItemBersihDbf(d)).simbol }
+    ];
+  }
+  if (jenis === "line") {
+    const ambilLine = (d: DataSpasialItem) => {
+      const meterGeom = hitungPanjangGarisMeter(d.koordinat);
+      const meterTersimpan = Number(d.panjangKm ?? 0) * 1000;
+      const panjang_m =
+        !meterTersimpan || (meterGeom > 0 && Math.abs(meterTersimpan - meterGeom) / meterGeom <= 0.05)
+          ? meterGeom
+          : Number(meterTersimpan.toFixed(2));
+      return susunAtributLinePrmAid({ ...susunItemBersihDbf(d), panjang_m });
+    };
+    return [
+      { nama: "label", tipe: "C", panjang: 80, desimal: 0, ambil: (d) => ambilLine(d).label },
+      { nama: "panjang_m", tipe: "N", panjang: 14, desimal: 2, ambil: (d) => ambilLine(d).panjang_m.toFixed(2) },
+      { nama: "keterangan", tipe: "C", panjang: 250, desimal: 0, ambil: (d) => ambilLine(d).keterangan },
+      { nama: "url", tipe: "C", panjang: 120, desimal: 0, ambil: (d) => ambilLine(d).url },
+      { nama: "warna", tipe: "C", panjang: 20, desimal: 0, ambil: (d) => ambilLine(d).warna }
+    ];
+  }
+  const ambilPoly = (d: DataSpasialItem) => {
+    const haGeom = Number((hitungLuasPoligonMeter2(d.koordinat) / 10000).toFixed(4));
+    const haTersimpan = Number(d.luasHa ?? 0);
+    const luas_ha =
+      !haTersimpan || (haGeom > 0 && Math.abs(haTersimpan - haGeom) / haGeom <= 0.05)
+        ? haGeom
+        : Number(haTersimpan.toFixed(4));
+    return susunAtributPolygonPrmAid({ ...susunItemBersihDbf(d), luas_ha });
+  };
+  return [
+    { nama: "label", tipe: "C", panjang: 80, desimal: 0, ambil: (d) => ambilPoly(d).label },
+    { nama: "luas_ha", tipe: "N", panjang: 14, desimal: 4, ambil: (d) => ambilPoly(d).luas_ha.toFixed(4) },
+    { nama: "keterangan", tipe: "C", panjang: 250, desimal: 0, ambil: (d) => ambilPoly(d).keterangan },
+    { nama: "url", tipe: "C", panjang: 120, desimal: 0, ambil: (d) => ambilPoly(d).url },
+    { nama: "warna", tipe: "C", panjang: 20, desimal: 0, ambil: (d) => ambilPoly(d).warna },
+    { nama: "tepi", tipe: "C", panjang: 20, desimal: 0, ambil: (d) => ambilPoly(d).tepi }
+  ];
+}
+
+function buatDbf(daftar: DataSpasialItem[], jenis: JenisGeometri): Uint8Array {
   const enc = new TextEncoder();
-  const panjangHeader = 32 + KOLOM_DBF.length * 32 + 1;
-  const panjangBaris = 1 + KOLOM_DBF.reduce((s, k) => s + k.panjang, 0);
+  const kolomDbf = ambilKolomDbfWebgis(jenis);
+  const panjangHeader = 32 + kolomDbf.length * 32 + 1;
+  const panjangBaris = 1 + kolomDbf.reduce((s, k) => s + k.panjang, 0);
   const totalBytes = panjangHeader + daftar.length * panjangBaris + 1;
   const out = new Uint8Array(totalBytes);
   out.fill(0x20, panjangHeader, totalBytes - 1);
@@ -233,7 +268,7 @@ function buatDbf(daftar: DataSpasialItem[]): Uint8Array {
   dv.setUint16(10, panjangBaris, true);
 
   let posField = 32;
-  for (const col of KOLOM_DBF) {
+  for (const col of kolomDbf) {
     const namaBytes = enc.encode(col.nama.slice(0, 11));
     out.set(namaBytes, posField);
     out[posField + 11] = col.tipe.charCodeAt(0);
@@ -247,7 +282,7 @@ function buatDbf(daftar: DataSpasialItem[]): Uint8Array {
   for (const item of daftar) {
     out[posRow] = 0x20; // Flag record aktif (spasi)
     let off = posRow + 1;
-    for (const col of KOLOM_DBF) {
+    for (const col of kolomDbf) {
       const raw = enc.encode(col.ambil(item) || "");
       const slice = raw.slice(0, col.panjang);
       if (col.tipe === "N") {
@@ -307,7 +342,7 @@ export function bangunShapefileTunggal(daftar: DataSpasialItem[], jenisFilter?: 
   return {
     shp,
     shx,
-    dbf: buatDbf(tersaring),
+    dbf: buatDbf(tersaring, jenis),
     prj: new TextEncoder().encode(WGS84_PRJ),
     jenisGeometri: jenis,
     jumlahFitur: tersaring.length

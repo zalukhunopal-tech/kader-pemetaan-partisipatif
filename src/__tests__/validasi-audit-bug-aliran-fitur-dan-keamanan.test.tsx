@@ -327,7 +327,13 @@ describe("Validasi Audit Bug, Fitur Tidak Berfungsi, Aliran Fitur Mentok, dan Ke
     const geo = JSON.parse(eksporKeGeoJSON([itemSimulasi]));
     expect(geo.features[0].properties.simulasi).toBe(true);
     expect(geo.features[0].properties.diimpor).toBe(true);
-    expect(geo.features[0].properties["Nama Pohon"]).toBe("Meranti");
+    expect(geo.features[0].properties.keterangan).toContain("Nama Pohon: Meranti");
+    expect(geo.features[0].properties.keterangan).not.toContain("<script>");
+
+    const geoEkstra = JSON.parse(eksporKeGeoJSON([itemSimulasi], { sertakanKolomEkstra: true }));
+    expect(geoEkstra.features[0].properties.simulasi).toBe(true);
+    expect(geoEkstra.features[0].properties.diimpor).toBe(true);
+    expect(geoEkstra.features[0].properties["Nama Pohon"]).toBe("Meranti");
   });
 
   it("5. Keamanan Obrolan & Bebas Dialog Native: kader tidak dapat menghapus pesan milik pengguna lain dan kode bebas dari alert/confirm/prompt", () => {

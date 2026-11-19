@@ -132,9 +132,9 @@ describe("sinkronkanDataKeGDrive", () => {
     expect(JSON.parse(body.geojsonBundle).features[0].properties).toEqual({
       label: "Sebaran Anggrek",
       kategori: "Flora",
-      keterangan: "Flora",
+      keterangan: "Survei kader, 14 Nov 2026",
       url: "",
-      simbol: "garden.png"
+      simbol: ""
     });
   });
 

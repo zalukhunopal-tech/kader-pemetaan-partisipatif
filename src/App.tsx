@@ -1257,6 +1257,7 @@ export const App: React.FC = () => {
       <div className="subhalaman-transisi">
         <PengaturanEksporView
           dataSpasial={dataSpasial}
+          lapisanList={lapisanListUntukUser}
           areaOffline={areaOffline}
           konteksEkspor={konteksEkspor}
           onTutup={() => {
@@ -1456,6 +1457,7 @@ export const App: React.FC = () => {
             {tabAktif === "data_sync" && (
               <DatabaseSyncView
                 dataSpasial={dataSpasial}
+                lapisanList={lapisanListUntukUser}
                 areaOffline={areaOffline}
                 onResolusiKonflik={(id, pilihan, gabungan) => {
                   try {

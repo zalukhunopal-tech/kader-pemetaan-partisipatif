@@ -87,7 +87,13 @@ export function useFormSurvei(idKader: string) {
   ): DataSpasialItem => {
     const waktu = new Date().toISOString();
     const lapisanTerpakai = konteksKolam?.lapisanAktif ?? null;
-    const skemaFields = lapisanTerpakai?.skemaGeometri?.[jenis] ?? [];
+    const skemaFields =
+      lapisanTerpakai?.skemaGeometri?.[jenis]?.length
+        ? lapisanTerpakai.skemaGeometri[jenis]
+        : lapisanTerpakai?.fields?.length &&
+            (!lapisanTerpakai.tipeGeometriDiizinkan?.length || lapisanTerpakai.tipeGeometriDiizinkan.includes(jenis))
+          ? lapisanTerpakai.fields
+          : [];
     const atributKustomMap: Record<string, string> = {};
     if (skemaFields.length > 0) {
       const hitungNama = new Map<string, number>();
