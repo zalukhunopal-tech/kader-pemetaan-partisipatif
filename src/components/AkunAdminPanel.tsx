@@ -546,14 +546,17 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                             <div>
                               <dt>Wilayah tugas</dt>
                               <dd>
-                                {a.wilayah ? teksWilayah(a.wilayah) : `${a.desaWilayah} (belum lengkap)`}{" "}
                                 <button
                                   type="button"
-                                  className="btn-outline-sm"
-                                  style={{ padding: "1px 8px", fontSize: "0.72rem" }}
-                                  onClick={() => setUbahWilayah({ email: a.email, nilai: { ...WILAYAH_KOSONG, ...a.wilayah } })}
+                                  className="detail-akun-wilayah-btn"
+                                  title="Klik untuk mengubah wilayah tugas"
+                                  onClick={() =>
+                                    setUbahWilayah((prev) =>
+                                      prev?.email === a.email ? null : { email: a.email, nilai: { ...WILAYAH_KOSONG, ...a.wilayah } }
+                                    )
+                                  }
                                 >
-                                  Ubah
+                                  {a.wilayah ? teksWilayah(a.wilayah) : `${a.desaWilayah} (belum lengkap)`}
                                 </button>
                               </dd>
                             </div>

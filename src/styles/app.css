@@ -4846,15 +4846,23 @@ label {
 }
 
 .banner-mode-admin button {
-  border: 1px solid rgba(224, 242, 254, 0.7);
+  border: none;
   background: transparent;
   color: #ffffff;
-  border-radius: 999px;
-  padding: 3px 12px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.banner-mode-admin button:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 /* Layar kunci mode admin: dipusatkan vertikal dan horizontal di tengah viewport */
@@ -4932,6 +4940,28 @@ label {
   margin: 0 0 4px;
   color: #0f172a;
   word-break: break-word;
+}
+
+.detail-akun-wilayah-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: #94a3b8;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.detail-akun-wilayah-btn:hover,
+.detail-akun-wilayah-btn:focus-visible {
+  color: var(--avenza-green, #0b6e4f);
+  text-decoration-color: var(--avenza-green, #0b6e4f);
 }
 
 /* Transisi halus antar tab tampilan dan fitur.

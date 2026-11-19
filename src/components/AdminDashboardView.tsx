@@ -1161,28 +1161,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                     </div>
                   ) : (
                     <div className="tugas-format-per-tipe" style={{ marginTop: 12 }}>
-                      <div className="tugas-format-tabs" role="tablist" aria-label="Pengaturan format per tipe data">
-                        {tipeGeometriTerpilih.map((g) => {
-                          const label = g === "point" ? "Point" : g === "line" ? "Line" : "Polygon";
-                          const jml = isianPerGeometri[g]?.length ?? 0;
-                          const sedangAktif = tabFormatGeometri === g;
-                          return (
-                            <button
-                              key={g}
-                              type="button"
-                              role="tab"
-                              aria-selected={sedangAktif}
-                              className={`tugas-format-tab tugas-format-tab-${g} ${sedangAktif ? `aktif aktif-${g}` : ""}`}
-                              onClick={() => setTabFormatGeometri(g)}
-                            >
-                              <span>Format {label}</span>
-                              <span className="tugas-format-tab-count">{jml}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <p className="text-xs text-muted" style={{ margin: "8px 0 10px" }}>
+                      <p className="text-xs text-muted" style={{ margin: "0 0 10px" }}>
                         Atur kolom isian khusus untuk data{" "}
                         <b>{tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"}</b>. Jika dibiarkan kosong, tipe ini memakai format default.
                       </p>

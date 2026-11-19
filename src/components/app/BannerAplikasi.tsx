@@ -1,5 +1,5 @@
 import React from "react";
-import { Pause, Play, Radio, ShieldCheck } from "lucide-react";
+import { Lock, Pause, Play, Radio, ShieldCheck } from "lucide-react";
 import { BATAS_DIAM_MS } from "../../lib/gerbangAdmin";
 import { PerkiraanPenyimpanan, StatusPenyimpanan, formatUkuranByte } from "../../lib/penyimpanan";
 import { StatePerekamLatar, durasiRekamMs, formatDurasi, perekamLatar, ringkasanRekam } from "../../lib/perekamLatar";
@@ -9,8 +9,8 @@ export const BannerModeAdmin: React.FC<{ onKunci: () => void }> = ({ onKunci }) 
   <div className="banner-mode-admin" role="status">
     <ShieldCheck size={14} aria-hidden="true" />
     <span>Mode Administrator · terkunci bila {Math.round(BATAS_DIAM_MS / 60000)} menit tanpa aktivitas</span>
-    <button type="button" onClick={onKunci}>
-      Kunci
+    <button type="button" onClick={onKunci} aria-label="Kunci mode admin" title="Kunci mode admin">
+      <Lock size={15} aria-hidden="true" />
     </button>
   </div>
 );
