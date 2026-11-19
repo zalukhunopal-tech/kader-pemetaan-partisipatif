@@ -362,7 +362,10 @@ export interface ProfilKader {
   logoSertifikatList?: LogoSertifikatItem[];
   penandatanganList?: PenandatanganSertifikatItem[];
   temaKegiatanSertifikat?: string;
+  skemaPengkodeanSertifikat?: SkemaPengkodeanSertifikat;
 }
+
+export type SkemaPengkodeanSertifikat = "standar" | "wilayah" | "kader" | "warsi";
 
 export interface SertifikatKader {
   id: string;
