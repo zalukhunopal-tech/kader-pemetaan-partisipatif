@@ -21,10 +21,12 @@ import {
   KotakWilayah,
   SUMBER_TILE,
   URUTAN_BASEMAP,
+  adalahPetaTileOffline,
   basemapBawaan,
   basemapTersedia,
   isiTemplateTile,
   muatGambarTile,
+  muatGambarTileDariCache,
   laporHasilTile,
   zoomSumber,
   urlTile
@@ -207,6 +209,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   areaOffline,
   petaKustomAktif,
   onTutupPetaKustom,
+  onPilihPetaKustom,
   fokusKoordinat,
   onFokusDipakai,
   onSimpanDataBaru,
@@ -602,7 +605,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   // Modal Offline Downloader
-  const unduh = useUnduhAreaOffline(basemap, areaOffline, onSimpanAreaOffline);
+  const unduh = useUnduhAreaOffline(basemap, areaOffline, onSimpanAreaOffline, setPesanSalin);
   const areaOfflineRef = useRef(areaOffline);
   areaOfflineRef.current = areaOffline;
   const latAuto = posisiNyata?.lat ?? center.lat;
@@ -806,8 +809,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // 1. Latar Belakang Peta: Jika partisi Lembar Peta Kustom aktif, gunakan meja netral terisolasi tanpa basemap
-    if (petaKustomAktif) {
+    const adalahTileOffline = adalahPetaTileOffline(petaKustomAktif);
+
+    // 1. Latar Belakang Peta: Jika partisi Lembar Peta GeoPDF/raster aktif, gunakan meja netral terisolasi.
+    // Untuk area unduhan citra offline (XYZ Tiles / PMTiles / MBTiles), pakai latar gelap peta citra (bukan layar putih).
+    if (petaKustomAktif && !adalahTileOffline) {
       ctx.fillStyle = "#4a4d52";
       ctx.fillRect(0, 0, W, H);
     } else {
@@ -827,97 +833,158 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       ctx.fillRect(0, 0, W, H);
     }
 
-    // 2.1 Muat Tile Archive PMTiles / MBTiles jika peta kustom offline aktif berformat tile
-    const adalahTileArchive = Boolean(
-      petaKustomAktif &&
-      ((petaKustomAktif.petaKustomUrl &&
-        (petaKustomAktif.petaKustomUrl.startsWith("pmtiles://") || petaKustomAktif.petaKustomUrl.startsWith("mbtiles://"))) ||
-        (petaKustomAktif.templateTile &&
-          (petaKustomAktif.templateTile.startsWith("pmtiles://") || petaKustomAktif.templateTile.startsWith("mbtiles://"))))
-    );
-
-    if (adalahTileArchive && petaKustomAktif) {
-      const templateArchive = petaKustomAktif.templateTile || petaKustomAktif.petaKustomUrl || "";
-      const zTile = Math.round(zoom);
+    /**
+     * Menggambar grid tile peta pada zoom `zTile` dengan dukungan fallback tile induk (overzoom)
+     * agar citra offline tetap tajam dan bebas layar kosong/putih di semua tingkat zoom.
+     */
+    const gambarGridTileDenganFallback = (
+      buatUrlTile: (z: number, x: number, y: number) => string | null,
+      zTile: number,
+      tepi: number,
+      hanyaCache: boolean,
+      basemapLapor?: BasemapType
+    ) => {
       const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
       const centerTx = lngToTileX(center.lng, zTile);
       const centerTy = latToTileY(center.lat, zTile);
-      const startTileX = Math.floor(centerTx - W / (2 * ukuranTile)) - 1;
-      const endTileX = Math.floor(centerTx + W / (2 * ukuranTile)) + 1;
-      const startTileY = Math.floor(centerTy - H / (2 * ukuranTile)) - 1;
-      const endTileY = Math.floor(centerTy + H / (2 * ukuranTile)) + 1;
-      for (let tx = startTileX; tx <= endTileX; tx++) {
-        for (let ty = startTileY; ty <= endTileY; ty++) {
-          const url = isiTemplateTile(templateArchive, zTile, tx, ty);
-          if (!url) continue;
-          const drawX = Math.round(W / 2 + (tx - centerTx) * ukuranTile);
-          const drawY = Math.round(H / 2 + (ty - centerTy) * ukuranTile);
-          const sisi = Math.ceil(ukuranTile);
-          const cached = tileCacheRef.current.get(url);
-          if (cached && cached !== "loading" && cached !== "error") {
-            ctx.drawImage(cached, drawX, drawY, sisi, sisi);
-          } else if (!cached) {
-            tileCacheRef.current.set(url, "loading");
-            muatGambarTile(url).then(
-              (img) => {
-                tileCacheRef.current.set(url, img);
-                setRenderTick((t) => t + 1);
-              },
-              () => {
-                tileCacheRef.current.set(url, "error");
-              }
-            );
-          }
-        }
-      }
-    }
-    // 2. Muat & Gambar Tile Peta Satelit / OSM / Topo (HANYA PADA PARTISI PETA DASAR ONLINE)
-    // Pemisahan tegas: saat partisi lembar peta aktif, tile basemap TIDAK digambar agar tidak bercampur!
-    if (!petaKustomAktif && basemap !== "taktis") {
-      const zTile = zoomSumber(basemap, zoom);
-      const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
-      const centerTx = lngToTileX(center.lng, zTile);
-      const centerTy = latToTileY(center.lat, zTile);
-      // Sumber berkuota (Google/Esri) hanya meminta tile yang tampil, tanpa tile cadangan di tepi
-      const tepi = SUMBER_TILE[basemap].berkuota ? 0 : 1;
       const startTileX = Math.floor(centerTx - W / (2 * ukuranTile)) - tepi;
       const endTileX = Math.floor(centerTx + W / (2 * ukuranTile)) + tepi;
       const startTileY = Math.floor(centerTy - H / (2 * ukuranTile)) - tepi;
       const endTileY = Math.floor(centerTy + H / (2 * ukuranTile)) + tepi;
+
+      const gambarIndukDariMemori = (tx: number, ty: number, drawX: number, drawY: number, sisi: number): boolean => {
+        for (let dz = 1; dz <= 6 && zTile - dz >= 0; dz++) {
+          const pz = zTile - dz;
+          const skala = Math.pow(2, dz);
+          const px = Math.floor(tx / skala);
+          const py = Math.floor(ty / skala);
+          const parentUrl = buatUrlTile(pz, px, py);
+          if (!parentUrl) continue;
+          const parentImg = tileCacheRef.current.get(parentUrl);
+          if (parentImg && parentImg !== "loading" && parentImg !== "error") {
+            const subX = ((tx % skala) + skala) % skala;
+            const subY = ((ty % skala) + skala) % skala;
+            const sw = parentImg.width / skala;
+            const sh = parentImg.height / skala;
+            ctx.drawImage(parentImg, subX * sw, subY * sh, sw, sh, drawX, drawY, sisi, sisi);
+            return true;
+          }
+        }
+        return false;
+      };
+
+      const hangatkanIndukDariCacheApi = (tx: number, ty: number) => {
+        void (async () => {
+          for (let dz = 1; dz <= 6 && zTile - dz >= 0; dz++) {
+            const pz = zTile - dz;
+            const skala = Math.pow(2, dz);
+            const px = Math.floor(tx / skala);
+            const py = Math.floor(ty / skala);
+            const parentUrl = buatUrlTile(pz, px, py);
+            if (!parentUrl) continue;
+            const adaMem = tileCacheRef.current.get(parentUrl);
+            if (adaMem && adaMem !== "error") {
+              if (adaMem !== "loading") return;
+              continue;
+            }
+            const imgInduk = await muatGambarTileDariCache(parentUrl);
+            if (imgInduk) {
+              tileCacheRef.current.set(parentUrl, imgInduk);
+              setRenderTick((t) => t + 1);
+              return;
+            }
+          }
+        })();
+      };
+
       for (let tx = startTileX; tx <= endTileX; tx++) {
         for (let ty = startTileY; ty <= endTileY; ty++) {
-          const url = urlTile(basemap, zTile, tx, ty);
+          const url = buatUrlTile(zTile, tx, ty);
           if (!url) continue;
           const drawX = Math.round(W / 2 + (tx - centerTx) * ukuranTile);
           const drawY = Math.round(H / 2 + (ty - centerTy) * ukuranTile);
           const sisi = Math.ceil(ukuranTile);
-
           const cached = tileCacheRef.current.get(url);
+
           if (cached && cached !== "loading" && cached !== "error") {
             ctx.drawImage(cached, drawX, drawY, sisi, sisi);
-          } else if (!cached) {
+            continue;
+          }
+
+          // Selama tile utama sedang dimuat atau tidak ada di cache offline, tampilkan potongan tile induk agar tidak kosong
+          const sudahGambarInduk = gambarIndukDariMemori(tx, ty, drawX, drawY, sisi);
+
+          if (!cached) {
             tileCacheRef.current.set(url, "loading");
-            // Tile yang sudah diunduh dibaca dari penyimpanan offline; selain itu dari jaringan
-            const basemapTile = basemap;
-            muatGambarTile(url).then(
+            muatGambarTile(url, { hanyaCache }).then(
               (img) => {
                 tileCacheRef.current.set(url, img);
-                laporHasilTile(basemapTile, true);
+                if (basemapLapor) laporHasilTile(basemapLapor, true);
                 setRenderTick((t) => t + 1);
               },
               () => {
                 tileCacheRef.current.set(url, "error");
-                // Templat cadangan dipakai bila templat utama terus gagal walau online
-                if (laporHasilTile(basemapTile, false)) setRenderTick((t) => t + 1);
-                // Coba lagi pada penggambaran berikutnya (mis. setelah koneksi kembali)
+                if (basemapLapor && laporHasilTile(basemapLapor, false, sedangOnline)) {
+                  setRenderTick((t) => t + 1);
+                }
+                if (!sudahGambarInduk) {
+                  hangatkanIndukDariCacheApi(tx, ty);
+                }
                 window.setTimeout(() => {
                   if (tileCacheRef.current.get(url) === "error") tileCacheRef.current.delete(url);
                 }, 15000);
               }
             );
+          } else if (cached === "error" && !sudahGambarInduk) {
+            hangatkanIndukDariCacheApi(tx, ty);
           }
         }
       }
+    };
+
+    // 2.1 Muat & Gambar Tile Offline (XYZ Tiles hasil unduh area offline, PMTiles, atau MBTiles)
+    if (adalahTileOffline && petaKustomAktif) {
+      const templateOffline = petaKustomAktif.templateTile || petaKustomAktif.petaKustomUrl || "";
+      const zMaksOffline = petaKustomAktif.zoomMax > 0 ? petaKustomAktif.zoomMax : 19;
+      const zTile = Math.max(0, Math.min(Math.round(zoom), zMaksOffline));
+      gambarGridTileDenganFallback(
+        (z, x, y) => isiTemplateTile(templateOffline, z, x, y),
+        zTile,
+        1,
+        !sedangOnline
+      );
+    }
+
+    // 2.2 Muat & Gambar Tile Peta Satelit / OSM / Topo (Peta Dasar)
+    // Pemisahan tegas: saat partisi lembar peta GeoPDF aktif, tile basemap TIDAK digambar agar tidak bercampur!
+    if (!petaKustomAktif && basemap !== "taktis") {
+      // Saat offline di basemap Google (non-CORS), otomatis pakai templateTile area offline yang mencakup pusat peta
+      const areaOfflineMencakup = !sedangOnline
+        ? areaOffline.find(
+            (a) =>
+              adalahPetaTileOffline(a) &&
+              center.lat >= a.minLat &&
+              center.lat <= a.maxLat &&
+              center.lng >= a.minLng &&
+              center.lng <= a.maxLng
+          )
+        : undefined;
+      const pakaiTemplateAreaOffline = Boolean(
+        areaOfflineMencakup && basemap === "google" && !SUMBER_TILE.google.berkuota && areaOfflineMencakup.templateTile
+      );
+      const zTile = pakaiTemplateAreaOffline
+        ? Math.max(0, Math.min(Math.round(zoom), areaOfflineMencakup!.zoomMax || 19))
+        : zoomSumber(basemap, zoom);
+      const tepi = SUMBER_TILE[basemap].berkuota ? 0 : 1;
+      gambarGridTileDenganFallback(
+        pakaiTemplateAreaOffline
+          ? (z, x, y) => isiTemplateTile(areaOfflineMencakup!.templateTile!, z, x, y)
+          : (z, x, y) => urlTile(basemap, z, x, y),
+        zTile,
+        tepi,
+        !sedangOnline,
+        pakaiTemplateAreaOffline ? undefined : basemap
+      );
     }
 
     if (petaKustomAktif && detailGeoPdfRef.current && detailGeoPdfRef.current.id === petaKustomAktif.id && zoom >= 15) {
@@ -967,6 +1034,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     bearingAktif,
     koordinatDipilih,
     petaKustomAktif,
+    areaOffline,
+    sedangOnline,
     objekTerpilih,
     targetGoTo,
     ukuranCanvas,
@@ -3997,7 +4066,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       )}
 
       {/* MODAL PENGUNDUH PETA OFFLINE */}
-      {unduh.bukaModalOffline && <UnduhOfflineModal basemap={basemap} areaOffline={areaOffline} unduh={unduh} onBukaArea={setCenter} />}
+      {unduh.bukaModalOffline && (
+        <UnduhOfflineModal
+          basemap={basemap}
+          areaOffline={areaOffline}
+          unduh={unduh}
+          onBukaArea={(pusat, area) => {
+            if (area && onPilihPetaKustom) {
+              onPilihPetaKustom(area);
+            } else {
+              setCenter(pusat);
+              setZoom(16);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

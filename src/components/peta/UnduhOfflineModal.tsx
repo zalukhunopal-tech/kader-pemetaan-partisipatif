@@ -13,6 +13,7 @@ import {
   isiTemplateTile,
   penyimpananTileDidukung,
   perkiraanUkuranMb,
+  sumberUnduhOfflineEfektif,
   unduhTile,
   unduhanLayak
 } from "../../lib/petaOffline";
@@ -20,7 +21,7 @@ import {
 export const DURASI_TAHAN_UNDUH_MS = 3000;
 export const JANGKAUAN_UNDUH_KM = 10;
 export const ZOOM_MAKS_UNDUH_OFFLINE = 20;
-export const ZOOM_MIN_UNDUH_OFFLINE = 12;
+export const ZOOM_MIN_UNDUH_OFFLINE = 10;
 
 export interface StatusHudUnduh {
   persen: number;
@@ -37,7 +38,7 @@ export interface StatusHudUnduh {
 export function daftarTilePiramida10KmZoom20(latPusat: number, lngPusat: number, zoomMaksSumber: number): TileXYZ[] {
   const zMaxEfektif = Math.min(ZOOM_MAKS_UNDUH_OFFLINE, Math.max(18, zoomMaksSumber));
   const lapisan: { sisiKm: number; zMin: number; zMax: number }[] = [
-    { sisiKm: 10, zMin: 12, zMax: Math.min(15, zMaxEfektif) },
+    { sisiKm: 10, zMin: ZOOM_MIN_UNDUH_OFFLINE, zMax: Math.min(15, zMaxEfektif) },
     { sisiKm: 4, zMin: 16, zMax: Math.min(17, zMaxEfektif) },
     { sisiKm: 1.5, zMin: 18, zMax: Math.min(18, zMaxEfektif) },
     { sisiKm: 0.5, zMin: 19, zMax: zMaxEfektif }
@@ -84,7 +85,8 @@ export function kategoriProgressUnduh(persen: number, selesai = false): {
 export function useUnduhAreaOffline(
   basemap: BasemapType,
   areaOffline: AreaPetaOffline[],
-  onSimpanAreaOffline: (area: AreaPetaOffline) => void
+  onSimpanAreaOffline: (area: AreaPetaOffline) => void,
+  onPesanStatus?: (pesan: string) => void
 ) {
   const [bukaModalOffline, setBukaModalOffline] = useState<boolean>(false);
   const [namaAreaOfflineBaru, setNamaAreaOfflineBaru] = useState<string>("");
@@ -122,25 +124,36 @@ export function useUnduhAreaOffline(
   };
 
   const sumberUnduh = basemap === "taktis" ? null : SUMBER_TILE[basemap];
+  const sumberEfektif = useMemo(() => sumberUnduhOfflineEfektif(basemap), [basemap]);
   const daftarTileTarget = useMemo(() => {
-    if (!pusatUnduh || !sumberUnduh) return [];
-    return daftarTilePiramida10KmZoom20(pusatUnduh.lat, pusatUnduh.lng, sumberUnduh.zoomMaks);
-  }, [pusatUnduh, sumberUnduh]);
+    if (!pusatUnduh || !sumberEfektif) return [];
+    return daftarTilePiramida10KmZoom20(pusatUnduh.lat, pusatUnduh.lng, sumberEfektif.zoomMaks);
+  }, [pusatUnduh, sumberEfektif]);
 
   const jumlahTileUnduh = daftarTileTarget.length;
   const kelebihanTile = jumlahTileUnduh > BATAS_TILE_PER_AREA;
-  const bisaUnduh = sumberUnduh !== null && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
+  const bisaUnduh = sumberEfektif !== null && penyimpananTileDidukung() && jumlahTileUnduh > 0 && !kelebihanTile;
 
   const handleUnduhAreaOffline = async () => {
-    if (!bisaUnduh || !kotakUnduh || !sumberUnduh || basemap === "taktis" || sedangMengunduhTile) return;
+    if (!bisaUnduh || !kotakUnduh || !sumberEfektif || basemap === "taktis" || sedangMengunduhTile) return;
     if (timerTutupHudRef.current !== null) {
       window.clearTimeout(timerTutupHudRef.current);
       timerTutupHudRef.current = null;
     }
 
-    const daftarUrl = daftarTileTarget
-      .map((t) => isiTemplateTile(sumberUnduh.template, t.z, t.x, t.y))
-      .filter((u): u is string => u !== null);
+    const daftarUrl: string[] = [];
+    const cadanganPerUrl = new Map<string, string[]>();
+    for (const t of daftarTileTarget) {
+      const utama = isiTemplateTile(sumberEfektif.template, t.z, t.x, t.y);
+      if (!utama) continue;
+      daftarUrl.push(utama);
+      if (sumberEfektif.templateCadangan.length > 0) {
+        const cad = sumberEfektif.templateCadangan
+          .map((tpl) => isiTemplateTile(tpl, t.z, t.x, t.y))
+          .filter((u): u is string => Boolean(u) && u !== utama);
+        if (cad.length > 0) cadanganPerUrl.set(utama, cad);
+      }
+    }
 
     const pengendali = new AbortController();
     batalUnduhRef.current = pengendali;
@@ -153,6 +166,7 @@ export function useUnduhAreaOffline(
     try {
       const hasil = await unduhTile(daftarUrl, {
         sinyal: pengendali.signal,
+        pembuatUrlCadangan: (u) => cadanganPerUrl.get(u) ?? [],
         onKemajuan: (selesai, total, gagal) => {
           setKemajuanUnduh({ selesai, total, gagal });
           const persen = total > 0 ? Math.max(1, Math.min(99, Math.round((selesai / total) * 100))) : 1;
@@ -162,39 +176,45 @@ export function useUnduhAreaOffline(
       if (!unduhanLayak(hasil, daftarUrl.length)) {
         await hapusTile(hasil.urlBaru);
         setStatusHud(null);
-        setGalatUnduh(
-          hasil.dihentikan
-            ? "Unduhan dibatalkan."
-            : hasil.kuotaPenuh
-              ? "Penyimpanan perangkat penuh."
-              : "Unduhan gagal. Periksa koneksi lalu coba lagi."
-        );
+        const pesanGagal = hasil.dihentikan
+          ? "Unduhan area offline dibatalkan."
+          : hasil.kuotaPenuh
+            ? "Penyimpanan perangkat penuh. Hapus peta offline lama lalu coba lagi."
+            : "Unduhan citra gagal. Periksa koneksi internet lalu coba lagi.";
+        setGalatUnduh(pesanGagal);
+        onPesanStatus?.(pesanGagal);
         return;
       }
+      const namaTersimpan = namaAreaOfflineBaru.trim() || `Area 10x10 km #${areaOffline.length + 1}`;
+      const jumlahTersimpan = hasil.tersimpan + hasil.sudahAda;
+      const zoomMaxTersimpan = Math.min(zoomMaksUnduh, sumberEfektif.zoomMaks);
       onSimpanAreaOffline({
         id: buatId("OFF"),
-        namaArea: namaAreaOfflineBaru.trim() || `Area 10x10 km #${areaOffline.length + 1}`,
-        basemapId: basemap,
+        namaArea: namaTersimpan,
+        basemapId: sumberEfektif.basemapEfektif,
         ...kotakUnduh,
         zoomMin: zoomMinUnduh,
-        zoomMax: zoomMaksUnduh,
-        jumlahTile: hasil.tersimpan + hasil.sudahAda,
+        zoomMax: zoomMaxTersimpan,
+        jumlahTile: jumlahTersimpan,
         ukuranMb: Number((hasil.byte / 1_000_000).toFixed(2)),
         jumlahGagal: hasil.gagal + hasil.tidakAda,
         diunduhPada: new Date().toISOString(),
         jenisFile: "XYZ Tiles",
         unduhanNyata: true,
-        templateTile: sumberUnduh.template
+        templateTile: sumberEfektif.template
       });
       setNamaAreaOfflineBaru("");
       setStatusHud({ persen: 100, selesai: true });
+      onPesanStatus?.(`Area "${namaTersimpan}" (${jumlahTersimpan} tile) tersimpan untuk mode offline.`);
       timerTutupHudRef.current = window.setTimeout(() => {
         setStatusHud(null);
         timerTutupHudRef.current = null;
       }, 5000);
     } catch {
       setStatusHud(null);
-      setGalatUnduh("Unduhan gagal. Coba lagi.");
+      const pesan = "Unduhan citra offline gagal. Coba lagi.";
+      setGalatUnduh(pesan);
+      onPesanStatus?.(pesan);
     } finally {
       setSedangMengunduhTile(false);
       setKemajuanUnduh(null);
@@ -216,6 +236,7 @@ export function useUnduhAreaOffline(
     statusHud,
     galatUnduh,
     sumberUnduh,
+    sumberEfektif,
     jumlahTileUnduh,
     kelebihanTile,
     bisaUnduh,
@@ -228,7 +249,7 @@ interface UnduhOfflineModalProps {
   basemap: BasemapType;
   areaOffline: AreaPetaOffline[];
   unduh: ReturnType<typeof useUnduhAreaOffline>;
-  onBukaArea: (pusat: { lat: number; lng: number }) => void;
+  onBukaArea: (pusat: { lat: number; lng: number }, area?: AreaPetaOffline) => void;
 }
 
 const RADIUS_HOLD = 62;
@@ -244,6 +265,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
     zoomMaksUnduh,
     galatUnduh,
     sumberUnduh,
+    sumberEfektif,
     jumlahTileUnduh,
     bisaUnduh,
     handleUnduhAreaOffline,
@@ -294,7 +316,7 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
         <div className="unduh-hero-banner">
           <div className="unduh-hero-top">
             <span className="unduh-hero-badge">
-              <Layers size={13} /> {basemap === "taktis" ? "Peta Taktis" : sumberUnduh?.nama}
+              <Layers size={13} /> {basemap === "taktis" ? "Peta Taktis" : sumberEfektif?.nama || sumberUnduh?.nama}
             </span>
             <button type="button" className="unduh-close-btn" aria-label="Tutup" onClick={() => setBukaModalOffline(false)}>
               <X size={18} />
@@ -344,6 +366,8 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
               className={`unduh-hold-circle ${sedangTahan ? "sedang-tahan" : ""} ${!bisaUnduh ? "nonaktif" : ""}`}
               disabled={!bisaUnduh || sedangMengunduhTile}
               aria-label="Tahan 3 detik untuk unduh peta 10x10 km"
+              style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "none" }}
+              onContextMenu={(e) => e.preventDefault()}
               onPointerDown={mulaiTahan}
               onPointerUp={hentikanTahan}
               onPointerLeave={hentikanTahan}
@@ -397,10 +421,13 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
                     type="button"
                     className="btn-outline-sm"
                     onClick={() => {
-                      onBukaArea({
-                        lat: (a.minLat + a.maxLat) / 2,
-                        lng: (a.minLng + a.maxLng) / 2
-                      });
+                      onBukaArea(
+                        {
+                          lat: (a.minLat + a.maxLat) / 2,
+                          lng: (a.minLng + a.maxLng) / 2
+                        },
+                        a
+                      );
                       setBukaModalOffline(false);
                     }}
                   >
