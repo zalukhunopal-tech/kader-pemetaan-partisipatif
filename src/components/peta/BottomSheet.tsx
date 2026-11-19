@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { adalahGeserLurusVertikal } from "../../lib/geserTab";
 
 type TahapSheet = 25 | 55 | 92;
 /** Dialog nonmodal: peta tetap bisa digeser; handle dapat dipakai lewat sentuhan maupun keyboard. */
@@ -25,7 +26,7 @@ export function BottomSheet({
     id = useId(),
     ref = useRef<HTMLElement>(null);
   const poGeser = useRef(false);
-  const awalGeser = useRef<number | null>(null),
+  const awalGeser = useRef<{ x: number; y: number } | null>(null),
     tutup = useRef(onTutup);
   useEffect(() => {
     tutup.current = onTutup;
@@ -74,14 +75,18 @@ export function BottomSheet({
               aria-label={`Tinggi panel ${tinggi} persen. Ketuk untuk mengubah tinggi.`}
               onPointerDown={(e) => {
                 poGeser.current = false;
-                awalGeser.current = e.clientY;
-                e.currentTarget.setPointerCapture(e.pointerId);
+                awalGeser.current = { x: e.clientX, y: e.clientY };
+                e.currentTarget.setPointerCapture?.(e.pointerId);
               }}
               onPointerUp={(e) => {
-                const dy = e.clientY - (awalGeser.current ?? e.clientY);
+                const awal = awalGeser.current;
                 awalGeser.current = null;
-                poGeser.current = Math.abs(dy) > 25;
-                if (Math.abs(dy) > 25) setTinggi(tahap[Math.max(0, Math.min(2, tahap.indexOf(tinggi) + (dy < 0 ? 1 : -1)))]);
+                if (!awal) return;
+                const dx = e.clientX - awal.x;
+                const dy = e.clientY - awal.y;
+                const lurus = Math.abs(dy) > 25 && adalahGeserLurusVertikal(dx, dy);
+                poGeser.current = lurus;
+                if (lurus) setTinggi(tahap[Math.max(0, Math.min(2, tahap.indexOf(tinggi) + (dy < 0 ? 1 : -1)))]);
               }}
               onPointerCancel={() => {
                 awalGeser.current = null;

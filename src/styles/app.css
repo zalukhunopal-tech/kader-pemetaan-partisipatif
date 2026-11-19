@@ -4934,26 +4934,151 @@ label {
   word-break: break-word;
 }
 
-/* Pindah tab dengan geser: pudar masuk singkat. Hanya opacity: transform pada .app-main akan
-   memindahkan tombol + yang position: fixed selama animasi. */
+/* Transisi halus antar tab tampilan dan fitur.
+   Hanya opacity pada .app-main agar tombol position: fixed tidak bergeser selama animasi. */
 .app-main.geser-kiri,
-.app-main.geser-kanan {
-  animation: geser-pudar 0.22s ease-out;
+.app-main.geser-kanan,
+.app-main.geser-halus {
+  animation: transisi-tab-halus 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes geser-pudar {
+.app-main.geser-kiri .section-card,
+.app-main.geser-kiri .avenza-map-list,
+.app-main.geser-kiri .avenza-layer-list {
+  animation: geser-masuk-kiri 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-main.geser-kanan .section-card,
+.app-main.geser-kanan .avenza-map-list,
+.app-main.geser-kanan .avenza-layer-list {
+  animation: geser-masuk-kanan 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.subhalaman-transisi {
+  animation: transisi-halaman-naik 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 100%;
+  min-height: 100%;
+}
+
+.avenza-peta-content,
+.avenza-lapisan-content,
+.pustaka-tab-content-panel {
+  animation: transisi-fitur-halus 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.avenza-segment-btn,
+.avenza-map-row,
+.avenza-layer-row,
+.avz-tematik-chip,
+.pustaka-tab-nav-btn,
+.bottom-nav-btn,
+.nav-item {
+  transition:
+    background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.avenza-row-dropdown {
+  animation: transisi-menu-muncul 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top right;
+}
+
+.avenza-row-dropdown.buka-atas {
+  transform-origin: bottom right;
+}
+
+@keyframes transisi-tab-halus {
   from {
-    opacity: 0.35;
+    opacity: 0.28;
   }
   to {
     opacity: 1;
   }
 }
 
+@keyframes geser-masuk-kiri {
+  from {
+    opacity: 0.45;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes geser-masuk-kanan {
+  from {
+    opacity: 0.45;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes transisi-halaman-naik {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes transisi-fitur-halus {
+  from {
+    opacity: 0.2;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes transisi-menu-muncul {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-main.geser-kiri,
-  .app-main.geser-kanan {
+  .app-main.geser-kanan,
+  .app-main.geser-halus,
+  .app-main.geser-kiri .section-card,
+  .app-main.geser-kiri .avenza-map-list,
+  .app-main.geser-kiri .avenza-layer-list,
+  .app-main.geser-kanan .section-card,
+  .app-main.geser-kanan .avenza-map-list,
+  .app-main.geser-kanan .avenza-layer-list,
+  .subhalaman-transisi,
+  .avenza-peta-content,
+  .avenza-lapisan-content,
+  .pustaka-tab-content-panel,
+  .avenza-row-dropdown {
     animation: none;
+  }
+  .avenza-segment-btn,
+  .avenza-map-row,
+  .avenza-layer-row,
+  .avz-tematik-chip,
+  .pustaka-tab-nav-btn,
+  .bottom-nav-btn,
+  .nav-item {
+    transition: none;
   }
 }
 

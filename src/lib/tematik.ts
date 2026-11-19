@@ -28,6 +28,21 @@ function kunciNama(nama: string): string {
  * Menghitung apakah sebuah objek spasial termasuk dalam lapisan / kolam tematik tertentu.
  */
 export function objekCocokLapisan(objek: DataSpasialItem, lapisan: LapisanSpasial): boolean {
+  // Lapisan tugas buatan Admin terisolasi ketat: hanya memuat data yang memang dibuat di lapisan/tugas ini
+  if (lapisan.tugasId) {
+    if (objek.lapisanId && objek.lapisanId === lapisan.id) return true;
+    if (objek.tugasId && objek.tugasId === lapisan.tugasId) return true;
+    return false;
+  }
+
+  // Objek yang sudah tertaut ke lapisan atau tugas tertentu tidak boleh bocor ke lapisan lain
+  if (objek.lapisanId) {
+    return objek.lapisanId === lapisan.id;
+  }
+  if (objek.tugasId) {
+    return false;
+  }
+
   const tematikObjek = (objek.tematik || "").trim();
   const namaLapisan = lapisan.nama.trim();
   if (tematikObjek) {

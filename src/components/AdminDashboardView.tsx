@@ -1454,9 +1454,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                           onClick={() => {
                             const objekTugas = dataSpasial.find(
                               (d) =>
-                                (d.tugasId === t.id ||
-                                  d.lapisanId === `LAP-TGS-${t.id}` ||
-                                  (d.lapisanNama ?? "").toLowerCase() === t.judul.toLowerCase()) &&
+                                (d.tugasId === t.id || d.lapisanId === `LAP-TGS-${t.id}`) &&
                                 d.koordinat[0]
                             );
                             const koord = objekTugas?.koordinat[0] ?? t.koordinatAcuan;
