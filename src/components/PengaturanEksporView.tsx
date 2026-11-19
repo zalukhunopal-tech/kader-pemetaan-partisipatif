@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { AreaPetaOffline, DataSpasialItem } from "../types";
+import { AreaPetaOffline, DataSpasialItem, JenisGeometri, LapisanSpasial } from "../types";
 import { eksporKeCSV, eksporKeGPX } from "../lib/geoUtils";
 import {
   eksporGeoJsonDenganOpsi,
@@ -37,6 +37,7 @@ type FormatEksporUser = ".geojson" | ".kml" | ".gpx" | ".csv" | ".shp";
 
 interface PengaturanEksporViewProps {
   dataSpasial: DataSpasialItem[];
+  lapisanList?: LapisanSpasial[];
   areaOffline?: AreaPetaOffline[];
   konteksEkspor?: KonteksEkspor | null;
   onTutup: () => void;
@@ -66,6 +67,7 @@ function unduhDariBlob(namaFile: string, blob: Blob) {
 /** Form pengaturan ekspor lengkap berikut halaman bagikan multi-platform setelah berkas dibuat. */
 export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
   dataSpasial,
+  lapisanList = [],
   areaOffline = [],
   konteksEkspor = null,
   onTutup
@@ -91,10 +93,11 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
   const [formatFile, setFormatFile] = useState<FormatEksporUser>(".geojson");
   const [filterTematik, setFilterTematik] = useState<string>("");
   const [filterKategori, setFilterKategori] = useState<string>("");
+  const [filterGeometri, setFilterGeometri] = useState<"" | JenisGeometri>("");
+  const [sertakanAtributTugas, setSertakanAtributTugas] = useState(false);
   const [hanyaSkema, setHanyaSkema] = useState(false);
   const [sertakanFoto, setSertakanFoto] = useState(true);
   const [sertakanMemo, setSertakanMemo] = useState(true);
-  const [sertakanTematik, setSertakanTematik] = useState(true);
   const [lintasanJadiGaris, setLintasanJadiGaris] = useState(true);
   const [tampilInfo, setTampilInfo] = useState(false);
   const [statusEkspor, setStatusEkspor] = useState<string>("");
@@ -102,6 +105,9 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
 
   const opsiTematik = useMemo(() => {
     const setNama = new Set<string>();
+    lapisanList.forEach((l) => {
+      if (l.nama?.trim() && l.nama.trim() !== "Lapisan 1") setNama.add(l.nama.trim());
+    });
     dataSpasial.forEach((d) => {
       if (d.tematik?.trim()) setNama.add(d.tematik.trim());
       if (d.lapisanNama?.trim() && d.lapisanNama.trim() !== "Lapisan 1") {
@@ -109,7 +115,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
       }
     });
     return [...setNama].sort((a, b) => a.localeCompare(b, "id"));
-  }, [dataSpasial]);
+  }, [dataSpasial, lapisanList]);
 
   const opsiKategori = useMemo(() => {
     const setKat = new Set<string>();
@@ -119,19 +125,18 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     return [...setKat].sort((a, b) => a.localeCompare(b, "id"));
   }, [dataSpasial]);
 
-  const dataTersaring = useMemo(
-    () =>
-      filterDataUntukEkspor(dataSpasial, {
-        jenisData,
-        konteks: konteksEkspor ?? undefined,
-        sertakanFoto,
-        sertakanMemo,
-        sertakanTematik,
-        filterTematik,
-        filterKategori
-      }),
-    [dataSpasial, jenisData, konteksEkspor, sertakanFoto, sertakanMemo, sertakanTematik, filterTematik, filterKategori]
-  );
+  const dataTersaring = useMemo(() => {
+    const hasil = filterDataUntukEkspor(dataSpasial, {
+      jenisData,
+      konteks: konteksEkspor ?? undefined,
+      sertakanFoto,
+      sertakanMemo,
+      sertakanTematik: true,
+      filterTematik,
+      filterKategori
+    });
+    return filterGeometri ? hasil.filter((d) => d.jenisGeometri === filterGeometri) : hasil;
+  }, [dataSpasial, jenisData, konteksEkspor, sertakanFoto, sertakanMemo, filterTematik, filterKategori, filterGeometri]);
 
   const petaBatasEkspor = useMemo(
     () => (konteksEkspor?.petaDipilih?.length ? konteksEkspor.petaDipilih : areaOffline),
@@ -186,12 +191,14 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     } else if (formatFile === ".csv") {
       namaBerkas = `${namaBersih}.csv`;
       mimeType = "text/csv;charset=utf-8";
-      isiTeks = eksporKeCSV(sumberData);
+      isiTeks = eksporKeCSV(sumberData, { sertakanAtributTugas });
       blob = new Blob([isiTeks], { type: mimeType });
     } else if (formatFile === ".geojson") {
       namaBerkas = `${namaBersih}.geojson`;
       mimeType = "application/geo+json";
-      isiTeks = eksporGeoJsonDenganOpsi(sumberData, petaUntukFile, sertakanPeta);
+      isiTeks = eksporGeoJsonDenganOpsi(sumberData, petaUntukFile, sertakanPeta, {
+        sertakanKolomEkstra: sertakanAtributTugas
+      });
       blob = new Blob([isiTeks], { type: mimeType });
     } else {
       const hasilShp = eksporShpDenganOpsi(sumberData, petaUntukFile, sertakanPeta);
@@ -370,6 +377,25 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
               </select>
               <ChevronDown size={16} className="avenza-select-arrow" />
             </div>
+
+            <div className="avenza-outlined-field select-field">
+              <span className="avenza-floating-label">Tipe Geometri (WebGIS)</span>
+              <select
+                aria-label="Filter tipe geometri"
+                value={filterGeometri}
+                onChange={(e) => setFilterGeometri(e.target.value as "" | JenisGeometri)}
+              >
+                <option value="">Semua tipe</option>
+                <option value="point">Titik (Point)</option>
+                <option value="line">Garis (Line)</option>
+                <option value="polygon">Bidang (Polygon)</option>
+              </select>
+              <ChevronDown size={16} className="avenza-select-arrow" />
+            </div>
+          </div>
+          <div className="avenza-field-helper">
+            Standar atribut WebGIS Kecamatan: Titik (label, kategori, keterangan, url, simbol) · Garis (label, panjang_m, keterangan, url,
+            warna) · Bidang (label, luas_ha, keterangan, url, warna, tepi).
           </div>
         </section>
 
@@ -516,16 +542,20 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
               <Tag size={22} />
             </div>
             <div className="avenza-export-text">
-              <div className="avenza-export-main">Label peta tematik</div>
-              <div className="avenza-export-sub">{sertakanTematik ? "Sertakan kolom nama kolam tematik" : "Tanpa label tematik"}</div>
+              <div className="avenza-export-main">Kolom atribut tugas terpisah</div>
+              <div className="avenza-export-sub">
+                {sertakanAtributTugas
+                  ? "Kolom isian tugas ikut diekspor terpisah selain dirangkum di keterangan"
+                  : "Standar bersih WebGIS Kecamatan (isian tugas dirangkum ke keterangan)"}
+              </div>
             </div>
             <button
               type="button"
               role="switch"
-              aria-checked={sertakanTematik}
-              aria-label="Label peta tematik"
-              className={`avenza-switch ${sertakanTematik ? "on" : ""}`}
-              onClick={() => setSertakanTematik((v) => !v)}
+              aria-checked={sertakanAtributTugas}
+              aria-label="Kolom atribut tugas terpisah"
+              className={`avenza-switch ${sertakanAtributTugas ? "on" : ""}`}
+              onClick={() => setSertakanAtributTugas((v) => !v)}
             >
               <span className="avenza-switch-thumb" />
             </button>

@@ -222,20 +222,20 @@ describe("skema tabel atribut PRM-AID (Polygon, Line, Point) & Kode PRM-AID + SN
 
     const geo = JSON.parse(eksporKeGeoJSON([poly]));
     const props = geo.features[0].properties;
-    expect(Object.keys(props)).toEqual(["label", "luas_ha", "keterangan", "url", "tepi", "warna"]);
+    expect(Object.keys(props)).toEqual(["label", "luas_ha", "keterangan", "url", "warna", "tepi"]);
     expect(props).toEqual({
       label: "Area Perkebunan Desa",
       luas_ha: 123.62,
       keterangan: "Lahan pangan masyarakat",
       url: "https://walaya.prm.my.id/foto-kebun.jpg",
-      tepi: "#000000",
-      warna: "#00B050"
+      warna: "#00B050",
+      tepi: "#000000"
     });
 
     const csv = eksporKeCSV([poly]).replace(/^\uFEFF/, "");
     const [header, row] = csv.split(/\r?\n/);
-    expect(header).toBe("label,luas_ha,keterangan,url,tepi,warna");
-    expect(row).toBe("Area Perkebunan Desa,123.62,Lahan pangan masyarakat,https://walaya.prm.my.id/foto-kebun.jpg,#000000,#00B050");
+    expect(header).toBe("label,luas_ha,keterangan,url,warna,tepi");
+    expect(row).toBe("Area Perkebunan Desa,123.62,Lahan pangan masyarakat,https://walaya.prm.my.id/foto-kebun.jpg,#00B050,#000000");
   });
 
   it("Line memiliki atribut tepat: label | panjang_m | keterangan | url | warna sesuai Kode PRM-AID.xlsx", () => {
@@ -288,12 +288,12 @@ describe("skema tabel atribut PRM-AID (Polygon, Line, Point) & Kode PRM-AID + SN
       kategori: "Mata Air",
       keterangan: "Sumber air bersih warga",
       url: "https://walaya.prm.my.id/air-terjun.jpg",
-      simbol: "waterfall.png"
+      simbol: ""
     });
 
     const csv = eksporKeCSV([pt]).replace(/^\uFEFF/, "");
     const [header, row] = csv.split(/\r?\n/);
     expect(header).toBe("label,kategori,keterangan,url,simbol");
-    expect(row).toBe("Air Terjun Keramat,Mata Air,Sumber air bersih warga,https://walaya.prm.my.id/air-terjun.jpg,waterfall.png");
+    expect(row).toBe("Air Terjun Keramat,Mata Air,Sumber air bersih warga,https://walaya.prm.my.id/air-terjun.jpg,");
   });
 });

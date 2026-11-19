@@ -649,37 +649,34 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
 
     const desa = desaJambi(L);
     const geoPt = L.isiGeojson(desa, "budi_sebaran_anggrek_november_2026.geojson")!.features[0].properties;
-    expect(Object.keys(geoPt)).toEqual(["label", "lapisan", "elevasi_m", "keterangan", "corak", "url"]);
+    expect(Object.keys(geoPt)).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
     expect(geoPt).toMatchObject({
       label: "Gereja Santo Petrus",
-      lapisan: "Lapisan 1",
+      kategori: "Agama",
       keterangan: "Gereja pusat desa",
-      corak: "Pin Merah"
+      simbol: ""
     });
     expect(String(geoPt.url)).toMatch(/^https:\/\/drive\.test\//);
 
     const geoLn = L.isiGeojson(desa, "budi_jembatan_november_2026.geojson")!.features[0].properties;
-    expect(Object.keys(geoLn)).toEqual(["label", "lapisan", "panjang_m", "elevasi_m", "keterangan", "corak", "url"]);
+    expect(Object.keys(geoLn)).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
     expect(geoLn).toEqual({
       label: "Jembatan Gantung Sungai",
-      lapisan: "Lapisan 1",
       panjang_m: 125,
-      elevasi_m: "",
       keterangan: "Jembatan penghubung dusun",
-      corak: "Jingga jejak",
-      url: ""
+      url: "",
+      warna: "#00BFFF"
     });
 
     const geoPg = L.isiGeojson(desa, "budi_hutan_lindung_november_2026.geojson")!.features[0].properties;
-    expect(Object.keys(geoPg)).toEqual(["label", "lapisan", "luas_ha", "elevasi_m", "keterangan", "corak", "url"]);
+    expect(Object.keys(geoPg)).toEqual(["label", "luas_ha", "keterangan", "url", "warna", "tepi"]);
     expect(geoPg).toEqual({
       label: "Hutan Lindung Adat",
-      lapisan: "Lapisan 1",
       luas_ha: 48.75,
-      elevasi_m: "",
       keterangan: "Kawasan lindung desa",
-      corak: "Hijau zamrud",
-      url: ""
+      url: "",
+      warna: "#02AD00",
+      tepi: "transparent"
     });
   });
 
@@ -805,10 +802,10 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
     expect(tabPoint).toBeTruthy();
     expect(tabLapisanAdmin).toBeTruthy();
 
-    // Verifikasi header tabel baru tanpa item kategori/biologi lama
-    expect(tabPolygon?.baris[0]).toEqual(["label", "lapisan", "luas_ha", "elevasi_m", "keterangan", "corak", "url"]);
-    expect(tabLine?.baris[0]).toEqual(["label", "lapisan", "panjang_m", "elevasi_m", "keterangan", "corak", "url"]);
-    expect(tabPoint?.baris[0]).toEqual(["label", "lapisan", "elevasi_m", "keterangan", "corak", "url"]);
+    // Verifikasi header tabel sesuai standar_atribut_webgis v1.0
+    expect(tabPolygon?.baris[0]).toEqual(["label", "luas_ha", "keterangan", "url", "warna", "tepi"]);
+    expect(tabLine?.baris[0]).toEqual(["label", "panjang_m", "keterangan", "url", "warna"]);
+    expect(tabPoint?.baris[0]).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
     expect(tabLapisanAdmin?.baris[0]).toEqual([
       "ID_Data",
       "Judul",
@@ -822,10 +819,16 @@ describe("Code.gs: tabel atribut PRM-AID & automasi migrasi folder wilayah", () 
       "Tautan_Foto"
     ]);
 
-    // Verifikasi baris data yang dihasilkan
-    expect(tabPolygon?.baris[1]).toEqual(["Area Perkebunan Desa", "Lapisan 1", 12.5, "", "Kebun pangan", "Hijau zamrud", ""]);
-    expect(tabLine?.baris[1]).toEqual(["Jalan Utama", "Lapisan 1", 1250, "", "Akses jalan warga", "Jingga jejak", ""]);
-    expect(tabPoint?.baris[1]).toEqual(["Masjid Raya", "Inventarisasi Blok A", 640.23, "Tempat ibadah", "Pin Merah", ""]);
+    // Verifikasi baris data yang dihasilkan sesuai standar_atribut_webgis v1.0
+    expect(tabPolygon?.baris[1]).toEqual(["Area Perkebunan Desa", 12.5, "Kebun pangan", "", "#00B050", "#000000"]);
+    expect(tabLine?.baris[1]).toEqual(["Jalan Utama", 1250, "Akses jalan warga", "", "#FF0000"]);
+    expect(tabPoint?.baris[1]).toEqual([
+      "Masjid Raya",
+      "Agama",
+      "Tempat ibadah | Kode Titik: T-01; Kondisi: Baik",
+      "",
+      ""
+    ]);
   });
 
   it("memindahkan data yang dihapus ke folder Pencadangan_90_Hari, dapat memulihkan sebelum 90 hari, dan menghapus permanen setelah 90 hari", () => {

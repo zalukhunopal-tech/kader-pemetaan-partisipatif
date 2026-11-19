@@ -1,8 +1,9 @@
 import { PusatSinkronisasi } from "./PusatSinkronisasi";
-import React, { useState } from "react";
-import { AreaPetaOffline, DataSpasialItem, PilihanResolusiKonflik } from "../types";
-import { eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
-import { eksporKeSHP } from "../lib/shapefile";
+import React, { useMemo, useState } from "react";
+import { AreaPetaOffline, DataSpasialItem, LapisanSpasial, PilihanResolusiKonflik } from "../types";
+import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
+import { buatArsipZip, eksporPaketShapefile } from "../lib/shapefile";
+import { objekCocokLapisan } from "../lib/tematik";
 import { gdriveTerpasang, tujuanDrive } from "../lib/gdriveSync";
 import { muatSemuaAkun } from "../lib/auth";
 import { teksWilayah, wilayahLengkap } from "../lib/wilayah";
@@ -36,6 +37,7 @@ function urlGambarSurveiAman(d: DataSpasialItem): string | undefined {
 
 interface DatabaseSyncViewProps {
   dataSpasial: DataSpasialItem[];
+  lapisanList?: LapisanSpasial[];
   areaOffline: AreaPetaOffline[];
   onResolusiKonflik: (id: string, pilihan: PilihanResolusiKonflik, gabungan?: Partial<DataSpasialItem>) => void;
   terakhirSinkron?: string;
@@ -62,6 +64,7 @@ function unduhBerkasTeks(namaFile: string, isi: string | Uint8Array, mimeType: s
 
 export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   dataSpasial,
+  lapisanList = [],
   areaOffline,
   onResolusiKonflik,
   terakhirSinkron,
@@ -73,6 +76,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   onFokusKePeta
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>("semua");
+  const [filterLapisanId, setFilterLapisanId] = useState<string>("semua");
 
   // Modal Lightbox Preview Gambar
   const [previewFoto, setPreviewFoto] = useState<DataSpasialItem | null>(null);
@@ -90,7 +94,75 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
   const jmlTersinkron = dataSpasial.filter((d) => d.statusSinkron === "tersinkron").length;
   const jmlVerif = dataSpasial.filter((d) => d.statusSinkron === "terverifikasi").length;
 
-  const dataTampil = dataSpasial.filter((d) => (filterStatus === "semua" ? true : d.statusSinkron === filterStatus));
+  const opsiLapisan = useMemo(() => {
+    const hasil: { id: string; nama: string; lapisan?: LapisanSpasial }[] = [];
+    const seen = new Set<string>();
+    for (const l of lapisanList) {
+      if (!seen.has(l.id)) {
+        seen.add(l.id);
+        hasil.push({ id: l.id, nama: l.nama, lapisan: l });
+      }
+    }
+    for (const d of dataSpasial) {
+      const namaLap = (d.lapisanNama || d.tematik || "").trim();
+      const idLap = d.lapisanId || (namaLap ? `NAMA:${namaLap}` : "");
+      if (idLap && namaLap && !seen.has(idLap) && !hasil.some((h) => h.nama.toLowerCase() === namaLap.toLowerCase())) {
+        seen.add(idLap);
+        hasil.push({ id: idLap, nama: namaLap });
+      }
+    }
+    return hasil;
+  }, [lapisanList, dataSpasial]);
+
+  const lapisanTerpilih = useMemo(
+    () => opsiLapisan.find((o) => o.id === filterLapisanId) ?? null,
+    [opsiLapisan, filterLapisanId]
+  );
+
+  const dataTampil = useMemo(() => {
+    return dataSpasial.filter((d) => {
+      if (filterStatus !== "semua" && d.statusSinkron !== filterStatus) return false;
+      if (filterLapisanId === "semua") return true;
+      if (lapisanTerpilih?.lapisan) {
+        return objekCocokLapisan(d, lapisanTerpilih.lapisan);
+      }
+      if (lapisanTerpilih) {
+        return (
+          d.lapisanId === lapisanTerpilih.id ||
+          (d.lapisanNama || d.tematik || "").trim().toLowerCase() === lapisanTerpilih.nama.toLowerCase()
+        );
+      }
+      return true;
+    });
+  }, [dataSpasial, filterStatus, filterLapisanId, lapisanTerpilih]);
+
+  // Kolom format isian dari Menu Tugas Admin untuk lapisan (kolam data) yang dipilih
+  const kolomTugasLapisan = useMemo(() => {
+    if (filterLapisanId === "semua") return [];
+    const kolom: string[] = [];
+    const ada = new Set<string>();
+    const tambah = (k: string) => {
+      const bersih = k.trim();
+      if (bersih && !ada.has(bersih)) {
+        ada.add(bersih);
+        kolom.push(bersih);
+      }
+    };
+    const skema = lapisanTerpilih?.lapisan?.skemaGeometri;
+    if (skema) {
+      for (const f of [...(skema.point ?? []), ...(skema.line ?? []), ...(skema.polygon ?? [])]) {
+        tambah(f.nama);
+      }
+    }
+    for (const d of dataTampil) {
+      if (d.atributKustom) {
+        for (const k of Object.keys(d.atributKustom)) tambah(k);
+      }
+    }
+    return kolom;
+  }, [filterLapisanId, lapisanTerpilih, dataTampil]);
+
+  const namaBerkasEkspor = (lapisanTerpilih?.nama || "Database_Pemetaan_Kader").replace(/\s+/g, "_");
 
   // Kumpulkan semua item yang memiliki foto
   const dataDenganFoto = dataSpasial.filter((d) => Boolean(urlGambarSurveiAman(d)));
@@ -432,33 +504,66 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
             </p>
           </div>
 
-          {/* TOMBOL EKSPOR FILE SPASIAL STANDAR */}
-          <div className="export-buttons">
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() => unduhBerkasTeks("Database_Pemetaan_Kader.geojson", eksporKeGeoJSON(dataTampil), "application/geo+json")}
-            >
-              <Download size={13} /> GeoJSON
-            </button>
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() =>
-                unduhBerkasTeks("Database_Pemetaan_Kader.kml", eksporKeKML(dataTampil), "application/vnd.google-earth.kml+xml")
-              }
-            >
-              <Download size={13} /> KML
-            </button>
-            <button
-              type="button"
-              className="btn-outline-sm"
-              onClick={() =>
-                unduhBerkasTeks("Database_Pemetaan_Kader.shp", eksporKeSHP(dataTampil), "application/octet-stream")
-              }
-            >
-              <Download size={13} /> SHP
-            </button>
+          {/* FILTER LAPISAN (KOLAM DATA) & TOMBOL EKSPOR STANDAR WEBGIS */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {opsiLapisan.length > 0 && (
+              <select
+                aria-label="Filter lapisan kolam data"
+                className="form-input"
+                style={{ width: "auto", minWidth: 165, padding: "5px 10px", fontSize: "0.8rem" }}
+                value={filterLapisanId}
+                onChange={(e) => setFilterLapisanId(e.target.value)}
+              >
+                <option value="semua">Semua Lapisan ({dataSpasial.length})</option>
+                {opsiLapisan.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.nama}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="export-buttons">
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() => unduhBerkasTeks(`${namaBerkasEkspor}.geojson`, eksporKeGeoJSON(dataTampil), "application/geo+json")}
+              >
+                <Download size={13} /> GeoJSON
+              </button>
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() =>
+                  unduhBerkasTeks(
+                    `${namaBerkasEkspor}.csv`,
+                    eksporKeCSV(dataTampil, { sertakanAtributTugas: kolomTugasLapisan.length > 0 }),
+                    "text/csv;charset=utf-8"
+                  )
+                }
+              >
+                <Download size={13} /> CSV
+              </button>
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() =>
+                  unduhBerkasTeks(`${namaBerkasEkspor}.kml`, eksporKeKML(dataTampil), "application/vnd.google-earth.kml+xml")
+                }
+              >
+                <Download size={13} /> KML
+              </button>
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() => {
+                  const paket = eksporPaketShapefile(dataTampil, namaBerkasEkspor);
+                  const zip = buatArsipZip(paket);
+                  unduhBerkasTeks(`${namaBerkasEkspor}_shp.zip`, zip, "application/zip");
+                }}
+              >
+                <Download size={13} /> SHP
+              </button>
+            </div>
           </div>
         </div>
 
@@ -470,6 +575,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                   <th>Rekaman</th>
                   <th>Jenis</th>
                   <th>Judul Objek</th>
+                  {kolomTugasLapisan.map((kol) => (
+                    <th key={kol}>{kol}</th>
+                  ))}
                   <th>Foto</th>
                   <th>Status</th>
                   <th>Aksi</th>
@@ -492,10 +600,9 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                     <td>
                       <strong>{d.judul}</strong>
                       <div className="text-xs text-muted">{d.deskripsi}</div>
-                      {d.atributKustom && Object.keys(d.atributKustom).length > 0 && (
-                        <div className="text-xs text-muted">
+                      {kolomTugasLapisan.length === 0 && d.atributKustom && Object.keys(d.atributKustom).length > 0 && (
+                        <div className="text-xs text-muted" style={{ marginTop: 2 }}>
                           {Object.entries(d.atributKustom)
-                            .slice(0, 3)
                             .map(([k, v]) => `${k}: ${String(v).startsWith("data:image/") ? "[Foto]" : v}`)
                             .join(" · ")}
                         </div>
@@ -504,6 +611,14 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                         <Folder size={11} /> {teksWilayah(tujuan(d).wilayah)} / {tujuan(d).namaBerkas}
                       </div>
                     </td>
+                    {kolomTugasLapisan.map((kol) => {
+                      const v = d.atributKustom?.[kol];
+                      return (
+                        <td key={kol} className="text-xs">
+                          {v ? (String(v).startsWith("data:image/") ? "[Foto]" : v) : "-"}
+                        </td>
+                      );
+                    })}
                     <td>
                       {urlGambarSurveiAman(d) ? (
                         <button

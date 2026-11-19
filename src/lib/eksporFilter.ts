@@ -1,5 +1,5 @@
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
-import { eksporKeGeoJSON, eksporKeKML } from "./geoUtils";
+import { eksporKeGeoJSON, eksporKeKML, hitungLuasPoligonMeter2, OpsiEksporGeoJson } from "./geoUtils";
 import { titikDiDalamBatasArea } from "./geofence";
 import { objekCocokLapisan } from "./tematik";
 
@@ -103,34 +103,50 @@ export function filterDataUntukEkspor(dataSpasial: DataSpasialItem[], opsi: Opsi
   });
 }
 
-/** Mengekspor GeoJSON berikut poligon batas lembar peta bila diminta. */
-export function eksporGeoJsonDenganOpsi(daftar: DataSpasialItem[], petaBatas: AreaPetaOffline[], sertakanPeta: boolean): string {
-  const baseStr = eksporKeGeoJSON(daftar);
+/** Mengekspor GeoJSON berikut poligon batas lembar peta bila diminta (sesuai standar WebGIS Kecamatan v1.0). */
+export function eksporGeoJsonDenganOpsi(
+  daftar: DataSpasialItem[],
+  petaBatas: AreaPetaOffline[],
+  sertakanPeta: boolean,
+  opsiGeoJson?: OpsiEksporGeoJson
+): string {
+  const baseStr = eksporKeGeoJSON(daftar, opsiGeoJson);
   if (!sertakanPeta || petaBatas.length === 0) return baseStr;
 
   const fc = JSON.parse(baseStr) as { type: "FeatureCollection"; features: Record<string, unknown>[] };
-  const fiturPeta = petaBatas.map((area) => ({
-    type: "Feature",
-    properties: {
-      id: area.id,
-      judul: `Batas Peta: ${area.namaArea}`,
-      jenis_fitur: "batas_peta",
-      crs: area.crs ?? "WGS84",
-      ukuran_mb: area.ukuranMb
-    },
-    geometry: {
-      type: "Polygon",
-      coordinates: [
-        [
-          [area.minLng, area.minLat],
-          [area.maxLng, area.minLat],
-          [area.maxLng, area.maxLat],
-          [area.minLng, area.maxLat],
-          [area.minLng, area.minLat]
+  const fiturPeta = petaBatas.map((area) => {
+    const titikKotak = [
+      { lat: area.minLat, lng: area.minLng },
+      { lat: area.maxLat, lng: area.minLng },
+      { lat: area.maxLat, lng: area.maxLng },
+      { lat: area.minLat, lng: area.maxLng }
+    ];
+    const luas_ha = Number((hitungLuasPoligonMeter2(titikKotak) / 10000).toFixed(4));
+    return {
+      type: "Feature",
+      properties: {
+        label: `Batas Peta: ${area.namaArea}`,
+        luas_ha,
+        keterangan: `Batas lembar peta offline (${area.crs ?? "WGS84"}, ${area.ukuranMb} MB)`,
+        url: "",
+        warna: "transparent",
+        tepi: "#000000",
+        jenis_fitur: "batas_peta"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [Number(area.minLng.toFixed(7)), Number(area.minLat.toFixed(7))],
+            [Number(area.maxLng.toFixed(7)), Number(area.minLat.toFixed(7))],
+            [Number(area.maxLng.toFixed(7)), Number(area.maxLat.toFixed(7))],
+            [Number(area.minLng.toFixed(7)), Number(area.maxLat.toFixed(7))],
+            [Number(area.minLng.toFixed(7)), Number(area.minLat.toFixed(7))]
+          ]
         ]
-      ]
-    }
-  }));
+      }
+    };
+  });
 
   return JSON.stringify({ ...fc, features: [...fc.features, ...fiturPeta] }, null, 2);
 }

@@ -32,9 +32,9 @@ var TAB_POLYGON = "Polygon";
 var TAB_LINE = "Line";
 var TAB_POINT = "Point";
 
-var KOLOM_POLYGON = ["label", "lapisan", "luas_ha", "elevasi_m", "keterangan", "corak", "url"];
-var KOLOM_LINE = ["label", "lapisan", "panjang_m", "elevasi_m", "keterangan", "corak", "url"];
-var KOLOM_POINT = ["label", "lapisan", "elevasi_m", "keterangan", "corak", "url"];
+var KOLOM_POLYGON = ["label", "luas_ha", "keterangan", "url", "warna", "tepi"];
+var KOLOM_LINE = ["label", "panjang_m", "keterangan", "url", "warna"];
+var KOLOM_POINT = ["label", "kategori", "keterangan", "url", "simbol"];
 var BELUM_DIISI = "Wilayah_Belum_Diisi";
 var BATAS_FOTO_BYTE = 2 * 1024 * 1024;
 var NAMA_BULAN = [
@@ -484,35 +484,35 @@ function geometriDariWktGs_(wkt, jenis) {
  * - Point   : { label, kategori, keterangan, url, simbol }
  */
 var ATURAN_POLYGON_GS_ = [
-  { nama: "Area Penggunaan Lain", k: ["area penggunaan lain", "areal penggunaan lain", "apl"], tepi: "Transparent", warna: "#FFFFFF" },
-  { nama: "Hutan Produksi Konversi", k: ["hutan produksi konversi", "hpk"], tepi: "Transparent", warna: "#FF5EFF" },
-  { nama: "Hutan Produksi Terbatas", k: ["hutan produksi terbatas", "hpt"], tepi: "Transparent", warna: "#8AF200" },
-  { nama: "Hutan Produksi", k: ["hutan produksi"], tepi: "Transparent", warna: "#FFFF00" },
-  { nama: "Hutan Lindung", k: ["hutan lindung"], tepi: "Transparent", warna: "#02AD00" },
-  { nama: "Hutan Konservasi", k: ["hutan konservasi", "kawasan konservasi"], tepi: "Transparent", warna: "#AD3FFF" },
-  { nama: "Zona Religi, Sejarah & Budaya", k: ["zona religi", "sejarah & budaya", "sejarah dan budaya", "zona budaya"], tepi: "Transparent", warna: "#6600CC" },
-  { nama: "Zona Khusus", k: ["zona khusus"], tepi: "Transparent", warna: "#969696" },
-  { nama: "Zona Rehabilitasi", k: ["zona rehabilitasi"], tepi: "Transparent", warna: "#00FFFF" },
-  { nama: "Zona Tradisional", k: ["zona tradisional"], tepi: "Transparent", warna: "#993300" },
-  { nama: "Zonasi Pemanfaatan", k: ["zonasi pemanfaatan", "zona pemanfaatan"], tepi: "Transparent", warna: "#94C800" },
-  { nama: "Zona Rimba", k: ["zona rimba"], tepi: "Transparent", warna: "#E7E200" },
-  { nama: "Zona Inti", k: ["zona inti"], tepi: "Transparent", warna: "#FF0000" },
-  { nama: "Ruang Lindung", k: ["ruang lindung"], tepi: "Transparent", warna: "#D32F2F" },
-  { nama: "Ruang Pemanfaatan", k: ["ruang pemanfaatan"], tepi: "Transparent", warna: "#00C8FF" },
+  { nama: "Area Penggunaan Lain", k: ["area penggunaan lain", "areal penggunaan lain", "apl"], tepi: "transparent", warna: "#FFFFFF" },
+  { nama: "Hutan Produksi Konversi", k: ["hutan produksi konversi", "hpk"], tepi: "transparent", warna: "#FF5EFF" },
+  { nama: "Hutan Produksi Terbatas", k: ["hutan produksi terbatas", "hpt"], tepi: "transparent", warna: "#8AF200" },
+  { nama: "Hutan Produksi", k: ["hutan produksi"], tepi: "transparent", warna: "#FFFF00" },
+  { nama: "Hutan Lindung", k: ["hutan lindung"], tepi: "transparent", warna: "#02AD00" },
+  { nama: "Hutan Konservasi", k: ["hutan konservasi", "kawasan konservasi"], tepi: "transparent", warna: "#AD3FFF" },
+  { nama: "Zona Religi, Sejarah & Budaya", k: ["zona religi", "sejarah & budaya", "sejarah dan budaya", "zona budaya"], tepi: "transparent", warna: "#6600CC" },
+  { nama: "Zona Khusus", k: ["zona khusus"], tepi: "transparent", warna: "#969696" },
+  { nama: "Zona Rehabilitasi", k: ["zona rehabilitasi"], tepi: "transparent", warna: "#00FFFF" },
+  { nama: "Zona Tradisional", k: ["zona tradisional"], tepi: "transparent", warna: "#993300" },
+  { nama: "Zonasi Pemanfaatan", k: ["zonasi pemanfaatan", "zona pemanfaatan"], tepi: "transparent", warna: "#94C800" },
+  { nama: "Zona Rimba", k: ["zona rimba"], tepi: "transparent", warna: "#E7E200" },
+  { nama: "Zona Inti", k: ["zona inti"], tepi: "transparent", warna: "#FF0000" },
+  { nama: "Ruang Lindung", k: ["ruang lindung"], tepi: "transparent", warna: "#D32F2F" },
+  { nama: "Ruang Pemanfaatan", k: ["ruang pemanfaatan"], tepi: "transparent", warna: "#00C8FF" },
   { nama: "Hutan Adat", k: ["hutan adat"], tepi: "#4E4E4E", warna: "#4e4e4e" },
-  { nama: "Hutan Desa", k: ["hutan desa"], tepi: "#00C8FF", warna: "Transparent" },
-  { nama: "Hutan Kemasyarakatan", k: ["hutan kemasyarakatan", "hkm"], tepi: "#004DA8", warna: "Transparent" },
-  { nama: "Hutan Tanaman Rakyat", k: ["hutan tanaman rakyat", "htr"], tepi: "#FF3264", warna: "Transparent" },
-  { nama: "Kemitraan Kehutanan", k: ["kemitraan kehutanan"], tepi: "#A80000", warna: "Transparent" },
+  { nama: "Hutan Desa", k: ["hutan desa"], tepi: "#00C8FF", warna: "transparent" },
+  { nama: "Hutan Kemasyarakatan", k: ["hutan kemasyarakatan", "hkm"], tepi: "#004DA8", warna: "transparent" },
+  { nama: "Hutan Tanaman Rakyat", k: ["hutan tanaman rakyat", "htr"], tepi: "#FF3264", warna: "transparent" },
+  { nama: "Kemitraan Kehutanan", k: ["kemitraan kehutanan"], tepi: "#A80000", warna: "transparent" },
   { nama: "Wilayah MHA", k: ["wilayah mha", "masyarakat hukum adat", "wilayah adat"], tepi: "#8d4513", warna: "#C68642" },
   { nama: "PBPH", k: ["pbph", "perizinan berusaha pemanfaatan hutan", "hph", "hti"], tepi: "#F4A460", warna: "#F4A460" },
   { nama: "Area Perladangan", k: ["area perladangan", "perladangan", "ladang"], tepi: "#000000", warna: "#98E600" },
   { nama: "Area Perkebunan", k: ["area perkebunan", "perkebunan", "kebun"], tepi: "#000000", warna: "#00B050" },
   { nama: "Area Persawahan", k: ["area persawahan", "persawahan", "sawah"], tepi: "#000000", warna: "#FFFF00" },
-  { nama: "Provinsi", k: ["provinsi", "batas provinsi"], tepi: "#000000", warna: "Transparent" },
-  { nama: "Kabupaten", k: ["kabupaten", "batas kabupaten", "kota"], tepi: "#000000", warna: "Transparent" },
-  { nama: "Kecamatan", k: ["kecamatan", "batas kecamatan"], tepi: "#000000", warna: "Transparent" },
-  { nama: "Klaster/Lanskap", k: ["klaster", "lanskap"], tepi: "#000000", warna: "Transparent" },
+  { nama: "Provinsi", k: ["provinsi", "batas provinsi"], tepi: "#000000", warna: "transparent" },
+  { nama: "Kabupaten", k: ["kabupaten", "batas kabupaten", "kota"], tepi: "#000000", warna: "transparent" },
+  { nama: "Kecamatan", k: ["kecamatan", "batas kecamatan"], tepi: "#000000", warna: "transparent" },
+  { nama: "Klaster/Lanskap", k: ["klaster", "lanskap"], tepi: "#000000", warna: "transparent" },
   { nama: "Desa", k: ["batas desa", "wilayah desa", "desa"], tepi: "#000000", warna: "#F5F5DC" },
   { nama: "Mangrove / Rawa", k: ["mangrove", "bakau", "rawa", "gambut"], tepi: "#004D00", warna: "#02AD00" },
   { nama: "Badan Air / Danau", k: ["danau", "waduk", "embung", "kolam", "tambak", "perairan"], tepi: "#004DA8", warna: "#00BFFF" }
@@ -523,7 +523,7 @@ var FALLBACK_POLYGON_GS_ = {
   "Flora": { tepi: "#004D00", warna: "#02AD00" },
   "Fauna": { tepi: "#6600CC", warna: "#AD3FFF" },
   "Mata Air": { tepi: "#004DA8", warna: "#00BFFF" },
-  "Tanda Batas": { tepi: "#000000", warna: "Transparent" },
+  "Tanda Batas": { tepi: "#000000", warna: "transparent" },
   "Ancaman / Temuan": { tepi: "#A80000", warna: "#FF0000" },
   "Sarana Desa": { tepi: "#000000", warna: "#F5F5DC" },
   "Situs Budaya": { tepi: "#4A0099", warna: "#6600CC" }
@@ -676,45 +676,111 @@ function simbolPointPrmAidGs_(label, kategori, keterangan, simbolAwal) {
 function sanitasiUrlGs_(urlMentah) {
   var s = String(urlMentah || "").trim();
   if (!s) return "";
-  if (/^(?:https?:\/\/|\/|\.\/)/i.test(s)) {
+  if (/^https?:\/\/.+/i.test(s)) {
     return s.replace(/[\r\n\t]/g, "").trim();
   }
   return "";
 }
 
-function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
-  var pLama = (fitur && fitur.properties) || {};
-  var label = String(r.judul || r.label || pLama.label || pLama.judul || "").trim();
-  var ket = String(r.deskripsi || r.keterangan || pLama.keterangan || pLama.deskripsi || "").trim();
-  var lapisan = String(r.lapisanNama || r.tematik || pLama.lapisan || "Lapisan 1").trim() || "Lapisan 1";
-  var corak = String(r.corak || r.simbol || r.warna || pLama.corak || "").trim();
-  var elevasi = r.elevasi !== undefined && r.elevasi !== "" && isFinite(Number(r.elevasi))
-    ? Number(r.elevasi)
-    : pLama.elevasi_m !== undefined
-      ? Number(pLama.elevasi_m)
-      : "";
-  var url = sanitasiUrlGs_(fotoUrl || r.url || r.driveFileUrl || pLama.url);
-  var jenis = String(r.jenisGeometri || "").toLowerCase();
-  var hasil = { label: label, lapisan: lapisan };
-  if (jenis === "polygon") {
-    var luas = Number(r.luasHa !== undefined ? r.luasHa : pLama.luas_ha !== undefined ? pLama.luas_ha : 0);
-    hasil.luas_ha = isFinite(luas) ? Number(luas.toFixed(7)) : 0;
-  } else if (jenis === "line") {
-    var pjgMeter = r.panjang_m !== undefined ? Number(r.panjang_m) : pLama.panjang_m !== undefined ? Number(pLama.panjang_m) : Number(r.panjangKm || 0) * 1000;
-    hasil.panjang_m = isFinite(pjgMeter) ? Number(pjgMeter.toFixed(2)) : 0;
-  }
-  hasil.elevasi_m = elevasi;
-  hasil.keterangan = ket;
-  hasil.corak = corak || (jenis === "line" ? "Jingga jejak" : jenis === "polygon" ? "Hijau zamrud" : "Pin Merah");
-  hasil.url = url;
+function normalisasiWarnaGs_(warnaMentah, fallback) {
+  var s = String(warnaMentah || "").trim();
+  if (!s) return String(fallback || "#02AD00").toLowerCase() === "transparent" ? "transparent" : fallback;
+  if (s.toLowerCase() === "transparent") return "transparent";
+  if (/^(#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|[A-Za-z]{3,20})$/.test(s)) return s;
+  return String(fallback || "#02AD00").toLowerCase() === "transparent" ? "transparent" : fallback;
+}
+
+function normalisasiSimbolGs_(simbolMentah) {
+  var s = String(simbolMentah || "").trim();
+  if (s === "marker-icon.png") return s;
+  return "";
+}
+
+function susunKeteranganWebgisGs_(r, pLama, luasHa) {
+  var bagian = [];
+  var ketMentah = String(r.deskripsi || r.keterangan || pLama.keterangan || pLama.deskripsi || "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (ketMentah) bagian.push(ketMentah);
   if (r.atributKustom && typeof r.atributKustom === "object") {
+    var ringkas = [];
     for (var k in r.atributKustom) {
       if (Object.prototype.hasOwnProperty.call(r.atributKustom, k)) {
-        hasil[k] = r.atributKustom[k];
+        var v = String(r.atributKustom[k] || "").trim();
+        if (v && v.indexOf("data:image/") !== 0) {
+          ringkas.push(k + ": " + v.replace(/<[^>]+>/g, "").trim());
+        }
       }
     }
+    if (ringkas.length > 0 && ketMentah.indexOf(ringkas[0]) === -1) {
+      bagian.push(ringkas.join("; "));
+    }
   }
-  return hasil;
+  if (luasHa !== undefined && luasHa > 0 && luasHa < 1) {
+    var gab = bagian.join(" | ");
+    if (!/m[²2]/i.test(gab)) {
+      bagian.push("Luas " + Math.round(luasHa * 10000) + " m²");
+    }
+  }
+  if (bagian.length > 0) return bagian.join(" | ");
+  return "Survei kader";
+}
+
+function susunAtributPrmAidGs_(r, fitur, fotoUrl) {
+  var pLama = (fitur && fitur.properties) || {};
+  var lapisan = String(r.lapisanNama || r.tematik || pLama.lapisan || "").trim();
+  var label = String(r.judul || r.label || pLama.label || pLama.judul || lapisan || "Objek").trim();
+  var url = sanitasiUrlGs_(fotoUrl || r.url || r.driveFileUrl || pLama.url);
+  var jenis = String(r.jenisGeometri || "").toLowerCase();
+
+  if (jenis === "polygon") {
+    var luas = Number(r.luasHa !== undefined ? r.luasHa : pLama.luas_ha !== undefined ? pLama.luas_ha : 0);
+    var luasHa = isFinite(luas) && luas > 0 ? Number(luas.toFixed(4)) : 0;
+    var ketPoly = susunKeteranganWebgisGs_(r, pLama, luasHa);
+    var gaya = gayaPolygonPrmAidGs_(label, r.kategori || pLama.kategori, ketPoly, r.tepi || pLama.tepi, r.warna || pLama.warna);
+    return {
+      label: label,
+      luas_ha: luasHa,
+      keterangan: ketPoly,
+      url: url,
+      warna: normalisasiWarnaGs_(gaya.warna, "#02AD00"),
+      tepi: normalisasiWarnaGs_(gaya.tepi, "#727272")
+    };
+  }
+
+  if (jenis === "line") {
+    var pjgMeter =
+      r.panjang_m !== undefined
+        ? Number(r.panjang_m)
+        : pLama.panjang_m !== undefined
+          ? Number(pLama.panjang_m)
+          : Number(r.panjangKm || 0) * 1000;
+    var panjangM = isFinite(pjgMeter) && pjgMeter > 0 ? Number(pjgMeter.toFixed(2)) : 0;
+    var ketLine = susunKeteranganWebgisGs_(r, pLama);
+    var warnaLine = warnaLinePrmAidGs_(label, r.kategori || pLama.kategori, ketLine, r.warna || pLama.warna);
+    return {
+      label: label,
+      panjang_m: panjangM,
+      keterangan: ketLine,
+      url: url,
+      warna: normalisasiWarnaGs_(warnaLine, "#FF0000")
+    };
+  }
+
+  var ketPoint = susunKeteranganWebgisGs_(r, pLama);
+  var katMasukan =
+    (!r.kategori || r.kategori === "Lainnya") && lapisan && lapisan !== "Lapisan 1"
+      ? lapisan
+      : r.kategori || pLama.kategori || "";
+  var infoPoint = simbolPointPrmAidGs_(label, katMasukan, ketPoint, r.simbol || pLama.simbol);
+  return {
+    label: label,
+    kategori: infoPoint.kategori || "Lokasi",
+    keterangan: ketPoint,
+    url: url,
+    simbol: normalisasiSimbolGs_(r.simbol || pLama.simbol)
+  };
 }
 
 function siapkanFiturRekaman_(r, fitur, fotoUrl) {
@@ -1057,31 +1123,27 @@ function simpanKeTabGeometriPrmAid_(ss, r, atribut) {
   if (jenis === "polygon") {
     barisData = [
       sanitasiSel_(atribut.label),
-      sanitasiSel_(atribut.lapisan),
       Number(atribut.luas_ha) || 0,
-      atribut.elevasi_m === undefined || atribut.elevasi_m === "" ? "" : Number(atribut.elevasi_m),
       sanitasiSel_(atribut.keterangan),
-      sanitasiSel_(atribut.corak),
-      sanitasiSel_(atribut.url)
+      sanitasiSel_(atribut.url),
+      sanitasiSel_(atribut.warna),
+      sanitasiSel_(atribut.tepi)
     ];
   } else if (jenis === "line") {
     barisData = [
       sanitasiSel_(atribut.label),
-      sanitasiSel_(atribut.lapisan),
       Number(atribut.panjang_m) || 0,
-      atribut.elevasi_m === undefined || atribut.elevasi_m === "" ? "" : Number(atribut.elevasi_m),
       sanitasiSel_(atribut.keterangan),
-      sanitasiSel_(atribut.corak),
-      sanitasiSel_(atribut.url)
+      sanitasiSel_(atribut.url),
+      sanitasiSel_(atribut.warna)
     ];
   } else {
     barisData = [
       sanitasiSel_(atribut.label),
-      sanitasiSel_(atribut.lapisan),
-      atribut.elevasi_m === undefined || atribut.elevasi_m === "" ? "" : Number(atribut.elevasi_m),
+      sanitasiSel_(atribut.kategori),
       sanitasiSel_(atribut.keterangan),
-      sanitasiSel_(atribut.corak),
-      sanitasiSel_(atribut.url)
+      sanitasiSel_(atribut.url),
+      sanitasiSel_(atribut.simbol)
     ];
   }
 
@@ -1114,28 +1176,45 @@ function simpanKeTabGeometriPrmAid_(ss, r, atribut) {
   }
 }
 
-/** Membuat / mengisi tab spreadsheet dinamis sesuai nama Lapisan & kolom tabel buatan Admin */
+/** Membuat / mengisi tab spreadsheet dinamis sesuai nama Lapisan (kolam data) & kolom tabel format Tugas Admin */
 function simpanKeTabLapisanAdmin_(ss, r, lapisanNama, fotoUrl) {
-  if (!ss || !r || !r.atributKustom || typeof r.atributKustom !== "object") return;
-  var keys = Object.keys(r.atributKustom);
-  if (keys.length === 0) return;
-  var amanTab = String("Lapisan_" + lapisanNama).replace(/[\\/?*\[\]:]/g, "_").slice(0, 90);
+  if (!ss || !r) return;
+  var atr = r.atributKustom && typeof r.atributKustom === "object" ? r.atributKustom : {};
+  var keys = Object.keys(atr);
+  var adalahLapisanKhusus = Boolean(r.tugasId || (lapisanNama && lapisanNama !== "Lapisan 1"));
+  if (keys.length === 0 && !adalahLapisanKhusus) return;
+  var amanTab = String("Lapisan_" + (lapisanNama || "Tugas")).replace(/[\\/?*\[\]:]/g, "_").slice(0, 90);
   var tab = ss.getSheetByName(amanTab);
   var headerDasar = ["ID_Data", "Judul", "Jenis_Geometri"];
-  var header = headerDasar.concat(keys, ["Elevasi_m", "Panjang_Km", "Luas_Ha", "Koordinat_WKT", "Tautan_Foto"]);
+  var headerAkhir = ["Elevasi_m", "Panjang_Km", "Luas_Ha", "Koordinat_WKT", "Tautan_Foto"];
+  var headerBaru = headerDasar.concat(keys, headerAkhir);
+  var header = headerBaru;
   if (!tab) {
     tab = ss.insertSheet(amanTab);
     tab.appendRow(header);
   } else if (tab.getLastRow() >= 1) {
-    var adaHeader = tab.getRange(1, 1, 1, tab.getLastRow() > 0 ? header.length : 1).getValues()[0];
-    var perluTambah = [];
-    for (var kIdx = 0; kIdx < header.length; kIdx++) {
-      if (adaHeader.indexOf(header[kIdx]) === -1 && String(header[kIdx]).trim()) {
-        perluTambah.push(header[kIdx]);
-      }
+    var lebarCek =
+      typeof tab.getLastColumn === "function"
+        ? Math.max(tab.getLastColumn(), headerBaru.length)
+        : Math.max(headerBaru.length, 30);
+    var rawAda = tab.getRange(1, 1, 1, lebarCek).getValues()[0];
+    var adaHeader = [];
+    for (var aIdx = 0; aIdx < rawAda.length; aIdx++) {
+      var sKol = String(rawAda[aIdx] || "").trim();
+      if (sKol !== "") adaHeader.push(sKol);
     }
-    if (perluTambah.length > 0 && adaHeader[0]) {
-      header = adaHeader.filter(function(x) { return String(x).trim() !== ""; }).concat(perluTambah);
+    if (adaHeader.length > 0) {
+      var perluTambah = [];
+      for (var kIdx = 0; kIdx < headerBaru.length; kIdx++) {
+        if (adaHeader.indexOf(headerBaru[kIdx]) === -1 && String(headerBaru[kIdx]).trim()) {
+          perluTambah.push(headerBaru[kIdx]);
+        }
+      }
+      header = adaHeader.concat(perluTambah);
+      if (perluTambah.length > 0) {
+        tab.getRange(1, 1, 1, header.length).setValues([header]);
+      }
+    } else {
       tab.getRange(1, 1, 1, header.length).setValues([header]);
     }
   }
@@ -1150,7 +1229,7 @@ function simpanKeTabLapisanAdmin_(ss, r, lapisanNama, fotoUrl) {
     else if (col === "Luas_Ha") baris.push(Number(r.luasHa) || 0);
     else if (col === "Koordinat_WKT") baris.push(sanitasiSel_(r.wkt || ""));
     else if (col === "Tautan_Foto") baris.push(sanitasiUrlGs_(fotoUrl || r.url || ""));
-    else baris.push(sanitasiSel_(r.atributKustom[col] !== undefined ? r.atributKustom[col] : ""));
+    else baris.push(sanitasiSel_(atr[col] !== undefined ? atr[col] : ""));
   }
   var target = 0;
   var jml = tab.getLastRow();

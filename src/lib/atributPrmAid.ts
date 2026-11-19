@@ -21,8 +21,8 @@ export interface AtributPolygonPrmAid {
   luas_ha: number;
   keterangan: string;
   url: string;
-  tepi: string;
   warna: string;
+  tepi: string;
 }
 
 export interface AtributLinePrmAid {
@@ -43,9 +43,33 @@ export interface AtributPointPrmAid {
 
 export type AtributSpasialPrmAid = AtributPolygonPrmAid | AtributLinePrmAid | AtributPointPrmAid;
 
-export const KOLOM_TABEL_POLYGON_PRM_AID = ["label", "luas_ha", "keterangan", "url", "tepi", "warna"] as const;
+/** Urutan kolom standar WebGIS Kecamatan v1.0 (19 Nov 2026) */
+export const KOLOM_TABEL_POLYGON_PRM_AID = ["label", "luas_ha", "keterangan", "url", "warna", "tepi"] as const;
 export const KOLOM_TABEL_LINE_PRM_AID = ["label", "panjang_m", "keterangan", "url", "warna"] as const;
 export const KOLOM_TABEL_POINT_PRM_AID = ["label", "kategori", "keterangan", "url", "simbol"] as const;
+
+/** Daftar ikon titik yang terkonfirmasi tersedia di server WebGIS Kecamatan (public/vendors/leaflet/point/) */
+export const IKON_SERVER_WEBGIS = new Set<string>(["marker-icon.png"]);
+
+const POLA_WARNA_WEBGIS = /^(#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{4}|#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|[A-Za-z]{3,20})$/;
+const POLA_SIMBOL_WEBGIS = /^[\w.\-]+\.(png|jpe?g|gif|svg)$/i;
+const NAMA_BULAN_SINGKAT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+/** Normalisasi nilai warna/tepi agar selalu lulus pemeriksaan warnaAman() WebGIS Kecamatan. */
+export function normalisasiWarnaWebgis(warnaMentah: unknown, fallback: string): string {
+  const s = String(warnaMentah ?? "").trim();
+  if (!s) return fallback === "Transparent" ? "transparent" : fallback;
+  if (s.toLowerCase() === "transparent") return "transparent";
+  if (POLA_WARNA_WEBGIS.test(s)) return s;
+  return fallback.toLowerCase() === "transparent" ? "transparent" : fallback;
+}
+
+/** Normalisasi ikon titik WebGIS: hanya ikon server terkonfirmasi, selain itu dikosongkan (""). */
+export function normalisasiSimbolWebgis(simbolMentah: unknown): string {
+  const s = String(simbolMentah ?? "").trim();
+  if (!s || !POLA_SIMBOL_WEBGIS.test(s)) return "";
+  return IKON_SERVER_WEBGIS.has(s) ? s : "";
+}
 
 export interface AturanPolygonPrmAid {
   nama: string;
@@ -59,33 +83,33 @@ export interface AturanPolygonPrmAid {
  * Urutan disusun dari yang paling spesifik ke umum agar pencocokan kata kunci akurat.
  */
 export const DAFTAR_ATURAN_POLYGON_PRM_AID: AturanPolygonPrmAid[] = [
-  // Fungsi Kawasan (Per Desa) - Kode PRM-AID.xlsx
-  { nama: "Area Penggunaan Lain", kataKunci: ["area penggunaan lain", "areal penggunaan lain", "apl"], tepi: "Transparent", warna: "#FFFFFF" },
-  { nama: "Hutan Produksi Konversi", kataKunci: ["hutan produksi konversi", "hpk"], tepi: "Transparent", warna: "#FF5EFF" },
-  { nama: "Hutan Produksi Terbatas", kataKunci: ["hutan produksi terbatas", "hpt"], tepi: "Transparent", warna: "#8AF200" },
-  { nama: "Hutan Produksi", kataKunci: ["hutan produksi"], tepi: "Transparent", warna: "#FFFF00" },
-  { nama: "Hutan Lindung", kataKunci: ["hutan lindung"], tepi: "Transparent", warna: "#02AD00" },
-  { nama: "Hutan Konservasi", kataKunci: ["hutan konservasi", "kawasan konservasi"], tepi: "Transparent", warna: "#AD3FFF" },
+  // Fungsi Kawasan (Per Desa) - Kode PRM-AID.xlsx (transparent huruf kecil sesuai standar WebGIS)
+  { nama: "Area Penggunaan Lain", kataKunci: ["area penggunaan lain", "areal penggunaan lain", "apl"], tepi: "transparent", warna: "#FFFFFF" },
+  { nama: "Hutan Produksi Konversi", kataKunci: ["hutan produksi konversi", "hpk"], tepi: "transparent", warna: "#FF5EFF" },
+  { nama: "Hutan Produksi Terbatas", kataKunci: ["hutan produksi terbatas", "hpt"], tepi: "transparent", warna: "#8AF200" },
+  { nama: "Hutan Produksi", kataKunci: ["hutan produksi"], tepi: "transparent", warna: "#FFFF00" },
+  { nama: "Hutan Lindung", kataKunci: ["hutan lindung"], tepi: "transparent", warna: "#02AD00" },
+  { nama: "Hutan Konservasi", kataKunci: ["hutan konservasi", "kawasan konservasi"], tepi: "transparent", warna: "#AD3FFF" },
 
   // Zonasi Kawasan Konservasi (Per Desa) - Kode PRM-AID.xlsx
-  { nama: "Zona Religi, Sejarah & Budaya", kataKunci: ["zona religi", "sejarah & budaya", "sejarah dan budaya", "zona budaya"], tepi: "Transparent", warna: "#6600CC" },
-  { nama: "Zona Khusus", kataKunci: ["zona khusus"], tepi: "Transparent", warna: "#969696" },
-  { nama: "Zona Rehabilitasi", kataKunci: ["zona rehabilitasi"], tepi: "Transparent", warna: "#00FFFF" },
-  { nama: "Zona Tradisional", kataKunci: ["zona tradisional"], tepi: "Transparent", warna: "#993300" },
-  { nama: "Zonasi Pemanfaatan", kataKunci: ["zonasi pemanfaatan", "zona pemanfaatan"], tepi: "Transparent", warna: "#94C800" },
-  { nama: "Zona Rimba", kataKunci: ["zona rimba"], tepi: "Transparent", warna: "#E7E200" },
-  { nama: "Zona Inti", kataKunci: ["zona inti"], tepi: "Transparent", warna: "#FF0000" },
+  { nama: "Zona Religi, Sejarah & Budaya", kataKunci: ["zona religi", "sejarah & budaya", "sejarah dan budaya", "zona budaya"], tepi: "transparent", warna: "#6600CC" },
+  { nama: "Zona Khusus", kataKunci: ["zona khusus"], tepi: "transparent", warna: "#969696" },
+  { nama: "Zona Rehabilitasi", kataKunci: ["zona rehabilitasi"], tepi: "transparent", warna: "#00FFFF" },
+  { nama: "Zona Tradisional", kataKunci: ["zona tradisional"], tepi: "transparent", warna: "#993300" },
+  { nama: "Zonasi Pemanfaatan", kataKunci: ["zonasi pemanfaatan", "zona pemanfaatan"], tepi: "transparent", warna: "#94C800" },
+  { nama: "Zona Rimba", kataKunci: ["zona rimba"], tepi: "transparent", warna: "#E7E200" },
+  { nama: "Zona Inti", kataKunci: ["zona inti"], tepi: "transparent", warna: "#FF0000" },
 
   // Zona Perhutanan Sosial - Kode PRM-AID.xlsx
-  { nama: "Ruang Lindung", kataKunci: ["ruang lindung"], tepi: "Transparent", warna: "#D32F2F" },
-  { nama: "Ruang Pemanfaatan", kataKunci: ["ruang pemanfaatan"], tepi: "Transparent", warna: "#00C8FF" },
+  { nama: "Ruang Lindung", kataKunci: ["ruang lindung"], tepi: "transparent", warna: "#D32F2F" },
+  { nama: "Ruang Pemanfaatan", kataKunci: ["ruang pemanfaatan"], tepi: "transparent", warna: "#00C8FF" },
 
   // Perhutanan Sosial & Wilayah MHA - Kode PRM-AID.xlsx
   { nama: "Hutan Adat", kataKunci: ["hutan adat"], tepi: "#4E4E4E", warna: "#4e4e4e" },
-  { nama: "Hutan Desa", kataKunci: ["hutan desa"], tepi: "#00C8FF", warna: "Transparent" },
-  { nama: "Hutan Kemasyarakatan", kataKunci: ["hutan kemasyarakatan", "hkm"], tepi: "#004DA8", warna: "Transparent" },
-  { nama: "Hutan Tanaman Rakyat", kataKunci: ["hutan tanaman rakyat", "htr"], tepi: "#FF3264", warna: "Transparent" },
-  { nama: "Kemitraan Kehutanan", kataKunci: ["kemitraan kehutanan"], tepi: "#A80000", warna: "Transparent" },
+  { nama: "Hutan Desa", kataKunci: ["hutan desa"], tepi: "#00C8FF", warna: "transparent" },
+  { nama: "Hutan Kemasyarakatan", kataKunci: ["hutan kemasyarakatan", "hkm"], tepi: "#004DA8", warna: "transparent" },
+  { nama: "Hutan Tanaman Rakyat", kataKunci: ["hutan tanaman rakyat", "htr"], tepi: "#FF3264", warna: "transparent" },
+  { nama: "Kemitraan Kehutanan", kataKunci: ["kemitraan kehutanan"], tepi: "#A80000", warna: "transparent" },
   { nama: "Wilayah MHA", kataKunci: ["wilayah mha", "masyarakat hukum adat", "wilayah adat"], tepi: "#8d4513", warna: "#C68642" },
 
   // Perizinan & Penggunaan Lahan - Kode PRM-AID.xlsx
@@ -95,10 +119,10 @@ export const DAFTAR_ATURAN_POLYGON_PRM_AID: AturanPolygonPrmAid[] = [
   { nama: "Area Persawahan", kataKunci: ["area persawahan", "persawahan", "sawah"], tepi: "#000000", warna: "#FFFF00" },
 
   // Batas Administrasi & Lanskap - Kode PRM-AID.xlsx
-  { nama: "Provinsi", kataKunci: ["provinsi", "batas provinsi"], tepi: "#000000", warna: "Transparent" },
-  { nama: "Kabupaten", kataKunci: ["kabupaten", "batas kabupaten", "kota"], tepi: "#000000", warna: "Transparent" },
-  { nama: "Kecamatan", kataKunci: ["kecamatan", "batas kecamatan"], tepi: "#000000", warna: "Transparent" },
-  { nama: "Klaster/Lanskap", kataKunci: ["klaster", "lanskap"], tepi: "#000000", warna: "Transparent" },
+  { nama: "Provinsi", kataKunci: ["provinsi", "batas provinsi"], tepi: "#000000", warna: "transparent" },
+  { nama: "Kabupaten", kataKunci: ["kabupaten", "batas kabupaten", "kota"], tepi: "#000000", warna: "transparent" },
+  { nama: "Kecamatan", kataKunci: ["kecamatan", "batas kecamatan"], tepi: "#000000", warna: "transparent" },
+  { nama: "Klaster/Lanskap", kataKunci: ["klaster", "lanskap"], tepi: "#000000", warna: "transparent" },
   { nama: "Desa", kataKunci: ["batas desa", "wilayah desa", "desa"], tepi: "#000000", warna: "#F5F5DC" },
 
   // Tambahan sesuai SNI 6502 / SNI 7645 BIG untuk tutupan lahan lainnya
@@ -115,7 +139,7 @@ export const FALLBACK_POLYGON_SNI: Record<string, { tepi: string; warna: string 
   Flora: { tepi: "#004D00", warna: "#02AD00" }, // Vegetasi Hutan / Rimba (SNI 7645 / Hutan Lindung PRM-AID)
   Fauna: { tepi: "#6600CC", warna: "#AD3FFF" }, // Habitat Satwa / Konservasi (PRM-AID)
   "Mata Air": { tepi: "#004DA8", warna: "#00BFFF" }, // Hidrografi / Badan Air (SNI 6502)
-  "Tanda Batas": { tepi: "#000000", warna: "Transparent" }, // Batas Administrasi (PRM-AID / SNI 6502)
+  "Tanda Batas": { tepi: "#000000", warna: "transparent" }, // Batas Administrasi (PRM-AID / SNI 6502)
   "Ancaman / Temuan": { tepi: "#A80000", warna: "#FF0000" }, // Zona Bahaya / Kerusakan (SNI / Zona Inti PRM-AID)
   "Sarana Desa": { tepi: "#000000", warna: "#F5F5DC" }, // Area Desa / Permukiman (PRM-AID / SNI 6502)
   "Situs Budaya": { tepi: "#4A0099", warna: "#6600CC" }, // Zona Religi, Sejarah & Budaya (PRM-AID)
@@ -399,6 +423,7 @@ export interface MasukanAtributPrmAid {
   judul?: string;
   label?: string;
   kategori?: string;
+  lapisanNama?: string;
   deskripsi?: string;
   keterangan?: string;
   namaLokal?: string;
@@ -412,22 +437,81 @@ export interface MasukanAtributPrmAid {
   tepi?: string;
   warna?: string;
   simbol?: string;
+  atributKustom?: Record<string, string>;
+  createdAt?: string;
+  namaKader?: string;
 }
 
-function susunKeteranganPrmAid(item: MasukanAtributPrmAid): string {
-  const ket = String(item.keterangan ?? item.deskripsi ?? "").trim();
-  if (ket) return ket;
+function bersihkanHtmlPolos(teks: string): string {
+  return teks
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatTanggalSurvei(iso?: string): string {
+  if (!iso) return "";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+  return `${t.getDate()} ${NAMA_BULAN_SINGKAT[t.getMonth()]} ${t.getFullYear()}`;
+}
+
+function ringkasAtributKustomKeTeks(atribut?: Record<string, string>): string {
+  if (!atribut || typeof atribut !== "object") return "";
   const bagian: string[] = [];
-  if (item.namaLokal?.trim()) bagian.push(item.namaLokal.trim());
-  if (item.namaIlmiah?.trim()) bagian.push(`(${item.namaIlmiah.trim()})`);
-  if (bagian.length > 0) return bagian.join(" ");
-  return String(item.kategori ?? "").trim();
+  for (const [k, v] of Object.entries(atribut)) {
+    const kunci = bersihkanHtmlPolos(String(k ?? ""));
+    const nilai = String(v ?? "").trim();
+    if (!kunci || !nilai || nilai.startsWith("data:image/")) continue;
+    const nilaiPolos = bersihkanHtmlPolos(nilai);
+    if (nilaiPolos) bagian.push(`${kunci}: ${nilaiPolos}`);
+  }
+  return bagian.join("; ");
+}
+
+function susunKeteranganPrmAid(item: MasukanAtributPrmAid, luasHaUntukCatatan?: number): string {
+  const bagian: string[] = [];
+  const ketMentah = bersihkanHtmlPolos(String(item.keterangan ?? item.deskripsi ?? ""));
+  if (ketMentah) {
+    bagian.push(ketMentah);
+  } else {
+    const bio: string[] = [];
+    if (item.namaLokal?.trim()) bio.push(bersihkanHtmlPolos(item.namaLokal));
+    if (item.namaIlmiah?.trim()) bio.push(`(${bersihkanHtmlPolos(item.namaIlmiah)})`);
+    if (bio.length > 0) bagian.push(bio.join(" "));
+  }
+
+  const teksAtribut = ringkasAtributKustomKeTeks(item.atributKustom);
+  if (teksAtribut) {
+    bagian.push(teksAtribut);
+  }
+
+  // Standar WebGIS v1.0 bagian 3: untuk bidang kecil di bawah 1 Ha, sertakan luas dalam m²
+  if (
+    item.jenisGeometri === "polygon" &&
+    luasHaUntukCatatan !== undefined &&
+    luasHaUntukCatatan > 0 &&
+    luasHaUntukCatatan < 1
+  ) {
+    const gabungSementara = bagian.join(" | ");
+    if (!/m[²2]/i.test(gabungSementara)) {
+      const luasM2 = Math.round(luasHaUntukCatatan * 10000);
+      bagian.push(`Luas ${luasM2.toLocaleString("id-ID")} m²`);
+    }
+  }
+
+  if (bagian.length > 0) return bagian.join(" | ");
+
+  // Standar WebGIS v1.0 bagian 7: hindari mengulang nama kategori saja; isi sumber survei
+  const tgl = formatTanggalSurvei(item.createdAt);
+  return tgl ? `Survei kader, ${tgl}` : "Survei kader";
 }
 
 /**
  * Sanitasi URL atribut PRM-AID untuk mencegah Cross-Site Scripting (XSS) dan injeksi protokol berbahaya
  * (seperti javascript:, vbscript:, data:text/html, file:).
- * Hanya mengizinkan protokol http://, https://, atau tautan relatif aman.
+ * Mengizinkan protokol http://, https://, atau tautan relatif aman.
  */
 export function sanitasiUrlPrmAid(urlMentah: unknown): string {
   const s = String(urlMentah ?? "").trim();
@@ -438,12 +522,25 @@ export function sanitasiUrlPrmAid(urlMentah: unknown): string {
   return "";
 }
 
+/**
+ * Sanitasi URL ketat sesuai Standar Atribut WebGIS Kecamatan v1.0:
+ * hanya mengizinkan http:// atau https://, selain itu dikosongkan ("").
+ */
+export function sanitasiUrlWebgis(urlMentah: unknown): string {
+  const s = String(urlMentah ?? "").trim();
+  if (!s) return "";
+  if (/^https?:\/\/.+/i.test(s)) {
+    return s.replace(/[\r\n\t]/g, "").trim();
+  }
+  return "";
+}
+
 export function susunAtributPolygonPrmAid(item: MasukanAtributPrmAid): AtributPolygonPrmAid {
-  const label = String(item.label ?? item.judul ?? "").trim();
-  const keterangan = susunKeteranganPrmAid(item);
-  const url = sanitasiUrlPrmAid(item.url ?? item.driveFileUrl);
+  const label = bersihkanHtmlPolos(String(item.label ?? item.judul ?? "")) || bersihkanHtmlPolos(String(item.lapisanNama ?? "")) || "Area";
+  const url = sanitasiUrlWebgis(item.url ?? item.driveFileUrl);
   const luasMentah = item.luas_ha !== undefined ? Number(item.luas_ha) : Number(item.luasHa ?? 0);
-  const luas_ha = Number.isFinite(luasMentah) ? Number(luasMentah.toFixed(7)) : 0;
+  const luas_ha = Number.isFinite(luasMentah) && luasMentah > 0 ? Number(luasMentah.toFixed(4)) : 0;
+  const keterangan = susunKeteranganPrmAid(item, luas_ha);
   const { tepi, warna } = tentukanGayaPolygonPrmAid({
     label,
     kategori: item.kategori,
@@ -456,18 +553,18 @@ export function susunAtributPolygonPrmAid(item: MasukanAtributPrmAid): AtributPo
     luas_ha,
     keterangan,
     url,
-    tepi,
-    warna
+    warna: normalisasiWarnaWebgis(warna, "#02AD00"),
+    tepi: normalisasiWarnaWebgis(tepi, "#727272")
   };
 }
 
 export function susunAtributLinePrmAid(item: MasukanAtributPrmAid): AtributLinePrmAid {
-  const label = String(item.label ?? item.judul ?? "").trim();
+  const label = bersihkanHtmlPolos(String(item.label ?? item.judul ?? "")) || bersihkanHtmlPolos(String(item.lapisanNama ?? "")) || "Garis";
   const keterangan = susunKeteranganPrmAid(item);
-  const url = sanitasiUrlPrmAid(item.url ?? item.driveFileUrl);
+  const url = sanitasiUrlWebgis(item.url ?? item.driveFileUrl);
   const panjangMentah =
     item.panjang_m !== undefined ? Number(item.panjang_m) : Number(item.panjangKm ?? 0) * 1000;
-  const panjang_m = Number.isFinite(panjangMentah) ? Number(panjangMentah.toFixed(2)) : 0;
+  const panjang_m = Number.isFinite(panjangMentah) && panjangMentah > 0 ? Number(panjangMentah.toFixed(2)) : 0;
   const warna = tentukanWarnaLinePrmAid({
     label,
     kategori: item.kategori,
@@ -479,23 +576,30 @@ export function susunAtributLinePrmAid(item: MasukanAtributPrmAid): AtributLineP
     panjang_m,
     keterangan,
     url,
-    warna
+    warna: normalisasiWarnaWebgis(warna, "#FF0000")
   };
 }
 
 export function susunAtributPointPrmAid(item: MasukanAtributPrmAid): AtributPointPrmAid {
-  const label = String(item.label ?? item.judul ?? "").trim();
+  const lapisanBersih = bersihkanHtmlPolos(String(item.lapisanNama ?? ""));
+  const label = bersihkanHtmlPolos(String(item.label ?? item.judul ?? "")) || lapisanBersih || "Titik";
   const keterangan = susunKeteranganPrmAid(item);
-  const url = sanitasiUrlPrmAid(item.url ?? item.driveFileUrl);
-  const { kategori, simbol } = tentukanSimbolDanKategoriPointPrmAid({
+  const url = sanitasiUrlWebgis(item.url ?? item.driveFileUrl);
+  const katMasukan =
+    (!item.kategori || item.kategori === "Lainnya") && lapisanBersih && lapisanBersih !== "Lapisan 1"
+      ? lapisanBersih
+      : item.kategori;
+  const { kategori } = tentukanSimbolDanKategoriPointPrmAid({
     label,
-    kategori: item.kategori,
+    kategori: katMasukan,
     keterangan,
     simbol: item.simbol
   });
+  // Standar WebGIS Kecamatan v1.0 bagian 4: kosongkan simbol ("") bila bukan ikon terkonfirmasi server
+  const simbol = normalisasiSimbolWebgis(item.simbol);
   return {
     label,
-    kategori,
+    kategori: bersihkanHtmlPolos(kategori) || "Lokasi",
     keterangan,
     url,
     simbol

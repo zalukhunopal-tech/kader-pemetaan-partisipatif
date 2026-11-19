@@ -29,7 +29,15 @@ import {
   tambahTabelSkema,
   ubahNamaTabelSkema
 } from "../lib/skemaTugas";
-import { adalahDataImpor, adalahDataSimulasi, sanitasiTeksInput } from "../lib/geoUtils";
+import {
+  adalahDataImpor,
+  adalahDataSimulasi,
+  eksporKeCSV,
+  eksporKeGeoJSON,
+  sanitasiAtributKustom,
+  sanitasiTeksInput
+} from "../lib/geoUtils";
+import { buatArsipZip, eksporPaketShapefile } from "../lib/shapefile";
 import { kompresFotoKeDataUrl } from "../lib/foto";
 import { sisaHariPencadangan } from "../lib/pencadanganData";
 import { AkunSesi, muatSemuaAkun } from "../lib/auth";
@@ -59,7 +67,7 @@ import {
 } from "../lib/sertifikat";
 import { DEFAULT_PENANDATANGAN_SERTIFIKAT } from "../lib/sertifikatBawaan";
 import { LogoSertifikatResmiSvg } from "./sertifikat/LogoSertifikatResmiSvg";
-import { Check, ChevronDown, Hexagon, PlusCircle, Route, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
+import { Check, ChevronDown, Download, Hexagon, PlusCircle, Route, X, MapPin, Edit3, Trash2, Battery, Radio, Compass, UserCog } from "lucide-react";
 import { useTombolEsc } from "../lib/useTombolEsc";
 
 interface AdminDashboardViewProps {
@@ -119,6 +127,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 }) => {
 const [subTabAdmin, setSubTabAdmin] = useState<"kader_aktif" | "kelola_data" | "tugas_survei" | "sertifikat" | "akun" | "user_level">("kader_aktif");
 const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif");
+const [filterLapisanAdmin, setFilterLapisanAdmin] = useState<string>("semua");
 
   const [itemDiedit, setItemDiedit] = useState<DataSpasialItem | null>(null);
   // Menu aksi data (mobile): satu daftar pilihan yang muncul saat tombol "Aksi" ditekan
@@ -458,13 +467,92 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const handleSimpanEditData = (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemDiedit) return;
+    const atributBersih = sanitasiAtributKustom(itemDiedit.atributKustom);
     onUbahDataSpasial({
       ...itemDiedit,
       judul: sanitasiTeksInput(itemDiedit.judul) || itemDiedit.judul,
       deskripsi: sanitasiTeksInput(itemDiedit.deskripsi),
-      lapisanNama: sanitasiTeksInput(itemDiedit.lapisanNama) || "Lapisan 1"
+      lapisanNama: sanitasiTeksInput(itemDiedit.lapisanNama) || "Lapisan 1",
+      atributKustom: Object.keys(atributBersih).length > 0 ? atributBersih : undefined
     });
     setItemDiedit(null);
+  };
+
+  const opsiLapisanAdmin = useMemo(() => {
+    const daftar: { id: string; nama: string; tugas?: TugasPemetaan }[] = [];
+    const terlihat = new Set<string>();
+    for (const t of tugasList) {
+      const id = `LAP-TGS-${t.id}`;
+      if (!terlihat.has(id)) {
+        terlihat.add(id);
+        daftar.push({ id, nama: t.judul, tugas: t });
+      }
+    }
+    for (const d of dataSpasial) {
+      const nama = (d.lapisanNama || d.tematik || "").trim();
+      const id = d.lapisanId || (nama ? `NAMA:${nama}` : "");
+      if (id && nama && !terlihat.has(id) && !daftar.some((x) => x.nama.toLowerCase() === nama.toLowerCase())) {
+        terlihat.add(id);
+        daftar.push({ id, nama });
+      }
+    }
+    return daftar;
+  }, [tugasList, dataSpasial]);
+
+  const lapisanAdminTerpilih = useMemo(
+    () => opsiLapisanAdmin.find((o) => o.id === filterLapisanAdmin) ?? null,
+    [opsiLapisanAdmin, filterLapisanAdmin]
+  );
+
+  const dataSpasialTersaringAdmin = useMemo(() => {
+    if (filterLapisanAdmin === "semua" || !lapisanAdminTerpilih) return dataSpasial;
+    return dataSpasial.filter((d) => {
+      if (lapisanAdminTerpilih.tugas) {
+        return d.tugasId === lapisanAdminTerpilih.tugas.id || d.lapisanId === lapisanAdminTerpilih.id;
+      }
+      return (
+        d.lapisanId === lapisanAdminTerpilih.id ||
+        (d.lapisanNama || d.tematik || "").trim().toLowerCase() === lapisanAdminTerpilih.nama.toLowerCase()
+      );
+    });
+  }, [dataSpasial, filterLapisanAdmin, lapisanAdminTerpilih]);
+
+  const kolomTugasAdminTabel = useMemo(() => {
+    if (filterLapisanAdmin === "semua") return [];
+    const kolom: string[] = [];
+    const ada = new Set<string>();
+    const tambah = (k: string) => {
+      const bersih = k.trim();
+      if (bersih && !ada.has(bersih)) {
+        ada.add(bersih);
+        kolom.push(bersih);
+      }
+    };
+    const skema = lapisanAdminTerpilih?.tugas?.skemaGeometri;
+    if (skema) {
+      for (const f of [...(skema.point ?? []), ...(skema.line ?? []), ...(skema.polygon ?? [])]) {
+        tambah(f.nama);
+      }
+    }
+    for (const d of dataSpasialTersaringAdmin) {
+      if (d.atributKustom) {
+        for (const k of Object.keys(d.atributKustom)) tambah(k);
+      }
+    }
+    return kolom;
+  }, [filterLapisanAdmin, lapisanAdminTerpilih, dataSpasialTersaringAdmin]);
+
+  const unduhEksporAdmin = (namaBerkas: string, isi: string | Uint8Array, mimeType: string) => {
+    const muatan: BlobPart = typeof isi === "string" ? isi : new Uint8Array(isi);
+    const blob = new Blob([muatan], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = namaBerkas;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const jumlahKaderTercatat = new Set(dataSpasial.map((d) => d.idKader)).size;
@@ -628,20 +716,88 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                 Pencadangan_90_Hari Google Drive) dan mengeluarkannya dari perhitungan level.
               </CatatanPerangkat>
 
-              {dataSpasial.length > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 10
+                }}
+              >
+                <select
+                  aria-label="Filter lapisan kolam data admin"
+                  className="form-input"
+                  style={{ width: "auto", minWidth: 185, padding: "5px 10px", fontSize: "0.82rem" }}
+                  value={filterLapisanAdmin}
+                  onChange={(e) => setFilterLapisanAdmin(e.target.value)}
+                >
+                  <option value="semua">Semua Lapisan ({dataSpasial.length})</option>
+                  {opsiLapisanAdmin.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nama}
+                    </option>
+                  ))}
+                </select>
+                {dataSpasialTersaringAdmin.length > 0 && (
+                  <div className="export-buttons">
+                    <button
+                      type="button"
+                      className="btn-outline-sm"
+                      onClick={() => {
+                        const nama = (lapisanAdminTerpilih?.nama || "Database_Admin_WebGIS").replace(/\s+/g, "_");
+                        unduhEksporAdmin(`${nama}.geojson`, eksporKeGeoJSON(dataSpasialTersaringAdmin), "application/geo+json");
+                      }}
+                    >
+                      <Download size={13} /> GeoJSON WebGIS
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline-sm"
+                      onClick={() => {
+                        const nama = (lapisanAdminTerpilih?.nama || "Database_Admin_WebGIS").replace(/\s+/g, "_");
+                        unduhEksporAdmin(
+                          `${nama}.csv`,
+                          eksporKeCSV(dataSpasialTersaringAdmin, { sertakanAtributTugas: kolomTugasAdminTabel.length > 0 }),
+                          "text/csv;charset=utf-8"
+                        );
+                      }}
+                    >
+                      <Download size={13} /> CSV
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline-sm"
+                      onClick={() => {
+                        const nama = (lapisanAdminTerpilih?.nama || "Database_Admin_WebGIS").replace(/\s+/g, "_");
+                        const zip = buatArsipZip(eksporPaketShapefile(dataSpasialTersaringAdmin, nama));
+                        unduhEksporAdmin(`${nama}_shp.zip`, zip, "application/zip");
+                      }}
+                    >
+                      <Download size={13} /> SHP
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {dataSpasialTersaringAdmin.length > 0 ? (
                 <div className="table-responsive">
                   <table className="data-table data-table-admin-spasial">
                     <thead>
                       <tr>
                         <th>Kader</th>
                         <th>Objek</th>
+                        {kolomTugasAdminTabel.map((kol) => (
+                          <th key={kol}>{kol}</th>
+                        ))}
                         <th>Status</th>
                         <th>Kualitas</th>
                         <th>Tindakan</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dataSpasial.map((d) => (
+                      {dataSpasialTersaringAdmin.map((d) => (
                         <tr key={d.id}>
                           <td className="col-admin-kader">
                             <strong>{d.namaKader}</strong>
@@ -651,7 +807,22 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                             <span className="badge-kategori">{d.lapisanNama || d.jenisGeometri.toUpperCase()}</span>{" "}
                             {adalahDataImpor(d) && <span className="badge-kategori">IMPOR</span>}{" "}
                             {adalahDataSimulasi(d) && <span className="badge-kategori">SIMULASI</span>} <strong>{d.judul}</strong>
+                            {kolomTugasAdminTabel.length === 0 && d.atributKustom && Object.keys(d.atributKustom).length > 0 && (
+                              <div className="text-xs text-muted" style={{ marginTop: 3 }}>
+                                {Object.entries(d.atributKustom)
+                                  .map(([k, v]) => `${k}: ${String(v).startsWith("data:image/") ? "[Foto]" : v}`)
+                                  .join(" · ")}
+                              </div>
+                            )}
                           </td>
+                          {kolomTugasAdminTabel.map((kol) => {
+                            const v = d.atributKustom?.[kol];
+                            return (
+                              <td key={kol} className="text-xs">
+                                {v ? (String(v).startsWith("data:image/") ? "[Foto]" : v) : "-"}
+                              </td>
+                            );
+                          })}
                           <td className="col-admin-status">
                             <span className={`badge-sync status-${d.statusSinkron}`} style={{ marginLeft: 0 }}>
                               {d.statusSinkron.toUpperCase()}
@@ -938,6 +1109,40 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                   onChange={(e) => setItemDiedit({ ...itemDiedit, deskripsi: e.target.value })}
                 />
               </div>
+
+              {(() => {
+                const tugasCocok = itemDiedit.tugasId ? tugasList.find((t) => t.id === itemDiedit.tugasId) : undefined;
+                const kunciSkema = (tugasCocok?.skemaGeometri?.[itemDiedit.jenisGeometri] ?? []).map((f) => f.nama);
+                const kunciAda = Object.keys(itemDiedit.atributKustom ?? {});
+                const semuaKunci = Array.from(new Set([...kunciSkema, ...kunciAda])).filter(
+                  (k) => !String(itemDiedit.atributKustom?.[k] ?? "").startsWith("data:image/")
+                );
+                if (semuaKunci.length === 0) return null;
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                    <strong style={{ fontSize: "0.84rem", color: "#0B6E4F" }}>Isian Format Tugas (Kolam Data)</strong>
+                    {semuaKunci.map((kunci) => (
+                      <div key={kunci}>
+                        <label>{kunci}</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={itemDiedit.atributKustom?.[kunci] ?? ""}
+                          onChange={(e) =>
+                            setItemDiedit({
+                              ...itemDiedit,
+                              atributKustom: {
+                                ...(itemDiedit.atributKustom ?? {}),
+                                [kunci]: e.target.value
+                              }
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="modal-footer">
