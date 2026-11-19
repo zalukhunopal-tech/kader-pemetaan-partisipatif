@@ -1797,6 +1797,11 @@
   align-items: stretch !important;
 }
 
+.avz-peta .avz-status-rekam-sederhana {
+  touch-action: none;
+  user-select: none;
+}
+
 .avz-peta .avz-status-rekam.dijeda {
   background: rgba(253, 96, 2, 0.55) !important;
 }
@@ -2529,6 +2534,20 @@
 .avz-peta .avz-peek-card.tahap-ringkas {
   min-height: 145px;
   max-height: 195px;
+}
+
+.avz-peta .avz-peek-card.tahap-ringkas .avz-peek-body,
+.avz-peta .avz-peek-card.tahap-ringkas .avz-peek-actions {
+  touch-action: none;
+  user-select: none;
+}
+
+.avz-peta .avz-peek-card.tahap-ringkas .avz-peek-body {
+  cursor: grab;
+}
+
+.avz-peta .avz-peek-card.tahap-ringkas .avz-peek-body:active {
+  cursor: grabbing;
 }
 
 .avz-peta .avz-peek-card.tahap-sedang {

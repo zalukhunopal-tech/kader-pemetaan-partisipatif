@@ -557,12 +557,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [objekTerpilih, setObjekTerpilih] = useState<DataSpasialItem | null>(null);
   const [detailObjekTerbuka, setDetailObjekTerbuka] = useState<boolean>(false);
   const [pinPeekTerbuka, setPinPeekTerbuka] = useState<boolean>(false);
+  const [rekamPeekTerbuka, setRekamPeekTerbuka] = useState<boolean>(false);
   const [pinDraftKey, setPinDraftKey] = useState<number>(0);
   const [kondisiUpdateInput, setKondisiUpdateInput] = useState<string>("");
+  const baruDisimpanIdRef = useRef<string | null>(null);
 
   // Pastikan objek yang sudah dihapus dari dataSpasial tidak lagi tertahan di state peta
   useEffect(() => {
-    if (objekTerpilih && !dataSpasial.some((d) => d.id === objekTerpilih.id)) {
+    if (!objekTerpilih) return;
+    if (dataSpasial.some((d) => d.id === objekTerpilih.id)) {
+      if (baruDisimpanIdRef.current === objekTerpilih.id) {
+        baruDisimpanIdRef.current = null;
+      }
+      return;
+    }
+    if (baruDisimpanIdRef.current !== objekTerpilih.id) {
       setObjekTerpilih(null);
       setDetailObjekTerbuka(false);
     }
@@ -571,6 +580,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const hapusObjekDiPeta = (id: string) => {
     const target = dataSpasial.find((d) => d.id === id);
     onHapusData?.(id);
+    if (baruDisimpanIdRef.current === id) {
+      baruDisimpanIdRef.current = null;
+    }
     if (objekTerpilih?.id === id) {
       setObjekTerpilih(null);
       setDetailObjekTerbuka(false);
@@ -1365,6 +1377,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const mulaiModeRekam = (jenis: JenisGeometri, adalahUkur = jenis === "polygon") => {
     setBukaMenuAlat(false);
     setPinPeekTerbuka(false);
+    setRekamPeekTerbuka(false);
     setObjekTerpilih(null);
     setDetailObjekTerbuka(false);
     setModeGambarUkur(adalahUkur);
@@ -1416,19 +1429,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const handleSimpanForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modeRekam || titikDraft.length === 0 || validasiGeometri(modeRekam, titikDraft).length > 0) return;
-    onSimpanDataBaru(
-      form.susunItem(profil, modeRekam, titikDraft, kompasDerajat, {
-        lapisanList,
-        dataSpasial,
-        lapisanAktif
-      })
-    );
+    const itemBaru = form.susunItem(profil, modeRekam, titikDraft, kompasDerajat, {
+      lapisanList,
+      dataSpasial,
+      lapisanAktif
+    });
+    onSimpanDataBaru(itemBaru);
     const rekamAktifLatar = modeRekam === "point" && rekamLatar.status !== "idle" && rekamLatar.jenis;
     if (!rekamAktifLatar) {
       perekamLatar.selesai();
       setModeGambarUkur(false);
       setModeRekam(null);
       setTitikDraft([]);
+      setRekamPeekTerbuka(false);
+      // Tampilkan kartu ringkas bawah yang bisa di-swap ke atas untuk melihat/mengedit detail hasil titik/jalur
+      baruDisimpanIdRef.current = itemBaru.id;
+      setObjekTerpilih(itemBaru);
+      setDetailObjekTerbuka(false);
     } else if (rekamLatar.jenis) {
       // Kembalikan UI perekaman jalur/area latar belakang setelah menyimpan pin titik di tengah perjalanan
       setModeRekam(rekamLatar.jenis);
@@ -1617,6 +1634,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const pilihanBasemap = URUTAN_BASEMAP.filter((id) => id !== "taktis" && basemapTersedia(id));
   const batalkanRekaman = () => {
     perekamLatar.batal();
+    setRekamPeekTerbuka(false);
     setModeGambarUkur(false);
     setModeRekam(null);
     setTitikDraft([]);
@@ -1842,12 +1860,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         bersihkanTimerDrawer();
         ubahSedangMenutup(false);
         if (awal.arahDari === "bawah") {
+          const sedangMelacakGps = rekamLatar.status !== "idle" && !modeGambarUkur;
           dyTertundaRef.current = dy;
           tutupSemuaPanel();
-          setTabDrawerGps("lokasi");
+          setTabDrawerGps(sedangMelacakGps ? "pelacakan" : "lokasi");
           setDrawerDariSeret(true);
           setSedangSeretDrawer(true);
-          ubahTahapDrawer("ringkas");
+          ubahTahapDrawer(sedangMelacakGps ? "sedang" : "ringkas");
           return;
         }
         awal.tinggiAwalPanel = drawerPanelRef.current?.offsetHeight || awal.tinggiAwalPanel || 420;
@@ -1874,12 +1893,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setSedangSeretDrawer(false);
 
       if (awal.arahDari === "bawah") {
+        const sedangMelacakGps = rekamLatar.status !== "idle" && !modeGambarUkur;
         const target = dibatalkan ? "tutup" : tahapDariTarikanTutup(-dy, -vy);
         if (target === "tutup") {
           tutupDrawerHalus();
           return;
         }
-        ubahTahapDrawer(target);
+        ubahTahapDrawer(sedangMelacakGps && target === "ringkas" ? "sedang" : target);
         jadwalkanSettleDrawer();
         return;
       }
@@ -1954,6 +1974,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       }
       return true;
     }
+    if (rekamPeekTerbuka) {
+      batalkanRekaman();
+      return true;
+    }
     if (modeGambarUkur) {
       batalkanRekaman();
       return true;
@@ -2004,6 +2028,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const bukaPinDenganAksi = (aksi: "averaging" | "foto" | null = null) => {
     tutupSemuaPanel();
     setPesanSalin("");
+    setRekamPeekTerbuka(false);
     setObjekTerpilih(null);
     setDetailObjekTerbuka(false);
     form.kosongkan();
@@ -2441,7 +2466,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
           {/* KAKI HUD: status rekam oranye (jalur/area) tepat di atas bilah bawah, lalu bilah bawah */}
           <div className="avz-hud-kaki">
-            {modeRekam && modeRekam !== "point" && (
+            {modeRekam && modeRekam !== "point" && !rekamPeekTerbuka && (
               <PanelPerekaman
                 rekamLatar={rekamLatar}
                 modeRekam={modeRekam}
@@ -2459,11 +2484,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 }}
                 onSimpan={() => {
                   tutupDrawerHalus(true);
-                  setBukaModalForm(true);
+                  const pakaiFormatTugasRekam = punyaSkemaAktif(lapisanAktif, modeRekam);
+                  if (pakaiFormatTugasRekam) {
+                    setRekamPeekTerbuka(false);
+                    setBukaModalForm(true);
+                  } else {
+                    setPinDraftKey((k) => k + 1);
+                    setRekamPeekTerbuka(true);
+                    setBukaModalForm(false);
+                  }
                 }}
                 onBatal={batalkanRekaman}
                 onPusatkanGps={onGps}
                 onPilihJenisUkur={pilihJenisUkur}
+                onMulaiUsapAtas={(x, y, sumber) => mulaiUsapDrawer(x, y, "bawah", sumber)}
+                abaikanKlikRef={abaikanKlikBilahRef}
               />
             )}
             {/* BILAH BAWAH: alat · koordinat bidikan · lapisan; ketuk pegangan atau usap ke atas membuka panel GPS */}
@@ -2968,7 +3003,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                           batalkanRekaman();
                           setPesanSalin("Pelacakan dihentikan (belum cukup titik untuk disimpan).");
                         } else {
-                          setBukaModalForm(true);
+                          perekamLatar.jeda();
+                          const jenisAktif: JenisGeometri = modeRekam === "polygon" ? "polygon" : "line";
+                          const pakaiFormatTugasRekam = punyaSkemaAktif(lapisanAktif, jenisAktif);
+                          if (pakaiFormatTugasRekam) {
+                            setRekamPeekTerbuka(false);
+                            setBukaModalForm(true);
+                          } else {
+                            setPinDraftKey((k) => k + 1);
+                            setRekamPeekTerbuka(true);
+                            setBukaModalForm(false);
+                          }
                         }
                       }}
                     >
@@ -3594,8 +3639,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             onSimpanDataBaru(itemBaru);
             form.kosongkan();
             setPinPeekTerbuka(false);
-            setModeRekam(null);
-            setTitikDraft([]);
+            const rekamAktifLatar = rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur && rekamLatar.jenis;
+            if (rekamAktifLatar && rekamLatar.jenis) {
+              setModeRekam(rekamLatar.jenis);
+              setTitikDraft(rekamLatar.titik);
+            } else {
+              setModeRekam(null);
+              setTitikDraft([]);
+              baruDisimpanIdRef.current = itemBaru.id;
+              setObjekTerpilih(itemBaru);
+              setDetailObjekTerbuka(false);
+            }
             setPesanSalin("Pin disimpan ke peta");
           }}
           onBukaFormLengkap={() => {
@@ -3610,8 +3664,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             setPinPeekTerbuka(false);
             if (modeRekam === "point") {
               form.kosongkan();
-              setModeRekam(null);
-              setTitikDraft([]);
+              if (rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur && rekamLatar.jenis) {
+                setModeRekam(rekamLatar.jenis);
+                setTitikDraft(rekamLatar.titik);
+              } else {
+                setModeRekam(null);
+                setTitikDraft([]);
+              }
             }
           }}
           onGoTo={(t) => {
@@ -3641,6 +3700,123 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           }}
           onBukaHalamanLapisan={() => {
             setPinPeekTerbuka(false);
+            setBukaHalamanLapisan(true);
+          }}
+          sedangUkurGps={perangkat.statusGps === "mencari"}
+          onPesan={setPesanSalin}
+        />
+      )}
+
+      {/* KARTU BAWAH RINGKAS JALUR / AREA HASIL REKAMAN DENGAN SWAP KE ATAS */}
+      {rekamPeekTerbuka && modeRekam && modeRekam !== "point" && titikDraft.length >= (modeRekam === "polygon" ? 3 : 2) && !bukaModalForm && (
+        <PeekSheetInteraktif
+          key={`draft-rekam-${modeRekam}-${pinDraftKey}`}
+          mode="draft_rekaman"
+          jenisDraft={modeRekam}
+          titikDraft={titikDraft}
+          lapisanAktif={lapisanAktif}
+          lapisanList={lapisanList}
+          onPilihLapisanAktif={(idBaru) => {
+            onPilihLapisanAktif?.(idBaru);
+            const lapisanBaru = idBaru ? lapisanList.find((l) => l.id === idBaru) ?? null : null;
+            if (punyaSkemaAktif(lapisanBaru, modeRekam)) {
+              setRekamPeekTerbuka(false);
+              setBukaModalForm(true);
+            }
+          }}
+          namaDraft={form.isian.judul}
+          onUbahNamaDraft={(nama) => form.ubah("judul", nama)}
+          deskripsiDraft={form.isian.deskripsi}
+          onUbahDeskripsiDraft={(teks) => form.ubah("deskripsi", teks)}
+          elevasiDraft={form.isian.elevasi}
+          onUbahElevasiDraft={(elev) => form.ubah("elevasi", elev)}
+          onUbahCorakDraft={(simbol, warna) => {
+            form.ubah("simbol", simbol);
+            form.ubah("warna", warna);
+          }}
+          fotoDraft={form.isian.foto}
+          onSimpanLangsung={(nama, simbol, warna, ekstra) => {
+            const jenisFinal = modeRekam;
+            if (!jenisFinal || validasiGeometri(jenisFinal, titikDraft).length > 0) return;
+            const namaDefault = jenisFinal === "polygon" ? "Area 1" : "Trek 1";
+            const judulFinal = (nama || form.isian.judul || namaDefault).trim();
+            const deskripsiFinal = (ekstra?.deskripsi ?? form.isian.deskripsi ?? "").trim();
+            const elevasiTeks = ekstra?.elevasi ?? form.isian.elevasi ?? "";
+            const elevasiAngka = Number(String(elevasiTeks).replace(",", "."));
+            const itemDasar = form.susunItem(profil, jenisFinal, titikDraft, kompasDerajat, {
+              lapisanList,
+              dataSpasial,
+              lapisanAktif
+            });
+            const itemBaru: DataSpasialItem = {
+              ...itemDasar,
+              judul: judulFinal,
+              deskripsi: deskripsiFinal,
+              simbol: simbol || itemDasar.simbol,
+              warna: warna || itemDasar.warna,
+              elevasi:
+                String(elevasiTeks).trim() !== "" && Number.isFinite(elevasiAngka)
+                  ? elevasiAngka
+                  : itemDasar.elevasi
+            };
+            onSimpanDataBaru(itemBaru);
+            form.kosongkan();
+            perekamLatar.selesai();
+            setRekamPeekTerbuka(false);
+            setModeGambarUkur(false);
+            setModeRekam(null);
+            setTitikDraft([]);
+            baruDisimpanIdRef.current = itemBaru.id;
+            setObjekTerpilih(itemBaru);
+            setDetailObjekTerbuka(false);
+            setPesanSalin(jenisFinal === "polygon" ? "Area disimpan ke peta" : "Jalur disimpan ke peta");
+          }}
+          onBukaFormLengkap={() => {
+            setRekamPeekTerbuka(false);
+            setBukaModalForm(true);
+          }}
+          onBukaDetailLengkap={() => {
+            setRekamPeekTerbuka(false);
+            setBukaModalForm(true);
+          }}
+          onTutup={() => {
+            batalkanRekaman();
+            form.kosongkan();
+          }}
+          onGoTo={(t) => {
+            setTargetGoTo(t);
+            batalkanRekaman();
+            form.kosongkan();
+          }}
+          onBagikan={(teks) => {
+            if (navigator.share) {
+              void navigator.share({ title: modeRekam === "polygon" ? "Area digambar" : "Jalur direkam", text: teks }).catch(() => undefined);
+            } else if (navigator.clipboard) {
+              void navigator.clipboard.writeText(teks).then(() => setPesanSalin("Info jalur disalin")).catch(() => undefined);
+            }
+          }}
+          elevasiMeter={perangkat.posisi?.elevasi}
+          onAmbilElevasiGps={() => {
+            if (perangkat.posisi?.elevasi !== undefined) {
+              form.ubah("elevasi", perangkat.posisi.elevasi.toFixed(1));
+              setPesanSalin(`Elevasi GPS: ${perangkat.posisi.elevasi.toFixed(1)} m`);
+            } else {
+              setPesanSalin("Menghubungkan sinyal elevasi GPS...");
+            }
+          }}
+          onKonversiKeArea={
+            modeRekam === "line" && titikDraft.length >= 3
+              ? () => {
+                  setModeGambarUkur(true);
+                  setModeRekam("polygon");
+                  perekamLatar.mulaiGambarUkur("polygon", titikDraft);
+                  setPinDraftKey((k) => k + 1);
+                  setPesanSalin("Jalur dikonversi menjadi Area (Polygon).");
+                }
+              : undefined
+          }
+          onBukaHalamanLapisan={() => {
+            setRekamPeekTerbuka(false);
             setBukaHalamanLapisan(true);
           }}
           sedangUkurGps={perangkat.statusGps === "mencari"}

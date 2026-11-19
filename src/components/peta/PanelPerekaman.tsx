@@ -29,6 +29,10 @@ interface PanelPerekamanProps {
   onPusatkanGps?: () => void;
   /** Ganti mode geometri di dalam Gambar dan Ukur (konversi garis menjadi area atau sebaliknya) */
   onPilihJenisUkur?: (jenis: "line" | "polygon") => void;
+  /** Mulai gestur usap ke atas pada pita status pelacakan untuk membuka panel Pelacakan */
+  onMulaiUsapAtas?: (x: number, y: number, sumber: "touch" | "pointer") => void;
+  /** Referensi penahan klik setelah gestur usap agar tidak memicu klik ganda */
+  abaikanKlikRef?: React.MutableRefObject<boolean>;
 }
 
 function formatLuasUkur(luasHa: number): string {
@@ -59,7 +63,9 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
   onBukaPanel,
   onSimpan,
   onPusatkanGps,
-  onPilihJenisUkur
+  onPilihJenisUkur,
+  onMulaiUsapAtas,
+  abaikanKlikRef
 }) => {
   const dijeda = rekamLatar.status === "dijeda";
   const cukup = modeRekam === "line" ? jumlahTitik >= 2 : jumlahTitik >= 3;
@@ -71,12 +77,28 @@ export const PanelPerekaman: React.FC<PanelPerekamanProps> = ({
         className={`recording-active-bar avz-status-rekam avz-status-rekam-sederhana ${dijeda ? "dijeda" : ""}`}
         role="status"
         data-tick={detikTick}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          if (t && onMulaiUsapAtas) onMulaiUsapAtas(t.clientX, t.clientY, "touch");
+        }}
+        onPointerDown={(e) => {
+          if (e.pointerType !== "touch" && e.button === 0 && onMulaiUsapAtas) {
+            onMulaiUsapAtas(e.clientX, e.clientY, "pointer");
+          }
+        }}
+        onClickCapture={(e) => {
+          if (abaikanKlikRef?.current) {
+            e.stopPropagation();
+            e.preventDefault();
+            abaikanKlikRef.current = false;
+          }
+        }}
       >
         <button
           type="button"
           className="avz-status-rekam-baris avz-status-rekam-info avz-status-rekam-tengah"
           onClick={onBukaPanel}
-          title="Buka panel Pelacakan"
+          title="Ketuk atau geser ke atas untuk membuka panel Pelacakan"
         >
           <span className={`rec-dot ${dijeda ? "paused" : ""}`} aria-hidden="true" />
           <span className="rec-status-label">{dijeda ? "Pelacakan dijeda" : "Melacak"}</span>

@@ -8,7 +8,7 @@ import {
   Lock,
   Check
 } from "lucide-react";
-import { DataSpasialItem, KoordinatTitik, LapisanSpasial } from "../../types";
+import { DataSpasialItem, JenisGeometri, KoordinatTitik, LapisanSpasial } from "../../types";
 import { hitungJarakMeter, hitungLuasPoligonHa, hitungPanjangGarisKm, sanitasiTeksInput } from "../../lib/geoUtils";
 import { uraikanTeksKoordinat } from "../../lib/sistemKoordinat";
 import { adalahGeserLurusVertikal, SIMPANGAN_HORIZONTAL_MAKS_PX } from "../../lib/geserTab";
@@ -59,7 +59,8 @@ function formatLuasArea(luasHa: number): string {
 }
 
 export interface PeekSheetInteraktifProps {
-  mode: "draft_pin" | "objek_terpilih";
+  mode: "draft_pin" | "draft_rekaman" | "objek_terpilih";
+  jenisDraft?: JenisGeometri;
   titikDraft?: KoordinatTitik[];
   lapisanAktif?: LapisanSpasial | null;
   lapisanList?: LapisanSpasial[];
@@ -162,6 +163,7 @@ const IkonCorakAreaJingga: React.FC<{ warna?: string }> = ({ warna = "#f26101" }
  */
 export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   mode,
+  jenisDraft,
   titikDraft = [],
   lapisanAktif,
   lapisanList = [],
@@ -193,21 +195,31 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   fotoDraft,
   onSimpanLangsung
 }) => {
+  const adalahDraft = mode === "draft_pin" || mode === "draft_rekaman";
+  const jenisGeo: JenisGeometri =
+    mode === "draft_pin"
+      ? "point"
+      : mode === "draft_rekaman"
+        ? (jenisDraft ?? "line")
+        : (objekTerpilih?.jenisGeometri || "point");
+  const namaDefaultDraft =
+    jenisGeo === "polygon" ? "Area 1" : jenisGeo === "line" ? "Trek 1" : "Tanda tempat 1";
+
   const [tahap, setTahap] = useState<TahapPeek>(tahapAwal);
   const [sedangSeret, setSedangSeret] = useState(false);
   const [namaInput, setNamaInput] = useState(
-    mode === "draft_pin" ? namaDraft || "Tanda tempat 1" : objekTerpilih?.judul || ""
+    adalahDraft ? namaDraft || namaDefaultDraft : objekTerpilih?.judul || ""
   );
   const [sedangEditNama, setSedangEditNama] = useState(false);
   const [sedangEditKoord, setSedangEditKoord] = useState(false);
   const [koordInput, setKoordInput] = useState("");
   const [galatKoord, setGalatKoord] = useState("");
   const [deskripsiInput, setDeskripsiInput] = useState(
-    mode === "draft_pin" ? deskripsiDraft || "" : objekTerpilih?.deskripsi || ""
+    adalahDraft ? deskripsiDraft || "" : objekTerpilih?.deskripsi || ""
   );
   const [sedangEditDeskripsi, setSedangEditDeskripsi] = useState(false);
   const [elevasiInput, setElevasiInput] = useState(
-    mode === "draft_pin"
+    adalahDraft
       ? elevasiDraft || ""
       : objekTerpilih?.elevasi !== undefined
         ? String(objekTerpilih.elevasi)
@@ -224,7 +236,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
         : undefined) ??
       (namaSimbol ? PILIHAN_WARNA_CORAK.find((c) => c.label.toLowerCase() === namaSimbol.toLowerCase()) : undefined);
     if (cocok) return cocok;
-    if (mode === "objek_terpilih" && (objekTerpilih?.jenisGeometri === "polygon" || objekTerpilih?.jenisGeometri === "line")) {
+    if (jenisGeo === "polygon" || jenisGeo === "line") {
       return PILIHAN_WARNA_CORAK[3];
     }
     return PILIHAN_WARNA_CORAK[0];
@@ -242,6 +254,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     dibatalkan: boolean;
   } | null>(null);
   const totalGeserRef = useRef({ dx: 0, dy: 0 });
+  const baruSajaSeretRef = useRef(false);
 
   useEffect(() => {
     onTahapChange?.(tahap);
@@ -317,6 +330,12 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     sheetRef.current.style.transform = "";
     setSedangSeret(false);
     seretAwalRef.current = null;
+    if (Math.hypot(dx, dy) >= 10) {
+      baruSajaSeretRef.current = true;
+      window.setTimeout(() => {
+        baruSajaSeretRef.current = false;
+      }, 280);
+    }
     if (!validLurus) return;
 
     const naik = dy < -28 || v < -0.32;
@@ -337,35 +356,46 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     }
   };
 
-  const titikUtama = mode === "draft_pin" ? titikDraft[0] : objekTerpilih?.koordinat[0];
+  const koordinatAktif = adalahDraft ? titikDraft : (objekTerpilih?.koordinat ?? []);
+  const titikUtama = koordinatAktif[0];
   const teksKoordinat = titikUtama ? `${titikUtama.lat.toFixed(6)}, ${titikUtama.lng.toFixed(6)}` : "-";
   const namaLapisan =
-    mode === "draft_pin"
+    adalahDraft
       ? lapisanAktif?.nama || "Lapisan 1"
       : objekTerpilih?.lapisanNama || objekTerpilih?.tematik || "Lapisan 1";
 
-  const jenisGeo = mode === "draft_pin" ? "point" : objekTerpilih?.jenisGeometri || "point";
   const judulTipe =
     mode === "draft_pin"
       ? "Pin dijatuhkan"
-      : jenisGeo === "point"
-        ? "Titik"
-        : jenisGeo === "line"
-          ? "Jalur"
-          : "Area";
-  const judulRingkas = mode === "draft_pin" ? "Pin dijatuhkan" : objekTerpilih?.judul || "Objek Peta";
+      : mode === "draft_rekaman"
+        ? jenisGeo === "polygon"
+          ? "Area digambar"
+          : "Jalur direkam"
+        : jenisGeo === "point"
+          ? "Titik"
+          : jenisGeo === "line"
+            ? "Jalur"
+            : "Area";
+  const judulRingkas =
+    mode === "draft_pin"
+      ? "Pin dijatuhkan"
+      : mode === "draft_rekaman"
+        ? jenisGeo === "polygon"
+          ? "Area digambar"
+          : "Jalur direkam"
+        : objekTerpilih?.judul || "Objek Peta";
 
   const panjangLineKm =
-    objekTerpilih?.panjangKm !== undefined && objekTerpilih.panjangKm > 0
+    !adalahDraft && objekTerpilih?.panjangKm !== undefined && objekTerpilih.panjangKm > 0
       ? objekTerpilih.panjangKm
-      : hitungPanjangGarisKm(objekTerpilih?.koordinat ?? []);
+      : hitungPanjangGarisKm(koordinatAktif);
   const luasAreaHa =
-    objekTerpilih?.luasHa !== undefined && objekTerpilih.luasHa > 0
+    !adalahDraft && objekTerpilih?.luasHa !== undefined && objekTerpilih.luasHa > 0
       ? objekTerpilih.luasHa
-      : hitungLuasPoligonHa(objekTerpilih?.koordinat ?? []);
+      : hitungLuasPoligonHa(koordinatAktif);
   const perimeterAreaKm =
     jenisGeo === "polygon"
-      ? hitungPerimeterPoligonKm(objekTerpilih?.koordinat ?? [])
+      ? hitungPerimeterPoligonKm(koordinatAktif)
       : 0;
 
   const teksArea = formatLuasArea(luasAreaHa);
@@ -376,18 +406,20 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     jenisGeo === "point"
       ? teksKoordinat
       : jenisGeo === "line"
-        ? teksJarak
+        ? mode === "draft_rekaman" && koordinatAktif.length > 0
+          ? `${teksJarak} · ${koordinatAktif.length} titik`
+          : teksJarak
         : teksArea;
 
   const elevasiVal =
     elevasiInput.trim() !== "" && Number.isFinite(Number(elevasiInput.replace(",", ".")))
       ? Number(elevasiInput.replace(",", "."))
-      : mode === "draft_pin"
+      : adalahDraft
         ? (elevasiMeter ?? titikUtama?.elevasi)
         : (objekTerpilih?.elevasi ?? titikUtama?.elevasi);
 
-  const fotoTampil = mode === "draft_pin" ? fotoDraft : objekTerpilih?.fotoBase64;
-  const teksNamaTampil = namaInput.trim() || (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "Tanda tempat 1");
+  const fotoTampil = adalahDraft ? fotoDraft : objekTerpilih?.fotoBase64;
+  const teksNamaTampil = namaInput.trim() || (adalahDraft ? namaDefaultDraft : objekTerpilih?.judul || namaDefaultDraft);
 
   const tglDibuat = objekTerpilih?.createdAt ? new Date(objekTerpilih.createdAt) : new Date();
   const formatTgl = `${String(tglDibuat.getDate()).padStart(2, "0")}/${String(tglDibuat.getMonth() + 1).padStart(2, "0")}/${String(tglDibuat.getFullYear()).slice(-2)} pada ${String(tglDibuat.getHours()).padStart(2, "0")}.${String(tglDibuat.getMinutes()).padStart(2, "0")}`;
@@ -397,10 +429,10 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   const simpanEditNama = () => {
     const bersih =
       sanitasiTeksInput(namaInput) ||
-      (mode === "draft_pin" ? "Tanda tempat 1" : objekTerpilih?.judul || "Tanda tempat 1");
+      (adalahDraft ? namaDefaultDraft : objekTerpilih?.judul || namaDefaultDraft);
     setNamaInput(bersih);
     setSedangEditNama(false);
-    if (mode === "draft_pin") {
+    if (adalahDraft) {
       onUbahNamaDraft?.(bersih);
     } else if (objekTerpilih && onPerbaruiObjek && bersih !== objekTerpilih.judul) {
       onPerbaruiObjek({ ...objekTerpilih, judul: bersih });
@@ -427,7 +459,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       lng: hasil.lng,
       akurasi: undefined
     };
-    if (mode === "draft_pin") {
+    if (adalahDraft) {
       onUbahKoordinat?.(titikBaru);
     } else if (objekTerpilih && onPerbaruiObjek) {
       const sisa = objekTerpilih.koordinat.slice(1);
@@ -441,7 +473,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     const bersih = sanitasiTeksInput(deskripsiInput);
     setDeskripsiInput(bersih);
     setSedangEditDeskripsi(false);
-    if (mode === "draft_pin") {
+    if (adalahDraft) {
       onUbahDeskripsiDraft?.(bersih);
     } else if (objekTerpilih && onPerbaruiObjek && bersih !== (objekTerpilih.deskripsi || "")) {
       onPerbaruiObjek({ ...objekTerpilih, deskripsi: bersih });
@@ -453,7 +485,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     const bersih = elevasiInput.trim();
     setSedangEditElevasi(false);
     const angka = Number(bersih.replace(",", "."));
-    if (mode === "draft_pin") {
+    if (adalahDraft) {
       onUbahElevasiDraft?.(bersih);
     } else if (objekTerpilih && onPerbaruiObjek) {
       onPerbaruiObjek({
@@ -465,7 +497,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   };
 
   const handleSimpanAksi = () => {
-    const namaFinal = sedangEditNama ? simpanEditNama() : sanitasiTeksInput(teksNamaTampil) || "Tanda tempat 1";
+    const namaFinal = sedangEditNama ? simpanEditNama() : sanitasiTeksInput(teksNamaTampil) || namaDefaultDraft;
     const deskFinal = sedangEditDeskripsi ? simpanEditDeskripsi() : sanitasiTeksInput(deskripsiInput);
     const elevFinal = sedangEditElevasi ? simpanEditElevasi() : elevasiInput.trim();
     if (sedangEditKoord) {
@@ -501,16 +533,24 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   // Handler swipe seragam untuk handle ringkas maupun header detail
   const propsSeretHeader = {
     onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === "touch") return;
       // Jangan cegat klik tombol di dalam header
       if ((e.target as HTMLElement).closest("button")) return;
       e.currentTarget.setPointerCapture?.(e.pointerId);
       mulaiSeret(e.clientX, e.clientY);
     },
     onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === "touch") return;
       if (seretAwalRef.current) lakukanSeret(e.clientX, e.clientY);
     },
-    onPointerUp: () => selesaikanSeret(),
-    onPointerCancel: () => selesaikanSeret(),
+    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === "touch") return;
+      selesaikanSeret();
+    },
+    onPointerCancel: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === "touch") return;
+      selesaikanSeret();
+    },
     onTouchStart: (e: React.TouchEvent<HTMLElement>) => {
       if ((e.target as HTMLElement).closest("button")) return;
       if (e.touches.length === 1 && e.touches[0]) mulaiSeret(e.touches[0].clientX, e.touches[0].clientY);
@@ -520,7 +560,39 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
         lakukanSeret(e.touches[0].clientX, e.touches[0].clientY);
       }
     },
-    onTouchEnd: () => selesaikanSeret()
+    onTouchEnd: () => selesaikanSeret(),
+    onTouchCancel: () => selesaikanSeret()
+  };
+
+  const handleBodyPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch" || (e.button !== undefined && e.button !== 0)) return;
+    if ((e.target as HTMLElement).closest("input, textarea, select, button")) return;
+    if (tahap === "ringkas") {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      mulaiSeret(e.clientX, e.clientY);
+      return;
+    }
+    if (bodyRef.current && bodyRef.current.scrollTop <= 2) {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      mulaiSeret(e.clientX, e.clientY);
+    }
+  };
+
+  const handleBodyPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch" || !seretAwalRef.current) return;
+    const dy = e.clientY - seretAwalRef.current.y;
+    if (tahap !== "ringkas" && dy < 0) {
+      seretAwalRef.current = null;
+      setSedangSeret(false);
+      if (sheetRef.current) sheetRef.current.style.transform = "";
+      return;
+    }
+    lakukanSeret(e.clientX, e.clientY);
+  };
+
+  const handleBodyPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") return;
+    if (seretAwalRef.current) selesaikanSeret();
   };
 
   const handleBodyTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -560,6 +632,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       role="dialog"
       aria-label={judulRingkas}
       data-tahap={tahap}
+      data-mode={mode}
     >
       {/* Kepala Mode Detail (Swipe ke bawah atau tekan chevron untuk kembali ke mode sederhana) */}
       {tahap !== "ringkas" ? (
@@ -580,7 +653,13 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
           <button
             type="button"
             className="avz-peek-btn-centang"
-            aria-label={mode === "draft_pin" ? "Simpan pin tanda tempat" : "Simpan perubahan objek"}
+            aria-label={
+              mode === "draft_pin"
+                ? "Simpan pin tanda tempat"
+                : mode === "draft_rekaman"
+                  ? "Simpan jalur rekaman"
+                  : "Simpan perubahan objek"
+            }
             onClick={handleSimpanAksi}
           >
             <Check size={24} color="#0d7344" />
@@ -595,7 +674,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
           aria-label={`Tahap panel ${tahap}. Geser ke atas untuk detail, geser ke bawah untuk menutup.`}
           {...propsSeretHeader}
           onClick={(e) => {
-            if (Math.hypot(totalGeserRef.current.dx, totalGeserRef.current.dy) < 10) {
+            if (!baruSajaSeretRef.current && Math.hypot(totalGeserRef.current.dx, totalGeserRef.current.dy) < 10) {
               e.stopPropagation();
               gantiTahap("penuh");
             }
@@ -618,11 +697,16 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       <div
         ref={bodyRef}
         className="avz-peek-body"
+        onPointerDown={handleBodyPointerDown}
+        onPointerMove={handleBodyPointerMove}
+        onPointerUp={handleBodyPointerEnd}
+        onPointerCancel={handleBodyPointerEnd}
         onTouchStart={handleBodyTouchStart}
         onTouchMove={handleBodyTouchMove}
         onTouchEnd={handleBodyTouchEnd}
+        onTouchCancel={handleBodyTouchEnd}
         onClick={() => {
-          if (tahap === "ringkas" && Math.hypot(totalGeserRef.current.dx, totalGeserRef.current.dy) < 10) {
+          if (tahap === "ringkas" && !baruSajaSeretRef.current && Math.hypot(totalGeserRef.current.dx, totalGeserRef.current.dy) < 10) {
             gantiTahap("penuh");
           }
         }}
@@ -691,7 +775,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                       value={namaInput}
                       onChange={(e) => {
                         setNamaInput(e.target.value);
-                        if (mode === "draft_pin") onUbahNamaDraft?.(e.target.value);
+                        if (adalahDraft) onUbahNamaDraft?.(e.target.value);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -701,7 +785,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                           setSedangEditNama(false);
                         }
                       }}
-                      placeholder="Tanda tempat 1"
+                      placeholder={namaDefaultDraft}
                       aria-label="Edit nama"
                       autoFocus
                     />
@@ -862,10 +946,10 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <select
                     className="form-input avz-input-bersih"
                     style={{ marginTop: 8 }}
-                    value={mode === "draft_pin" ? lapisanAktif?.id ?? "" : objekTerpilih?.lapisanId ?? ""}
+                    value={adalahDraft ? lapisanAktif?.id ?? "" : objekTerpilih?.lapisanId ?? ""}
                     onChange={(e) => {
                       const idBaru = e.target.value || null;
-                      if (mode === "draft_pin") {
+                      if (adalahDraft) {
                         onPilihLapisanAktif?.(idBaru);
                       } else if (objekTerpilih && onPerbaruiObjek) {
                         const cocok = lapisanList.find((l) => l.id === idBaru);
@@ -897,7 +981,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-aksi-hijau"
-                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                    onClick={() => (adalahDraft ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
                     {fotoTampil ? "Edit" : "Tambah"}
                   </button>
@@ -906,7 +990,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-isian-nilai-edit"
-                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                    onClick={() => (adalahDraft ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
                     <img
                       className="avz-isian-foto"
@@ -919,7 +1003,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-isian-nilai-edit avz-isian-kosong"
-                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                    onClick={() => (adalahDraft ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
                     Ketuk untuk menambah foto...
                   </button>
@@ -952,7 +1036,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                       value={deskripsiInput}
                       onChange={(e) => {
                         setDeskripsiInput(e.target.value);
-                        if (mode === "draft_pin") onUbahDeskripsiDraft?.(e.target.value);
+                        if (adalahDraft) onUbahDeskripsiDraft?.(e.target.value);
                       }}
                       placeholder="Catatan atau deskripsi objek..."
                       aria-label="Edit deskripsi"
@@ -1016,7 +1100,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                         onClick={() => {
                           setCorakTerpilih(c);
                           setBukaPilihCorak(false);
-                          if (mode === "draft_pin") {
+                          if (adalahDraft) {
                             onUbahCorakDraft?.(c.label, c.warna);
                           } else if (objekTerpilih && onPerbaruiObjek) {
                             onPerbaruiObjek({ ...objekTerpilih, simbol: c.label, warna: c.warna });
@@ -1060,7 +1144,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                         value={elevasiInput}
                         onChange={(e) => {
                           setElevasiInput(e.target.value);
-                          if (mode === "draft_pin") onUbahElevasiDraft?.(e.target.value);
+                          if (adalahDraft) onUbahElevasiDraft?.(e.target.value);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
@@ -1120,7 +1204,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-aksi-hijau"
-                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                    onClick={() => (adalahDraft ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
                     Edit
                   </button>
@@ -1129,7 +1213,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-isian-nilai-edit"
-                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                    onClick={() => (adalahDraft ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
                     <div className="avz-atribut-daftar">
                       {atributEntries.map(([kunci, nilai]) => (
@@ -1144,7 +1228,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
                   <button
                     type="button"
                     className="avz-isian-nilai-edit avz-isian-kecil"
-                    onClick={() => (mode === "draft_pin" ? onBukaFormLengkap() : onBukaDetailLengkap())}
+                    onClick={() => (adalahDraft ? onBukaFormLengkap() : onBukaDetailLengkap())}
                   >
                     Kumpulkan data menggunakan atribut yang sudah dibuat sebelumnya. Edit lapisan aktif untuk mengubah skema atau buat yang baru.
                   </button>
@@ -1171,7 +1255,11 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       </div>
 
       {/* Bilah Tombol Aksi Bawah (Sesuai Screenshot Area, Pin, dan Trek) */}
-      <div className="avz-peek-actions" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="avz-peek-actions"
+        {...(tahap === "ringkas" ? propsSeretHeader : {})}
+        onClick={(e) => e.stopPropagation()}
+      >
         {jenisGeo !== "polygon" && titikUtama && (
           <button
             type="button"
@@ -1192,14 +1280,16 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
             const teks =
               jenisGeo === "polygon"
                 ? `${judulRingkas} — Area ${teksArea}, Perimeter ${teksPerimeter} (${teksKoordinat})`
-                : `${judulRingkas} — ${teksKoordinat}`;
+                : jenisGeo === "line"
+                  ? `${judulRingkas} — Jarak ${teksJarak} (${teksKoordinat})`
+                  : `${judulRingkas} — ${teksKoordinat}`;
             onBagikan(teks);
           }}
         >
           {jenisGeo === "point" ? "Bagikan" : "Beri tahu"}
         </button>
 
-        {mode === "draft_pin" && tahap === "ringkas" && (
+        {adalahDraft && tahap === "ringkas" && (
           <button
             type="button"
             className="avz-pill-outline-btn"
