@@ -99,6 +99,8 @@ export interface AkunPengguna {
   totpLangkahTerakhir?: number;
   /** Hash kode pemulihan sekali pakai yang belum terpakai */
   kodePemulihanHash?: string[];
+  /** true bila pendaftaran Google Authenticator dilewati (TOTP opsional) */
+  totpDilewati?: boolean;
   /** PIN buka cepat di perangkat ini (hash PBKDF2 dengan garam tersendiri, tidak pernah teks polos) */
   pinHash?: string;
   pinGaram?: string;
@@ -323,7 +325,7 @@ export function simpanSemuaAkun(accounts: AkunPengguna[]): void {
 export const adaAdmin = (): boolean =>
   muatSemuaAkun().some((a) => a.peran === "admin" && (!a.statusPersetujuan || a.statusPersetujuan === "disetujui"));
 
-export const keSesi = (a: AkunSesi): AkunSesi => ({
+export const keSesi = (a: AkunPengguna | AkunSesi): AkunSesi => ({
   idKader: a.idKader,
   nama: a.nama,
   email: a.email,
@@ -338,7 +340,8 @@ export const keSesi = (a: AkunSesi): AkunSesi => ({
   ...(a.emailTerverifikasi !== undefined ? { emailTerverifikasi: a.emailTerverifikasi } : {}),
   ...(a.statusPersetujuan ? { statusPersetujuan: a.statusPersetujuan } : {}),
   ...(a.emailDiverifikasiPada ? { emailDiverifikasiPada: a.emailDiverifikasiPada } : {}),
-  ...(a.disetujuiPada ? { disetujuiPada: a.disetujuiPada } : {})
+  ...(a.disetujuiPada ? { disetujuiPada: a.disetujuiPada } : {}),
+  ...(a.totpDilewati ? { totpDilewati: true } : {})
 });
 
 /**
@@ -356,7 +359,7 @@ export function muatSesiPengguna(): AkunSesi | null {
       akun.idKader !== sesi.idKader ||
       akun.peran !== sesi.peran ||
       akun.wajibGantiSandi ||
-      !akun.totpRahasia ||
+      (!akun.totpRahasia && !akun.totpDilewati && akun.email.toLowerCase() !== MASTER_ADMIN.email.toLowerCase()) ||
       akun.statusPersetujuan === "menunggu" ||
       akun.statusPersetujuan === "ditolak"
     ) {
@@ -543,6 +546,7 @@ function keAkunCloud(a: AkunPengguna): AkunCloudRecord {
     totpRahasia: a.totpRahasia,
     totpLangkahTerakhir: a.totpLangkahTerakhir,
     kodePemulihanHash: a.kodePemulihanHash,
+    totpDilewati: a.totpDilewati,
     wajibGantiSandi: a.wajibGantiSandi,
     createdAt: a.createdAt,
     versiAkun: a.versiAkun ?? 2
@@ -931,6 +935,7 @@ function gabungkanSatuAkunCloud(cloud: AkunCloudRecord, accounts: AkunPengguna[]
     totpRahasia: cloud.totpRahasia ?? accounts[idx]?.totpRahasia,
     totpLangkahTerakhir: cloud.totpLangkahTerakhir ?? accounts[idx]?.totpLangkahTerakhir,
     kodePemulihanHash: cloud.kodePemulihanHash ?? accounts[idx]?.kodePemulihanHash,
+    totpDilewati: cloud.totpDilewati ?? accounts[idx]?.totpDilewati,
     wajibGantiSandi: cloud.wajibGantiSandi ?? accounts[idx]?.wajibGantiSandi,
     versiAkun: 2
   };
@@ -1073,10 +1078,31 @@ export async function autentikasiLogin(
     };
   }
   if (!akun.totpRahasia) {
+    if (akun.totpDilewati) {
+      const klaim = await klaimKunciSesiAkun(akun, opsi.perangkatId);
+      if (!klaim.ok) {
+        return {
+          sukses: false,
+          ditolakSesiGanda: klaim.ditolakSesiGanda,
+          pesan: klaim.pesan || "Akun sedang digunakan oleh perangkat lain."
+        };
+      }
+      hapusGagal(emailBersih);
+      const sesi = keSesi(akun);
+      simpanSesiPengguna(sesi);
+      tandaiTerverifikasi(akun.email);
+      if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
+      else kunciGerbangAdmin();
+      return {
+        sukses: true,
+        pesan: `Selamat datang, ${akun.nama}!`,
+        akun: sesi
+      };
+    }
     return {
       sukses: false,
       perluDaftarTotp: true,
-      pesan: "Akun ini wajib memakai Google Authenticator. Daftarkan sekarang untuk melanjutkan."
+      pesan: "Pemasangan Google Authenticator bersifat opsional. Daftarkan sekarang atau lewati (skip) untuk langsung masuk ke aplikasi."
     };
   }
   if (!kode.trim()) {
@@ -1211,7 +1237,12 @@ export async function buatAdminPertama(data: DataDaftar, kodeAktivasi = ""): Pro
 function adminSah(adminSesi: AkunSesi | null): AkunPengguna | null {
   const akunAdmin = muatSemuaAkun().find((a) => a.email.toLowerCase() === (adminSesi?.email ?? "").toLowerCase());
   if (!adminSesi || !akunAdmin || akunAdmin.peran !== "admin" || akunAdmin.idKader !== adminSesi.idKader) return null;
-  if (!akunAdmin.totpRahasia || !gerbangAdminTerbuka(akunAdmin.email)) return null;
+  if (
+    (!akunAdmin.totpRahasia && !akunAdmin.totpDilewati && akunAdmin.email.toLowerCase() !== MASTER_ADMIN.email.toLowerCase()) ||
+    !gerbangAdminTerbuka(akunAdmin.email)
+  ) {
+    return null;
+  }
   if (!aplikasiTerbuka(akunAdmin.email) || sisaMasaTotp(akunAdmin.email) <= 0) return null;
   return akunAdmin;
 }
@@ -1243,8 +1274,13 @@ export function verifikasiKodeAuthenticator(
   const tunggu = detikTertahan(emailBersih);
   if (tunggu > 0) return { sukses: false, pesan: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
   const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
-  if (!sesi || !akun || akun.idKader !== sesi.idKader || !akun.totpRahasia) {
+  if (!sesi || !akun || akun.idKader !== sesi.idKader || (!akun.totpRahasia && !akun.totpDilewati)) {
     return { sukses: false, pesan: "Sesi tidak sah. Keluar lalu masuk kembali." };
+  }
+  if (!akun.totpRahasia && akun.totpDilewati) {
+    tandaiTerverifikasi(akun.email);
+    if (opsi.bukaAdmin && akun.peran === "admin") bukaGerbangAdmin(akun.email);
+    return { sukses: true, pesan: "Terverifikasi." };
   }
   if (!kode.trim()) return { sukses: false, pesan: "Masukkan kode dari Google Authenticator atau kode pemulihan." };
   const hasil = periksaKodeMasuk(akun, kode);
@@ -1273,8 +1309,19 @@ export function bukaGerbangAdminDenganKode(adminSesi: AkunSesi | null, kode: str
   const tunggu = detikTertahan(emailBersih);
   if (tunggu > 0) return { sukses: false, pesan: `Terlalu banyak percobaan. Coba lagi dalam ${tunggu} detik.` };
   const akun = muatSemuaAkun().find((a) => a.email.toLowerCase() === emailBersih);
-  if (!adminSesi || !akun || akun.peran !== "admin" || akun.idKader !== adminSesi.idKader || !akun.totpRahasia) {
+  if (
+    !adminSesi ||
+    !akun ||
+    akun.peran !== "admin" ||
+    akun.idKader !== adminSesi.idKader ||
+    (!akun.totpRahasia && !akun.totpDilewati && akun.email.toLowerCase() !== MASTER_ADMIN.email.toLowerCase())
+  ) {
     return { sukses: false, pesan: "Akun ini tidak memiliki akses Administrator." };
+  }
+  if (!akun.totpRahasia && akun.totpDilewati) {
+    bukaGerbangAdmin(akun.email);
+    tandaiTerverifikasi(akun.email);
+    return { sukses: true, pesan: "Mode admin dibuka." };
   }
   const r = verifikasiKodeAuthenticator(adminSesi, kode, { bukaAdmin: true });
   if (!r.sukses) return r;
@@ -1348,19 +1395,61 @@ export async function selesaikanPendaftaranTotp(
   simpanPerubahanAkun(akun.email, {
     totpRahasia: rahasia,
     totpLangkahTerakhir: r.langkah,
-    kodePemulihanHash: hashPulih
+    kodePemulihanHash: hashPulih,
+    totpDilewati: undefined
   });
   if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
     void simpanKredensialAkunGDrive(
       akun.email,
-      { totpRahasia: rahasia, totpLangkahTerakhir: r.langkah, kodePemulihanHash: hashPulih },
-      keAkunCloud({ ...akun, totpRahasia: rahasia, totpLangkahTerakhir: r.langkah, kodePemulihanHash: hashPulih })
+      { totpRahasia: rahasia, totpLangkahTerakhir: r.langkah, kodePemulihanHash: hashPulih, totpDilewati: undefined },
+      keAkunCloud({ ...akun, totpRahasia: rahasia, totpLangkahTerakhir: r.langkah, kodePemulihanHash: hashPulih, totpDilewati: undefined })
     );
   }
   tandaiTerverifikasi(akun.email);
   if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
   else kunciGerbangAdmin();
-  return { sukses: true, pesan: "Google Authenticator aktif.", akun: keSesi(akun), kodePemulihan };
+  return { sukses: true, pesan: "Google Authenticator aktif.", akun: keSesi({ ...akun, totpRahasia: rahasia, totpDilewati: undefined }), kodePemulihan };
+}
+
+/**
+ * Melewati pendaftaran Google Authenticator (TOTP opsional).
+ * Akun ditandai totpDilewati, sesi dibuat, dan pengguna langsung masuk ke aplikasi.
+ */
+export async function lewatiPendaftaranTotp(
+  email: string,
+  kataSandi: string,
+  opsi: { perangkatId?: string } = {}
+): Promise<HasilAuth> {
+  const { akun, galat } = await periksaSandiUntukTotp(email, kataSandi);
+  if (!akun) return { sukses: false, pesan: galat ?? "Gagal melewati Authenticator." };
+  const klaim = await klaimKunciSesiAkun(akun, opsi.perangkatId);
+  if (!klaim.ok) {
+    return {
+      sukses: false,
+      ditolakSesiGanda: klaim.ditolakSesiGanda,
+      pesan: klaim.pesan || "Akun sedang digunakan oleh perangkat lain."
+    };
+  }
+  hapusGagal(akun.email);
+  simpanPerubahanAkun(akun.email, { totpDilewati: true });
+  if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
+    void simpanKredensialAkunGDrive(
+      akun.email,
+      { totpDilewati: true },
+      keAkunCloud({ ...akun, totpDilewati: true })
+    );
+  }
+  const akunTerbaru = { ...akun, totpDilewati: true };
+  const sesi = keSesi(akunTerbaru);
+  simpanSesiPengguna(sesi);
+  tandaiTerverifikasi(akun.email);
+  if (akun.peran === "admin") bukaGerbangAdmin(akun.email);
+  else kunciGerbangAdmin();
+  return {
+    sukses: true,
+    pesan: `Selamat datang, ${akun.nama}!`,
+    akun: sesi
+  };
 }
 
 /**
@@ -1380,11 +1469,12 @@ export function aturUlangAuthenticatorOlehAdmin(adminSesi: AkunSesi | null, emai
     totpRahasia: undefined,
     totpLangkahTerakhir: undefined,
     kodePemulihanHash: undefined,
+    totpDilewati: undefined,
     ...TANPA_KUNCI_CEPAT
   });
   hapusGagal(target.email);
   if (import.meta.env.MODE !== "test" && gdriveTerpasang()) {
-    void simpanKredensialAkunGDrive(target.email, { totpRahasia: undefined, totpLangkahTerakhir: undefined, kodePemulihanHash: [] });
+    void simpanKredensialAkunGDrive(target.email, { totpRahasia: undefined, totpLangkahTerakhir: undefined, kodePemulihanHash: [], totpDilewati: undefined });
   }
   return { sukses: true, pesan: `Authenticator ${target.nama} dihapus. Ia mendaftarkan yang baru saat masuk berikutnya.` };
 }

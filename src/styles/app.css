@@ -9322,6 +9322,17 @@ html[data-field-theme="matahari"] .section-card h2 {
   flex: 1;
 }
 
+.tombol-skip-totp {
+  transition: all 0.2s ease;
+}
+
+.tombol-skip-totp:hover:not(:disabled) {
+  background: #d1fae5 !important;
+  border-color: #047857 !important;
+  color: #047857 !important;
+  box-shadow: 0 2px 6px rgba(13, 115, 68, 0.15);
+}
+
 /* Penyesuaian Responsif Mobile (layar kecil < 768px) */
 @media (max-width: 768px) {
   .auth-overlay {
