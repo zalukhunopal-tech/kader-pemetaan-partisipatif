@@ -936,11 +936,6 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
 
             {/* 2. PILIHAN SASARAN PENERIMA TUGAS (SHARE KE USER MANA) */}
             <div className="tugas-section-box" style={{ marginTop: 12 }}>
-              <label className="tugas-section-label">
-                <span className="tugas-label-text">Sasaran Penerima Tugas (Share ke User)</span>
-                <span className="text-xs text-muted">Agar data tidak bercampur antar-pengguna</span>
-              </label>
-
               <div className="tugas-target-pills" role="radiogroup" aria-label="Sasaran Penerima Tugas">
                 <button
                   type="button"
@@ -1012,11 +1007,6 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                   <h4 style={{ margin: 0, fontSize: "0.98rem", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <ClipboardList size={17} color="#0B6E4F" aria-hidden="true" />
                     Tipe Data yang Diambil
-                    <span className="tugas-counter-badge">
-                      {tipeGeometriTerpilih.length === 0
-                        ? "Default (Semua Tipe)"
-                        : `${tipeGeometriTerpilih.length} tipe dipilih`}
-                    </span>
                   </h4>
                   <p className="text-xs text-muted" style={{ margin: "3px 0 0" }}>
                     Pilih tipe data yang ingin diambil (misal Point saja, Point dan Line, atau ketiganya). Bila tidak dipilih, tugas memakai format default.
