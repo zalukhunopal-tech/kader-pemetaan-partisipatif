@@ -1846,6 +1846,18 @@
   box-shadow: none;
 }
 
+.avz-peta .avz-titlebar.avz-titlebar-ukur .rec-cancel-btn,
+.avz-peta .avz-titlebar.avz-titlebar-ukur .rec-cancel-btn:hover {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--avz-hijau-ikon);
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
+}
+
 .avz-peta.sedang-gambar-ukur .avz-hud-atas,
 .avz-peta.sedang-gambar-ukur .avz-hud-bawah,
 .avz-peta.sedang-gambar-ukur .avz-bottom-pill-bar {

@@ -11057,16 +11057,6 @@ html[data-field-theme="matahari"] .section-card h2 {
     gap: 4px !important;
   }
 
-  .rec-cancel-btn {
-    width: 32px !important;
-    min-width: 32px !important;
-    padding: 0 !important;
-    justify-content: center !important;
-    background: #fef2f2 !important;
-    color: #dc2626 !important;
-    border: 1px solid #fecaca !important;
-  }
-
   /* Tombol aksi survei di baris kedua: dapat digulir horizontal mulus jika layar sempit */
   .recording-actions {
     display: flex;
