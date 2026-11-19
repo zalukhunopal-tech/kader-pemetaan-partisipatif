@@ -157,6 +157,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
   const [targetKaderTipe, setTargetKaderTipe] = useState<"semua" | "tertentu">("semua");
   const [targetKaderTerpilih, setTargetKaderTerpilih] = useState<string[]>([]);
   const [tipeGeometriTerpilih, setTipeGeometriTerpilih] = useState<JenisGeometri[]>([]);
+  const [bukaTipeData, setBukaTipeData] = useState(false);
   const [tabFormatGeometri, setTabFormatGeometri] = useState<JenisGeometri>("point");
   const [isianPerGeometri, setIsianPerGeometri] = useState<Record<JenisGeometri, FieldSkemaAtribut[]>>({
     point: [],
@@ -274,6 +275,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
     setTargetKaderTipe("semua");
     setTargetKaderTerpilih([]);
     setTipeGeometriTerpilih([]);
+    setBukaTipeData(false);
     setTabFormatGeometri("point");
     setIsianPerGeometri({ point: [], line: [], polygon: [] });
     setGalatFormTugas("");
@@ -304,6 +306,7 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
             )
           : [];
     setTipeGeometriTerpilih(tipeFinal);
+    setBukaTipeData(tipeFinal.length > 0);
     setTabFormatGeometri(tipeFinal[0] ?? "point");
     setIsianPerGeometri({
       point: tipeFinal.includes("point") ? fPoint : [],
@@ -1060,85 +1063,129 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
 
             {/* 3. PILIHAN TIPE DATA YANG DIAMBIL DAN PENGATURAN FORMAT PER TIPE (ATAU DEFAULT) */}
             <div className="tugas-section-box" style={{ marginTop: 14 }}>
-              <div className="tugas-section-header">
+              <button
+                type="button"
+                id="tombol-tipe-data"
+                className="tugas-tipe-data-accordion-btn"
+                onClick={() => setBukaTipeData((prev) => !prev)}
+                aria-expanded={bukaTipeData}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "transparent",
+                  border: "none",
+                  padding: "4px 0",
+                  cursor: "pointer",
+                  textAlign: "left"
+                }}
+              >
                 <div>
-                  <h4 style={{ margin: 0, fontSize: "0.98rem", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <h4 style={{ margin: 0, fontSize: "0.98rem", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", color: "#0f172a" }}>
                     <ClipboardList size={17} color="#0B6E4F" aria-hidden="true" />
-                    Tipe Data yang Diambil
+                    Tipe Data
+                    {tipeGeometriTerpilih.length > 0 && (
+                      <span className="tugas-counter-pill" style={{ marginLeft: 4 }}>
+                        {tipeGeometriTerpilih.map((g) => (g === "point" ? "Point" : g === "line" ? "Line" : "Polygon")).join(", ")}
+                      </span>
+                    )}
                   </h4>
                   <p className="text-xs text-muted" style={{ margin: "3px 0 0" }}>
-                    Pilih tipe data yang ingin diambil (misal Point saja, Point dan Line, atau ketiganya). Bila tidak dipilih, tugas memakai format default.
+                    {bukaTipeData
+                      ? "Pilih tipe data yang ingin dibuat formulirnya (Point, Line, atau Polygon). Klik dua kali pada tipe data untuk membatalkan."
+                      : tipeGeometriTerpilih.length > 0
+                        ? `${tipeGeometriTerpilih.length} tipe data dipilih (${tipeGeometriTerpilih.map((g) => (g === "point" ? "Point" : g === "line" ? "Line" : "Polygon")).join(", ")}). Klik untuk mengubah pilihan formulir.`
+                        : "Klik untuk memilih tipe data apa saja yang mau dibuat formulirnya."}
                   </p>
                 </div>
-              </div>
-
-              <div className="tugas-geom-picker" role="group" aria-label="Pilih tipe data yang diambil">
-                {(
-                  [
-                    { id: "point" as const, label: "Point", ket: "Titik lokasi", Ikon: MapPin },
-                    { id: "line" as const, label: "Line", ket: "Jalur / garis", Ikon: Route },
-                    { id: "polygon" as const, label: "Polygon", ket: "Area / bidang", Ikon: Hexagon }
-                  ] as const
-                ).map(({ id, label, ket, Ikon }) => {
-                  const aktif = tipeGeometriTerpilih.includes(id);
-                  const jml = isianPerGeometri[id]?.length ?? 0;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`tugas-geom-chip ${aktif ? "aktif" : ""}`}
-                      aria-pressed={aktif}
-                      onClick={() => toggleTipeGeometri(id)}
-                    >
-                      <span className="tugas-geom-chip-icon" aria-hidden="true">
-                        <Ikon size={16} />
-                      </span>
-                      <span className="tugas-geom-chip-text">
-                        <strong>{label}</strong>
-                        <small>{aktif ? (jml > 0 ? `${jml} isian` : "Format default") : ket}</small>
-                      </span>
-                      <span className="tugas-geom-chip-check" aria-hidden="true">
-                        {aktif ? "✓" : "+"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {tipeGeometriTerpilih.length === 0 ? (
-                <div className="tugas-empty-builder" style={{ marginTop: 10 }}>
-                  <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#0f172a" }}>Mode Default Aktif</p>
-                  <p className="text-xs text-muted" style={{ margin: 0 }}>
-                    Kader dapat mengisi data <b>Point, Line, dan Polygon</b> dengan format standar bawaan. Pilih salah satu atau beberapa tipe data di atas bila ingin mengatur format isian khusus.
-                  </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  <span className="text-xs text-muted" style={{ fontWeight: 600 }}>
+                    {bukaTipeData ? "Tutup" : "Pilih"}
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    color="#64748b"
+                    style={{
+                      transform: bukaTipeData ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 200ms ease"
+                    }}
+                    aria-hidden="true"
+                  />
                 </div>
-              ) : (
-                <div className="tugas-format-per-tipe" style={{ marginTop: 12 }}>
-                  <div className="tugas-format-tabs" role="tablist" aria-label="Pengaturan format per tipe data">
-                    {tipeGeometriTerpilih.map((g) => {
-                      const label = g === "point" ? "Point" : g === "line" ? "Line" : "Polygon";
-                      const jml = isianPerGeometri[g]?.length ?? 0;
-                      const sedangAktif = tabFormatGeometri === g;
+              </button>
+
+              {bukaTipeData && (
+                <div className="tugas-tipe-data-konten" style={{ marginTop: 12 }}>
+                  <div className="tugas-geom-picker" role="group" aria-label="Pilih tipe data yang diambil">
+                    {(
+                      [
+                        { id: "point" as const, label: "Point", ket: "Titik lokasi", Ikon: MapPin, kelasWarna: "point" },
+                        { id: "line" as const, label: "Line", ket: "Jalur / garis", Ikon: Route, kelasWarna: "line" },
+                        { id: "polygon" as const, label: "Polygon", ket: "Area / bidang", Ikon: Hexagon, kelasWarna: "polygon" }
+                      ] as const
+                    ).map(({ id, label, ket, Ikon, kelasWarna }) => {
+                      const aktif = tipeGeometriTerpilih.includes(id);
+                      const jml = isianPerGeometri[id]?.length ?? 0;
                       return (
                         <button
-                          key={g}
+                          key={id}
                           type="button"
-                          role="tab"
-                          aria-selected={sedangAktif}
-                          className={`tugas-format-tab ${sedangAktif ? "aktif" : ""}`}
-                          onClick={() => setTabFormatGeometri(g)}
+                          id={`tugas-geom-chip-${id}`}
+                          className={`tugas-geom-chip tugas-geom-chip-${kelasWarna} ${aktif ? `aktif terpilih-${kelasWarna}` : ""}`}
+                          aria-pressed={aktif}
+                          onClick={() => toggleTipeGeometri(id)}
+                          title={aktif ? `Klik lagi untuk membatalkan ${label} (kembali seperti semula)` : `Pilih ${label} untuk membuat formulir khusus`}
                         >
-                          <span>Format {label}</span>
-                          <span className="tugas-format-tab-count">{jml}</span>
+                          <span className="tugas-geom-chip-icon" aria-hidden="true">
+                            <Ikon size={16} />
+                          </span>
+                          <span className="tugas-geom-chip-text">
+                            <strong>{label}</strong>
+                            <small>{aktif ? (jml > 0 ? `${jml} isian` : "Format default") : ket}</small>
+                          </span>
+                          <span className="tugas-geom-chip-check" aria-hidden="true">
+                            {aktif ? "✓" : "+"}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
 
-                  <p className="text-xs text-muted" style={{ margin: "8px 0 10px" }}>
-                    Atur kolom isian khusus untuk data{" "}
-                    <b>{tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"}</b>. Jika dibiarkan kosong, tipe ini memakai format default.
-                  </p>
+                  {tipeGeometriTerpilih.length === 0 ? (
+                    <div className="tugas-empty-builder" style={{ marginTop: 10 }}>
+                      <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#0f172a" }}>Mode Default Aktif</p>
+                      <p className="text-xs text-muted" style={{ margin: 0 }}>
+                        Kader dapat mengisi data <b>Point, Line, dan Polygon</b> dengan format standar bawaan. Pilih salah satu atau beberapa tipe data di atas bila ingin mengatur format isian khusus.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="tugas-format-per-tipe" style={{ marginTop: 12 }}>
+                      <div className="tugas-format-tabs" role="tablist" aria-label="Pengaturan format per tipe data">
+                        {tipeGeometriTerpilih.map((g) => {
+                          const label = g === "point" ? "Point" : g === "line" ? "Line" : "Polygon";
+                          const jml = isianPerGeometri[g]?.length ?? 0;
+                          const sedangAktif = tabFormatGeometri === g;
+                          return (
+                            <button
+                              key={g}
+                              type="button"
+                              role="tab"
+                              aria-selected={sedangAktif}
+                              className={`tugas-format-tab tugas-format-tab-${g} ${sedangAktif ? `aktif aktif-${g}` : ""}`}
+                              onClick={() => setTabFormatGeometri(g)}
+                            >
+                              <span>Format {label}</span>
+                              <span className="tugas-format-tab-count">{jml}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <p className="text-xs text-muted" style={{ margin: "8px 0 10px" }}>
+                        Atur kolom isian khusus untuk data{" "}
+                        <b>{tabFormatGeometri === "point" ? "Point" : tabFormatGeometri === "line" ? "Line" : "Polygon"}</b>. Jika dibiarkan kosong, tipe ini memakai format default.
+                      </p>
 
                   {daftarIsianAktif.length === 0 ? (
                     <div className="tugas-empty-builder">
@@ -1295,6 +1342,8 @@ const [tampilanData, setTampilanData] = useState<"aktif" | "pencadangan">("aktif
                 </div>
               )}
             </div>
+          )}
+        </div>
 
             {galatFormTugas && (
               <p role="alert" className="field-error" style={{ marginTop: 10 }}>
