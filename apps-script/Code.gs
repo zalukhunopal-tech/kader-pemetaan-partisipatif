@@ -1959,11 +1959,13 @@ function verifikasiOtpDanDaftarGs_(body, konteks) {
   }
 
   var sekarang = new Date().toISOString();
+  var peranDaftar = String(akunInput.peran || "kader") === "admin" ? "admin" : "kader";
+  var awalanId = peranDaftar === "admin" ? "ADM-" : "KDR-";
   var akunSiap = {
-    idKader: String(akunInput.idKader || "KDR-" + Utilities.getUuid().replace(/-/g, "").slice(0, 12)),
+    idKader: String(akunInput.idKader || awalanId + Utilities.getUuid().replace(/-/g, "").slice(0, 12)),
     nama: String(akunInput.nama || "").trim(),
     email: email,
-    peran: "kader",
+    peran: peranDaftar,
     desaWilayah: String(akunInput.desaWilayah || (akunInput.wilayah && akunInput.wilayah.desa) || "-"),
     wilayah: akunInput.wilayah || undefined,
     noHp: String(akunInput.noHp || "-"),

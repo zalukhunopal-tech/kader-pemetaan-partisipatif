@@ -20,6 +20,7 @@ import {
   aturUlangSandiOlehAdmin,
   daftarKunciSesiAktif,
   hapusAkunOlehAdmin,
+  labelKategoriAsal,
   lepasKunciSesiOlehAdmin,
   muatSemuaAkun,
   resetSemuaAkunOlehAdmin,
@@ -359,6 +360,22 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                         fontWeight: 700,
                         padding: "2px 8px",
                         borderRadius: 99,
+                        background: pendaftar.peran === "admin" ? "#FEF3C7" : "#EFF6FF",
+                        color: pendaftar.peran === "admin" ? "#92400E" : "#1D4ED8",
+                        border: pendaftar.peran === "admin" ? "1px solid #F59E0B" : "1px solid #BFDBFE"
+                      }}
+                    >
+                      Daftar sebagai: {pendaftar.peran === "admin" ? "Admin" : "User (Kader)"}
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 99,
                         background: "#ffffff",
                         color: "#0B6E4F",
                         border: "1px solid #a7f3d0"
@@ -369,7 +386,8 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                   </div>
                   <div style={{ fontSize: "0.82rem", color: "#334155", marginTop: 3 }}>{pendaftar.email}</div>
                   <div style={{ fontSize: "0.76rem", color: "#475569", marginTop: 4 }}>
-                    Wilayah: {pendaftar.wilayah ? teksWilayah(pendaftar.wilayah) : pendaftar.desaWilayah || "-"} · Kelompok:{" "}
+                    Asal: {labelKategoriAsal(pendaftar.kategoriAsal, pendaftar.kelompokMasyarakat)} · Wilayah:{" "}
+                    {pendaftar.wilayah ? teksWilayah(pendaftar.wilayah) : pendaftar.desaWilayah || "-"} · Kelompok/Instansi:{" "}
                     {pendaftar.kelompokMasyarakat || "-"} · HP: {pendaftar.noHp || "-"}
                   </div>
                 </div>
@@ -542,7 +560,11 @@ export const AkunAdminPanel: React.FC<AkunAdminPanelProps> = ({ sesiAdmin, dataS
                               <dd>{a.noHp}</dd>
                             </div>
                             <div>
-                              <dt>Kelompok</dt>
+                              <dt>Asal pendaftar</dt>
+                              <dd>{labelKategoriAsal(a.kategoriAsal, a.kelompokMasyarakat)}</dd>
+                            </div>
+                            <div>
+                              <dt>Kelompok / Instansi</dt>
                               <dd>{a.kelompokMasyarakat}</dd>
                             </div>
                             <div>
