@@ -15469,7 +15469,7 @@ html[data-field-theme="matahari"] .section-card h2 {
 }
 
 /* =========================================================
-   NOTIFIKASI CITRA OFFLINE OTOMATIS (DEKAT JARINGAN ONLINE/OFFLINE)
+   PENGINGAT CITRA OFFLINE SEDERHANA (MERAH / HIJAU + PROGRES)
    ========================================================= */
 .avenza-notif-offline-btn {
   position: relative;
@@ -15498,51 +15498,20 @@ html[data-field-theme="matahari"] .section-card h2 {
   transform: scale(0.92);
 }
 
-.avenza-notif-offline-btn.peringatan {
+.avenza-notif-offline-btn.belum {
   background: transparent;
   border: none;
-  color: #b45309;
-}
-
-.avenza-notif-offline-btn.mengunduh {
-  background: transparent;
-  border: none;
-  color: #0d7344;
-  padding: 0 2px;
+  color: #dc2626;
 }
 
 .avenza-notif-offline-btn.siap {
   background: transparent;
   border: none;
-  color: #15803d;
+  color: #16a34a;
 }
 
-.avenza-notif-warn-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 15px;
-  height: 15px;
-  border-radius: 99px;
-  background: #dc2626;
-  color: #ffffff;
-  font-size: 0.65rem;
-  font-weight: 800;
-  line-height: 15px;
-  text-align: center;
-  border: 1.5px solid #ffffff;
-  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.45);
-}
-
-.avenza-notif-ok-dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 99px;
-  background: #16a34a;
-  border: 1.5px solid #ffffff;
+.avenza-notif-offline-btn.mengunduh {
+  padding: 0 2px;
 }
 
 .avenza-notif-pct {
@@ -15554,7 +15523,7 @@ html[data-field-theme="matahari"] .section-card h2 {
 .notif-hp-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.24);
+  background: rgba(15, 23, 42, 0.2);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   z-index: 98;
@@ -15565,23 +15534,23 @@ html[data-field-theme="matahari"] .section-card h2 {
   top: 62px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(calc(100vw - 24px), 392px);
+  width: min(calc(100vw - 24px), 340px);
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
-  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  padding: 12px 14px;
   z-index: 99;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  animation: notifHpTurun 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  gap: 10px;
+  animation: notifHpTurun 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes notifHpTurun {
   from {
     opacity: 0;
-    transform: translate(-50%, -12px) scale(0.98);
+    transform: translate(-50%, -10px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -15589,43 +15558,41 @@ html[data-field-theme="matahari"] .section-card h2 {
   }
 }
 
-.notif-hp-header {
+.notif-hp-simple-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 
-.notif-hp-app-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.76rem;
-  color: #475569;
+.notif-hp-dot-status {
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  flex-shrink: 0;
 }
 
-.notif-hp-app-meta strong {
-  color: #0f172a;
+.notif-hp-dot-status.belum {
+  background: #dc2626;
+}
+
+.notif-hp-dot-status.siap {
+  background: #16a34a;
+}
+
+.notif-hp-simple-label {
+  flex: 1;
+  font-size: 0.88rem;
   font-weight: 700;
-}
-
-.notif-hp-app-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  object-fit: cover;
-}
-
-.notif-hp-dot {
-  color: #94a3b8;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
 }
 
 .notif-hp-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 99px;
   border: none;
   background: #f1f5f9;
@@ -15633,90 +15600,7 @@ html[data-field-theme="matahari"] .section-card h2 {
   cursor: pointer;
 }
 
-.notif-hp-body {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.notif-hp-status-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.notif-hp-status-icon.fase-menunggu,
-.notif-hp-status-icon.fase-belum_offline,
-.notif-hp-status-icon.fase-gagal {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.notif-hp-status-icon.fase-mengunduh {
-  background: #dcfce7;
-  color: #0d7344;
-}
-
-.notif-hp-status-icon.fase-siap {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.notif-hp-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.notif-hp-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.notif-hp-title-row h4 {
-  margin: 0;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.notif-hp-badge-pct,
-.notif-hp-badge-wait {
-  font-size: 0.74rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  padding: 2px 8px;
-  border-radius: 99px;
-  flex-shrink: 0;
-}
-
-.notif-hp-badge-pct {
-  background: #dcfce7;
-  color: #0d7344;
-}
-
-.notif-hp-badge-wait {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.notif-hp-desc {
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: #475569;
-}
-
 .notif-hp-progress-track {
-  margin-top: 6px;
   width: 100%;
   height: 7px;
   border-radius: 99px;
@@ -15730,83 +15614,72 @@ html[data-field-theme="matahari"] .section-card h2 {
   transition: width 0.25s ease;
 }
 
-.notif-hp-progress-fill.fase-mengunduh {
-  background: linear-gradient(90deg, #0d7344, #22c55e);
+.notif-hp-progress-fill.belum {
+  background: #dc2626;
 }
 
-.notif-hp-progress-fill.fase-menunggu {
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+.notif-hp-progress-fill.siap {
+  background: #16a34a;
 }
 
-.notif-hp-slots {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
+/* =========================================================
+   PILIHAN EKSPOR SEDERHANA (KML, GEOJSON, SHP ZIP)
+   ========================================================= */
+.ekspor-format-sederhana {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
-.notif-hp-slots-head {
+.ekspor-btn-utama {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.ekspor-pilihan-sheet {
+  width: min(calc(100vw - 32px), 340px);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ekspor-pilihan-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 0.96rem;
+  color: #0f172a;
 }
 
-.notif-hp-slot-pills {
+.ekspor-pilihan-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 
-.notif-hp-slot-pill {
-  border-radius: 10px;
-  padding: 7px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.72rem;
-  border: 1px solid #e2e8f0;
-}
-
-.notif-hp-slot-pill.terisi {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-.notif-hp-slot-pill.kosong {
+.ekspor-pilihan-btn {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid #cbd5e1;
   background: #f8fafc;
-  color: #94a3b8;
-}
-
-.notif-hp-slot-pill strong {
-  font-size: 0.74rem;
-  font-weight: 700;
-}
-
-.notif-hp-footer {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 8px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.notif-hp-link-btn {
-  border: none;
-  background: transparent;
-  color: #0d7344;
-  font-size: 0.78rem;
+  color: #0f172a;
+  font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.notif-hp-link-btn:hover {
+.ekspor-pilihan-btn:hover,
+.ekspor-pilihan-btn:active {
   background: #ecfdf5;
+  border-color: #0d7344;
+  color: #0d7344;
 }
 
 

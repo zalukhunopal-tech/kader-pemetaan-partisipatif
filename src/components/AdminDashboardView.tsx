@@ -32,8 +32,8 @@ import {
 import {
   adalahDataImpor,
   adalahDataSimulasi,
-  eksporKeCSV,
   eksporKeGeoJSON,
+  eksporKeKML,
   sanitasiAtributKustom,
   sanitasiTeksInput
 } from "../lib/geoUtils";
@@ -747,24 +747,20 @@ const [filterLapisanAdmin, setFilterLapisanAdmin] = useState<string>("semua");
                       className="btn-outline-sm"
                       onClick={() => {
                         const nama = (lapisanAdminTerpilih?.nama || "Database_Admin_WebGIS").replace(/\s+/g, "_");
-                        unduhEksporAdmin(`${nama}.geojson`, eksporKeGeoJSON(dataSpasialTersaringAdmin), "application/geo+json");
+                        unduhEksporAdmin(`${nama}.kml`, eksporKeKML(dataSpasialTersaringAdmin), "application/vnd.google-earth.kml+xml");
                       }}
                     >
-                      <Download size={13} /> GeoJSON WebGIS
+                      <Download size={13} /> KML
                     </button>
                     <button
                       type="button"
                       className="btn-outline-sm"
                       onClick={() => {
                         const nama = (lapisanAdminTerpilih?.nama || "Database_Admin_WebGIS").replace(/\s+/g, "_");
-                        unduhEksporAdmin(
-                          `${nama}.csv`,
-                          eksporKeCSV(dataSpasialTersaringAdmin, { sertakanAtributTugas: kolomTugasAdminTabel.length > 0 }),
-                          "text/csv;charset=utf-8"
-                        );
+                        unduhEksporAdmin(`${nama}.geojson`, eksporKeGeoJSON(dataSpasialTersaringAdmin), "application/geo+json");
                       }}
                     >
-                      <Download size={13} /> CSV
+                      <Download size={13} /> GeoJSON
                     </button>
                     <button
                       type="button"
@@ -775,7 +771,7 @@ const [filterLapisanAdmin, setFilterLapisanAdmin] = useState<string>("semua");
                         unduhEksporAdmin(`${nama}_shp.zip`, zip, "application/zip");
                       }}
                     >
-                      <Download size={13} /> SHP
+                      <Download size={13} /> SHP (.zip)
                     </button>
                   </div>
                 )}

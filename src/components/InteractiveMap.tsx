@@ -5,6 +5,7 @@ import { objekCocokLapisan } from "../lib/tematik";
 import { punyaSkemaAktif } from "../lib/skemaTugas";
 import {
   eksporKeGeoJSON,
+  eksporKeKML,
   formatKoordinatTeks,
   hitungBearingDerajat,
   hitungJarakMeter,
@@ -14,6 +15,7 @@ import {
   snapKeVertex,
   validasiGeometri
 } from "../lib/geoUtils";
+import { buatArsipZip, eksporPaketShapefile } from "../lib/shapefile";
 import { durasiRekamMs, formatDurasi, perekamLatar, usePerekamLatar } from "../lib/perekamLatar";
 import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta, ZOOM_MAKS_PETA, ZOOM_MIN_PETA } from "../lib/posisiPeta";
 import { PecahanDunia, jepitZoom, langkahZoomRoda, pecahanDiLayar, pusatUntukJangkar, zoomCubit } from "../lib/zoomPeta";
@@ -366,18 +368,35 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return s === "DMS" ? "wgs84_dms" : s === "DDM" ? "wgs84_ddm" : s === "UTM" ? "wgs84_utm" : s === "TM3" ? "srgi_tm3" : "wgs84_desimal";
   });
 
-  /** Unduh objek lapisan aktif sebagai GeoJSON (Ekspor lapisan) */
-  const unduhGeoJson = () => {
-    const blob = new Blob([eksporKeGeoJSON(dataTampil)], { type: "application/geo+json" });
+  const [bukaPilihFormatEkspor, setBukaPilihFormatEkspor] = useState<boolean>(false);
+
+  /** Unduh objek lapisan aktif sesuai format standar WebGIS (KML, GeoJSON, atau SHP .zip) */
+  const eksporLapisanFormat = (format: "kml" | "geojson" | "shp_zip") => {
+    const namaDasar = (lapisanAktif?.nama || `lapisan_data_lapangan_${new Date().toISOString().slice(0, 10)}`).replace(/\s+/g, "_");
+    let namaFile: string;
+    let blob: Blob;
+    if (format === "kml") {
+      namaFile = `${namaDasar}.kml`;
+      blob = new Blob([eksporKeKML(dataTampil)], { type: "application/vnd.google-earth.kml+xml" });
+    } else if (format === "geojson") {
+      namaFile = `${namaDasar}.geojson`;
+      blob = new Blob([eksporKeGeoJSON(dataTampil)], { type: "application/geo+json" });
+    } else {
+      const paket = eksporPaketShapefile(dataTampil, namaDasar);
+      const zip = buatArsipZip(paket);
+      namaFile = `${namaDasar}_shp.zip`;
+      blob = new Blob([new Uint8Array(zip)], { type: "application/zip" });
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `lapisan_data_lapangan_${new Date().toISOString().slice(0, 10)}.geojson`;
+    a.download = namaFile;
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setPesanSalin(`Lapisan diekspor (${dataTampil.length} objek).`);
+    setBukaPilihFormatEkspor(false);
+    setPesanSalin(`Diekspor ke ${namaFile} (${dataTampil.length} objek).`);
   };
 
   // State UI Avenza Maps (sesuai referensi video antarmuka pengguna)
@@ -3299,7 +3318,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               >
                 <Search size={22} />
               </button>
-              <button type="button" className="avenza-head-btn" aria-label="Bagikan lapisan (GeoJSON)" onClick={unduhGeoJson}>
+              <button
+                type="button"
+                className="avenza-head-btn"
+                aria-label="Ekspor lapisan"
+                onClick={() => setBukaPilihFormatEkspor(true)}
+              >
                 <Share size={22} />
               </button>
               <button
@@ -3466,7 +3490,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   role="menuitem"
                   onClick={() => {
                     setMenuLapisan(null);
-                    unduhGeoJson();
+                    setBukaPilihFormatEkspor(true);
                   }}
                 >
                   Ekspor
@@ -3500,6 +3524,40 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             <Plus size={30} strokeWidth={2.5} />
             <input ref={inputImporRef} type="file" accept=".geojson,.json,.kml,.gpx" hidden onChange={handleImporFileSpasial} />
           </label>
+
+          {bukaPilihFormatEkspor && (
+            <div className="modal-backdrop" onClick={() => setBukaPilihFormatEkspor(false)}>
+              <div
+                className="ekspor-pilihan-sheet"
+                role="dialog"
+                aria-label="Pilih format ekspor"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="ekspor-pilihan-head">
+                  <strong>Ekspor Data</strong>
+                  <button
+                    type="button"
+                    className="btn-icon-close"
+                    aria-label="Tutup"
+                    onClick={() => setBukaPilihFormatEkspor(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="ekspor-pilihan-grid" role="group" aria-label="Format data ekspor">
+                  <button type="button" className="ekspor-pilihan-btn" onClick={() => eksporLapisanFormat("kml")}>
+                    KML
+                  </button>
+                  <button type="button" className="ekspor-pilihan-btn" onClick={() => eksporLapisanFormat("geojson")}>
+                    GeoJSON
+                  </button>
+                  <button type="button" className="ekspor-pilihan-btn" onClick={() => eksporLapisanFormat("shp_zip")}>
+                    SHP (.zip)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
