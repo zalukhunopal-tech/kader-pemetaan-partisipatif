@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { JPEG, RUTE_TILE_PUBLIK, kontrolBertumpuk, masukAkunSemai } from "./bantu";
+import { JPEG, RUTE_TILE_PUBLIK, klikNav, kontrolBertumpuk, masukAkunSemai } from "./bantu";
 
 /**
  * Penjaga aturan UI (CLAUDE.md, "Aturan UI"): kontrol di atas peta tidak boleh bertumpuk, di HP, HP pendek,
@@ -33,18 +33,19 @@ for (const u of UKURAN) {
     void nama;
     const { p, galat, tutup } = await masukAkunSemai(browser, opsi); // tanpa izin lokasi: GPS belum aktif
     await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
-    await p.locator(".avenza-nav-item", { hasText: "Peta" }).first().click();
+    await klikNav(p, "Peta");
     await p.waitForTimeout(1200);
     expect(await kontrolBertumpuk(p, KONTROL), "diam").toEqual([]);
 
     // Jatuhkan pin lalu simpan: toast "disimpan" tidak boleh menutupi bilah bawah
+    // Kartu "Pin dijatuhkan" langsung menyimpan tanda tempat (seperti Avenza), lalu kartu ditutup dengan Esc
     await p.locator(".avz-fab-pin").click();
     await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
-    await p.getByPlaceholder("Masukkan nama objek").fill("Pohon uji tata letak");
-    await p.locator(".modal-form button[type=submit]").click();
     await p.waitForTimeout(500);
     expect(await p.locator(".avenza-toast").count()).toBe(1);
     expect(await kontrolBertumpuk(p, KONTROL), "toast setelah simpan").toEqual([]);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
 
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.getByRole("menuitem", { name: "Rekam Jalur GPS" }).click();

@@ -2223,14 +2223,38 @@ export function bersihkanAkunSetelahTes(): void {
 }
 
 /** Dipanggil sekali sebelum aplikasi dirender */
+/**
+ * Email akun uji/dummy yang dibersihkan saat aplikasi dibuka. Hanya bagian domain yang diperiksa
+ * (mis. @contoh.id, @test.id, @dummy.id), supaya akun asli yang nama emailnya kebetulan memuat
+ * kata "testing" atau "dummy" tidak ikut terhapus.
+ */
+export function adalahEmailAkunUji(email: string): boolean {
+  const e = email.trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  if (at < 1) return false;
+  const domain = e.slice(at + 1);
+  return domain === "contoh.id" || domain === "test.id" || /(^|\.)(dummy|testing)[a-z0-9-]*\./.test(domain);
+}
+
+/** Penanda mode uji: build test/e2e, atau penyimpanan yang disemai oleh uji browser */
+function sedangModeUji(): boolean {
+  return (
+    import.meta.env.MODE === "test" ||
+    import.meta.env.MODE === "e2e" ||
+    Boolean(localStorage.getItem("__disemai") || localStorage.getItem("__disemai_admin"))
+  );
+}
+
 export async function siapkanAutentikasi(): Promise<void> {
   await migrasiAkunLama();
+  let modeUji = import.meta.env.MODE === "test" || import.meta.env.MODE === "e2e";
+  try {
+    modeUji = sedangModeUji();
+  } catch {
+    // penyimpanan tidak bisa dibaca: anggap bukan mode uji
+  }
   // Reset satu kali untuk membersihkan semua akun terdaftar lama pada perangkat pengguna
   try {
-    const modeUji =
-      import.meta.env.MODE === "test" ||
-      import.meta.env.MODE === "e2e" ||
-      Boolean(localStorage.getItem("__disemai") || localStorage.getItem("__disemai_admin"));
     if (!modeUji && !localStorage.getItem(KEY_MIGRASI_RESET_AKUN)) {
       await resetSemuaAkunTerdaftar({ pertahankanMasterAdmin: true, sinkronCloud: false });
       localStorage.setItem(KEY_MIGRASI_RESET_AKUN, "1");
@@ -2246,11 +2270,7 @@ export async function siapkanAutentikasi(): Promise<void> {
         !(
           (a.email.toLowerCase() === "kader@geokader.id" && a.idKader === "KDR-001") ||
           (a.email.toLowerCase() === "admin@geokader.id" && (a.idKader === "ADM-001" || a.totpRahasia === RAHASIA_TOTP_UJI)) ||
-          (import.meta.env.MODE !== "test" &&
-            (a.email.toLowerCase().endsWith("@contoh.id") ||
-              a.email.toLowerCase().endsWith("@test.id") ||
-              a.email.toLowerCase().includes("dummy") ||
-              a.email.toLowerCase().includes("testing")))
+          (!modeUji && adalahEmailAkunUji(a.email))
         )
     );
     if (import.meta.env.MODE !== "test") {
@@ -2266,11 +2286,7 @@ export async function siapkanAutentikasi(): Promise<void> {
       sesi &&
       (sesi.email.toLowerCase() === "kader@geokader.id" ||
         sesi.email.toLowerCase() === "admin@geokader.id" ||
-        (import.meta.env.MODE !== "test" &&
-          (sesi.email.toLowerCase().endsWith("@contoh.id") ||
-            sesi.email.toLowerCase().endsWith("@test.id") ||
-            sesi.email.toLowerCase().includes("dummy") ||
-            sesi.email.toLowerCase().includes("testing"))))
+        (!modeUji && adalahEmailAkunUji(sesi.email)))
     ) {
       localStorage.removeItem(KEY_SESSION);
     }

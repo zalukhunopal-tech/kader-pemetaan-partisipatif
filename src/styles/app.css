@@ -13871,8 +13871,9 @@ html[data-field-theme="matahari"] .section-card h2 {
   text-overflow: ellipsis;
 }
 
+/* Bilah atas buram penuh: konten yang digulir (mis. tombol gelap sub-menu Admin) tidak tembus samar di belakangnya */
 .avenza-topbar {
-  background: rgba(255, 255, 255, 0.98);
+  background: #ffffff;
 }
 
 .sync-photo-grid {

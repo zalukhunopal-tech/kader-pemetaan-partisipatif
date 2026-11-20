@@ -7,11 +7,14 @@ import {
   URL_APP,
   URL_APP_KUNCI,
   halamanBaru,
+  isianNamaForm,
+  klikNav,
   kotak,
   masukSebagaiAdmin,
   posisiPeta,
   sampai,
-  teksToast
+  teksToast,
+  tombolSimpanForm
 } from "./bantu";
 
 test("HP dengan huruf besar: peta layar penuh, atribusi dan tombol pin tidak tertutup bilah bawah; cubit dua jari", async ({ browser }) => {
@@ -37,7 +40,7 @@ test("HP dengan huruf besar: peta layar penuh, atribusi dan tombol pin tidak ter
     expect(labelUtuh.every(Boolean)).toBe(true);
   });
 
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForTimeout(1200);
 
   await test.step("tata letak peta layar penuh", async () => {
@@ -105,7 +108,7 @@ test("PC: roda tetikus memperbesar peta tanpa menggulir halaman", async ({ brows
   const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 1280, height: 800 } });
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForTimeout(1200);
   const kan = await kotak(p, "canvas.map-canvas");
   const zAwal = (await posisiPeta(p))!.zoom;
@@ -131,15 +134,19 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   });
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  // Jam aplikasi dimajukan 31 detik per kode Authenticator saat masuk; kembalikan supaya fix GPS
+  // (bercap waktu jam asli) tidak tampak lebih tua dari batas 60 detik dan akurasinya ikut tersimpan
+  await p.evaluate(() => sessionStorage.setItem("__off", "0"));
+  await klikNav(p, "Mode User");
+  await klikNav(p, "Peta");
   expect(await sampai(async () => /-1\.61/.test(await p.locator(".field-telemetry-coordinate").first().innerText()), 8000)).toBe(true);
-  // Tombol pin besar: kartu ringkas "Pin dijatuhkan" lalu klik "Simpan" untuk membuka halaman formulir
+  // Tombol pin besar: kartu ringkas "Pin dijatuhkan"; detail kartu, Foto "Tambah" membuka formulir lengkap
   await p.locator(".avz-fab-pin").click();
   await expect(p.getByRole("heading", { name: "Pin dijatuhkan" })).toBeVisible();
-  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
-  await p.getByPlaceholder("Masukkan nama objek").fill("Pohon Meranti uji");
-  await p.locator(".modal-form button[type=submit]").click();
+  await p.locator(".avz-peek-card .avz-peek-title").click();
+  await p.locator(".avz-peek-card .avz-isian-baris", { hasText: "Foto" }).getByRole("button", { name: "Tambah" }).click();
+  await isianNamaForm(p).fill("Pohon Meranti uji");
+  await tombolSimpanForm(p).click();
   expect(await sampai(async () => /Pohon Meranti uji/.test(await teksToast(p)))).toBe(true);
   type Data = { judul: string; jenisGeometri: string; koordinat: { lat: number; lng: number; akurasi?: number }[] };
   const bacaData = () =>
@@ -159,11 +166,17 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   expect(titik?.jenisGeometri).toBe("point");
   expect(Math.abs(titik!.koordinat[0].lat + 1.61)).toBeLessThan(1e-4);
   expect(titik!.koordinat[0].akurasi).toBe(6);
-  // ketuk titik di tengah peta: kartu ringkas muncul, lalu ketuk Detail untuk membuka inspektor penuh
+  // ketuk titik di tengah peta: kartu ringkas muncul
   const kan = await kotak(p, "canvas.map-canvas");
   await p.mouse.click(kan.left + kan.width / 2, kan.top + kan.height / 2);
   expect(await sampai(async () => /Pohon Meranti uji/.test(await p.locator(".field-inspector-sheet").innerText()))).toBe(true);
-  await p.locator(".field-inspector-sheet").getByRole("button", { name: "Detail" }).click();
+  // Kartu objek: buka detail (geser ke atas / ketuk judul), lalu baris Foto membuka halaman detail lengkap
+  await p.locator(".avz-peek-card .avz-peek-title").click();
+  await p
+    .locator(".avz-peek-card .avz-isian-baris", { hasText: "Foto" })
+    .getByRole("button", { name: /Tambah|Edit/ })
+    .first()
+    .click();
 
   // perbarui kondisi: objek yang baru dibuat belum boleh diperbarui (jeda 24 jam), isian tetap ada
   await p.getByPlaceholder("Kondisi terbaru...").fill("Daun menguning");
@@ -178,56 +191,18 @@ test("rekam titik lewat formulir: tersimpan dengan koordinat GPS dan muncul di p
   await tutup();
 });
 
-test("unduh area offline dari penyedia tile berlisensi: tile tersimpan dan area muncul di Pustaka", async ({ browser }) => {
+// Unduh area offline manual dari menu Lapisan diganti unduhan otomatis 10 x 10 km (cachePetaOtomatis);
+// aturannya diuji di src/lib/cachePetaOtomatis.test.ts. Yang dijaga di sini: menu manual memang sudah tidak ada.
+test("menu Lapisan tidak lagi menawarkan unduh area offline manual (diganti unduhan otomatis)", async ({ browser }) => {
   const { p, galat, tutup } = await halamanBaru(browser);
-  let dimintaJaringan = 0;
-  // penyedia tile uji (bundel e2e memasangnya lewat VITE_TILE_URL_OSM dengan izin unduh)
-  await p.context().route(/tile\.uji\.example/, (r) => {
-    dimintaJaringan++;
-    return r.fulfill({ status: 200, contentType: "image/png", body: PNG, headers: { "access-control-allow-origin": "*" } });
-  });
-  await p
-    .context()
-    .route(/tiles\.maps\.eox\.at|ibasemaps-api\.arcgis\.com|tile\.googleapis\.com|maps\.gstatic\.com/, (r) =>
-      r.fulfill({ status: 404, body: "" })
-    );
-  await masukSebagaiAdmin(p, URL_APP_KUNCI);
-  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
-  await p.locator(".avz-quick-basemap-btn").click();
-  await p.locator(".map-basemap-Option", { hasText: "OSM" }).click();
-  expect(await p.locator("#atribusi-peta").innerText()).toMatch(/penyedia tile uji/);
-  // Lapisan peta → menu titik tiga lapisan → Unduh area offline
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
+  await masukSebagaiAdmin(p, URL_APP);
+  await klikNav(p, "Mode User");
+  await klikNav(p, "Peta");
   await p.getByRole("button", { name: "Lapisan peta" }).click();
   await p.getByRole("button", { name: "Menu lapisan" }).click();
-  await p.getByRole("menuitem", { name: "Unduh area offline" }).click();
-
-  await p.getByPlaceholder("Masukkan nama area").fill("Wilayah Uji Offline");
-  const perkiraan = await p.locator("#perkiraan-unduh strong").innerText();
-  const jumlah = Number(perkiraan.match(/(\d+)\s*tile/)![1]);
-  expect(jumlah).toBeGreaterThan(0);
-  const sebelum = dimintaJaringan;
-  // Tahan lingkaran selama 3 detik untuk otomatis mulai unduh 10x10 km zoom sampai 20x
-  const tombolTahan = p.getByRole("button", { name: "Tahan 3 detik untuk unduh peta 10x10 km" });
-  const kotakTombol = await tombolTahan.boundingBox();
-  expect(kotakTombol).not.toBeNull();
-  await p.mouse.move(kotakTombol!.x + kotakTombol!.width / 2, kotakTombol!.y + kotakTombol!.height / 2);
-  await p.mouse.down();
-  await p.waitForTimeout(3200);
-  await p.mouse.up();
-  expect(await sampai(async () => (await p.getByText("Unduh Peta Offline").count()) === 0, 15_000)).toBe(true);
-  // Verifikasi indikator progres lingkaran di peta interaktif mencapai hijau + checklist (100%)
-  expect(await sampai(async () => (await p.locator("#unduh-progress-hud.fase-hijau").count()) === 1, 45_000)).toBe(true);
-  await expect(p.locator("#unduh-progress-hud")).toContainText("100%");
-  expect(dimintaJaringan - sebelum).toBeGreaterThanOrEqual(1);
-  const tersimpan = await p.evaluate(async () => (await (await caches.open("geokader-tiles-v1")).keys()).length);
-  // Tembolok juga berisi tile yang sempat tampil di layar (simpan otomatis), jadi minimal sejumlah perkiraan
-  expect(tersimpan).toBeGreaterThanOrEqual(jumlah);
-
-  // Peta layar penuh: keluar lewat tombol kembali di bilah judul, lalu buka Pustaka
-  await p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Pustaka" }).click();
-  expect(await sampai(async () => (await p.getByRole("button", { name: "Buka peta Wilayah Uji Offline" }).count()) === 1)).toBe(true);
+  await expect(p.getByRole("menuitem", { name: "Impor berkas" })).toBeVisible();
+  await expect(p.getByRole("menuitem", { name: /Unduh area offline/ })).toHaveCount(0);
   expect(galat).toEqual([]);
   await tutup();
 });
@@ -271,7 +246,7 @@ test("Satelit Google lewat Map Tiles API resmi (jaringan Google ditiru) dan Sate
       r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG })
     );
   await masukSebagaiAdmin(p, URL_APP_KUNCI);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   // Peta dasar bawaan adalah Satelit Esri; pilih Google Satelit dari pemilih peta dasar
   await p.locator(".avz-quick-basemap-btn").click();
   await p.locator(".map-basemap-Option", { hasText: "Google Satelit" }).click();
@@ -304,7 +279,7 @@ test("Satelit Google lewat Map Tiles API resmi (jaringan Google ditiru) dan Sate
   await p.reload();
   expect(await sampai(async () => (await p.locator("#pin-buka").count()) === 1)).toBe(true);
   await p.locator("#pin-buka").fill(PIN);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   expect(await sampai(async () => /Powered by Esri/.test(await p.locator("#atribusi-peta").innerText()))).toBe(true);
   expect(galat).toEqual([]);
   await tutup();
@@ -319,7 +294,7 @@ test("tanpa kunci API: Esri publik jadi bawaan, tidak ada permintaan ke Google M
   });
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
   await masukSebagaiAdmin(p, URL_APP);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForTimeout(1500);
   expect(await p.locator("#atribusi-peta").innerText()).toMatch(/Powered by Esri/);
   await p.locator(".avz-quick-basemap-btn").click();

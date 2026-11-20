@@ -70,6 +70,15 @@ const pendengar = new Set<() => void>();
 let watchId: number | null = null;
 let autoTimerId: number | null = null;
 let wakeLock: { release: () => Promise<void> } | null = null;
+/**
+ * Titik yang ditolak gerbang lonjakan secara berturut-turut. Lonjakan kanopi berdiri sendiri lalu posisi
+ * kembali ke jalur, tetapi bila beberapa titik yang ditolak saling konsisten (mis. kader naik motor lebih
+ * cepat dari batas gerbang), titik-titik itu adalah gerakan nyata dan diterima sebagai jangkar baru.
+ * Tanpa ini perekaman macet permanen karena jarak dari titik terakhir yang diterima terus membesar.
+ */
+let kandidatLonjakan: KoordinatTitik[] = [];
+const JUMLAH_KANDIDAT_KONSISTEN = 3;
+const KECEPATAN_KONSISTEN_MAKS_MPS = 50; // 180 km/j: di atas ini dianggap lompatan acak
 
 function setState(patch: Partial<StatePerekamLatar>) {
   state = { ...state, ...patch, ...(patch.titik && patch.redoVertex === undefined ? { redoVertex: [] } : {}) };
@@ -130,9 +139,19 @@ function tanganiPosisi(pos: GeolocationPosition) {
 
   const akhir = state.titik[state.titik.length - 1];
   if (!titikJalurDapatDiterima(akhir, pt)) {
+    const sebelumnya = kandidatLonjakan[kandidatLonjakan.length - 1];
+    kandidatLonjakan =
+      sebelumnya && titikJalurDapatDiterima(sebelumnya, pt, KECEPATAN_KONSISTEN_MAKS_MPS) ? [...kandidatLonjakan, pt] : [pt];
+    if (kandidatLonjakan.length >= JUMLAH_KANDIDAT_KONSISTEN) {
+      const diterima = kandidatLonjakan;
+      kandidatLonjakan = [];
+      setState({ titik: [...state.titik, ...diterima], redoVertex: [], posisiTerakhir: pt, galat: null });
+      return;
+    }
     setState({ posisiTerakhir: pt, galat: "Lonjakan GPS diabaikan; menunggu posisi stabil." });
     return;
   }
+  kandidatLonjakan = [];
   const jarakMinAdaptif = Math.max(JARAK_MIN_METER, (pt.akurasi ?? 0) / 2);
   if (akhir && hitungJarakMeter(akhir, pt) < jarakMinAdaptif) {
     setState({ posisiTerakhir: pt, galat: null });
@@ -145,10 +164,7 @@ function tanganiPosisi(pos: GeolocationPosition) {
 function tanganiGalat(err: GeolocationPositionError) {
   // Mode simulasi tidak bergantung pada GPS perangkat, jadi galat GPS tidak ditampilkan saat simulasi aktif
   if (!state.autoGpsAktif) {
-    const pesan =
-      err.code === err.PERMISSION_DENIED
-        ? "GPS belum diizinkan"
-        : "Sinyal GPS belum didapat";
+    const pesan = err.code === err.PERMISSION_DENIED ? "GPS belum diizinkan" : "Sinyal GPS belum didapat";
     setState({ galat: pesan });
 
     // Pemulihan otomatis jika GPS timeout saat merekam di latar belakang
@@ -281,6 +297,7 @@ export const perekamLatar = {
 
   /** autoGps = mode simulasi (titik acak untuk demo/pelatihan); mati secara bawaan */
   mulai(jenis: JenisRekamLatar, titikAwal: KoordinatTitik[] = [], autoGps = false) {
+    kandidatLonjakan = [];
     setState({
       status: "merekam",
       jenis,
@@ -362,12 +379,14 @@ export const perekamLatar = {
   /** Hentikan & kembalikan seluruh titik yang terekam */
   selesai(): KoordinatTitik[] {
     const hasil = state.titik;
+    kandidatLonjakan = [];
     hentikanWatch();
     setState({ ...STATE_AWAL });
     return hasil;
   },
 
   batal() {
+    kandidatLonjakan = [];
     hentikanWatch();
     setState({ ...STATE_AWAL });
   }

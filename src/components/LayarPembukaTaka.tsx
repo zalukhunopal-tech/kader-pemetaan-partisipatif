@@ -45,13 +45,24 @@ export const LayarPembukaTaka: React.FC<LayarPembukaTakaProps> = ({ onSelesai })
   const [landscape, setLandscape] = useState<boolean>(() => deteksiModeLayarLandscape());
   const [keluar, setKeluar] = useState<boolean>(false);
 
+  // onSelesai dari induk adalah fungsi baru di setiap render; disimpan di ref supaya pewaktu tutup
+  // otomatis tidak diulang dari nol setiap kali aplikasi menggambar ulang (dulu layar pembuka bisa
+  // menutupi layar Buat PIN tanpa batas waktu setelah masuk).
+  const onSelesaiRef = React.useRef(onSelesai);
+  useEffect(() => {
+    onSelesaiRef.current = onSelesai;
+  }, [onSelesai]);
+  const sudahDitutup = React.useRef(false);
+
   const tutupSplash = React.useCallback(() => {
+    if (sudahDitutup.current) return;
+    sudahDitutup.current = true;
     tandaiSplashTakaSudahTampil();
     setKeluar(true);
     window.setTimeout(() => {
-      onSelesai();
+      onSelesaiRef.current();
     }, 260);
-  }, [onSelesai]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
