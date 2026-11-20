@@ -289,6 +289,21 @@ function mulaiGps() {
       { enableHighAccuracy: true, maximumAge: 0, timeout: offline ? 30000 : 18000 }
     );
 
+    // GPS dimulai ulang setiap kembali ke peta (status dikosongkan saat berhenti). Saat perangkat diam,
+    // pemantau baru bisa lama tidak menerima fix, sehingga tombol "Posisi saya" mati dan titik tidak
+    // membawa akurasi. Minta fix terakhir yang masih segar (maks. 30 detik) agar langsung aktif kembali.
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (watchId !== null && !state.posisi) prosesPosisiMentah(pos);
+        },
+        () => undefined,
+        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+      );
+    } catch {
+      // abaikan bila peramban menolak permintaan tambahan
+    }
+
     // Pancingan warm-up GNSS khusus kondisi luring agar hardware cepat mengunci satelit tanpa A-GPS jaringan
     if (typeof window !== "undefined") {
       timerWarmupOffline = window.setTimeout(() => {

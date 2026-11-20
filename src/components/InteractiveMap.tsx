@@ -2131,13 +2131,29 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return false;
   };
   useEffect(() => daftarkanPenutupLapisan(() => tutupOverlayPetaRef.current()), []);
-  useTombolEsc(adaLapisanTerbuka, () => {
+  // Kartu objek terpilih dan kartu pin yang belum disimpan juga ditutup dengan Esc (aturan UI no. 6).
+  // Kartu rekaman jalur/area sengaja tidak: Esc di sana akan membuang rekaman.
+  const adaKartuPeekTerbuka = (Boolean(objekTerpilih) || pinPeekTerbuka) && !bukaModalForm;
+  useTombolEsc(adaLapisanTerbuka || adaKartuPeekTerbuka, () => {
+    const fokus = typeof document !== "undefined" ? document.activeElement : null;
+    // Esc saat mengetik di kartu (mis. edit nama) hanya membatalkan isian itu
+    if (fokus && /^(INPUT|TEXTAREA|SELECT)$/.test(fokus.tagName) && fokus.closest(".avz-peek-card")) return;
     if (menuLapisan !== null) setMenuLapisan(null);
     else if (bukaHalamanLapisan) setBukaHalamanLapisan(false);
     else if (bukaInfoPetaModal) setBukaInfoPetaModal(false);
     else if (cariKoordTerbuka) setCariKoordTerbuka(false);
     else if (bukaDrawerGps) tutupDrawerHalus();
-    else tutupSemuaPanel();
+    else if (bukaPilihBasemap || bukaSalinKoord || bukaMenuAlat) tutupSemuaPanel();
+    else if (objekTerpilih) {
+      if (detailObjekTerbuka) setDetailObjekTerbuka(false);
+      else setObjekTerpilih(null);
+    } else if (pinPeekTerbuka) {
+      setPinPeekTerbuka(false);
+      if (modeRekam === "point") {
+        setModeRekam(null);
+        setTitikDraft([]);
+      }
+    }
   });
   const bukaPinDenganAksi = (aksi: "averaging" | "foto" | null = null) => {
     tutupSemuaPanel();

@@ -41,7 +41,12 @@ export function daftarkanAutoUpdatePwa(): () => void {
   let regRef: ServiceWorkerRegistration | null = null;
   let timerId: number | null = null;
 
+  // Muat ulang hanya bila Service Worker LAMA digantikan versi baru. Pada kunjungan pertama belum ada
+  // pengendali; clientsClaim membuat SW pertama langsung mengambil alih dan memicu controllerchange,
+  // yang dulu memuat ulang halaman sehingga isian (mis. form masuk) hilang dan layar pembuka berulang.
+  const adaPengendaliAwal = Boolean(navigator.serviceWorker.controller);
   pasangListenerKontrolerSw(navigator.serviceWorker, () => {
+    if (!adaPengendaliAwal) return;
     window.location.reload();
   });
 

@@ -372,3 +372,38 @@ it("undo/redo vertex tersimpan dan titik baru membuang cabang redo", async () =>
   expect(perekamLatar.getState().titik).toHaveLength(2);
   expect(perekamLatar.getState().titik[1].lat).toBe(0.002);
 });
+
+describe("perekam latar: gerbang lonjakan GPS", () => {
+  // 1 derajat lintang ≈ 111,2 km; 0,0001° ≈ 11 m
+  const derajat = (meter: number) => meter / 111_195;
+
+  it("lonjakan kanopi tunggal dibuang, posisi yang kembali ke jalur tetap terekam", async () => {
+    const gps = pasangGpsTiruan();
+    const { perekamLatar } = await muat();
+    perekamLatar.mulai("line", []);
+    await tunggu();
+    gps.sukses!(posisi(3.8928, 115.7312));
+    vi.advanceTimersByTime(2000);
+    gps.sukses!(posisi(3.8928 + derajat(2500), 115.7312)); // lompat 2,5 km dalam 2 detik
+    vi.advanceTimersByTime(2000);
+    gps.sukses!(posisi(3.8928 + derajat(5), 115.7312)); // kembali ke jalur
+    const titik = perekamLatar.getState().titik;
+    expect(titik).toHaveLength(2);
+    expect(titik.every((t) => Math.abs(t.lat - 3.8928) < derajat(50))).toBe(true);
+  });
+
+  it("gerakan cepat yang konsisten (naik motor ±61 km/j, GPS ±2 m) tetap terekam, tidak macet selamanya", async () => {
+    const gps = pasangGpsTiruan();
+    const { perekamLatar } = await muat();
+    perekamLatar.mulai("line", []);
+    await tunggu();
+    // 17 m/detik melebihi gerbang 12 m/detik + derau 4 m: dulu hanya titik pertama yang tersimpan
+    for (let i = 0; i <= 12; i++) {
+      gps.sukses!(posisi(3.8928 + derajat(17 * i), 115.7312, 2));
+      vi.advanceTimersByTime(1000);
+    }
+    const titik = perekamLatar.getState().titik;
+    expect(titik.length).toBeGreaterThanOrEqual(10);
+    expect(titik[titik.length - 1].lat).toBeCloseTo(3.8928 + derajat(17 * 12), 6);
+  });
+});

@@ -223,6 +223,70 @@ export function akunSemai(data: {
   };
 }
 
+/** Keluar dari peta layar penuh (di HP bilah navigasi aplikasi disembunyikan saat tab peta terbuka) */
+export async function keluarDariPeta(p: Page): Promise<void> {
+  const kembali = p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" });
+  if (await kembali.isVisible().catch(() => false)) {
+    await kembali.click();
+    await p.waitForTimeout(300);
+  }
+}
+
+/**
+ * Ketuk tab navigasi utama seperti pengguna. Aplikasi membuka peta (layar penuh) setelah masuk;
+ * bila tab yang dituju tidak terlihat, keluar dulu lewat tombol kembali di bilah judul peta.
+ */
+export async function klikNav(p: Page, label: string): Promise<void> {
+  const item = p.locator(".avenza-nav-item", { hasText: label }).first();
+  // Setelah membuka kunci, aplikasi beralih ke peta: tunggu sampai peta atau tab tujuan tampil
+  await sampai(
+    async () =>
+      (await p
+        .locator(".avz-titlebar")
+        .isVisible()
+        .catch(() => false)) || (await item.isVisible().catch(() => false)),
+    8000
+  );
+  const diPeta = await p
+    .locator(".avz-titlebar")
+    .isVisible()
+    .catch(() => false);
+  if (diPeta && /^(Peta|Temukan)$/.test(label)) return;
+  if (!(await item.isVisible().catch(() => false))) await keluarDariPeta(p);
+  await item.click();
+}
+
+/** Buka sub-menu Admin (Monitor, Kader, Data, Tugas, Sertifikat, Akun) */
+export async function bukaSubAdmin(p: Page, label: string): Promise<void> {
+  const tombol = p.locator(".admin-subnav-btn", { hasText: label });
+  if (!(await tombol.isVisible().catch(() => false))) await klikNav(p, "Admin");
+  await tombol.click();
+}
+
+/** Mode admin terbuka: navigasi berisi tab Admin dan aplikasi tidak terkunci */
+export const modeAdminTerbuka = async (p: Page) =>
+  (await p.locator(".avenza-nav-item", { hasText: "Admin" }).count()) > 0 && !(await terkunci(p));
+
+/** Jatuhkan pin di bidikan tengah, beri nama lewat detail kartu, lalu Simpan (alur kader di peta) */
+export async function jatuhkanPinBernama(p: Page, nama: string): Promise<void> {
+  await p.locator(".avz-fab-pin").click();
+  await namaiDanSimpanKartu(p, nama);
+}
+
+/** Kartu draf yang sedang terbuka (pin, jalur, atau area): beri nama lewat detail kartu lalu Simpan */
+export async function namaiDanSimpanKartu(p: Page, nama: string): Promise<void> {
+  await p.locator(".avz-peek-card .avz-peek-title").click();
+  await p.getByRole("button", { name: /^Edit nama/ }).click();
+  await p.getByLabel("Edit nama").fill(nama);
+  await p.locator(".avz-inline-edit-row").getByRole("button", { name: "Selesai" }).click();
+  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).first().click();
+}
+
+/** Isian nama dan tombol simpan pada formulir lengkap (halaman "Pin dijatuhkan" / "Jalur direkam") */
+export const isianNamaForm = (p: Page) => p.locator("#form-survei-lapangan").getByPlaceholder(/^(Tanda tempat|Trek|Area) \d+$/);
+export const tombolSimpanForm = (p: Page) =>
+  p.locator('button[type="submit"][form="form-survei-lapangan"], #form-survei-lapangan button[type="submit"]').first();
+
 /** Menu titik tiga lalu pilih item */
 export async function pilihMenu(p: Page, teks: string | RegExp): Promise<void> {
   // Tab peta tampil layar penuh tanpa bilah atas aplikasi: keluar dulu lewat tombol kembali

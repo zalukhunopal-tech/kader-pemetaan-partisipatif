@@ -2,6 +2,7 @@ import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { RefreshCw } from "lucide-react";
+import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-motion";
 import {
   AreaPetaOffline,
   DataSpasialItem,
@@ -123,6 +124,36 @@ import { sinkronkanLapisanDenganItem } from "./lib/tematik";
 import { sinkronkanLapisanDariTugas } from "./lib/skemaTugas";
 import { PullToRefresh } from "./components/common/PullToRefresh";
 
+const KURVA_TRANSISI_MASUK: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const KURVA_TRANSISI_KELUAR: [number, number, number, number] = [0.4, 0, 1, 1];
+
+/** Varian transisi antar tab yang halus, responsif, dan mengikuti arah perpindahan tab */
+const VARIAN_TRANSISI_TAB: Variants = {
+  masuk: (arah: number) => ({
+    opacity: 0,
+    x: arah === 0 ? 0 : arah > 0 ? 28 : -28,
+    y: arah === 0 ? 8 : 0
+  }),
+  aktif: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: {
+      duration: 0.24,
+      ease: KURVA_TRANSISI_MASUK
+    }
+  },
+  keluar: (arah: number) => ({
+    opacity: 0,
+    x: arah === 0 ? 0 : arah > 0 ? -18 : 18,
+    y: arah === 0 ? -6 : 0,
+    transition: {
+      duration: 0.12,
+      ease: KURVA_TRANSISI_KELUAR
+    }
+  })
+};
+
 export const App: React.FC = () => {
   const [tampilSplashTaka, setTampilSplashTaka] = useState<boolean>(() => !sudahTampilSplashTakaSesiIni());
   // Sesi Pengguna Login
@@ -157,7 +188,15 @@ export const App: React.FC = () => {
         ? "siapkan"
         : null;
   const [bukaKeamanan, setBukaKeamanan] = useState<boolean>(false);
-  const [tabAktif, setTabAktif] = useState<MenuTab>(() => {
+  // Urutan tab untuk menentukan arah geser transisi yang natural sesuai posisi tombol navigasi
+  const urutanTab: MenuTab[] = useMemo(
+    () => (peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"]),
+    [peran]
+  );
+  const urutanTabRef = useRef<MenuTab[]>(urutanTab);
+  urutanTabRef.current = urutanTab;
+
+  const [statusTab, setStatusTab] = useState<{ tab: MenuTab; arah: -1 | 0 | 1 }>(() => {
     const bawaan: MenuTab = "peta";
     // Pintasan aplikasi terpasang (mis. tekan lama ikon > "Peta") membuka ?tab=...
     try {
@@ -165,13 +204,29 @@ export const App: React.FC = () => {
       const boleh: MenuTab[] = ["pustaka", "peta", "data_sync", "reward", "tugas", "komunikasi"];
       if (diminta && boleh.includes(diminta as MenuTab)) {
         window.history.replaceState(null, "", window.location.pathname);
-        return diminta as MenuTab;
+        return { tab: diminta as MenuTab, arah: 0 };
       }
     } catch {
       // abaikan
     }
-    return bawaan;
+    return { tab: bawaan, arah: 0 };
   });
+  const tabAktif = statusTab.tab;
+  const arahTransisiTab = statusTab.arah;
+  const setTabAktif = useCallback((next: MenuTab | ((prev: MenuTab) => MenuTab), arahEksplisit?: -1 | 0 | 1) => {
+    setStatusTab((prev) => {
+      const tujuan = typeof next === "function" ? next(prev.tab) : next;
+      if (tujuan === prev.tab) return prev;
+      if (arahEksplisit !== undefined) {
+        return { tab: tujuan, arah: arahEksplisit };
+      }
+      const daftar = urutanTabRef.current;
+      const idxLama = daftar.indexOf(prev.tab);
+      const idxBaru = daftar.indexOf(tujuan);
+      const arah: -1 | 0 | 1 = idxLama !== -1 && idxBaru !== -1 ? (idxBaru > idxLama ? 1 : -1) : 0;
+      return { tab: tujuan, arah };
+    });
+  }, []);
   // Status jaringan nyata dari browser; tombol "Online/Offline" hanya menambah mode offline manual
   const [jaringanTersedia, setJaringanTersedia] = useState<boolean>(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [modeOfflineManual, setModeOfflineManual] = useState<boolean>(false);
@@ -529,26 +584,18 @@ export const App: React.FC = () => {
   };
 
   // Geser kiri/kanan di area konten untuk berpindah tab (hanya aktif ketika geser benar-benar lurus)
-  const urutanTab: MenuTab[] = useMemo(
-    () => (peran === "admin" ? ["admin", "peta", "data_sync", "komunikasi"] : ["pustaka", "peta", "data_sync", "reward", "komunikasi"]),
-    [peran]
-  );
   const awalGeserRef = useRef<Sentuhan | null>(null);
-  const prevTabRef = useRef<MenuTab>(tabAktif);
-  const [animasiGeser, setAnimasiGeser] = useState<"kiri" | "kanan" | "halus" | null>(null);
 
+  // Kembalikan posisi gulir ke atas secara bersih setiap berpindah ke tab non-peta
   useEffect(() => {
-    const lama = prevTabRef.current;
-    if (lama === tabAktif) return;
-    prevTabRef.current = tabAktif;
-    const idxLama = urutanTab.indexOf(lama);
-    const idxBaru = urutanTab.indexOf(tabAktif);
-    if (idxLama !== -1 && idxBaru !== -1) {
-      setAnimasiGeser(idxBaru > idxLama ? "kiri" : "kanan");
-    } else {
-      setAnimasiGeser("halus");
+    if (tabAktif === "peta") return;
+    try {
+      window.scrollTo?.({ top: 0 });
+      document.querySelector(".app-shell")?.scrollTo?.({ top: 0 });
+    } catch {
+      // Abaikan di lingkungan uji tanpa scrollTo
     }
-  }, [tabAktif, urutanTab]);
+  }, [tabAktif]);
 
   const handleGeserMulai = (e: React.TouchEvent) => {
     const t = e.touches[0];
@@ -582,10 +629,8 @@ export const App: React.FC = () => {
     const arah = arahGeser(awal, { x: t.clientX, y: t.clientY, t: Date.now(), maksSimpanganY: awal.maksSimpanganY });
     const tujuan = tabTujuan(urutanTab, tabAktif, arah);
     if (tujuan === tabAktif) return;
-    setAnimasiGeser(arah === 1 ? "kiri" : "kanan");
-    setTabAktif(tujuan);
+    setTabAktif(tujuan, arah === 1 ? 1 : -1);
   };
-
   // Segarkan tampilan aktif di dalam aplikasi (tanpa reload browser, tanpa mengunci, tanpa pindah layar)
   const segarkanLayarSaatIni = useCallback(() => {
     catatAktivitasAplikasi();
@@ -612,11 +657,6 @@ export const App: React.FC = () => {
     aktif: Boolean(sesiPengguna) && layarKunci === null && tabAktif !== "peta",
     onSegarkan: segarkanLayarSaatIni
   });
-  useEffect(() => {
-    if (!animasiGeser) return;
-    const t = window.setTimeout(() => setAnimasiGeser(null), 280);
-    return () => window.clearTimeout(t);
-  }, [animasiGeser, tabAktif]);
 
   /** Lapis 2: setiap aksi admin diperiksa ulang; bila tidak sah, mode admin dikunci dan aksi dibatalkan */
   const wajibAdmin =
@@ -1325,6 +1365,7 @@ export const App: React.FC = () => {
   };
 
   return denganKunci(
+    <MotionConfig reducedMotion="user">
     <div
       className={`app-shell ${tabAktif === "peta" ? "peta-layar-penuh" : ""}`}
       onClick={() => {
@@ -1393,7 +1434,7 @@ export const App: React.FC = () => {
 
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
-        className={`app-main ${animasiGeser ? `geser-${animasiGeser}` : ""}`}
+        className="app-main"
         onTouchStart={(e) => {
           handleGeserMulai(e);
           tarikSegarkan.onTouchStart(e);
@@ -1430,20 +1471,43 @@ export const App: React.FC = () => {
             </span>
           </div>
         )}
-        {/* Saat layar kunci aplikasi tampil, gerbang admin tidak ikut dirender: satu PIN membuka keduanya */}
-        {modeAdminTerkunci && sesiPengguna && !layarKunci && (
-          <GerbangAdminView
-            sesi={sesiPengguna}
-            onTerbuka={(pesan) => {
-              tampilkanToast(`🛡️ ${pesan}`);
-              setTabAktif("admin");
-            }}
-            onModeUser={() => gantiPeranAkun("kader")}
-          />
-        )}
-        {!modeAdminTerkunci && (
-          tabAktif === "peta" ? (
-            <InteractiveMap
+        <AnimatePresence mode="wait" initial={false} custom={arahTransisiTab}>
+          {/* Saat layar kunci aplikasi tampil, gerbang admin tidak ikut dirender: satu PIN membuka keduanya */}
+          {modeAdminTerkunci && sesiPengguna && !layarKunci ? (
+            <motion.div
+              key="gerbang-admin"
+              className="tab-transition-stage"
+              data-tab-aktif="gerbang-admin"
+              data-arah-transisi="halus"
+              custom={0}
+              variants={VARIAN_TRANSISI_TAB}
+              initial="masuk"
+              animate="aktif"
+              exit="keluar"
+            >
+              <GerbangAdminView
+                sesi={sesiPengguna}
+                onTerbuka={(pesan) => {
+                  tampilkanToast(`🛡️ ${pesan}`);
+                  setTabAktif("admin", 0);
+                }}
+                onModeUser={() => gantiPeranAkun("kader")}
+              />
+            </motion.div>
+          ) : !modeAdminTerkunci ? (
+            <motion.div
+              key={tabAktif}
+              className={`tab-transition-stage ${tabAktif === "peta" ? "tab-stage-peta" : ""}`}
+              data-tab-aktif={tabAktif}
+              data-arah-transisi={arahTransisiTab > 0 ? "kanan" : arahTransisiTab < 0 ? "kiri" : "halus"}
+              custom={arahTransisiTab}
+              variants={VARIAN_TRANSISI_TAB}
+              initial="masuk"
+              animate="aktif"
+              exit="keluar"
+            >
+              {tabAktif === "peta" ? (
+                <InteractiveMap
               dataSpasial={dataSpasial}
               lapisanList={lapisanListUntukUser}
               lapisanAktifId={lapisanAktifId}
@@ -1650,8 +1714,11 @@ export const App: React.FC = () => {
                 onFokusKePeta={handleFokusKePeta}
               />
             )}
-          </PullToRefresh>
-        ))}
+              </PullToRefresh>
+            )}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </main>
 
       {bukaKeamanan && sesiPengguna && (
@@ -1691,6 +1758,7 @@ export const App: React.FC = () => {
         adaPesanBaru={adaPesanBaru}
       />
     </div>
+    </MotionConfig>
   );
 };
 

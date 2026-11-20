@@ -169,8 +169,11 @@
           }
           if ("serviceWorker" in navigator) {
             var sedangReloadSw = false;
+            // Kunjungan pertama belum punya pengendali: SW pertama yang mengambil alih bukan pembaruan,
+            // jadi halaman tidak perlu (dan tidak boleh) dimuat ulang di tengah pengisian form masuk
+            var adaPengendaliAwalSw = !!navigator.serviceWorker.controller;
             navigator.serviceWorker.addEventListener("controllerchange", function () {
-              if (sedangReloadSw) return;
+              if (sedangReloadSw || !adaPengendaliAwalSw) return;
               sedangReloadSw = true;
               window.location.reload();
             });

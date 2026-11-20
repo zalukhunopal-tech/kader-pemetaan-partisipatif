@@ -1,6 +1,21 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { JPEG, RUTE_TILE_PUBLIK, halamanBaru, kodeBerikutnya, majukanJam, masukSebagaiAdmin, posisiPeta, sampai, terkunci } from "./bantu";
+import {
+  JPEG,
+  RUTE_TILE_PUBLIK,
+  bukaSubAdmin,
+  halamanBaru,
+  isianNamaForm,
+  jatuhkanPinBernama,
+  keluarDariPeta,
+  klikNav,
+  masukSebagaiAdmin,
+  namaiDanSimpanKartu,
+  pilihMenu,
+  posisiPeta,
+  sampai,
+  tombolSimpanForm
+} from "./bantu";
 
 test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna, basemap memanjang, menu alat, ekspor GeoJSON KML SHP biner, dan obrolan suara", async ({
   browser
@@ -22,7 +37,7 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
   const rahasia = await masukSebagaiAdmin(p);
 
   await test.step("1. Peta: posisi tab Lokasi/Pelacakan/Navigasi rapat atas, pewarnaan Pelacakan tanpa tombol ekstra, & basemap memanjang penuh", async () => {
-    await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+    await klikNav(p, "Peta");
     await p.waitForSelector(".map-canvas-container");
 
     // Buka drawer Lokasi · Pelacakan · Navigasi
@@ -107,9 +122,12 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.getByRole("button", { name: "Alat peta" }).click();
     await p.locator(".avz-tool-popup-item", { hasText: "Rata-rata Plot GPS" }).click();
     await expect(p.locator(".visual-category-grid")).toHaveCount(0);
-    await p.locator('input[placeholder="Masukkan nama objek"]').fill("Pohon Meranti Simulasi");
-    await p.locator('#form-survei-lapangan button[type="submit"]').click();
+    await isianNamaForm(p).fill("Pohon Meranti Simulasi");
+    // Rata-rata GPS berjalan 5–15 detik; tombol simpan aktif lagi setelah selesai
+    await expect(tombolSimpanForm(p)).toBeEnabled({ timeout: 25_000 });
+    await tombolSimpanForm(p).click();
     await expect(p.locator("form.field-survey-form")).toHaveCount(0);
+    await p.keyboard.press("Escape"); // tutup kartu objek yang baru disimpan
 
     // Menu Alat -> Tandai Foto membuka detail form dengan sorotan unggah foto
     await p.getByRole("button", { name: "Alat peta" }).click();
@@ -137,113 +155,65 @@ test("simulasi pemakaian manusia advanced: drawer pelacakan bersih dan berwarna,
     await p.locator('button[aria-label="Kembali"]').first().click();
   });
 
-  await test.step("3. Pustaka & Pengaturan Ekspor: Verifikasi nyata GeoJSON, KML, SHP biner ESRI, dan Paket SHP ZIP", async () => {
-    await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-    await p.locator(".avenza-nav-item", { hasText: "Pustaka" }).click();
+  await test.step("3. Pustaka dan Ekspor: GeoJSON, KML, dan SHP (.zip) standar WebGIS berisi data nyata", async () => {
+    await klikNav(p, "Mode User");
+    await klikNav(p, "Pustaka");
+    // Lapisan kini dibuat Admin lewat Tugas (bukan oleh kader di Pustaka): tab Lapisan hanya menampilkan daftar
     await p.locator('[role="tab"]', { hasText: "Lapisan" }).click();
+    await expect(p.locator(".avenza-lapisan-content")).toBeVisible();
+    await expect(p.locator(".avenza-lapisan-content button.avenza-fab-orange")).toHaveCount(0);
 
-    await p.locator("button.avenza-fab-orange").click();
-    await p.locator('input[placeholder="Masukkan nama lapisan"]').fill("Lapisan Survei Simulasi");
-    await p.locator("button", { hasText: /^Buat Lapisan$/ }).click();
-    await expect(p.locator(".avenza-pustaka-container")).toContainText("Lapisan Survei Simulasi");
-
-    // Buka menu overflow -> cek kotak chip Online & User berukuran seragam -> aktifkan mode Pilih & Pengaturan Ekspor
-    await p.locator('button.avenza-toolbar-toggle-btn[title="Buka Toolbar"]').click();
-    const chipConn = p.locator(".toolbar-popover-chips .avenza-conn-chip");
-    const chipRole = p.locator(".toolbar-popover-chips .avenza-role-chip");
-    const boxConn = await chipConn.boundingBox();
-    const boxRole = await chipRole.boundingBox();
-    expect(boxConn).not.toBeNull();
-    expect(boxRole).not.toBeNull();
-    expect(Math.abs(boxConn!.height - boxRole!.height)).toBeLessThanOrEqual(2);
-    expect(Math.abs(boxConn!.width - boxRole!.width)).toBeLessThanOrEqual(4);
-    await p.locator(".avenza-overflow-item", { hasText: "Pilih" }).click();
-    await expect(p.locator(".avenza-selection-banner")).toBeVisible();
-    await p.locator('input[type="checkbox"]').first().check();
-    await p.locator(".avenza-selection-banner button", { hasText: "Pengaturan Ekspor" }).click();
-
-    await expect(p.locator(".avenza-subpage-header")).toContainText(/Pengaturan ekspor/i);
-    await p.locator("select").first().selectOption("Lapisan dan peta");
-
-    // Pastikan chip format menyediakan GeoJSON, KML, GPX, CSV, dan SHP
+    // Menu titik tiga -> Ekspor: tiga pilihan format sederhana standar WebGIS Kecamatan
+    await pilihMenu(p, "Ekspor");
+    await expect(p.locator(".avenza-subpage-header")).toContainText(/Ekspor Data/i);
     const grupFormat = p.getByRole("group", { name: "Pilih format ekspor" });
-    await expect(grupFormat.locator("button")).toHaveCount(5);
-    await expect(grupFormat.getByRole("button", { name: "GeoJSON (.geojson)" })).toBeVisible();
-    await expect(grupFormat.getByRole("button", { name: "KML (.kml)" })).toBeVisible();
-    await expect(grupFormat.getByRole("button", { name: "GPX (.gpx)" })).toBeVisible();
-    await expect(grupFormat.getByRole("button", { name: "CSV (.csv)" })).toBeVisible();
-    await expect(grupFormat.getByRole("button", { name: "Shapefile (.shp)" })).toBeVisible();
+    await expect(grupFormat.locator("button")).toHaveCount(3);
+    for (const label of ["KML", "GeoJSON", "SHP (.zip)"])
+      await expect(grupFormat.getByRole("button", { name: label, exact: true })).toBeVisible();
 
-    // Toggle switch Foto ditautkan
-    const switchFoto = p.getByRole("switch", { name: /Foto ditautkan/ });
-    await expect(switchFoto).toHaveAttribute("aria-checked", "true");
-    await switchFoto.click();
-    await expect(switchFoto).toHaveAttribute("aria-checked", "false");
-
-    // 3a. Ekspor GeoJSON -> cek dialog Bagikan Data Ekspor muncul dengan multi-platform, lalu tutup
-    await grupFormat.getByRole("button", { name: "GeoJSON (.geojson)" }).click();
-    const tungguGeoJson = p.waitForEvent("download");
-    await p.locator('button[title="Ekspor sekarang"]').click();
-    const unduhanGeoJson = await tungguGeoJson;
-    expect(unduhanGeoJson.suggestedFilename()).toMatch(/\.geojson$/);
-    const isiGeoJson = JSON.parse(readFileSync((await unduhanGeoJson.path())!, "utf8")) as {
-      type: string;
-      features: Array<{ properties?: Record<string, unknown> }>;
+    const ekspor = async (label: string) => {
+      await grupFormat.getByRole("button", { name: label, exact: true }).click();
+      const tunggu = p.waitForEvent("download");
+      await p.locator('button[title="Ekspor sekarang"]').click();
+      const unduhan = await tunggu;
+      const dialogBagikan = p.getByRole("dialog", { name: "Bagikan Data Ekspor" });
+      await expect(dialogBagikan).toBeVisible();
+      await expect(dialogBagikan.getByRole("button", { name: "WhatsApp", exact: true })).toBeVisible();
+      await p.getByRole("button", { name: "Tutup bagikan" }).click();
+      return { nama: unduhan.suggestedFilename(), isi: readFileSync((await unduhan.path())!) };
     };
-    expect(isiGeoJson.type).toBe("FeatureCollection");
-    expect(
-      isiGeoJson.features.some(
-        (f) => f.properties?.judul === "Pohon Meranti Simulasi" || f.properties?.label === "Pohon Meranti Simulasi"
-      )
-    ).toBe(true);
-    const dialogBagikan = p.getByRole("dialog", { name: "Bagikan Data Ekspor" });
-    await expect(dialogBagikan).toBeVisible();
-    await expect(dialogBagikan.getByRole("button", { name: "WhatsApp", exact: true })).toBeVisible();
-    await expect(dialogBagikan.getByRole("button", { name: "Drive", exact: true })).toBeVisible();
-    await expect(dialogBagikan.getByRole("button", { name: "OneDrive", exact: true })).toBeVisible();
-    await p.getByRole("button", { name: "Tutup bagikan" }).click();
 
-    // 3b. Ekspor KML dan verifikasi struktur XML Placemark
-    await grupFormat.getByRole("button", { name: "KML (.kml)" }).click();
-    const tungguKml = p.waitForEvent("download");
-    await p.locator('button[title="Ekspor sekarang"]').click();
-    const unduhanKml = await tungguKml;
-    expect(unduhanKml.suggestedFilename()).toMatch(/\.kml$/);
-    const isiKml = readFileSync((await unduhanKml.path())!, "utf8");
+    // 3a. GeoJSON memakai kolom standar WebGIS (label, kategori, keterangan, url, simbol)
+    const gj = await ekspor("GeoJSON");
+    expect(gj.nama).toMatch(/\.geojson$/);
+    const isiGeoJson = JSON.parse(gj.isi.toString("utf8")) as { type: string; features: Array<{ properties?: Record<string, unknown> }> };
+    expect(isiGeoJson.type).toBe("FeatureCollection");
+    const meranti = isiGeoJson.features.find((f) => f.properties?.label === "Pohon Meranti Simulasi");
+    expect(meranti).toBeDefined();
+    expect(Object.keys(meranti!.properties!)).toEqual(["label", "kategori", "keterangan", "url", "simbol"]);
+
+    // 3b. KML dengan Placemark dan ExtendedData
+    const kml = await ekspor("KML");
+    expect(kml.nama).toMatch(/\.kml$/);
+    const isiKml = kml.isi.toString("utf8");
     expect(isiKml).toContain("<kml");
     expect(isiKml).toContain("Pohon Meranti Simulasi");
-    await p.getByRole("button", { name: "Tutup bagikan" }).click();
+    expect(isiKml).toContain('<Data name="label">');
 
-    // 3c. Ekspor SHP (.shp) dan verifikasi biner header ESRI 9994 + panjang + versi + shapeType
-    await grupFormat.getByRole("button", { name: "Shapefile (.shp)" }).click();
-    const tungguShp = p.waitForEvent("download");
-    await p.locator('button[title="Ekspor sekarang"]').click();
-    const unduhanShp = await tungguShp;
-    expect(unduhanShp.suggestedFilename()).toMatch(/\.shp$/);
-    const bufShp = readFileSync((await unduhanShp.path())!);
-    const dvShp = new DataView(bufShp.buffer, bufShp.byteOffset, bufShp.byteLength);
-    expect(dvShp.getInt32(0, false)).toBe(9994);
-    expect(dvShp.getInt32(24, false) * 2).toBe(bufShp.byteLength);
-    expect(dvShp.getInt32(28, true)).toBe(1000);
-    expect([1, 3, 5]).toContain(dvShp.getInt32(32, true));
-    await p.getByRole("button", { name: "Tutup bagikan" }).click();
-
-    // 3d. Ekspor Paket Lengkap SHP (.zip: .shp, .shx, .dbf, .prj)
-    const tungguZip = p.waitForEvent("download");
-    await p.getByRole("button", { name: /Unduh Paket Lengkap SHP/ }).click();
-    const unduhanZip = await tungguZip;
-    expect(unduhanZip.suggestedFilename()).toMatch(/_shp\.zip$/);
-    const bufZip = readFileSync((await unduhanZip.path())!);
-    const dvZip = new DataView(bufZip.buffer, bufZip.byteOffset, bufZip.byteLength);
+    // 3c. Paket SHP (.zip): signature ZIP dan berkas .shp, .shx, .dbf, .prj
+    const zip = await ekspor("SHP (.zip)");
+    expect(zip.nama).toMatch(/_shp\.zip$/);
+    const dvZip = new DataView(zip.isi.buffer, zip.isi.byteOffset, zip.isi.byteLength);
     expect(dvZip.getUint32(0, true)).toBe(0x04034b50);
-    expect(dvZip.getUint32(bufZip.byteLength - 22, true)).toBe(0x06054b50);
-    await p.getByRole("button", { name: "Tutup bagikan" }).click();
+    expect(dvZip.getUint32(zip.isi.byteLength - 22, true)).toBe(0x06054b50);
+    const teksZip = zip.isi.toString("latin1");
+    for (const ext of [".shp", ".shx", ".dbf", ".prj"]) expect(teksZip).toContain(ext);
 
     await p.locator(".avenza-back-btn").click();
   });
 
   await test.step("4. Komunikasi: Rekam Pesan Suara, Putar Audio, Kirim Pin GPS, dan Buka di Peta", async () => {
-    await p.locator(".avenza-nav-item", { hasText: "Diskusi" }).click();
+    await klikNav(p, "Diskusi");
 
     await p.locator('button[aria-label="Rekam Pesan Suara"]').click();
     await expect(p.locator('[role="region"][aria-label="Rekaman Pesan Suara"]')).toBeVisible();
@@ -284,7 +254,7 @@ test("simulasi PC desktop: basemap memanjang konsisten dan drawer pelacakan bers
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   const rahasia = await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForSelector(".map-canvas-container");
 
   // Basemap memanjang penuh di PC juga
@@ -312,23 +282,13 @@ test("simulasi PC desktop: basemap memanjang konsisten dan drawer pelacakan bers
   await tutup();
 });
 
-test("posisi pojok kiri bawah skala/atribusi dan auto-cache 1x1 km zoom tinggi 2 slot bergulir", async ({ browser }) => {
-  const { p, galat, tutup } = await halamanBaru(
-    browser,
-    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }
-  );
-  let gagalJaringan = false;
-  await p.context().route(/server\.arcgisonline\.com|ibasemaps-api\.arcgis\.com/, (r) =>
-    r.fulfill({ status: 404, body: "" })
-  );
-  await p.context().route(RUTE_TILE_PUBLIK, (r) =>
-    gagalJaringan
-      ? r.fulfill({ status: 503, body: "offline-nyasar" })
-      : r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG })
-  );
+test("posisi pojok kiri bawah skala/atribusi tepat di atas bilah bawah", async ({ browser }) => {
+  const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await p.context().route(/server\.arcgisonline\.com|ibasemaps-api\.arcgis\.com/, (r) => r.fulfill({ status: 404, body: "" }));
+  await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
-  const rahasia = await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await masukSebagaiAdmin(p);
+  await klikNav(p, "Peta");
   await p.waitForSelector(".map-canvas-container");
 
   // 1. Verifikasi skala & atribusi mepet sudut kiri bawah tepat di atas bilah bawah
@@ -341,89 +301,8 @@ test("posisi pojok kiri bawah skala/atribusi dan auto-cache 1x1 km zoom tinggi 2
   expect(bilahBox!.y - (atrBox!.y + atrBox!.height)).toBeLessThanOrEqual(10);
   expect(bilahBox!.y - (atrBox!.y + atrBox!.height)).toBeGreaterThanOrEqual(-0.5);
 
-  // 2. Pilih OSM agar rute RUTE_TILE_PUBLIK melayani tile 200 OK
-  await p.locator('button[aria-label="Pilih peta dasar"]').click();
-  await p.locator(".map-basemap-Option", { hasText: "OSM" }).click();
-
-  // Tunggu auto-cache 1x1 km pertama selesai mengisi Cache API & localStorage slot 1
-  expect(
-    await sampai(async () => {
-      return p.evaluate(() => {
-        const raw = localStorage.getItem("geokader_auto_cache_peta_v1");
-        const arr = raw ? JSON.parse(raw) : [];
-        return Array.isArray(arr) && arr.length === 1 && arr[0].basemap === "osm";
-      });
-    }, 15_000)
-  ).toBe(true);
-
-  const infoSlot1 = await p.evaluate(async () => {
-    const slots = JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]");
-    const keys = await (await caches.open("geokader-tiles-v1")).keys();
-    return { slots, jumlahKeys: keys.length };
-  });
-  expect(infoSlot1.slots[0].zoomMax).toBe(19);
-  expect(infoSlot1.jumlahKeys).toBeGreaterThanOrEqual(infoSlot1.slots[0].urls.length);
-
-  // 3. Pindah lokasi > 1 km via fitur Cari di Peta -> tunggu terbentuk cadangan 2 slot
-  await p.getByRole("button", { name: "Cari di Peta" }).click();
-  await p.getByPlaceholder("Telusuri...").fill("-6.2450, 106.8650");
-  await p.getByPlaceholder("Telusuri...").press("Enter");
-
-  expect(
-    await sampai(async () => {
-      return p.evaluate(() => {
-        const arr = JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]");
-        return Array.isArray(arr) && arr.length === 2;
-      });
-    }, 15_000)
-  ).toBe(true);
-
-  // 4. Jaringan nyasar (503) saat pindah ke lokasi ke-3: 2 slot sebelumnya TIDAK boleh terhapus
-  gagalJaringan = true;
-  await p.getByRole("button", { name: "Cari di Peta" }).click();
-  await p.getByPlaceholder("Telusuri...").fill("-6.2900, 106.9100");
-  await p.getByPlaceholder("Telusuri...").press("Enter");
-  await p.waitForTimeout(2500);
-
-  const setelahNyasar = await p.evaluate(() => JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]"));
-  expect(setelahNyasar).toHaveLength(2);
-  expect(Math.abs(setelahNyasar[0].pusatLat - -6.245)).toBeLessThan(0.01);
-
-  // 5. Majukan waktu > 30 hari (buka kunci TOTP bila sesi 8 jam habis) & simulasikan jaringan menyambung -> otomatis perbarui ke lokasi aktif dan tetap jaga maks 2 slot
-  const waktuSebelum = setelahNyasar[0].dibuatPada as number;
-  gagalJaringan = false;
-  await majukanJam(p, 31 * 86400);
-  await p.evaluate(() => window.dispatchEvent(new Event("offline")));
-  await p.waitForTimeout(1200);
-  if (await terkunci(p)) {
-    await p.locator(".layar-kunci").getByPlaceholder("123 456").fill(await kodeBerikutnya(p, rahasia));
-    await p.locator(".layar-kunci").getByRole("button", { name: "Verifikasi" }).click();
-    expect(await sampai(async () => !(await terkunci(p)))).toBe(true);
-  }
-  await p.evaluate(() => window.dispatchEvent(new Event("online")));
-  if ((await p.locator(".map-canvas-container").count()) === 0) {
-    await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
-    await p.waitForSelector(".map-canvas-container");
-  }
-  const basemapNow = await p.locator("#atribusi-peta").innerText();
-  if (!/OpenStreetMap/.test(basemapNow)) {
-    await p.locator('button[aria-label="Pilih peta dasar"]').click();
-    await p.locator(".map-basemap-Option", { hasText: "OSM" }).click();
-  }
-
-  expect(
-    await sampai(async () => {
-      return p.evaluate((lama) => {
-        const arr = JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]");
-        return Array.isArray(arr) && arr.length === 2 && arr[0]?.dibuatPada > lama;
-      }, waktuSebelum);
-    }, 15_000)
-  ).toBe(true);
-
-  const hasilAkhir = await p.evaluate(() => JSON.parse(localStorage.getItem("geokader_auto_cache_peta_v1") || "[]"));
-  expect(hasilAkhir).toHaveLength(2);
-  expect(Math.abs(hasilAkhir[0].pusatLat - -6.29)).toBeLessThan(0.01);
-  expect(Math.abs(hasilAkhir[1].pusatLat - -6.245)).toBeLessThan(0.01);
+  // Unduhan peta otomatis kini 10 x 10 km dengan jeda 3 menit dan maks. 3 kotak (cachePetaOtomatis);
+  // aturannya diuji di src/lib/cachePetaOtomatis.test.ts, bukan lewat uji browser yang menunggu 3 menit.
 
   expect(galat).toEqual([]);
   await tutup();
@@ -471,7 +350,7 @@ test("swipe ke atas buka drawer, kompas klik 3x pertahankan simbol, pelacakan ti
     );
   });
 
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForSelector(".map-canvas-container");
 
   // 1. Uji menu kompas (.avz-nav-arrow-btn & .avz-kompas) diklik 3x: simbol harus selalu tampak dan kontras
@@ -599,13 +478,16 @@ test("swipe ke atas buka drawer, kompas klik 3x pertahankan simbol, pelacakan ti
   expect(hentiBox.y + hentiBox.height).toBeLessThanOrEqual(drawerAktifBox.y + drawerAktifBox.height + 0.5);
 
   await btnHentikan.click();
-  await p.locator(".avz-gps-drawer").waitFor({ state: "hidden" }).catch(() => undefined);
+  await p
+    .locator(".avz-gps-drawer")
+    .waitFor({ state: "hidden" })
+    .catch(() => undefined);
 
   // 4. Buka Lapisan Peta: pastikan fitur Lembar peta sudah dihilangkan dari menu ini
   await p.getByRole("button", { name: "Lapisan peta" }).click();
   const halamanLapisan = p.locator(".avz-halaman");
   await expect(halamanLapisan.getByRole("heading", { name: "Lapisan Peta" })).toBeVisible();
-  await expect(halamanLapisan.getByText("Data lapangan")).toBeVisible();
+  await expect(halamanLapisan.getByText(/Lapisan 1/).first()).toBeVisible();
   await expect(halamanLapisan.getByText("Lembar peta")).toHaveCount(0);
   await expect(halamanLapisan.getByText("Peta Uji Offline GeoPDF")).toHaveCount(0);
   await halamanLapisan.getByRole("button", { name: "Kembali" }).click();
@@ -631,7 +513,7 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForSelector(".map-canvas-container");
 
   // 1. Uji hitung kecepatan sesaat (Lokasi tab): bergerak 8.9 m dalam 1.2 detik -> kecepatan > 5 Km/j, lalu berhenti -> kembali 0,00
@@ -682,18 +564,14 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
   await expect(p.locator(".avz-status-rekam")).toBeVisible();
 
   // 3. Jatuhkan pin & simpan 1 titik di tengah pelacakan aktif -> pelacakan latar BELUM terhapus!
-  await p.locator(".avz-fab-pin").click();
-  await p.locator(".form-kategori-grid button").first().click();
-  await p.locator('#form-survei-lapangan input[required]').fill("Patok Tengah Jalur");
-  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await jatuhkanPinBernama(p, "Patok Tengah Jalur");
   await expect(p.locator(".avz-status-rekam")).toBeVisible();
 
   // Sekarang hentikan & simpan jalur yang terekam lewat panel Pelacakan
   await p.locator(".avz-status-rekam .avz-status-rekam-info").click();
   await p.locator(".avz-gps-btn-hentikan").click();
-  await p.locator(".form-kategori-grid button").first().click();
-  await p.locator('#form-survei-lapangan input[required]').fill("Jalur Patroli Terukur");
-  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await namaiDanSimpanKartu(p, "Jalur Patroli Terukur");
+  await p.keyboard.press("Escape"); // tutup kartu jalur yang baru disimpan
   await expect(p.locator(".avz-status-rekam")).toBeHidden();
 
   // 4. Uji Gambar dan Ukur poligon (tambah sudut + urungkan + simpan poligon)
@@ -708,19 +586,21 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
     await p.mouse.move(cx + dx, cy + dy, { steps: 6 });
     await p.mouse.up();
   };
+  // Toolbar ukur: Tambahkan titik dari bidikan tengah, Urungkan, Konversi ke area, Simpan pengukuran
+  const tambahTitik = p.getByRole("button", { name: "Tambahkan titik" });
   await geserPeta(80, 0);
-  await p.locator(".avz-status-rekam .rec-btn-add").click();
+  await tambahTitik.click();
   await geserPeta(0, 80);
-  await p.locator(".avz-status-rekam .rec-btn-add").click();
+  await tambahTitik.click();
   await geserPeta(-80, 0);
-  await p.locator(".avz-status-rekam .rec-btn-add").click();
-  await p.locator('.avz-status-rekam button[aria-label="Urungkan"]').click();
-  await p.locator(".avz-status-rekam .rec-btn-add").click();
-  await expect(p.locator(".avz-status-rekam .rec-btn-save")).toBeEnabled();
-  await p.locator(".avz-status-rekam .rec-btn-save").click();
-  await p.locator(".form-kategori-grid button").first().click();
-  await p.locator('#form-survei-lapangan input[required]').fill("Petak Ukur Kebun");
-  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await tambahTitik.click();
+  await p.getByRole("button", { name: "Urungkan" }).first().click();
+  await tambahTitik.click();
+  await p.getByRole("button", { name: "Konversi ke area" }).first().click();
+  await expect(p.getByRole("button", { name: "Simpan pengukuran" })).toBeEnabled();
+  await p.getByRole("button", { name: "Simpan pengukuran" }).click();
+  await namaiDanSimpanKartu(p, "Petak Ukur Kebun");
+  await p.keyboard.press("Escape");
   await expect(p.locator(".avz-status-rekam")).toBeHidden();
 
   // 5. Uji Cari Koordinat dengan format UTM & Navigasi DMS -> banner Go-To aktif lalu Hentikan Navigasi
@@ -749,22 +629,20 @@ test("uji mendalam fitur peta interaktif: hitung kecepatan real-time, pelacakan 
 test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung rapi, Bantuan di Menu, dan inventaris bug otomatis/manual", async ({
   browser
 }) => {
-  const { p, galat, tutup } = await halamanBaru(
-    browser,
-    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-    false
-  );
+  const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, false);
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   await masukSebagaiAdmin(p);
 
   // 1. Layar pembuka mempertahankan simbol maskot tanpa label teks maskot
+  // (setelah masuk aplikasi membuka peta layar penuh; bilah atas berisi maskot ada di luar peta)
+  await keluarDariPeta(p);
   await p.locator(".taka-topbar-mascot").click();
   const splash = p.locator("#layar-pembuka-taka");
   await expect(splash).toBeVisible();
-  await expect(splash.locator(".taka-splash-avatar")).toBeVisible();
+  await expect(splash.locator(".taka-splash-logo")).toBeVisible();
   await expect(splash.getByText(/MASKOT RESMI|Setiap titik punya cerita/i)).toHaveCount(0);
-  await splash.locator("#lewati-splash-taka").click();
+  await splash.click(); // ketuk layar pembuka untuk menutup (juga menutup sendiri setelah 1,8 detik)
   await expect(splash).toBeHidden();
 
   // 2. Titik sentuh tombol dan item menu mengikuti sudut melengkung (bukan kotak kaku)
@@ -773,7 +651,10 @@ test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung 
   await expect(itemMenu).toBeVisible();
   const radiusItemMenu = await itemMenu.evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
   expect(radiusItemMenu).toBeGreaterThanOrEqual(6);
-  const radiusNavBawah = await p.locator(".avenza-nav-item").first().evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+  const radiusNavBawah = await p
+    .locator(".avenza-nav-item")
+    .first()
+    .evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
   expect(radiusNavBawah).toBeGreaterThanOrEqual(8);
 
   // 3. Bug saat pemakaian terinventaris otomatis + Menu "Bantuan" ada dan bisa tulis bug manual
@@ -807,10 +688,13 @@ test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung 
   await expect(halBantuan).toBeHidden();
 
   // Cek item alat peta juga punya sudut melengkung
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForSelector(".map-canvas-container");
   await p.getByRole("button", { name: "Alat peta" }).click();
-  const radiusAlat = await p.locator(".avz-tool-popup-item").first().evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+  const radiusAlat = await p
+    .locator(".avz-tool-popup-item")
+    .first()
+    .evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
   expect(radiusAlat).toBeGreaterThanOrEqual(6);
 
   expect(galat).toEqual([]);
@@ -818,11 +702,7 @@ test("hapus label maskot di pembuka sambil jaga simbol, titik sentuh melengkung 
 });
 
 test("tekan back 1 kali hanya menampilkan peringatan dan baru keluar pada tekan back ke-2", async ({ browser }) => {
-  const { p, galat, tutup } = await halamanBaru(
-    browser,
-    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-    false
-  );
+  const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, false);
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   // Beri entri riwayat asal yang sah (same-origin) sebelum membuka aplikasi
@@ -838,12 +718,13 @@ test("tekan back 1 kali hanya menampilkan peringatan dan baru keluar pada tekan 
   const urlAplikasi = p.url();
   await p.goBack();
   expect(p.url()).toBe(urlAplikasi);
-  await expect(p.locator(".avenza-toast")).toContainText("Tekan kembali sekali lagi untuk keluar dari aplikasi.");
+  await expect(p.locator(".avenza-toast")).toContainText("Tekan back 2 kali untuk keluar dari aplikasi.");
   await p.goBack();
   expect(p.url()).toBe(urlAsal);
 
   // Masuk sebagai admin (riwayat: [icon.svg, URL_APP]) lalu uji alur setelah masuk
   await masukSebagaiAdmin(p);
+  await keluarDariPeta(p);
 
   // 1. Jika halaman Bantuan sedang terbuka, tekan Back menutup Bantuan tanpa keluar
   await p.locator(".avenza-toolbar-toggle-btn").click();
@@ -853,18 +734,22 @@ test("tekan back 1 kali hanya menampilkan peringatan dan baru keluar pada tekan 
   await expect(p.locator(".bantuan-page")).toBeHidden();
   expect(p.url()).toBe(urlAplikasi);
 
-  // 2. Tekan Back ke-1 di layar utama: tetap berada di aplikasi dan muncul toast peringatan
+  // 2. Layar utama adalah Peta Interaktif: Back dari tab Admin kembali ke Peta lebih dulu,
+  //    lalu Back ke-1 di Peta tetap berada di aplikasi dan memunculkan toast peringatan
   await p.goBack();
   expect(p.url()).toBe(urlAplikasi);
-  await expect(p.locator(".avenza-toast")).toContainText("Tekan kembali sekali lagi untuk keluar dari aplikasi.");
-
-  // 3. Tunggu lewat 2 detik lalu tekan Back lagi: tetap dicegat ulang (bukan langsung keluar)
-  await p.waitForTimeout(2300);
+  await expect(p.locator(".avz-titlebar")).toBeVisible();
   await p.goBack();
   expect(p.url()).toBe(urlAplikasi);
-  await expect(p.locator(".avenza-toast")).toContainText("Tekan kembali sekali lagi untuk keluar dari aplikasi.");
+  await expect(p.locator(".avenza-toast")).toContainText("Tekan back 2 kali untuk keluar dari aplikasi.");
 
-  // 4. Tekan Back ke-2 dalam 2 detik: baru diizinkan keluar dari aplikasi ke halaman asal
+  // 3. Tunggu lewat jendela 2,5 detik (BATAS_WAKTU_KEMBALI_MS) lalu tekan Back lagi: tetap dicegat ulang
+  await p.waitForTimeout(2800);
+  await p.goBack();
+  expect(p.url()).toBe(urlAplikasi);
+  await expect(p.locator(".avenza-toast")).toContainText("Tekan back 2 kali untuk keluar dari aplikasi.");
+
+  // 4. Tekan Back ke-2 dalam 2,5 detik: baru diizinkan keluar dari aplikasi ke halaman asal
   await p.goBack();
   expect(p.url()).toBe(urlAsal);
 
@@ -875,11 +760,7 @@ test("tekan back 1 kali hanya menampilkan peringatan dan baru keluar pada tekan 
 test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik vs non-tematik serta anti-overlap label CRS WKT di Pustaka", async ({
   browser
 }) => {
-  const { p, galat, tutup } = await halamanBaru(
-    browser,
-    { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-    false
-  );
+  const { p, galat, tutup } = await halamanBaru(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, false);
   await p.context().route(RUTE_TILE_PUBLIK, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: JPEG }));
 
   // Semai peta ber-CRS WKT panjang seperti CT Lung Mekatif1 final untuk memastikan badge CRS tidak meluap keluar kartu
@@ -914,9 +795,10 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   });
 
   await masukSebagaiAdmin(p);
-  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
+  await klikNav(p, "Mode User");
 
   // 1. Cek badge CRS WKT di Pustaka ringkas & muat di dalam kotak kartu
+  await klikNav(p, "Pustaka");
   const kartuWkt = p.locator(".avenza-map-row", { hasText: "CT Lung Mekatif1 final" }).first();
   await expect(kartuWkt).toBeVisible();
   const badgeCrs = kartuWkt.locator(".avenza-crs-badge");
@@ -936,17 +818,14 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await p.locator(".modal-footer button", { hasText: /^Batal$/ }).click();
 
   // 2. Uji Formulir Default Avenza pada Point (tanpa kategori Biodiversitas atau Peta Tematik lama)
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
+  await klikNav(p, "Peta");
   await p.waitForSelector(".map-canvas-container");
 
   await p.locator(".avz-fab-pin").click();
   await expect(p.locator(".avz-peek-card")).toBeVisible();
-  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
-  await expect(p.locator('#form-survei-lapangan input[required]')).toBeVisible();
   await expect(p.locator('select[aria-label="Pilih Peta Tematik"]')).toHaveCount(0);
-
-  await p.locator('#form-survei-lapangan input[required]').fill("Meranti Kolam Satu");
-  await p.locator('button[form="form-survei-lapangan"][aria-label="Simpan"]').click();
+  await namaiDanSimpanKartu(p, "Meranti Kolam Satu");
+  await p.keyboard.press("Escape");
 
   // Verifikasi halaman Lapisan Peta terbuka bersih
   await p.getByRole("button", { name: "Lapisan" }).click();
@@ -957,7 +836,7 @@ test("formulir langsung point/line/polygon dengan kategori & kolam peta tematik 
   await p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" }).click();
 
   // Verifikasi menu Sertifikat: asal desa/lembaga (bukan Kantor Balai Spasial) & pratinjau sertifikat aktif
-  await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();
+  await klikNav(p, "Sertifikat");
   await expect(p.locator(".visual-profile-name")).toContainText("Siti Rahmawati");
   await expect(p.locator(".visual-profile-loc")).toHaveText("Desa Rimba Hijau");
   await expect(p.getByText("Kantor Balai Spasial")).toHaveCount(0);
@@ -988,7 +867,11 @@ test("korelasi database GDrive, pencadangan 90 hari (pulihkan & hapus permanen),
     }
     if (body.action) aksiGDrive.push(body.action);
     if (body.action === "list_active_status") {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true, aktif: [], pencadanganIds: [] }) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ sukses: true, aktif: [], pencadanganIds: [] })
+      });
       return;
     }
     if (body.action === "move_to_backup" || body.action === "restore_from_backup" || body.action === "delete_backup_permanent") {
@@ -1065,7 +948,7 @@ test("korelasi database GDrive, pencadangan 90 hari (pulihkan & hapus permanen),
   };
 
   // 1. Buka Kendali > Data -> hapus data "Jalur Aktif Database" (harus pindah ke Pencadangan 90 Hari & kirim move_to_backup ke GDrive)
-  await p.getByRole("button", { name: "Data", exact: true }).click();
+  await bukaSubAdmin(p, "Data");
   await hapusBaris("Jalur Aktif Database");
   await expect(p.locator(".avenza-toast")).toContainText("Pencadangan 90 Hari");
   await expect.poll(() => aksiGDrive.includes("move_to_backup")).toBe(true);
@@ -1077,19 +960,22 @@ test("korelasi database GDrive, pencadangan 90 hari (pulihkan & hapus permanen),
   await expect(kartuCadangan).toContainText(/90 hari tersisa/);
 
   // 3. Cek Level di Kader/User: karena Jalur Aktif Database ada di Pencadangan, hanya tersisa 0 data sah DB -> tetap Level 1
-  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();
+  await klikNav(p, "Mode User");
+  await klikNav(p, "Sertifikat");
   await expect(p.locator(".visual-current-level-title")).toContainText("Penjelajah Dasar");
-  await expect(p.locator("#info-korelasi-level-database")).toContainText("Di Pencadangan 90 Hari (tidak dihitung): 1");
 
   // 4. Kembali ke Admin -> Pulihkan data dari Pencadangan 90 Hari -> kirim restore_from_backup & Level naik kembali!
-  await p.locator(".avenza-nav-item", { hasText: "Pustaka" }).click();
+  await klikNav(p, "Pustaka");
+  await keluarDariPeta(p);
   await p.locator(".avenza-toolbar-toggle-btn").click();
   await p.locator(".avenza-overflow-item", { hasText: /Mode Admin/i }).click();
-  await p.locator("#kode-totp-admin").waitFor({ state: "visible", timeout: 5000 }).catch(() => undefined);
+  await p
+    .locator("#kode-totp-admin")
+    .waitFor({ state: "visible", timeout: 5000 })
+    .catch(() => undefined);
   // Buka tab Data bila gerbang masih terbuka
   if ((await p.getByRole("button", { name: "Data", exact: true }).count()) > 0) {
-    await p.getByRole("button", { name: "Data", exact: true }).click();
+    await bukaSubAdmin(p, "Data");
     await p.getByRole("tab", { name: /Pencadangan 90 Hari/ }).click();
     await p.locator(".admin-pencadangan-card", { hasText: "Jalur Aktif Database" }).getByRole("button", { name: "Pulihkan" }).click();
     await expect.poll(() => aksiGDrive.includes("restore_from_backup")).toBe(true);

@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DataSpasialItem } from "../types";
-import {
-  buatArsipZip,
-  eksporKeSHP,
-  eksporPaketShapefile,
-  eksporShpDenganOpsi,
-  WGS84_PRJ
-} from "./shapefile";
+import { buatArsipZip, eksporKeSHP, eksporPaketShapefile, eksporShpDenganOpsi, WGS84_PRJ } from "./shapefile";
 
 const CONTOH_DATA: DataSpasialItem[] = [
   {
@@ -95,7 +89,22 @@ describe("Shapefile (.shp/.shx/.dbf/.prj & ZIP)", () => {
 
     const hasilPoly = eksporShpDenganOpsi(
       [CONTOH_DATA[2]],
-      [{ id: "P-1", namaArea: "Peta Kerja", basemapId: "esri", minLat: 2.8, maxLat: 2.9, minLng: 117.3, maxLng: 117.4, zoomMin: 12, zoomMax: 15, ukuranMb: 5, diunduhPada: "2026-11-14", jumlahTile: 10 }],
+      [
+        {
+          id: "P-1",
+          namaArea: "Peta Kerja",
+          basemapId: "esri",
+          minLat: 2.8,
+          maxLat: 2.9,
+          minLng: 117.3,
+          maxLng: 117.4,
+          zoomMin: 12,
+          zoomMax: 15,
+          ukuranMb: 5,
+          diunduhPada: "2026-11-14",
+          jumlahTile: 10
+        }
+      ],
       true,
       "polygon"
     );
@@ -131,5 +140,20 @@ describe("Shapefile (.shp/.shx/.dbf/.prj & ZIP)", () => {
     // Signature Local File Header PK\x03\x04 dan EOCD PK\x05\x06 di ekor
     expect(dvZip.getUint32(0, true)).toBe(0x04034b50);
     expect(dvZip.getUint32(zip.byteLength - 22, true)).toBe(0x06054b50);
+  });
+
+  it("header ZIP berisi tanggal dan jam DOS yang sah (bukan 1980-00-00)", () => {
+    const zip = buatArsipZip([{ nama: "a.txt", isi: new TextEncoder().encode("isi") }], new Date(2026, 10, 20, 14, 35, 42));
+    const dv = new DataView(zip.buffer);
+    const jam = dv.getUint16(10, true);
+    const tanggal = dv.getUint16(12, true);
+    expect(tanggal >> 9).toBe(2026 - 1980);
+    expect((tanggal >> 5) & 0x0f).toBe(11);
+    expect(tanggal & 0x1f).toBe(20);
+    expect([jam >> 11, (jam >> 5) & 0x3f, (jam & 0x1f) * 2]).toEqual([14, 35, 42]);
+    // Central directory memuat tanggal yang sama
+    const cd = zip.byteLength - 22 - (46 + "a.txt".length);
+    expect(dv.getUint32(cd, true)).toBe(0x02014b50);
+    expect(dv.getUint16(cd + 14, true)).toBe(tanggal);
   });
 });

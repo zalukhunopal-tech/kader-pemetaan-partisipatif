@@ -1,5 +1,16 @@
 import { BrowserContext, expect, test } from "@playwright/test";
-import { SANDI, URL_APP_KUNCI, halamanBaru, lewatiSplash, masukSebagaiAdmin, offsetJam, sampai, totp } from "./bantu";
+import {
+  SANDI,
+  URL_APP_KUNCI,
+  bukaSubAdmin,
+  halamanBaru,
+  klikNav,
+  lewatiSplash,
+  masukSebagaiAdmin,
+  offsetJam,
+  sampai,
+  totp
+} from "./bantu";
 
 /**
  * Menguji alur lengkap di browser sungguhan (2 konteks perangkat berbeda):
@@ -136,7 +147,11 @@ test("pendaftaran OTP email di halaman awal, persetujuan admin, 1 email 1 akun, 
         const ada = cloudAkun.get(email);
         const statusOk = !ada?.statusPersetujuan || ada.statusPersetujuan === "disetujui";
         const sah = !ada || (statusOk && (!ada.idSesiAktif || ada.idSesiAktif === idPerangkat));
-        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true, protokolAkun: 1, sah }) });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ sukses: true, protokolAkun: 1, sah })
+        });
       }
 
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sukses: true }) });
@@ -181,17 +196,13 @@ test("pendaftaran OTP email di halaman awal, persetujuan admin, 1 email 1 akun, 
   // Keluar dari peta default bila perlu dan masuk tab Admin > Akun
   const kembaliAdmin = adminPage.p.locator(".avz-titlebar").getByRole("button", { name: "Kembali" });
   if (await kembaliAdmin.isVisible().catch(() => false)) await kembaliAdmin.click();
-  await adminPage.p.locator(".avenza-nav-item", { hasText: /Kendali|Admin/ }).first().click();
-  await adminPage.p.locator(".admin-subnav-btn", { hasText: "Akun" }).click();
+  await klikNav(adminPage.p, "Admin");
+  await bukaSubAdmin(adminPage.p, "Akun");
 
   await expect(adminPage.p.locator("#form-buat-akun")).toHaveCount(0);
-  await adminPage.p.getByRole("button", { name: /Segarkan/ }).click();
+  // Daftar pendaftar dimuat otomatis dari cloud saat panel Akun dibuka (tombol Segarkan diganti tarik ke bawah)
   expect(await sampai(async () => (await adminPage.p.locator("#panel-persetujuan-akun").innerText()).includes("Budi Lapangan"))).toBe(true);
-  await adminPage.p
-    .locator("#panel-persetujuan-akun")
-    .getByRole("button", { name: "Setujui" })
-    .first()
-    .click();
+  await adminPage.p.locator("#panel-persetujuan-akun").getByRole("button", { name: "Setujui" }).first().click();
   expect(await sampai(async () => /telah disetujui/i.test(await adminPage.p.locator("#panel-persetujuan-akun").innerText()))).toBe(true);
 
   // --- 3. BUDI DI HP-1 MASUK, PASANG AUTHENTICATOR, & MENGUNCI SESI ---

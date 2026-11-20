@@ -1,7 +1,15 @@
 import React, { useCallback, useRef } from "react";
+import { motion } from "framer-motion";
 import { Folder, Map, MessageSquare, ShieldCheck, User } from "lucide-react";
 import { LogoSertifikatResmiSvg } from "../sertifikat/LogoSertifikatResmiSvg";
 import { MenuTab, PeranPengguna } from "../../types";
+
+const TRANSISI_INDIKATOR_NAV = {
+  type: "spring" as const,
+  stiffness: 460,
+  damping: 36,
+  mass: 0.75
+};
 
 interface NavigasiBawahProps {
   peran: PeranPengguna;
@@ -44,6 +52,16 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
     }
   }, []);
 
+  const renderIndikatorAktif = (aktif: boolean, varianAdmin = false) =>
+    aktif ? (
+      <motion.span
+        layoutId={`nav-indikator-aktif-${peran}`}
+        className={`avenza-nav-active-pill ${varianAdmin ? "admin" : ""}`}
+        transition={TRANSISI_INDIKATOR_NAV}
+        aria-hidden="true"
+      />
+    ) : null;
+
   return (
     <nav className="avenza-bottom-nav" ref={ukurBilahBawah} aria-label="Navigasi utama">
       <div className="desktop-nav-brand">
@@ -63,6 +81,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "pustaka" ? "active" : ""}`}
             onClick={() => setTabAktif("pustaka")}
           >
+            {renderIndikatorAktif(tabAktif === "pustaka")}
             <Folder size={20} fill={tabAktif === "pustaka" ? "#0d7344" : "none"} />
             <span>Pustaka</span>
           </button>
@@ -72,6 +91,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
             onClick={() => setTabAktif("peta")}
           >
+            {renderIndikatorAktif(tabAktif === "peta")}
             <Map size={20} />
             <span>Peta</span>
           </button>
@@ -81,6 +101,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "reward" ? "active" : ""}`}
             onClick={() => setTabAktif("reward")}
           >
+            {renderIndikatorAktif(tabAktif === "reward")}
             <LogoSertifikatResmiSvg
               size={21}
               variant={tabAktif === "reward" ? "zamrud" : "monokrom"}
@@ -94,6 +115,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
             onClick={() => setTabAktif("komunikasi")}
           >
+            {renderIndikatorAktif(tabAktif === "komunikasi")}
             <div className="nav-icon-wrap">
               <MessageSquare size={20} />
               {adaPesanBaru && <span className="nav-notif-dot" aria-label="Ada pesan baru" />}
@@ -109,6 +131,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "admin" ? "active" : ""}`}
             onClick={() => setTabAktif("admin")}
           >
+            {renderIndikatorAktif(tabAktif === "admin", true)}
             <ShieldCheck size={20} color={tabAktif === "admin" ? "#0284c7" : "#64748b"} />
             <span style={{ color: tabAktif === "admin" ? "#0284c7" : "#64748b" }}>Admin</span>
           </button>
@@ -118,6 +141,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "peta" ? "active" : ""}`}
             onClick={() => setTabAktif("peta")}
           >
+            {renderIndikatorAktif(tabAktif === "peta")}
             <Map size={20} />
             <span>Peta</span>
           </button>
@@ -127,6 +151,7 @@ export const NavigasiBawah: React.FC<NavigasiBawahProps> = ({ peran, tabAktif, s
             className={`avenza-nav-item ${tabAktif === "komunikasi" ? "active" : ""}`}
             onClick={() => setTabAktif("komunikasi")}
           >
+            {renderIndikatorAktif(tabAktif === "komunikasi")}
             <div className="nav-icon-wrap">
               <MessageSquare size={20} />
               {adaPesanBaru && <span className="nav-notif-dot" aria-label="Ada pesan baru" />}

@@ -13,7 +13,11 @@ function pwaMobileRefreshPlugin(): Plugin {
         const swPath = path.resolve(process.cwd(), "dist", "sw.js");
         if (fs.existsSync(swPath)) {
           const swContent = fs.readFileSync(swPath, "utf8");
-          const forceRefreshSnippet = `\n;self.addEventListener("activate",function(event){event.waitUntil((async function(){try{await self.clients.claim();var clients=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(var i=0;i<clients.length;i++){var c=clients[i];if(c&&"navigate" in c&&c.url){try{await c.navigate(c.url);}catch(_){}}}}catch(_){}})());});\n`;
+          // Segarkan jendela yang terbuka HANYA saat SW baru menggantikan SW lama (pembaruan aplikasi).
+          // Navigasi tidak ditunggu di dalam waitUntil: permintaan navigasi menunggu SW selesai aktif,
+          // sehingga menunggunya di event activate membuat keduanya saling menunggu dan halaman macet.
+          // Pada kunjungan pertama (belum ada SW aktif) halaman tidak dimuat ulang.
+          const forceRefreshSnippet = `\n;var __ttPembaruanSw=false;self.addEventListener("install",function(){__ttPembaruanSw=!!(self.registration&&self.registration.active);});self.addEventListener("activate",function(event){event.waitUntil(self.clients.claim());if(!__ttPembaruanSw)return;self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){cs.forEach(function(c){if(c&&"navigate" in c&&c.url){c.navigate(c.url).catch(function(){});}});}).catch(function(){});});\n`;
           if (!swContent.includes("includeUncontrolled:true")) {
             fs.writeFileSync(swPath, swContent + forceRefreshSnippet, "utf8");
           }

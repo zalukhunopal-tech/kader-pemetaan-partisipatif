@@ -1,5 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { JPEG, RUTE_TILE_PUBLIK, URL_APP, URL_APP_KUNCI, halamanBaru, masukSebagaiAdmin, pilihMenu, sampai, teksToast } from "./bantu";
+import {
+  JPEG,
+  RUTE_TILE_PUBLIK,
+  URL_APP,
+  URL_APP_KUNCI,
+  bukaSubAdmin,
+  halamanBaru,
+  jatuhkanPinBernama,
+  klikNav,
+  masukSebagaiAdmin,
+  pilihMenu,
+  sampai,
+  teksToast
+} from "./bantu";
 
 /** Web App Apps Script tiruan; dist-e2e dibangun dengan VITE_GDRIVE_URL dan VITE_GDRIVE_TOKEN dari .env.e2e */
 const RUTE_GDRIVE = /script\.google\.com\/macros\/s\/uji-geokader\/exec/;
@@ -35,17 +48,17 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   });
 
   await masukSebagaiAdmin(p, URL_APP_KUNCI);
-  await p.locator(".admin-subnav-btn", { hasText: "Akun" }).click();
+  await bukaSubAdmin(p, "Akun");
 
   // Admin tidak lagi memiliki form buat akun; perubahan wilayah tetap bisa melalui Aksi > Lihat detail akun > Ubah
   await expect(p.locator("#form-buat-akun")).toHaveCount(0);
 
-  // Akun admin uji belum punya wilayah lengkap: lengkapi lewat Aksi > Lihat detail akun > Ubah
+  // Akun admin uji belum punya wilayah lengkap: lengkapi lewat Aksi > Lihat detail akun > ketuk wilayah
   const panel = p.locator("#panel-akun-admin");
   await panel.locator("tr", { hasText: "siti.admin@contoh.id" }).getByRole("button", { name: "Aksi" }).click();
   await p.getByRole("menuitem", { name: /Lihat detail akun/ }).click();
   await expect(panel).toContainText("(belum lengkap)");
-  await panel.getByRole("button", { name: "Ubah", exact: true }).click();
+  await panel.locator(".detail-akun-wilayah-btn").first().click(); // ketuk teks wilayah untuk mengubah
   await p.locator("#ubah-wilayah-provinsi").selectOption(WILAYAH.provinsi);
   await p.locator("#ubah-wilayah-kabupaten").fill(WILAYAH.kabupaten);
   await p.locator("#ubah-wilayah-kecamatan").fill(WILAYAH.kecamatan);
@@ -55,12 +68,9 @@ test("Google Drive: admin mengisi wilayah akun, data baru terunggah otomatis ke 
   await expect(panel).toContainText("Jambi › Kabupaten Merangin › Bangko › Rantau Panjang");
 
   // Rekam titik di Mode User (format Default Avenza tanpa kategori Biodiversitas)
-  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Peta" }).click();
-  await p.locator(".avz-fab-pin").click();
-  await p.locator(".avz-peek-card").getByRole("button", { name: "Simpan" }).click();
-  await p.getByPlaceholder("Masukkan nama objek").fill("Sebaran Anggrek");
-  await p.locator(".modal-form button[type=submit]").click();
+  await klikNav(p, "Mode User");
+  await klikNav(p, "Peta");
+  await jatuhkanPinBernama(p, "Sebaran Anggrek");
   expect(await sampai(async () => /Sebaran Anggrek/.test(await teksToast(p)))).toBe(true);
 
   // Terunggah otomatis tanpa pengaturan apa pun, membawa token build, wilayah akun, dan nama berkas
