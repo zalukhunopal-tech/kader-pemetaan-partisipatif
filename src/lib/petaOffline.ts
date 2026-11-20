@@ -794,6 +794,18 @@ export function simpanCakupanOverlayOffline(cakupan: CakupanOverlayOffline): Cak
   return baru;
 }
 
+export function gantiDaftarOverlayOffline(daftar: CakupanOverlayOffline[]): CakupanOverlayOffline[] {
+  const bersih = daftar.slice(0, 24);
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(KUNCI_OVERLAY_OFFLINE, JSON.stringify(bersih));
+    } catch {
+      // Abaikan jika localStorage penuh; tile tetap tersimpan aman di Cache API
+    }
+  }
+  return bersih;
+}
+
 export function cariOverlayOfflineDiTitik(
   lat: number,
   lng: number,

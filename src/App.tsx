@@ -87,6 +87,7 @@ import {
 import { bacaDraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "./lib/draftSurvei";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
+import { useUnduhPetaOtomatis } from "./lib/useUnduhPetaOtomatis";
 import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta, rehidrasiArsipGeoPdf } from "./lib/penyimpananPetaLuring";
 import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
@@ -220,6 +221,11 @@ export const App: React.FC = () => {
   );
   const [sedangRekonsiliasi, setSedangRekonsiliasi] = useState<boolean>(false);
   const [areaOffline, setAreaOffline] = useState<AreaPetaOffline[]>(() => muatAreaOffline());
+  const statusCitraOffline = useUnduhPetaOtomatis({
+    aktif: Boolean(sesiPengguna),
+    sedangOnline,
+    areaOffline
+  });
   const [tugasList, setTugasList] = useState<TugasPemetaan[]>(() => muatTugas());
   const [lapisanList, setLapisanList] = useState<LapisanSpasial[]>(() => sinkronkanLapisanDariTugas(muatLapisan(), muatTugas()));
   const [lapisanAktifId, setLapisanAktifId] = useState<string | null>(null);
@@ -1325,6 +1331,7 @@ export const App: React.FC = () => {
         onKeluar={handleLogout}
         autoSync={autoSync}
         onBukaSplashTaka={() => setTampilSplashTaka(true)}
+        statusCitraOffline={statusCitraOffline}
       />
       {/* Penanda jelas bahwa sedang di mode admin, dengan kunci manual */}
       {aksesAdmin && (

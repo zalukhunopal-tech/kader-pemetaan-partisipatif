@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Download, Eye, FileUp, Layers, X, MapPin, Trash2, Check } from "lucide-react";
+import { Eye, FileUp, Layers, X, MapPin, Trash2, Check } from "lucide-react";
 import { AreaPetaOffline, BasemapType } from "../../types";
 import { ringkasLabelCrs } from "../../lib/labelPeta";
 import { URUTAN_BASEMAP, basemapTersedia } from "../../lib/petaOffline";
@@ -71,7 +71,7 @@ interface PanelLapisanPetaProps {
   jumlahObjek: number;
   tampilDaftarObjek: boolean;
   onPilihBasemap: (id: BasemapType) => void;
-  onUnduhOffline: () => void;
+  onUnduhOffline?: () => void;
   onPilihBerkas: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAlihDaftarObjek: () => void;
   onTutup: () => void;
@@ -88,7 +88,6 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
   jumlahObjek,
   tampilDaftarObjek,
   onPilihBasemap,
-  onUnduhOffline,
   onPilihBerkas,
   onAlihDaftarObjek,
   onTutup,
@@ -191,20 +190,6 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
                 </button>
               );
             })}
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            <button
-              type="button"
-              className="btn-outline-sm"
-              style={{ width: "100%", justifyContent: "center", whiteSpace: "nowrap" }}
-              onClick={() => {
-                onTutup();
-                onUnduhOffline();
-              }}
-            >
-              <Download size={14} /> Unduh Area Offline
-            </button>
           </div>
         </div>
       )}
@@ -309,18 +294,6 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
             {areaOffline.length === 0 && (
               <div className="pustaka-empty-notice">
                 <p>Belum ada peta kerja offline yang disimpan.</p>
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
-                  onClick={() => {
-                    onTutup();
-                    onUnduhOffline();
-                  }}
-                  title="Unduh area peta luring"
-                >
-                  <Download size={14} /> Unduh
-                </button>
               </div>
             )}
           </div>

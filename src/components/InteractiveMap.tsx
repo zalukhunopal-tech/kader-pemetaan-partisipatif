@@ -34,7 +34,7 @@ import {
   zoomSumber,
   urlTile
 } from "../lib/petaOffline";
-import { jalankanAutoCache1Km } from "../lib/cachePetaOtomatis";
+import { EVENT_OVERLAY_OFFLINE_DIPERBARUI } from "../lib/cachePetaOtomatis";
 import {
   TILE_SIZE,
   gambarLapisanPeta,
@@ -50,7 +50,6 @@ import { PeekSheetInteraktif } from "./peta/PeekSheetInteraktif";
 import { namaBasemap, pratinjauBasemap } from "./peta/PanelLapisanPeta";
 import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
-import { kategoriProgressUnduh, UnduhOfflineModal, useUnduhAreaOffline } from "./peta/UnduhOfflineModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
 import { daftarkanPenutupLapisan } from "../lib/penjagaKembali";
 import {
@@ -217,7 +216,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSimpanDataBaru,
   onPerbaruiData,
   onTambahPembaruanObjek,
-  onSimpanAreaOffline,
   onImporBerkas,
   onKembali,
   onHapusData,
@@ -606,55 +604,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
-  // Overlay citra offline langsung di Peta Interaktif (tanpa membuat lapisan tersendiri)
+  // Overlay citra offline langsung di Peta Interaktif (otomatis 10 x 10 km tanpa membuat lapisan tersendiri)
   const [overlayOfflineList, setOverlayOfflineList] = useState<CakupanOverlayOffline[]>(() => muatCakupanOverlayOffline());
-  const unduh = useUnduhAreaOffline(basemap, areaOffline, onSimpanAreaOffline, setPesanSalin, () => {
-    setOverlayOfflineList(muatCakupanOverlayOffline());
-    // Bersihkan status galat lama agar tile yang baru selesai diunduh langsung tampil halus
-    for (const [k, v] of tileCacheRef.current.entries()) {
-      if (v === "error") tileCacheRef.current.delete(k);
-    }
-    setRenderTick((t) => t + 1);
-  });
-  const areaOfflineRef = useRef(areaOffline);
-  areaOfflineRef.current = areaOffline;
-  const latAuto = posisiNyata?.lat ?? center.lat;
-  const lngAuto = posisiNyata?.lng ?? center.lng;
-  const posisiAutoRef = useRef({ lat: latAuto, lng: lngAuto });
-  posisiAutoRef.current = { lat: latAuto, lng: lngAuto };
-  const kunciGridAuto = `${Math.round(latAuto * 1000)}:${Math.round(lngAuto * 1000)}`;
-
-  // Cache otomatis 1 x 1 km sampai zoom tertinggi basemap (cadangan 2 generasi, aman terhadap jaringan nyasar)
   useEffect(() => {
-    if (!sedangOnline || petaKustomAktif || basemap === "taktis") return;
-    if (SUMBER_TILE[basemap].berkuota) return;
-    if (unduh.bukaModalOffline || unduh.sedangMengunduhTile) return;
-
-    const ac = new AbortController();
-    const timer = window.setTimeout(() => {
-      const { lat, lng } = posisiAutoRef.current;
-      void jalankanAutoCache1Km({
-        basemap,
-        lat,
-        lng,
-        online: sedangOnline,
-        areaOffline: areaOfflineRef.current,
-        sinyal: ac.signal
-      });
-    }, 1500);
-
-    return () => {
-      window.clearTimeout(timer);
-      ac.abort();
+    if (typeof window === "undefined") return;
+    const saatOverlayBaru = () => {
+      setOverlayOfflineList(muatCakupanOverlayOffline());
+      // Bersihkan status galat lama agar tile yang baru selesai diunduh otomatis langsung tampil halus
+      for (const [k, v] of tileCacheRef.current.entries()) {
+        if (v === "error") tileCacheRef.current.delete(k);
+      }
+      setRenderTick((t) => t + 1);
     };
-  }, [
-    sedangOnline,
-    petaKustomAktif,
-    basemap,
-    kunciGridAuto,
-    unduh.bukaModalOffline,
-    unduh.sedangMengunduhTile
-  ]);
+    window.addEventListener(EVENT_OVERLAY_OFFLINE_DIPERBARUI, saatOverlayBaru);
+    return () => window.removeEventListener(EVENT_OVERLAY_OFFLINE_DIPERBARUI, saatOverlayBaru);
+  }, []);
 
   const dragRef = useRef<{
     active: boolean;
@@ -2401,50 +2365,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   <path d="M11 13.5l7.5-7.5M11 9l3-3M15 13.5l3-3" strokeLinecap="round" />
                 </svg>
               </button>
-              {unduh.statusHud &&
-                (() => {
-                  const { warna, tampilChecklist, fase } = kategoriProgressUnduh(
-                    unduh.statusHud.persen,
-                    unduh.statusHud.selesai
-                  );
-                  const r = 20;
-                  const keliling = 2 * Math.PI * r;
-                  const offset = keliling * (1 - Math.min(100, Math.max(1, unduh.statusHud.persen)) / 100);
-                  return (
-                    <button
-                      type="button"
-                      id="unduh-progress-hud"
-                      className={`avz-unduh-hud fase-${fase}`}
-                      aria-label={`Progres unduh peta offline ${unduh.statusHud.persen}%`}
-                      title={unduh.sedangMengunduhTile ? "Ketuk untuk batalkan unduhan" : "Unduhan selesai"}
-                      onClick={unduh.sedangMengunduhTile ? unduh.batalkanUnduhan : undefined}
-                    >
-                      <svg className="avz-unduh-hud-svg" viewBox="0 0 48 48" aria-hidden="true">
-                        <circle cx="24" cy="24" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
-                        <circle
-                          cx="24"
-                          cy="24"
-                          r={r}
-                          fill="none"
-                          stroke={warna}
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                          strokeDasharray={keliling}
-                          strokeDashoffset={offset}
-                          style={{
-                            transform: "rotate(-90deg)",
-                            transformOrigin: "center",
-                            transition: "stroke-dashoffset 0.2s ease, stroke 0.2s ease"
-                          }}
-                        />
-                      </svg>
-                      <span className="avz-unduh-hud-label" style={{ color: warna }}>
-                        {tampilChecklist && <Check size={10} strokeWidth={3.2} />}
-                        <span>{unduh.statusHud.persen}%</span>
-                      </span>
-                    </button>
-                  );
-                })()}
             </div>
             <div className="avz-hud-kanan">
               <button
@@ -3566,17 +3486,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   role="menuitem"
                   onClick={() => {
                     setMenuLapisan(null);
-                    setBukaHalamanLapisan(false);
-                    unduh.bukaModalUnduh(hitungKotakTerlihat(), zoom);
-                  }}
-                >
-                  Unduh area offline
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuLapisan(null);
                     inputImporRef.current?.click();
                   }}
                 >
@@ -4105,9 +4014,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           }}
         />
       )}
-
-      {/* LINGKARAN UNDUH PETA OFFLINE (TAHAN 3 DETIK) */}
-      {unduh.bukaModalOffline && <UnduhOfflineModal unduh={unduh} />}
     </div>
   );
 };

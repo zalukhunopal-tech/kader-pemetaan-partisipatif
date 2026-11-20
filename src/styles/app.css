@@ -15468,3 +15468,340 @@ html[data-field-theme="matahari"] .section-card h2 {
   }
 }
 
+/* =========================================================
+   NOTIFIKASI CITRA OFFLINE OTOMATIS (DEKAT JARINGAN ONLINE/OFFLINE)
+   ========================================================= */
+.avenza-notif-offline-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 99px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.avenza-notif-offline-btn:active {
+  transform: scale(0.95);
+}
+
+.avenza-notif-offline-btn.peringatan {
+  background: #fffbeb;
+  border-color: rgba(217, 119, 6, 0.45);
+  color: #b45309;
+}
+
+.avenza-notif-offline-btn.mengunduh {
+  background: #ecfdf5;
+  border-color: rgba(13, 115, 68, 0.4);
+  color: #0d7344;
+  padding: 0 9px;
+}
+
+.avenza-notif-offline-btn.siap {
+  background: #f0fdf4;
+  border-color: rgba(22, 163, 74, 0.3);
+  color: #15803d;
+}
+
+.avenza-notif-warn-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 99px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.45);
+}
+
+.avenza-notif-ok-dot {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: #16a34a;
+  border: 1.5px solid #ffffff;
+}
+
+.avenza-notif-pct {
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.notif-hp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.24);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 98;
+}
+
+.notif-hp-card {
+  position: fixed;
+  top: 62px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 392px);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
+  padding: 14px 16px;
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: notifHpTurun 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes notifHpTurun {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.notif-hp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notif-hp-app-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.notif-hp-app-meta strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.notif-hp-app-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.notif-hp-dot {
+  color: #94a3b8;
+}
+
+.notif-hp-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 99px;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: pointer;
+}
+
+.notif-hp-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.notif-hp-status-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notif-hp-status-icon.fase-menunggu,
+.notif-hp-status-icon.fase-belum_offline,
+.notif-hp-status-icon.fase-gagal {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.notif-hp-status-icon.fase-mengunduh {
+  background: #dcfce7;
+  color: #0d7344;
+}
+
+.notif-hp-status-icon.fase-siap {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.notif-hp-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notif-hp-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notif-hp-title-row h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.notif-hp-badge-pct,
+.notif-hp-badge-wait {
+  font-size: 0.74rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+.notif-hp-badge-pct {
+  background: #dcfce7;
+  color: #0d7344;
+}
+
+.notif-hp-badge-wait {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.notif-hp-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #475569;
+}
+
+.notif-hp-progress-track {
+  margin-top: 6px;
+  width: 100%;
+  height: 7px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.notif-hp-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.25s ease;
+}
+
+.notif-hp-progress-fill.fase-mengunduh {
+  background: linear-gradient(90deg, #0d7344, #22c55e);
+}
+
+.notif-hp-progress-fill.fase-menunggu {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.notif-hp-slots {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notif-hp-slots-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.notif-hp-slot-pills {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.notif-hp-slot-pill {
+  border-radius: 10px;
+  padding: 7px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  border: 1px solid #e2e8f0;
+}
+
+.notif-hp-slot-pill.terisi {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.notif-hp-slot-pill.kosong {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.notif-hp-slot-pill strong {
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.notif-hp-footer {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.notif-hp-link-btn {
+  border: none;
+  background: transparent;
+  color: #0d7344;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.notif-hp-link-btn:hover {
+  background: #ecfdf5;
+}
+
+
