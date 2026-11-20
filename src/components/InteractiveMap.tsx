@@ -457,12 +457,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const modeGambarUkurRef = useRef<boolean>(modeGambarUkur);
   modeGambarUkurRef.current = modeGambarUkur;
   useEffect(() => {
-    // Saat keluar dari halaman Peta ketika sedang di Gambar dan Ukur, hentikan bersih agar tidak berubah menjadi perekaman jalur/layar
-    return () => {
+    // Saat keluar dari halaman Peta atau keluar tiba-tiba dari aplikasi ketika sedang di Gambar dan Ukur,
+    // hentikan bersih agar tidak berubah menjadi perekaman jalur
+    const bersihkanGambarUkur = () => {
       if (modeGambarUkurRef.current || perekamLatar.getState().modeGambarUkur) {
         perekamLatar.batal();
         simpanGeometri(null, []);
       }
+    };
+    window.addEventListener("pagehide", bersihkanGambarUkur);
+    return () => {
+      window.removeEventListener("pagehide", bersihkanGambarUkur);
+      bersihkanGambarUkur();
     };
   }, [simpanGeometri]);
   const [bukaModalForm, setBukaModalForm] = useState<boolean>(false);
@@ -553,6 +559,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // Sinkronkan titik dari perekam latar belakang ke peta secara real-time
   useEffect(() => {
     if (rekamLatar.status !== "idle" && rekamLatar.jenis) {
+      // Jangan pernah memulihkan sesi Gambar dan Ukur sebagai perekaman jalur bila modeGambarUkur sudah tidak aktif
+      if (rekamLatar.modeGambarUkur && !modeGambarUkurRef.current) {
+        perekamLatar.batal();
+        setModeRekam(null);
+        setTitikDraft([]);
+        return;
+      }
       // Menyalin state dari store perekam di luar React (yang tetap merekam saat peta tidak tampil)
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setModeRekam(rekamLatar.jenis);
@@ -581,6 +594,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [pinPeekTerbuka, setPinPeekTerbuka] = useState<boolean>(false);
   const [rekamPeekTerbuka, setRekamPeekTerbuka] = useState<boolean>(false);
   const [pinDraftKey, setPinDraftKey] = useState<number>(0);
+  const [paksaPenuhPeekTick, setPaksaPenuhPeekTick] = useState<number>(0);
+  const geserPesanRef = useRef<{ x: number; y: number } | null>(null);
   const [kondisiUpdateInput, setKondisiUpdateInput] = useState<string>("");
   const baruDisimpanIdRef = useRef<string | null>(null);
 
@@ -1473,6 +1488,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setRekamPeekTerbuka(false);
     setObjekTerpilih(null);
     setDetailObjekTerbuka(false);
+    modeGambarUkurRef.current = adalahUkur;
     setModeGambarUkur(adalahUkur);
     setModeRekam(jenis);
     if (jenis === "point") {
@@ -1503,6 +1519,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   };
 
   const pilihJenisUkur = (jenisBaru: "line" | "polygon") => {
+    modeGambarUkurRef.current = true;
     setModeGambarUkur(true);
     setModeRekam(jenisBaru);
     form.setKategoriInput("Lainnya");
@@ -1540,9 +1557,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setObjekTerpilih(itemBaru);
       setDetailObjekTerbuka(false);
     } else if (rekamLatar.jenis) {
-      // Kembalikan UI perekaman jalur/area latar belakang setelah menyimpan pin titik di tengah perjalanan
+      // Kembalikan UI perekaman jalur/area latar belakang setelah menyimpan pin titik di tengah perjalanan,
+      // sekaligus tampilkan kartu ringkas hasil titik yang bisa di-swap ke atas untuk melihat detailnya
       setModeRekam(rekamLatar.jenis);
       setTitikDraft(rekamLatar.titik);
+      baruDisimpanIdRef.current = itemBaru.id;
+      setObjekTerpilih(itemBaru);
+      setDetailObjekTerbuka(false);
     }
     setBukaModalForm(false);
     setAksiAwalForm(null);
@@ -2463,7 +2484,47 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               </div>
             )}
             {pesanSalin && (
-              <span className="field-map-message" role="status">
+              <span
+                className={`field-map-message ${objekTerpilih || pinPeekTerbuka || rekamPeekTerbuka ? "bisa-usap-detail" : ""}`}
+                role="status"
+                onClick={() => {
+                  if (objekTerpilih || pinPeekTerbuka || rekamPeekTerbuka) {
+                    setPaksaPenuhPeekTick((t) => t + 1);
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (!(objekTerpilih || pinPeekTerbuka || rekamPeekTerbuka)) return;
+                  e.stopPropagation();
+                  const t = e.touches[0];
+                  if (t) geserPesanRef.current = { x: t.clientX, y: t.clientY };
+                }}
+                onTouchEnd={(e) => {
+                  const awal = geserPesanRef.current;
+                  geserPesanRef.current = null;
+                  const t = e.changedTouches[0];
+                  if (!awal || !t) return;
+                  const dy = t.clientY - awal.y;
+                  const dx = Math.abs(t.clientX - awal.x);
+                  if (dy < -20 && Math.abs(dy) > dx * 1.5) {
+                    setPaksaPenuhPeekTick((n) => n + 1);
+                  }
+                }}
+                onPointerDown={(e) => {
+                  if (e.pointerType === "touch" || !(objekTerpilih || pinPeekTerbuka || rekamPeekTerbuka)) return;
+                  geserPesanRef.current = { x: e.clientX, y: e.clientY };
+                }}
+                onPointerUp={(e) => {
+                  if (e.pointerType === "touch") return;
+                  const awal = geserPesanRef.current;
+                  geserPesanRef.current = null;
+                  if (!awal) return;
+                  const dy = e.clientY - awal.y;
+                  const dx = Math.abs(e.clientX - awal.x);
+                  if (dy < -20 && Math.abs(dy) > dx * 1.5) {
+                    setPaksaPenuhPeekTick((n) => n + 1);
+                  }
+                }}
+              >
                 {pesanSalin}
               </span>
             )}
@@ -3054,7 +3115,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                     <button
                       type="button"
                       className={`avz-gps-action-outline-btn avz-gps-btn-jeda ${rekamLatar.status === "dijeda" ? "aktif" : ""}`}
-                      onClick={() => (rekamLatar.status === "merekam" ? perekamLatar.jeda() : perekamLatar.lanjutkan())}
+                      onClick={() => {
+                        if (rekamLatar.modeGambarUkur) return;
+                        if (rekamLatar.status === "merekam") perekamLatar.jeda();
+                        else perekamLatar.lanjutkan();
+                      }}
                     >
                       <span>{rekamLatar.status === "merekam" ? "Jeda" : "Lanjutkan"}</span>
                     </button>
@@ -3681,6 +3746,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <PeekSheetInteraktif
           key={`draft-pin-${pinDraftKey}`}
           mode="draft_pin"
+          paksaPenuhTick={paksaPenuhPeekTick}
           titikDraft={titikDraft}
           lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
@@ -3739,10 +3805,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             } else {
               setModeRekam(null);
               setTitikDraft([]);
-              baruDisimpanIdRef.current = itemBaru.id;
-              setObjekTerpilih(itemBaru);
-              setDetailObjekTerbuka(false);
             }
+            baruDisimpanIdRef.current = itemBaru.id;
+            setObjekTerpilih(itemBaru);
+            setDetailObjekTerbuka(false);
             setPesanSalin("Pin disimpan ke peta");
           }}
           onBukaFormLengkap={() => {
@@ -3805,6 +3871,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <PeekSheetInteraktif
           key={`draft-rekam-${modeRekam}-${pinDraftKey}`}
           mode="draft_rekaman"
+          paksaPenuhTick={paksaPenuhPeekTick}
           jenisDraft={modeRekam}
           titikDraft={titikDraft}
           lapisanAktif={lapisanAktif}
@@ -3900,6 +3967,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onKonversiKeArea={
             modeRekam === "line" && titikDraft.length >= 3
               ? () => {
+                  modeGambarUkurRef.current = true;
                   setModeGambarUkur(true);
                   setModeRekam("polygon");
                   perekamLatar.mulaiGambarUkur("polygon", titikDraft);
@@ -3922,6 +3990,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <PeekSheetInteraktif
           key={objekTerpilih.id}
           mode="objek_terpilih"
+          paksaPenuhTick={paksaPenuhPeekTick}
           objekTerpilih={objekTerpilih}
           lapisanAktif={lapisanAktif}
           lapisanList={lapisanList}
@@ -3969,6 +4038,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onPesan={setPesanSalin}
           onKonversiKeArea={() => {
             if (objekTerpilih.jenisGeometri === "line" && objekTerpilih.koordinat.length >= 3) {
+              modeGambarUkurRef.current = true;
               setModeGambarUkur(true);
               setModeRekam("polygon");
               perekamLatar.mulaiGambarUkur("polygon", objekTerpilih.koordinat);
@@ -4005,6 +4075,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onKonversiKeArea={
             objekTerpilih.jenisGeometri === "line" && objekTerpilih.koordinat.length >= 3
               ? () => {
+                  modeGambarUkurRef.current = true;
                   setModeGambarUkur(true);
                   setModeRekam("polygon");
                   perekamLatar.mulaiGambarUkur("polygon", objekTerpilih.koordinat);
@@ -4069,6 +4140,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           onKonversiKeArea={
             modeRekam === "line" && titikDraft.length >= 3
               ? () => {
+                  modeGambarUkurRef.current = true;
                   setModeGambarUkur(true);
                   setModeRekam("polygon");
                   perekamLatar.mulaiGambarUkur("polygon", titikDraft);

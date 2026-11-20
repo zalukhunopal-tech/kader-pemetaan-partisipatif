@@ -1,6 +1,7 @@
 import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { RefreshCw } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-motion";
 import {
   AreaPetaOffline,
@@ -88,7 +89,9 @@ import {
 import { bacaDraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "./lib/draftSurvei";
 import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
+import { EVENT_OVERLAY_OFFLINE_DIPERBARUI } from "./lib/cachePetaOtomatis";
 import { useUnduhPetaOtomatis } from "./lib/useUnduhPetaOtomatis";
+import { useTarikSegarkan } from "./lib/useTarikSegarkan";
 import { muatSemuaArsipPetaKeProtokol, hapusArsipPeta, rehidrasiArsipGeoPdf } from "./lib/penyimpananPetaLuring";
 import { perkiraanPenyimpanan, PerkiraanPenyimpanan, useStatusPenyimpanan } from "./lib/penyimpanan";
 import { cekPembaruanBaru, hitungPembaruanSah } from "./lib/rewardEngine";
@@ -628,6 +631,32 @@ export const App: React.FC = () => {
     if (tujuan === tabAktif) return;
     setTabAktif(tujuan, arah === 1 ? 1 : -1);
   };
+  // Segarkan tampilan aktif di dalam aplikasi (tanpa reload browser, tanpa mengunci, tanpa pindah layar)
+  const segarkanLayarSaatIni = useCallback(() => {
+    catatAktivitasAplikasi();
+    catatAktivitasAdmin();
+    if (typeof navigator !== "undefined") {
+      setJaringanTersedia(navigator.onLine);
+    }
+    const tugasTerbaru = muatTugas();
+    setDataSpasial(muatDataSpasial());
+    setTugasList(tugasTerbaru);
+    setLapisanList(sinkronkanLapisanDariTugas(muatLapisan(), tugasTerbaru));
+    setAreaOffline(muatAreaOffline());
+    setPengumumanList(muatPengumuman());
+    setPesanList(muatPesan());
+    setSertifikatList(muatSertifikat());
+    setPencadanganList(pisahkanPencadanganKedaluwarsa(muatPencadanganSpasial()).aktif);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(EVENT_OVERLAY_OFFLINE_DIPERBARUI));
+    }
+    tampilkanToast("Tampilan disegarkan.");
+  }, [tampilkanToast]);
+
+  const tarikSegarkan = useTarikSegarkan({
+    aktif: Boolean(sesiPengguna) && layarKunci === null && tabAktif !== "peta",
+    onSegarkan: segarkanLayarSaatIni
+  });
 
   /** Lapis 2: setiap aksi admin diperiksa ulang; bila tidak sah, mode admin dikunci dan aksi dibatalkan */
   const wajibAdmin =
@@ -1267,7 +1296,6 @@ export const App: React.FC = () => {
       sedangMerekam={rekamLatar.status !== "idle" && !rekamLatar.modeGambarUkur}
       onTerbuka={(pesan) => {
         segarkanKeamanan();
-        setTabAktif("peta");
         tampilkanToast(pesan.startsWith("🔒") ? pesan : `🔓 ${pesan}`);
       }}
       onKeluar={handleLogout}
@@ -1407,11 +1435,42 @@ export const App: React.FC = () => {
       {/* KONTEN UTAMA SESUAI PERAN & TAB AKTIF */}
       <main
         className="app-main"
-        onTouchStart={handleGeserMulai}
-        onTouchMove={handleGeserGerak}
-        onTouchEnd={handleGeserSelesai}
-        onTouchCancel={() => (awalGeserRef.current = null)}
+        onTouchStart={(e) => {
+          handleGeserMulai(e);
+          tarikSegarkan.onTouchStart(e);
+        }}
+        onTouchMove={(e) => {
+          handleGeserGerak(e);
+          tarikSegarkan.onTouchMove(e);
+        }}
+        onTouchEnd={(e) => {
+          handleGeserSelesai(e);
+          tarikSegarkan.onTouchEnd();
+        }}
+        onTouchCancel={() => {
+          awalGeserRef.current = null;
+          tarikSegarkan.onTouchCancel();
+        }}
       >
+        {(tarikSegarkan.jarakTarikPx > 0 || tarikSegarkan.sedangMenyegarkan) && (
+          <div
+            className={`tarik-segarkan-indikator ${tarikSegarkan.siapSegarkan ? "siap" : ""} ${tarikSegarkan.sedangMenyegarkan ? "aktif" : ""}`}
+            role="status"
+            aria-live="polite"
+            style={{
+              transform: `translate(-50%, ${Math.max(0, tarikSegarkan.jarakTarikPx - 44)}px)`
+            }}
+          >
+            <RefreshCw size={15} className={tarikSegarkan.sedangMenyegarkan ? "putar-segarkan" : ""} />
+            <span>
+              {tarikSegarkan.sedangMenyegarkan
+                ? "Menyegarkan..."
+                : tarikSegarkan.siapSegarkan
+                  ? "Lepaskan untuk menyegarkan"
+                  : "Tarik untuk menyegarkan"}
+            </span>
+          </div>
+        )}
         <AnimatePresence mode="wait" initial={false} custom={arahTransisiTab}>
           {/* Saat layar kunci aplikasi tampil, gerbang admin tidak ikut dirender: satu PIN membuka keduanya */}
           {modeAdminTerkunci && sesiPengguna && !layarKunci ? (
