@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Compass, Download, HardDrive, Layers, Maximize2, X, ZoomIn } from "lucide-react";
+import { Check, Download } from "lucide-react";
 import { AreaPetaOffline, BasemapType } from "../../types";
 import { buatId } from "../../lib/id";
 import { hitungKotakKm } from "../../lib/cachePetaOtomatis";
 import {
   BATAS_TILE_PER_AREA,
+  CakupanOverlayOffline,
   KotakWilayah,
   SUMBER_TILE,
   TileXYZ,
@@ -12,7 +13,7 @@ import {
   hapusTile,
   isiTemplateTile,
   penyimpananTileDidukung,
-  perkiraanUkuranMb,
+  simpanCakupanOverlayOffline,
   sumberUnduhOfflineEfektif,
   unduhTile,
   unduhanLayak
@@ -30,7 +31,7 @@ export interface StatusHudUnduh {
 
 /**
  * Menyusun piramida tile berpusat di titik bidik untuk area 10 x 10 km sampai ketelitian zoom 20x:
- * - 10 x 10 km penuh pada zoom 12..15 (orientasi & navigasi koridor luas)
+ * - 10 x 10 km penuh pada zoom 10..15 (orientasi & navigasi koridor luas)
  * - 4 x 4 km menengah pada zoom 16..17
  * - 1.5 x 1.5 km detail pada zoom 18
  * - 0.5 x 0.5 km presisi tinggi di pusat area pada zoom 19..20 (atau batas zoom penyedia)
@@ -79,17 +80,17 @@ export function kategoriProgressUnduh(persen: number, selesai = false): {
 }
 
 /**
- * Keadaan pengunduh peta offline. Dipegang oleh peta agar unduhan berjalan
- * di latar belakang setelah modal ditutup dan progres tampil langsung di HUD peta.
+ * Keadaan pengunduh peta offline. Hasil unduhan langsung menjadi overlay citra halus
+ * di Peta Interaktif tanpa membuat lapisan atau item peta tersendiri.
  */
 export function useUnduhAreaOffline(
   basemap: BasemapType,
-  areaOffline: AreaPetaOffline[],
-  onSimpanAreaOffline: (area: AreaPetaOffline) => void,
-  onPesanStatus?: (pesan: string) => void
+  _areaOffline: AreaPetaOffline[],
+  _onSimpanAreaOffline?: (area: AreaPetaOffline) => void,
+  onPesanStatus?: (pesan: string) => void,
+  onOverlayTersimpan?: (cakupan: CakupanOverlayOffline) => void
 ) {
   const [bukaModalOffline, setBukaModalOffline] = useState<boolean>(false);
-  const [namaAreaOfflineBaru, setNamaAreaOfflineBaru] = useState<string>("");
   const [sedangMengunduhTile, setSedangMengunduhTile] = useState<boolean>(false);
   const [kotakUnduh, setKotakUnduh] = useState<KotakWilayah | null>(null);
   const [pusatUnduh, setPusatUnduh] = useState<{ lat: number; lng: number } | null>(null);
@@ -109,7 +110,7 @@ export function useUnduhAreaOffline(
     []
   );
 
-  /** Membuka panel unduh untuk jangkauan 10 x 10 km di pusat area peta hingga zoom 20x. */
+  /** Membuka tombol lingkaran tahan 3 detik untuk area 10 x 10 km di pusat tampilan peta. */
   const bukaModalUnduh = (kotak: KotakWilayah, _zoom?: number) => {
     const latPusat = (kotak.minLat + kotak.maxLat) / 2;
     const lngPusat = (kotak.minLng + kotak.maxLng) / 2;
@@ -177,39 +178,38 @@ export function useUnduhAreaOffline(
         await hapusTile(hasil.urlBaru);
         setStatusHud(null);
         const pesanGagal = hasil.dihentikan
-          ? "Unduhan area offline dibatalkan."
+          ? "Unduhan dibatalkan."
           : hasil.kuotaPenuh
-            ? "Penyimpanan perangkat penuh. Hapus peta offline lama lalu coba lagi."
-            : "Unduhan citra gagal. Periksa koneksi internet lalu coba lagi.";
+            ? "Penyimpanan perangkat penuh."
+            : "Unduhan citra gagal. Periksa koneksi lalu coba lagi.";
         setGalatUnduh(pesanGagal);
         onPesanStatus?.(pesanGagal);
         return;
       }
-      const namaTersimpan = namaAreaOfflineBaru.trim() || `Area 10x10 km #${areaOffline.length + 1}`;
+
+      // Simpan langsung sebagai overlay citra offline di Peta Interaktif tanpa membuat lapisan/item peta tersendiri
       const jumlahTersimpan = hasil.tersimpan + hasil.sudahAda;
       const zoomMaxTersimpan = Math.min(zoomMaksUnduh, sumberEfektif.zoomMaks);
-      onSimpanAreaOffline({
-        id: buatId("OFF"),
-        namaArea: namaTersimpan,
+      const cakupanBaru: CakupanOverlayOffline = {
+        id: buatId("OVL"),
         basemapId: sumberEfektif.basemapEfektif,
         ...kotakUnduh,
         zoomMin: zoomMinUnduh,
         zoomMax: zoomMaxTersimpan,
+        templateTile: sumberEfektif.template,
         jumlahTile: jumlahTersimpan,
         ukuranMb: Number((hasil.byte / 1_000_000).toFixed(2)),
-        jumlahGagal: hasil.gagal + hasil.tidakAda,
-        diunduhPada: new Date().toISOString(),
-        jenisFile: "XYZ Tiles",
-        unduhanNyata: true,
-        templateTile: sumberEfektif.template
-      });
-      setNamaAreaOfflineBaru("");
+        diunduhPada: new Date().toISOString()
+      };
+      simpanCakupanOverlayOffline(cakupanBaru);
+      onOverlayTersimpan?.(cakupanBaru);
+
       setStatusHud({ persen: 100, selesai: true });
-      onPesanStatus?.(`Area "${namaTersimpan}" (${jumlahTersimpan} tile) tersimpan untuk mode offline.`);
+      onPesanStatus?.("Citra offline siap dipakai langsung di Peta Interaktif.");
       timerTutupHudRef.current = window.setTimeout(() => {
         setStatusHud(null);
         timerTutupHudRef.current = null;
-      }, 5000);
+      }, 4500);
     } catch {
       setStatusHud(null);
       const pesan = "Unduhan citra offline gagal. Coba lagi.";
@@ -226,8 +226,6 @@ export function useUnduhAreaOffline(
     bukaModalOffline,
     setBukaModalOffline,
     bukaModalUnduh,
-    namaAreaOfflineBaru,
-    setNamaAreaOfflineBaru,
     sedangMengunduhTile,
     pusatUnduh,
     zoomMinUnduh,
@@ -246,31 +244,18 @@ export function useUnduhAreaOffline(
 }
 
 interface UnduhOfflineModalProps {
-  basemap: BasemapType;
-  areaOffline: AreaPetaOffline[];
   unduh: ReturnType<typeof useUnduhAreaOffline>;
-  onBukaArea: (pusat: { lat: number; lng: number }, area?: AreaPetaOffline) => void;
 }
 
 const RADIUS_HOLD = 62;
 const KELILING_HOLD = 2 * Math.PI * RADIUS_HOLD;
 
-export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, areaOffline, unduh, onBukaArea }) => {
-  const {
-    setBukaModalOffline,
-    namaAreaOfflineBaru,
-    setNamaAreaOfflineBaru,
-    sedangMengunduhTile,
-    pusatUnduh,
-    zoomMaksUnduh,
-    galatUnduh,
-    sumberUnduh,
-    sumberEfektif,
-    jumlahTileUnduh,
-    bisaUnduh,
-    handleUnduhAreaOffline,
-    batalkanUnduhan
-  } = unduh;
+/**
+ * Tampilan unduh peta offline minimalis: hanya menampilkan lingkaran yang ditekan selama 3 detik
+ * tanpa keterangan tambahan atau isian nama peta.
+ */
+export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ unduh }) => {
+  const { setBukaModalOffline, sedangMengunduhTile, bisaUnduh, handleUnduhAreaOffline } = unduh;
 
   const [holdRasio, setHoldRasio] = useState(0);
   const [sedangTahan, setSedangTahan] = useState(false);
@@ -308,137 +293,46 @@ export const UnduhOfflineModal: React.FC<UnduhOfflineModalProps> = ({ basemap, a
   };
 
   const detikTersisa = Math.max(1, Math.ceil(((1 - holdRasio) * DURASI_TAHAN_UNDUH_MS) / 1000));
-  const perkiraanMb = basemap !== "taktis" ? perkiraanUkuranMb(jumlahTileUnduh, basemap) : 0;
 
   return (
-    <div className="modal-backdrop" onClick={() => setBukaModalOffline(false)}>
-      <div className="modal-card unduh-offline-card" onClick={(e) => e.stopPropagation()}>
-        <div className="unduh-hero-banner">
-          <div className="unduh-hero-top">
-            <span className="unduh-hero-badge">
-              <Layers size={13} /> {basemap === "taktis" ? "Peta Taktis" : sumberEfektif?.nama || sumberUnduh?.nama}
-            </span>
-            <button type="button" className="unduh-close-btn" aria-label="Tutup" onClick={() => setBukaModalOffline(false)}>
-              <X size={18} />
-            </button>
-          </div>
-          <h3>Unduh Peta Offline</h3>
-          {pusatUnduh && (
-            <div className="unduh-hero-coord">
-              <Compass size={13} />
-              <span>
-                {pusatUnduh.lat.toFixed(5)}°, {pusatUnduh.lng.toFixed(5)}°
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="unduh-offline-body">
-          <div className="unduh-stats-grid">
-            <div className="unduh-stat-tile">
-              <Maximize2 size={16} />
-              <strong>10 × 10 km</strong>
-              <small>Jangkauan</small>
-            </div>
-            <div className="unduh-stat-tile">
-              <ZoomIn size={16} />
-              <strong>{zoomMaksUnduh}x</strong>
-              <small>Ketelitian</small>
-            </div>
-            <div className="unduh-stat-tile" id="perkiraan-unduh">
-              <HardDrive size={16} />
-              <strong>{jumlahTileUnduh} tile</strong>
-              <small>~{perkiraanMb.toFixed(1)} MB</small>
-            </div>
-          </div>
-
-          <input
-            type="text"
-            className="form-input unduh-nama-input"
-            placeholder="Masukkan nama area"
-            value={namaAreaOfflineBaru}
-            onChange={(e) => setNamaAreaOfflineBaru(e.target.value)}
+    <div
+      className="modal-backdrop unduh-hold-backdrop"
+      role="dialog"
+      aria-label="Tahan 3 detik"
+      onClick={() => setBukaModalOffline(false)}
+    >
+      <button
+        type="button"
+        className={`unduh-hold-circle ${sedangTahan ? "sedang-tahan" : ""} ${!bisaUnduh ? "nonaktif" : ""}`}
+        disabled={!bisaUnduh || sedangMengunduhTile}
+        aria-label="Tahan 3 detik"
+        style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "none" }}
+        onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={mulaiTahan}
+        onPointerUp={hentikanTahan}
+        onPointerLeave={hentikanTahan}
+        onPointerCancel={hentikanTahan}
+        onTouchStart={mulaiTahan}
+        onTouchEnd={hentikanTahan}
+        onTouchCancel={hentikanTahan}
+      >
+        <svg className="unduh-hold-svg" viewBox="0 0 152 152" aria-hidden="true">
+          <circle className="unduh-hold-track" cx="76" cy="76" r={RADIUS_HOLD} />
+          <circle
+            className="unduh-hold-arc"
+            cx="76"
+            cy="76"
+            r={RADIUS_HOLD}
+            strokeDasharray={KELILING_HOLD}
+            strokeDashoffset={KELILING_HOLD * (1 - holdRasio)}
           />
-
-          <div className="unduh-hold-stage">
-            <button
-              type="button"
-              className={`unduh-hold-circle ${sedangTahan ? "sedang-tahan" : ""} ${!bisaUnduh ? "nonaktif" : ""}`}
-              disabled={!bisaUnduh || sedangMengunduhTile}
-              aria-label="Tahan 3 detik untuk unduh peta 10x10 km"
-              style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "none" }}
-              onContextMenu={(e) => e.preventDefault()}
-              onPointerDown={mulaiTahan}
-              onPointerUp={hentikanTahan}
-              onPointerLeave={hentikanTahan}
-              onPointerCancel={hentikanTahan}
-              onTouchStart={mulaiTahan}
-              onTouchEnd={hentikanTahan}
-              onTouchCancel={hentikanTahan}
-            >
-              <svg className="unduh-hold-svg" viewBox="0 0 152 152" aria-hidden="true">
-                <circle className="unduh-hold-track" cx="76" cy="76" r={RADIUS_HOLD} />
-                <circle
-                  className="unduh-hold-arc"
-                  cx="76"
-                  cy="76"
-                  r={RADIUS_HOLD}
-                  strokeDasharray={KELILING_HOLD}
-                  strokeDashoffset={KELILING_HOLD * (1 - holdRasio)}
-                />
-              </svg>
-              <div className="unduh-hold-core">
-                <Download size={28} />
-                <strong>{sedangTahan ? `${detikTersisa}d` : "Tahan 3 Detik"}</strong>
-                <span>{sedangTahan ? "Mengunci…" : "10×10 km · 20x"}</span>
-              </div>
-            </button>
-          </div>
-
-          {sedangMengunduhTile && (
-            <button type="button" className="btn-outline-sm" onClick={batalkanUnduhan}>
-              Batalkan
-            </button>
-          )}
-
-          {galatUnduh && (
-            <p className="field-error" role="alert" style={{ margin: 0, textAlign: "center" }}>
-              {galatUnduh}
-            </p>
-          )}
-
-          {areaOffline.length > 0 && (
-            <div className="offline-list" style={{ marginTop: 4 }}>
-              {areaOffline.map((a) => (
-                <div key={a.id} className="offline-item">
-                  <div>
-                    <strong>{a.namaArea}</strong>
-                    <small>
-                      {a.jumlahTile.toLocaleString("id-ID")} tile · {a.ukuranMb} MB
-                    </small>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-outline-sm"
-                    onClick={() => {
-                      onBukaArea(
-                        {
-                          lat: (a.minLat + a.maxLat) / 2,
-                          lng: (a.minLng + a.maxLng) / 2
-                        },
-                        a
-                      );
-                      setBukaModalOffline(false);
-                    }}
-                  >
-                    Buka
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+        </svg>
+        <div className="unduh-hold-core">
+          <Download size={32} />
+          <strong>{sedangTahan ? `${detikTersisa}d` : "3d"}</strong>
         </div>
-      </div>
+      </button>
     </div>
   );
 };

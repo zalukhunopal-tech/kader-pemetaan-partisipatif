@@ -13312,7 +13312,13 @@ html[data-field-theme="matahari"] .section-card h2 {
   font-variant-numeric: tabular-nums;
 }
 
-/* UNDUH OFFLINE ESTETIK 10x10 KM + TAHAN 3 DETIK */
+/* UNDUH OFFLINE MINIMALIS: HANYA LINGKARAN TAHAN 3 DETIK */
+.unduh-hold-backdrop {
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
 .unduh-offline-card {
   max-width: 390px;
   padding: 0;

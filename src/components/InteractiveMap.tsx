@@ -18,13 +18,16 @@ import { durasiRekamMs, formatDurasi, perekamLatar, usePerekamLatar } from "../l
 import { bacaPosisiPeta, POSISI_AWAL_PETA, simpanPosisiPeta, ZOOM_MAKS_PETA, ZOOM_MIN_PETA } from "../lib/posisiPeta";
 import { PecahanDunia, jepitZoom, langkahZoomRoda, pecahanDiLayar, pusatUntukJangkar, zoomCubit } from "../lib/zoomPeta";
 import {
+  CakupanOverlayOffline,
   KotakWilayah,
   SUMBER_TILE,
   URUTAN_BASEMAP,
   adalahPetaTileOffline,
   basemapBawaan,
   basemapTersedia,
+  cariOverlayOfflineDiTitik,
   isiTemplateTile,
+  muatCakupanOverlayOffline,
   muatGambarTile,
   muatGambarTileDariCache,
   laporHasilTile,
@@ -209,7 +212,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   areaOffline,
   petaKustomAktif,
   onTutupPetaKustom,
-  onPilihPetaKustom,
   fokusKoordinat,
   onFokusDipakai,
   onSimpanDataBaru,
@@ -604,8 +606,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   };
 
-  // Modal Offline Downloader
-  const unduh = useUnduhAreaOffline(basemap, areaOffline, onSimpanAreaOffline, setPesanSalin);
+  // Overlay citra offline langsung di Peta Interaktif (tanpa membuat lapisan tersendiri)
+  const [overlayOfflineList, setOverlayOfflineList] = useState<CakupanOverlayOffline[]>(() => muatCakupanOverlayOffline());
+  const unduh = useUnduhAreaOffline(basemap, areaOffline, onSimpanAreaOffline, setPesanSalin, () => {
+    setOverlayOfflineList(muatCakupanOverlayOffline());
+    // Bersihkan status galat lama agar tile yang baru selesai diunduh langsung tampil halus
+    for (const [k, v] of tileCacheRef.current.entries()) {
+      if (v === "error") tileCacheRef.current.delete(k);
+    }
+    setRenderTick((t) => t + 1);
+  });
   const areaOfflineRef = useRef(areaOffline);
   areaOfflineRef.current = areaOffline;
   const latAuto = posisiNyata?.lat ?? center.lat;
@@ -808,6 +818,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       canvas.height = targetH;
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     const adalahTileOffline = adalahPetaTileOffline(petaKustomAktif);
 
@@ -842,7 +854,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       zTile: number,
       tepi: number,
       hanyaCache: boolean,
-      basemapLapor?: BasemapType
+      basemapLapor?: BasemapType,
+      maksFallbackInduk = 6
     ) => {
       const ukuranTile = TILE_SIZE * Math.pow(2, zoom - zTile);
       const centerTx = lngToTileX(center.lng, zTile);
@@ -853,7 +866,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const endTileY = Math.floor(centerTy + H / (2 * ukuranTile)) + tepi;
 
       const gambarIndukDariMemori = (tx: number, ty: number, drawX: number, drawY: number, sisi: number): boolean => {
-        for (let dz = 1; dz <= 6 && zTile - dz >= 0; dz++) {
+        for (let dz = 1; dz <= maksFallbackInduk && zTile - dz >= 0; dz++) {
           const pz = zTile - dz;
           const skala = Math.pow(2, dz);
           const px = Math.floor(tx / skala);
@@ -874,8 +887,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       };
 
       const hangatkanIndukDariCacheApi = (tx: number, ty: number) => {
+        if (maksFallbackInduk <= 0) return;
         void (async () => {
-          for (let dz = 1; dz <= 6 && zTile - dz >= 0; dz++) {
+          for (let dz = 1; dz <= maksFallbackInduk && zTile - dz >= 0; dz++) {
             const pz = zTile - dz;
             const skala = Math.pow(2, dz);
             const px = Math.floor(tx / skala);
@@ -955,36 +969,62 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       );
     }
 
-    // 2.2 Muat & Gambar Tile Peta Satelit / OSM / Topo (Peta Dasar)
+    // 2.2 Muat & Gambar Tile Peta Dasar + Overlay Citra Offline Langsung (Halus, Tanpa Garis/Warna Tambahan)
     // Pemisahan tegas: saat partisi lembar peta GeoPDF aktif, tile basemap TIDAK digambar agar tidak bercampur!
     if (!petaKustomAktif && basemap !== "taktis") {
-      // Saat offline di basemap Google (non-CORS), otomatis pakai templateTile area offline yang mencakup pusat peta
-      const areaOfflineMencakup = !sedangOnline
-        ? areaOffline.find(
-            (a) =>
-              adalahPetaTileOffline(a) &&
-              center.lat >= a.minLat &&
-              center.lat <= a.maxLat &&
-              center.lng >= a.minLng &&
-              center.lng <= a.maxLng
-          )
-        : undefined;
-      const pakaiTemplateAreaOffline = Boolean(
-        areaOfflineMencakup && basemap === "google" && !SUMBER_TILE.google.berkuota && areaOfflineMencakup.templateTile
-      );
-      const zTile = pakaiTemplateAreaOffline
-        ? Math.max(0, Math.min(Math.round(zoom), areaOfflineMencakup!.zoomMax || 19))
-        : zoomSumber(basemap, zoom);
-      const tepi = SUMBER_TILE[basemap].berkuota ? 0 : 1;
-      gambarGridTileDenganFallback(
-        pakaiTemplateAreaOffline
-          ? (z, x, y) => isiTemplateTile(areaOfflineMencakup!.templateTile!, z, x, y)
-          : (z, x, y) => urlTile(basemap, z, x, y),
-        zTile,
-        tepi,
-        !sedangOnline,
-        pakaiTemplateAreaOffline ? undefined : basemap
-      );
+      // Cari cakupan citra offline hasil unduhan (langsung di Peta Interaktif tanpa lapisan tersendiri)
+      const cocokLayar = (b: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => {
+        const tl = latLngToPixel(b.maxLat, b.minLng, W, H);
+        const br = latLngToPixel(b.minLat, b.maxLng, W, H);
+        return br.x >= 0 && tl.x <= W && br.y >= 0 && tl.y <= H;
+      };
+      const overlayAktif =
+        cariOverlayOfflineDiTitik(center.lat, center.lng, overlayOfflineList) ??
+        overlayOfflineList.find(cocokLayar) ??
+        areaOffline.find((a) => adalahPetaTileOffline(a) && cocokLayar(a));
+      const templateOverlay = overlayAktif?.templateTile || "";
+      const zMaksOverlay = overlayAktif && overlayAktif.zoomMax > 0 ? overlayAktif.zoomMax : 19;
+
+      // Saat offline di area yang sudah diunduh, tampilkan langsung citra offline secara halus
+      if (!sedangOnline && templateOverlay) {
+        const zTileOffline = Math.max(0, Math.min(Math.round(zoom), zMaksOverlay));
+        gambarGridTileDenganFallback(
+          (z, x, y) => isiTemplateTile(templateOverlay, z, x, y),
+          zTileOffline,
+          1,
+          true,
+          undefined,
+          6
+        );
+      } else {
+        const zTile = zoomSumber(basemap, zoom);
+        const tepi = SUMBER_TILE[basemap].berkuota ? 0 : 1;
+        gambarGridTileDenganFallback(
+          (z, x, y) => urlTile(basemap, z, x, y),
+          zTile,
+          tepi,
+          !sedangOnline,
+          basemap
+        );
+
+        // Jika hasil unduhan citra offline memakai templat berbeda dari basemap aktif (mis. unduh dari Google),
+        // tampilkan langsung sebagai overlay halus dari Cache API di atas Peta Interaktif tanpa batas/garis tambahan
+        if (templateOverlay) {
+          const contohBasemap = urlTile(basemap, zTile, 0, 0);
+          const contohOverlay = isiTemplateTile(templateOverlay, zTile, 0, 0);
+          if (contohOverlay && contohOverlay !== contohBasemap) {
+            const zTileOverlay = Math.max(0, Math.min(Math.round(zoom), zMaksOverlay));
+            gambarGridTileDenganFallback(
+              (z, x, y) => isiTemplateTile(templateOverlay, z, x, y),
+              zTileOverlay,
+              1,
+              true,
+              undefined,
+              1
+            );
+          }
+        }
+      }
     }
 
     if (petaKustomAktif && detailGeoPdfRef.current && detailGeoPdfRef.current.id === petaKustomAktif.id && zoom >= 15) {
@@ -1035,6 +1075,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     koordinatDipilih,
     petaKustomAktif,
     areaOffline,
+    overlayOfflineList,
     sedangOnline,
     objekTerpilih,
     targetGoTo,
@@ -4065,22 +4106,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         />
       )}
 
-      {/* MODAL PENGUNDUH PETA OFFLINE */}
-      {unduh.bukaModalOffline && (
-        <UnduhOfflineModal
-          basemap={basemap}
-          areaOffline={areaOffline}
-          unduh={unduh}
-          onBukaArea={(pusat, area) => {
-            if (area && onPilihPetaKustom) {
-              onPilihPetaKustom(area);
-            } else {
-              setCenter(pusat);
-              setZoom(16);
-            }
-          }}
-        />
-      )}
+      {/* LINGKARAN UNDUH PETA OFFLINE (TAHAN 3 DETIK) */}
+      {unduh.bukaModalOffline && <UnduhOfflineModal unduh={unduh} />}
     </div>
   );
 };

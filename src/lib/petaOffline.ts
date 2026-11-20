@@ -739,3 +739,75 @@ export async function ukuranPenyimpanan(): Promise<{ pakaiMb: number; kuotaMb: n
     return null;
   }
 }
+
+/* ---------- Overlay Citra Offline Langsung di Peta Interaktif (Tanpa Lapisan Tersendiri) ---------- */
+
+export const KUNCI_OVERLAY_OFFLINE = "geokader_overlay_offline_v1";
+
+export interface CakupanOverlayOffline {
+  id: string;
+  basemapId: BasemapTile;
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  zoomMin: number;
+  zoomMax: number;
+  templateTile: string;
+  jumlahTile: number;
+  ukuranMb: number;
+  diunduhPada: string;
+}
+
+export function muatCakupanOverlayOffline(): CakupanOverlayOffline[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const mentah = localStorage.getItem(KUNCI_OVERLAY_OFFLINE);
+    if (!mentah) return [];
+    const arr = JSON.parse(mentah);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(
+      (x): x is CakupanOverlayOffline =>
+        Boolean(x) &&
+        typeof x.id === "string" &&
+        typeof x.templateTile === "string" &&
+        Number.isFinite(x.minLat) &&
+        Number.isFinite(x.maxLat) &&
+        Number.isFinite(x.minLng) &&
+        Number.isFinite(x.maxLng)
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function simpanCakupanOverlayOffline(cakupan: CakupanOverlayOffline): CakupanOverlayOffline[] {
+  const lama = muatCakupanOverlayOffline().filter((x) => x.id !== cakupan.id);
+  const baru = [cakupan, ...lama].slice(0, 24);
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(KUNCI_OVERLAY_OFFLINE, JSON.stringify(baru));
+    } catch {
+      // Abaikan jika localStorage penuh; tile tetap tersimpan aman di Cache API
+    }
+  }
+  return baru;
+}
+
+export function cariOverlayOfflineDiTitik(
+  lat: number,
+  lng: number,
+  daftar: CakupanOverlayOffline[] = muatCakupanOverlayOffline()
+): CakupanOverlayOffline | undefined {
+  return daftar.find((c) => lat >= c.minLat && lat <= c.maxLat && lng >= c.minLng && lng <= c.maxLng);
+}
+
+export function setelUlangOverlayOfflineUntukUji(): void {
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.removeItem(KUNCI_OVERLAY_OFFLINE);
+    } catch {
+      // Abaikan
+    }
+  }
+}
