@@ -15476,63 +15476,68 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 99px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  gap: 3px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 2px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: #334155;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.15s ease;
+}
+
+.avenza-notif-offline-btn:hover {
+  opacity: 0.8;
 }
 
 .avenza-notif-offline-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .avenza-notif-offline-btn.peringatan {
-  background: #fffbeb;
-  border-color: rgba(217, 119, 6, 0.45);
+  background: transparent;
+  border: none;
   color: #b45309;
 }
 
 .avenza-notif-offline-btn.mengunduh {
-  background: #ecfdf5;
-  border-color: rgba(13, 115, 68, 0.4);
+  background: transparent;
+  border: none;
   color: #0d7344;
-  padding: 0 9px;
+  padding: 0 2px;
 }
 
 .avenza-notif-offline-btn.siap {
-  background: #f0fdf4;
-  border-color: rgba(22, 163, 74, 0.3);
+  background: transparent;
+  border: none;
   color: #15803d;
 }
 
 .avenza-notif-warn-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 16px;
-  height: 16px;
+  top: 0;
+  right: 0;
+  width: 15px;
+  height: 15px;
   border-radius: 99px;
   background: #dc2626;
   color: #ffffff;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  line-height: 16px;
+  line-height: 15px;
   text-align: center;
-  border: 2px solid #ffffff;
+  border: 1.5px solid #ffffff;
   box-shadow: 0 1px 4px rgba(220, 38, 38, 0.45);
 }
 
 .avenza-notif-ok-dot {
   position: absolute;
-  top: 4px;
-  right: 5px;
+  top: 3px;
+  right: 3px;
   width: 7px;
   height: 7px;
   border-radius: 99px;
