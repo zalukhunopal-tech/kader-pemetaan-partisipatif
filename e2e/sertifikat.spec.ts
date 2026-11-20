@@ -1,6 +1,19 @@
 import { expect, test } from "@playwright/test";
 import jsQR from "jsqr";
-import { PNG, URL_APP, akunSemai, buatPin, halamanBaru, kotak, masuk, masukSebagaiAdmin, pilihMenu, sampai } from "./bantu";
+import {
+  PNG,
+  URL_APP,
+  akunSemai,
+  buatPin,
+  bukaSubAdmin,
+  halamanBaru,
+  klikNav,
+  kotak,
+  masuk,
+  masukSebagaiAdmin,
+  pilihMenu,
+  sampai
+} from "./bantu";
 
 const RAHASIA_ADMIN = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 const RAHASIA_SITI = "KRSXG5DSNFXGOIDUN5ZGK43FMQQHEZLC";
@@ -127,7 +140,7 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
   let nomor = "";
 
   await test.step("admin: hanya kader dengan 50 titik terverifikasi yang siap terbit", async () => {
-    await p.locator(".admin-subnav-btn", { hasText: "Sertifikat" }).click();
+    await bukaSubAdmin(p, "Sertifikat");
     expect(await sampai(async () => (await p.locator("#tabel-kader-sertifikat").count()) === 1)).toBe(true);
     const baris = await p.locator("#tabel-kader-sertifikat tbody tr").evaluateAll((rs) =>
       rs.map((r) => ({
@@ -157,9 +170,9 @@ test("admin menerbitkan sertifikat atas nama kader yang berhak; QR di sertifikat
     expect(await sampai(async () => (await p.getByPlaceholder("Masukkan alamat email").count()) === 1)).toBe(true);
     await masuk(p, "siti@contoh.id", SANDI_UJI, RAHASIA_SITI);
     await buatPin(p);
-    await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();
-    expect(await sampai(async () => /sudah diterbitkan/.test((await p.locator("#status-sertifikat").textContent()) ?? ""))).toBe(true);
-    expect(await p.getByText("Tersertifikasi").count()).toBeGreaterThan(0);
+    await klikNav(p, "Sertifikat");
+    // Status terbit kini ditampilkan sebagai lencana "Tersertifikasi" di kartu kader
+    expect(await sampai(async () => (await p.getByText("Tersertifikasi").count()) > 0)).toBe(true);
     expect(await p.locator(".sertifikat-unduh").isDisabled()).toBe(false);
     const daftar = (await bacaIdb(p, "geokader_sertifikat_v5")) as { tanggalTerbit: string }[];
     let isiQr: string | null = null;
@@ -186,8 +199,8 @@ test("Sertifikat di HP dengan huruf besar: tombol rapi, kartu capaian tidak melu
     true
   );
   await masukSebagaiAdmin(p, URL_APP, "Adrila Nopal Prastian Zalukhu");
-  await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
-  await p.locator(".avenza-nav-item", { hasText: "Sertifikat" }).click();
+  await klikNav(p, "Mode User");
+  await klikNav(p, "Sertifikat");
   await p.waitForTimeout(1200);
   await p.locator("#aksi-sertifikat").scrollIntoViewIfNeeded();
 

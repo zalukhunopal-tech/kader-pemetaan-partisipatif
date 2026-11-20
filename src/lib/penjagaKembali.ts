@@ -20,7 +20,7 @@ export interface OpsiPenjagaKembali {
   onTutupLapisanTeratas?: () => boolean;
   /** Dipanggil saat tekan Back ke-1 untuk memberi tahu pengguna menekan sekali lagi */
   onPeringatanKeluar: () => void;
-  /** Jendela waktu menunggu tekan Back ke-2 dalam milidetik (default 2000 ms) */
+  /** Jendela waktu menunggu tekan Back ke-2 dalam milidetik (bawaan BATAS_WAKTU_KEMBALI_MS = 2500 ms) */
   batasWaktuMs?: number;
 }
 

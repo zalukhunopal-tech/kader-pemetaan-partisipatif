@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
-import { PIN, SANDI, buatPin, halamanBaru, kodeBerikutnya, majukanJam, masuk, pilihMenu, sampai, siapkanAdmin, terkunci } from "./bantu";
+import {
+  PIN,
+  SANDI,
+  buatPin,
+  halamanBaru,
+  klikNav,
+  kodeBerikutnya,
+  majukanJam,
+  masuk,
+  modeAdminTerbuka,
+  pilihMenu,
+  sampai,
+  siapkanAdmin,
+  terkunci
+} from "./bantu";
 
 /** Pemeriksaan kunci aplikasi seperti yang dilakukan App tiap 15 detik dan saat aplikasi tampil lagi */
 const periksaKunci = (p: import("@playwright/test").Page) => p.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
@@ -16,7 +30,7 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
     await p.locator("#form-siapkan-pin button[type=submit]").click();
     expect(await sampai(async () => /berurutan/.test(await p.locator("#form-siapkan-pin").innerText()))).toBe(true);
     await buatPin(p);
-    expect(await p.locator(".admin-subnav").count()).toBe(1);
+    expect(await sampai(() => modeAdminTerbuka(p))).toBe(true);
     const simpanan = await p.evaluate(() => JSON.stringify(localStorage));
     expect(simpanan).not.toContain(PIN);
     expect(simpanan).toMatch(/pinHash/);
@@ -31,7 +45,7 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
     expect(await sampai(async () => /PIN salah\. Sisa 4/.test(await p.locator(".layar-kunci").innerText()))).toBe(true);
     await p.locator("#pin-buka").fill(PIN);
     expect(await sampai(async () => !(await terkunci(p)))).toBe(true);
-    expect(await p.locator(".admin-subnav").count()).toBe(1);
+    expect(await sampai(() => modeAdminTerbuka(p))).toBe(true);
     expect(await p.locator("#gerbang-admin").count()).toBe(0);
   });
 
@@ -54,7 +68,7 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
     await p.locator("#kode-verifikasi").fill(await kodeBerikutnya(p, rahasia));
     await p.locator("#verifikasi-kode button[type=submit]").click();
     expect(await sampai(async () => !(await terkunci(p)))).toBe(true);
-    expect(await p.locator(".admin-subnav").count()).toBe(1);
+    expect(await sampai(() => modeAdminTerbuka(p))).toBe(true);
     await p.reload();
     expect(await sampai(async () => (await p.locator("#pin-buka").count()) === 1)).toBe(true);
     await p.locator("#pin-buka").fill(PIN);
@@ -62,11 +76,11 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
   });
 
   await test.step("Mode User lalu kembali ke admin: gerbang admin meminta PIN", async () => {
-    await p.locator(".avenza-nav-item", { hasText: "Mode User" }).click();
+    await klikNav(p, "Mode User");
     await pilihMenu(p, "Mode Admin");
     expect(await sampai(async () => (await p.locator("#gerbang-admin #pin-buka").count()) === 1)).toBe(true);
     await p.locator("#gerbang-admin #pin-buka").fill(PIN);
-    expect(await sampai(async () => (await p.locator(".admin-subnav").count()) === 1)).toBe(true);
+    expect(await sampai(() => modeAdminTerbuka(p))).toBe(true);
   });
 
   await test.step("menu Keamanan, kunci sekarang, dan 5 PIN salah menonaktifkan PIN", async () => {
@@ -93,7 +107,7 @@ test("Authenticator 8 jam, PIN, gerbang admin, dan keluar", async ({ browser }) 
     await p.locator(".layar-kunci-keluar").click();
     expect(await sampai(async () => (await p.getByPlaceholder("Masukkan alamat email").count()) === 1)).toBe(true);
     await masuk(p, "siti.admin@contoh.id", SANDI, rahasia);
-    expect(await sampai(async () => (await p.locator(".admin-subnav").count()) === 1)).toBe(true);
+    expect(await sampai(() => modeAdminTerbuka(p))).toBe(true);
     expect(await terkunci(p)).toBe(false); // PIN sudah ada, tidak diminta lagi
   });
 
@@ -137,7 +151,7 @@ test("sidik jari / pengenalan wajah (autentikator virtual Chrome)", async ({ bro
 
   await test.step("dibuka ulang: sidik jari ditawarkan otomatis dan membuka aplikasi + mode admin", async () => {
     await p.reload();
-    expect(await sampai(async () => !(await terkunci(p)) && (await p.locator(".admin-subnav").count()) === 1, 8000)).toBe(true);
+    expect(await sampai(() => modeAdminTerbuka(p), 8000)).toBe(true);
   });
 
   await test.step("verifikasi pengguna gagal: tetap terkunci; berhasil: terbuka", async () => {

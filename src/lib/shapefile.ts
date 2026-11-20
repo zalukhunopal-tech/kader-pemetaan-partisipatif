@@ -1,10 +1,6 @@
 import { AreaPetaOffline, DataSpasialItem, JenisGeometri } from "../types";
 import { hitungLuasPoligonMeter2, hitungPanjangGarisMeter, sanitasiAtributKustom } from "./geoUtils";
-import {
-  susunAtributLinePrmAid,
-  susunAtributPointPrmAid,
-  susunAtributPolygonPrmAid
-} from "./atributPrmAid";
+import { susunAtributLinePrmAid, susunAtributPointPrmAid, susunAtributPolygonPrmAid } from "./atributPrmAid";
 
 export const WGS84_PRJ =
   'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]';
@@ -234,9 +230,7 @@ function ambilKolomDbfWebgis(jenis: JenisGeometri): KolomDbf[] {
     const haGeom = Number((hitungLuasPoligonMeter2(d.koordinat) / 10000).toFixed(4));
     const haTersimpan = Number(d.luasHa ?? 0);
     const luas_ha =
-      !haTersimpan || (haGeom > 0 && Math.abs(haTersimpan - haGeom) / haGeom <= 0.05)
-        ? haGeom
-        : Number(haTersimpan.toFixed(4));
+      !haTersimpan || (haGeom > 0 && Math.abs(haTersimpan - haGeom) / haGeom <= 0.05) ? haGeom : Number(haTersimpan.toFixed(4));
     return susunAtributPolygonPrmAid({ ...susunItemBersihDbf(d), luas_ha });
   };
   return [
@@ -411,9 +405,22 @@ function hitungCrc32(bytes: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
+/**
+ * Tanggal dan jam format DOS untuk header ZIP. Nilai 0 berarti "1980-00-00" yang tidak sah
+ * (bulan dan hari 0) sehingga sebagian alat arsip dan server menampilkan atau menolaknya.
+ */
+export function waktuDosZip(waktu: Date): { jam: number; tanggal: number } {
+  const tahun = Math.min(2107, Math.max(1980, waktu.getFullYear()));
+  return {
+    jam: (waktu.getHours() << 11) | (waktu.getMinutes() << 5) | Math.floor(waktu.getSeconds() / 2),
+    tanggal: ((tahun - 1980) << 9) | ((waktu.getMonth() + 1) << 5) | waktu.getDate()
+  };
+}
+
 /** Membungkus daftar berkas menjadi arsip ZIP standar (STORE) tanpa ketergantungan eksternal. */
-export function buatArsipZip(daftarBerkas: BerkasArsip[]): Uint8Array {
+export function buatArsipZip(daftarBerkas: BerkasArsip[], waktu: Date = new Date()): Uint8Array {
   const enc = new TextEncoder();
+  const { jam, tanggal } = waktuDosZip(waktu);
   const bagianLokal: Uint8Array[] = [];
   const bagianCd: Uint8Array[] = [];
   let offset = 0;
@@ -429,6 +436,8 @@ export function buatArsipZip(daftarBerkas: BerkasArsip[]): Uint8Array {
     dvLfh.setUint16(4, 20, true);
     dvLfh.setUint16(6, 0x0800, true); // UTF-8
     dvLfh.setUint16(8, 0, true); // STORE
+    dvLfh.setUint16(10, jam, true);
+    dvLfh.setUint16(12, tanggal, true);
     dvLfh.setUint32(14, crc, true);
     dvLfh.setUint32(18, ukuran, true);
     dvLfh.setUint32(22, ukuran, true);
@@ -442,6 +451,8 @@ export function buatArsipZip(daftarBerkas: BerkasArsip[]): Uint8Array {
     dvCd.setUint16(6, 20, true);
     dvCd.setUint16(8, 0x0800, true);
     dvCd.setUint16(10, 0, true);
+    dvCd.setUint16(12, jam, true);
+    dvCd.setUint16(14, tanggal, true);
     dvCd.setUint32(16, crc, true);
     dvCd.setUint32(20, ukuran, true);
     dvCd.setUint32(24, ukuran, true);
