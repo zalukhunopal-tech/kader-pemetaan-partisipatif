@@ -15476,37 +15476,42 @@ html[data-field-theme="matahari"] .section-card h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 99px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  gap: 3px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 2px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: #334155;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.15s ease;
+}
+
+.avenza-notif-offline-btn:hover {
+  opacity: 0.8;
 }
 
 .avenza-notif-offline-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .avenza-notif-offline-btn.belum {
-  background: #fef2f2;
-  border-color: rgba(220, 38, 38, 0.45);
+  background: transparent;
+  border: none;
   color: #dc2626;
 }
 
 .avenza-notif-offline-btn.siap {
-  background: #f0fdf4;
-  border-color: rgba(22, 163, 74, 0.45);
+  background: transparent;
+  border: none;
   color: #16a34a;
 }
 
 .avenza-notif-offline-btn.mengunduh {
-  padding: 0 9px;
+  padding: 0 2px;
 }
 
 .avenza-notif-pct {
