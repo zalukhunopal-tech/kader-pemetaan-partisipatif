@@ -4,8 +4,9 @@ import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSyncView } from "../components/DatabaseSyncView";
 import { AdminDashboardView } from "../components/AdminDashboardView";
-import { eksporKeCSV, eksporKeGeoJSON } from "../lib/geoUtils";
-import { bangunShapefileTunggal } from "../lib/shapefile";
+import { PengaturanEksporView } from "../components/PengaturanEksporView";
+import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
+import { bangunShapefileTunggal, buatArsipZip, eksporPaketShapefile } from "../lib/shapefile";
 import { sinkronkanLapisanDariTugas } from "../lib/skemaTugas";
 import { setelUlangPenyimpananUntukUji } from "../lib/penyimpanan";
 import { DataSpasialItem, ProfilKader, TugasPemetaan } from "../types";
@@ -313,5 +314,57 @@ describe("Database Sesuai Format Tugas (Kolam Data) dan Ekspor Atribut Standar W
     expect(csvDenganTugas.split(/\r?\n/)[0]).toBe(
       "label,kategori,keterangan,url,simbol,Nama Jenis Anggrek,Tinggi Pohon Inang,Nilai Ekonomi"
     );
+  });
+
+  it("5. Ekspor KML menyertakan ExtendedData sesuai Standar Atribut WebGIS Kecamatan v1.0 dan tampilan ekspor hanya menyediakan 3 pilihan sederhana (KML, GeoJSON, SHP .zip)", () => {
+    // A. KML Point, Line, Polygon berisi ExtendedData persis sesuai kolom WebGIS Kecamatan v1.0
+    const kmlPoint = eksporKeKML([ITEM_POINT_TUGAS]);
+    expect(kmlPoint).toContain('<Data name="label"><value>Anggrek Hitam Spot 01</value></Data>');
+    expect(kmlPoint).toContain('<Data name="kategori"><value>Inventarisasi Anggrek Krayan</value></Data>');
+    expect(kmlPoint).toContain('<Data name="keterangan"><value>Tumbuh sehat di batang meranti | Nama Jenis Anggrek: Coelogyne pandurata');
+    expect(kmlPoint).toContain('<Data name="url"><value></value></Data>');
+    expect(kmlPoint).toContain('<Data name="simbol"><value></value></Data>');
+
+    const kmlLine = eksporKeKML([ITEM_LINE_SURVEI]);
+    expect(kmlLine).toContain('<Data name="label">');
+    expect(kmlLine).toContain('<Data name="panjang_m">');
+    expect(kmlLine).toContain('<Data name="keterangan">');
+    expect(kmlLine).toContain('<Data name="url">');
+    expect(kmlLine).toContain('<Data name="warna"><value>#FF0000</value></Data>');
+
+    const kmlPoly = eksporKeKML([ITEM_POLYGON_KECIL]);
+    expect(kmlPoly).toContain('<Data name="label">');
+    expect(kmlPoly).toContain('<Data name="luas_ha">');
+    expect(kmlPoly).toContain('<Data name="keterangan">');
+    expect(kmlPoly).toContain('<Data name="url">');
+    expect(kmlPoly).toContain('<Data name="warna">');
+    expect(kmlPoly).toContain('<Data name="tepi"><value>transparent</value></Data>');
+
+    // B. Paket SHP ZIP berisi .shp, .shx, .dbf, .prj sah (diawali magic ZIP PK\x03\x04)
+    const paket = eksporPaketShapefile([ITEM_POINT_TUGAS], "Anggrek_Krayan");
+    expect(paket.map((b) => b.nama)).toEqual([
+      "Anggrek_Krayan.shp",
+      "Anggrek_Krayan.shx",
+      "Anggrek_Krayan.dbf",
+      "Anggrek_Krayan.prj"
+    ]);
+    const zipBytes = buatArsipZip(paket);
+    expect(zipBytes[0]).toBe(0x50); // 'P'
+    expect(zipBytes[1]).toBe(0x4b); // 'K'
+
+    // C. Halaman PengaturanEksporView sederhana: HANYA 3 format (KML, GeoJSON, SHP (.zip)) tanpa sakelar rumit
+    const rootEkspor = pasang(
+      <PengaturanEksporView
+        dataSpasial={[ITEM_POINT_TUGAS, ITEM_LINE_SURVEI, ITEM_POLYGON_KECIL]}
+        onTutup={vi.fn()}
+      />
+    );
+    const tombolFormat = Array.from(rootEkspor.querySelectorAll('[aria-label="Pilih format ekspor"] button')).map((b) =>
+      b.textContent?.trim()
+    );
+    expect(tombolFormat).toEqual(["KML", "GeoJSON", "SHP (.zip)"]);
+    expect(rootEkspor.textContent).not.toContain("Hanya skema");
+    expect(rootEkspor.textContent).not.toContain("Foto ditautkan");
+    expect(rootEkspor.textContent).not.toContain("Lintasan menjadi garis");
   });
 });

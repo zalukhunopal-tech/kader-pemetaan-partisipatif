@@ -451,29 +451,51 @@ export function eksporKeGeoJSON(daftar: DataSpasialItem[], opsi: OpsiEksporGeoJs
 }
 
 /**
- * Ekspor ke KML (Google Earth / Avenza Maps)
+ * Ekspor ke KML (Google Earth / Avenza Maps / WebGIS Kecamatan v1.0)
+ * Setiap Placemark menyertakan ExtendedData sesuai standar atribut WebGIS Kecamatan:
+ * - Titik  : label, kategori, keterangan, url, simbol
+ * - Garis  : label, panjang_m, keterangan, url, warna
+ * - Bidang : label, luas_ha, keterangan, url, warna, tepi
  */
 export function eksporKeKML(daftar: DataSpasialItem[]): string {
-  const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = (s: string) =>
+    (s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
 
   const placemarks = daftar
     .map((item) => {
+      const atributAman = sanitasiAtributKustom(item.atributKustom);
+      const itemBersih: DataSpasialItem = {
+        ...item,
+        atributKustom: Object.keys(atributAman).length > 0 ? atributAman : undefined
+      };
       const coords = item.koordinat.map((p) => posisiKML(p)).join(" ");
       let geomXml: string;
+      let atributWebgis: Record<string, string | number>;
       if (item.jenisGeometri === "point") {
         geomXml = `<Point><coordinates>${coords}</coordinates></Point>`;
+        atributWebgis = { ...susunAtributPointPrmAid(itemBersih) };
       } else if (item.jenisGeometri === "line") {
         geomXml = `<LineString><tessellate>1</tessellate><coordinates>${coords}</coordinates></LineString>`;
+        atributWebgis = { ...susunAtributLinePrmAid({ ...itemBersih, panjang_m: panjangMeterAkurat(item) }) };
       } else {
         const first = item.koordinat[0];
         const closed = first ? `${coords} ${posisiKML(first)}` : coords;
         geomXml = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${closed}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+        atributWebgis = { ...susunAtributPolygonPrmAid({ ...itemBersih, luas_ha: luasHaAkurat(item) }) };
       }
+      const dataXml = Object.entries(atributWebgis)
+        .map(([k, v]) => `        <Data name="${esc(k)}"><value>${esc(String(v ?? ""))}</value></Data>`)
+        .join("\n");
       return `    <Placemark>
-      <name>${esc(item.judul)}</name>
-      <description>${esc(
-        `[${item.lapisanNama || "Lapisan 1"}] ${item.deskripsi} | Kader: ${item.namaKader} (${item.desaWilayah}) | Panjang: ${item.panjangKm} km | Luas: ${item.luasHa} Ha`
-      )}</description>
+      <name>${esc(String(atributWebgis.label || item.judul))}</name>
+      <description>${esc(String(atributWebgis.keterangan || ""))}</description>
+      <ExtendedData>
+${dataXml}
+      </ExtendedData>
       ${geomXml}
     </Placemark>`;
     })

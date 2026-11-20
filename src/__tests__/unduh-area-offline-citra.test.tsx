@@ -345,7 +345,7 @@ describe("Unduh Citra Offline Otomatis 10x10 km, Jeda 3 Menit, Notifikasi HP, da
     expect(cacheIsi.size).toBeGreaterThan(0);
   });
 
-  it("4. Notifikasi dekat indikator jaringan menampilkan tanda peringatan saat lokasi belum diunduh dan membuka kartu progres ala HP saat diklik", () => {
+  it("4. Pengingat sederhana dekat indikator jaringan berwarna merah saat belum diunduh, hijau saat sudah diunduh, dan menampilkan progres tanpa detail berlebih", () => {
     const statusMengunduh: StatusNotifCitraOffline = {
       fase: "mengunduh",
       perluPeringatan: true,
@@ -369,8 +369,14 @@ describe("Unduh Citra Offline Otomatis 10x10 km, Jeda 3 Menit, Notifikasi HP, da
       sisaDetikTunggu: 135
     };
 
-    // A. Saat lokasi belum diunduh (menunggu 3 menit): tampil tanda peringatan (!) di dekat tombol Online/Offline
-    const elTunggu = pasang(
+    const statusSiap: StatusNotifCitraOffline = {
+      ...statusMengunduh,
+      fase: "siap",
+      perluPeringatan: false,
+      persen: 100
+    };
+
+    const renderMenu = (status: StatusNotifCitraOffline) => (
       <MenuAtas
         tabAktif="peta"
         setTabAktif={vi.fn()}
@@ -389,56 +395,50 @@ describe("Unduh Citra Offline Otomatis 10x10 km, Jeda 3 Menit, Notifikasi HP, da
         onBukaKeamanan={vi.fn()}
         onBukaGantiSandi={vi.fn()}
         onKeluar={vi.fn()}
-        statusCitraOffline={statusMenunggu}
+        statusCitraOffline={status}
       />
     );
 
+    // A. Saat belum diunduh -> simbol berwarna merah (.belum) dan kartu sederhana tanpa detail berlebih
+    const elTunggu = pasang(renderMenu(statusMenunggu));
+
     const tombolNotif = elTunggu.querySelector("button.avenza-notif-offline-btn") as HTMLButtonElement | null;
     expect(tombolNotif).not.toBeNull();
-    expect(elTunggu.querySelector(".avenza-notif-warn-badge")).not.toBeNull();
+    expect(tombolNotif!.classList.contains("belum")).toBe(true);
+    expect(tombolNotif!.classList.contains("siap")).toBe(false);
 
-    // Klik notifikasi -> muncul kartu notifikasi bergaya HP dengan hitung mundur & kuota 3 kotak
     act(() => {
       tombolNotif!.click();
     });
     const kartuHp = elTunggu.querySelector(".notif-hp-card");
     expect(kartuHp).not.toBeNull();
-    expect(kartuHp!.textContent).toContain("Lokasi belum diunduh");
-    expect(kartuHp!.textContent).toContain("2:15");
-    expect(kartuHp!.textContent).toContain("0 / 3");
-    expect(kartuHp!.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(kartuHp!.textContent).toContain("Belum diunduh");
+    expect(kartuHp!.textContent).not.toContain("Kotak tersimpan");
+    expect(kartuHp!.textContent).not.toContain("30 hari");
+    expect(kartuHp!.textContent).not.toContain("Lihat semua pemberitahuan");
+    expect(kartuHp!.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("0");
 
-    // B. Saat sedang mengunduh: tampil persen progres di tombol & di kartu notifikasi HP
+    // B. Saat sedang mengunduh -> tetap merah (.belum) dengan persen progres & bilah progres
     act(() => {
-      akar!.render(
-        <MenuAtas
-          tabAktif="peta"
-          setTabAktif={vi.fn()}
-          peran="kader"
-          adalahAkunAdmin={false}
-          gantiPeranAkun={vi.fn()}
-          bukaMenuTitikTiga={false}
-          setBukaMenuTitikTiga={vi.fn()}
-          sedangOnline={true}
-          jaringanTersedia={true}
-          modeOfflineManual={false}
-          setModeOfflineManual={vi.fn()}
-          tampilkanToast={vi.fn()}
-          onBukaPemberitahuan={vi.fn()}
-          onBukaEkspor={vi.fn()}
-          onBukaKeamanan={vi.fn()}
-          onBukaGantiSandi={vi.fn()}
-          onKeluar={vi.fn()}
-          statusCitraOffline={statusMengunduh}
-        />
-      );
+      akar!.render(renderMenu(statusMengunduh));
     });
 
     expect(elTunggu.querySelector(".avenza-notif-pct")?.textContent).toBe("46%");
     const kartuUnduh = elTunggu.querySelector(".notif-hp-card");
-    expect(kartuUnduh!.textContent).toContain("Mengunduh citra offline (10 × 10 km)");
-    expect(kartuUnduh!.textContent).toContain("230 dari 500 tile (46%)");
+    expect(kartuUnduh!.textContent).toContain("Mengunduh 46%");
     expect(kartuUnduh!.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("46");
+
+    // C. Setelah selesai diunduh -> simbol berubah hijau (.siap) & status "Sudah diunduh" (100%)
+    act(() => {
+      akar!.render(renderMenu(statusSiap));
+    });
+
+    const tombolSiap = elTunggu.querySelector("button.avenza-notif-offline-btn") as HTMLButtonElement;
+    expect(tombolSiap.classList.contains("siap")).toBe(true);
+    expect(tombolSiap.classList.contains("belum")).toBe(false);
+    const kartuSiap = elTunggu.querySelector(".notif-hp-card");
+    expect(kartuSiap!.textContent).toContain("Sudah diunduh");
+    expect(kartuSiap!.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("100");
   });
 
   it("5. Hasil download langsung overlay halus di Peta Interaktif saat OFFLINE total bersama Lapisan Peta survei, tanpa garis atau warna tambahan, dan mendukung fallback overzoom", async () => {

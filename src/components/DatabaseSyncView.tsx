@@ -1,7 +1,7 @@
 import { PusatSinkronisasi } from "./PusatSinkronisasi";
 import React, { useMemo, useState } from "react";
 import { AreaPetaOffline, DataSpasialItem, LapisanSpasial, PilihanResolusiKonflik } from "../types";
-import { eksporKeCSV, eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
+import { eksporKeGeoJSON, eksporKeKML } from "../lib/geoUtils";
 import { buatArsipZip, eksporPaketShapefile } from "../lib/shapefile";
 import { objekCocokLapisan } from "../lib/tematik";
 import { gdriveTerpasang, tujuanDrive } from "../lib/gdriveSync";
@@ -526,31 +526,18 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
               <button
                 type="button"
                 className="btn-outline-sm"
-                onClick={() => unduhBerkasTeks(`${namaBerkasEkspor}.geojson`, eksporKeGeoJSON(dataTampil), "application/geo+json")}
-              >
-                <Download size={13} /> GeoJSON
-              </button>
-              <button
-                type="button"
-                className="btn-outline-sm"
-                onClick={() =>
-                  unduhBerkasTeks(
-                    `${namaBerkasEkspor}.csv`,
-                    eksporKeCSV(dataTampil, { sertakanAtributTugas: kolomTugasLapisan.length > 0 }),
-                    "text/csv;charset=utf-8"
-                  )
-                }
-              >
-                <Download size={13} /> CSV
-              </button>
-              <button
-                type="button"
-                className="btn-outline-sm"
                 onClick={() =>
                   unduhBerkasTeks(`${namaBerkasEkspor}.kml`, eksporKeKML(dataTampil), "application/vnd.google-earth.kml+xml")
                 }
               >
                 <Download size={13} /> KML
+              </button>
+              <button
+                type="button"
+                className="btn-outline-sm"
+                onClick={() => unduhBerkasTeks(`${namaBerkasEkspor}.geojson`, eksporKeGeoJSON(dataTampil), "application/geo+json")}
+              >
+                <Download size={13} /> GeoJSON
               </button>
               <button
                 type="button"
@@ -561,7 +548,7 @@ export const DatabaseSyncView: React.FC<DatabaseSyncViewProps> = ({
                   unduhBerkasTeks(`${namaBerkasEkspor}_shp.zip`, zip, "application/zip");
                 }}
               >
-                <Download size={13} /> SHP
+                <Download size={13} /> SHP (.zip)
               </button>
             </div>
           </div>
