@@ -57,9 +57,14 @@ function muat(): StatePerekamLatar {
     const raw = localStorage.getItem(KUNCI);
     if (!raw) return STATE_AWAL;
     const s = JSON.parse(raw) as StatePerekamLatar;
+    // Mode Gambar dan Ukur bersifat sementara; jangan pernah dipulihkan sebagai perekaman jalur saat aplikasi keluar tiba-tiba
+    if (s.modeGambarUkur) {
+      localStorage.removeItem(KUNCI);
+      return STATE_AWAL;
+    }
     // Rekaman lama dengan Auto GPS aktif memuat titik acak: tandai sebagai simulasi dan matikan timernya
     const titik = (s.titik ?? []).map((t) => (s.autoGpsAktif ? { ...t, simulasi: true } : t));
-    return { ...STATE_AWAL, ...s, titik, autoGpsAktif: false, galat: null };
+    return { ...STATE_AWAL, ...s, titik, autoGpsAktif: false, modeGambarUkur: false, galat: null };
   } catch {
     return STATE_AWAL;
   }
@@ -74,7 +79,8 @@ let wakeLock: { release: () => Promise<void> } | null = null;
 function setState(patch: Partial<StatePerekamLatar>) {
   state = { ...state, ...patch, ...(patch.titik && patch.redoVertex === undefined ? { redoVertex: [] } : {}) };
   try {
-    if (state.status === "idle") localStorage.removeItem(KUNCI);
+    // Hanya simpan perekaman GPS nyata ke localStorage; mode Gambar dan Ukur tidak disimpan agar tidak berubah menjadi perekaman jalur
+    if (state.status === "idle" || state.modeGambarUkur) localStorage.removeItem(KUNCI);
     else localStorage.setItem(KUNCI, JSON.stringify(state));
   } catch {
     /* penyimpanan penuh: tetap lanjut di memori */
@@ -242,7 +248,7 @@ function hentikanWatch() {
 // Ketahanan latar belakang: Wake Lock dan GPS dipulihkan saat aplikasi/tab kembali ke depan
 if (typeof document !== "undefined") {
   const pulihkanLatarBelakang = () => {
-    if (state.status === "merekam") {
+    if (state.status === "merekam" && !state.modeGambarUkur) {
       wakeLock = null;
       mintaWakeLock();
       if (watchId === null) {
@@ -263,8 +269,8 @@ if (typeof document !== "undefined") {
   }
 }
 
-// Lanjutkan perekaman yang masih aktif sebelum aplikasi ditutup / dimuat ulang
-if (typeof window !== "undefined" && state.status === "merekam") {
+// Lanjutkan perekaman yang masih aktif sebelum aplikasi ditutup / dimuat ulang (bukan Gambar dan Ukur)
+if (typeof window !== "undefined" && state.status === "merekam" && !state.modeGambarUkur) {
   setState({ segmenMulaiMs: Date.now() });
   mulaiWatch();
 }
@@ -330,7 +336,8 @@ export const perekamLatar = {
   },
 
   lanjutkan() {
-    if (state.status !== "dijeda") return;
+    // Mode Gambar dan Ukur tidak pernah boleh berubah menjadi perekaman jalur GPS
+    if (state.status !== "dijeda" || state.modeGambarUkur) return;
     setState({ status: "merekam", segmenMulaiMs: Date.now() });
     mulaiWatch();
   },

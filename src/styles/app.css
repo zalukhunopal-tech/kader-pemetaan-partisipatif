@@ -96,6 +96,13 @@ textarea:focus-visible {
   outline: none;
 }
 
+html,
+body,
+#root {
+  overscroll-behavior-y: none;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   background: var(--bg-app);
@@ -15680,6 +15687,60 @@ html[data-field-theme="matahari"] .section-card h2 {
   background: #ecfdf5;
   border-color: #0d7344;
   color: #0d7344;
+}
+
+/* =========================================================
+   TARIK KE BAWAH UNTUK MENYEGARKAN (IN-APP, TANPA RELOAD/KUNCI)
+   ========================================================= */
+.app-shell,
+.app-main {
+  overscroll-behavior-y: none;
+}
+
+.tarik-segarkan-indikator {
+  position: fixed;
+  top: 62px;
+  left: 50%;
+  z-index: 95;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.14);
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 700;
+  pointer-events: none;
+  transition: transform 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.tarik-segarkan-indikator.siap,
+.tarik-segarkan-indikator.aktif {
+  color: #0d7344;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.putar-segarkan {
+  animation: putarSegarkan 0.75s linear infinite;
+}
+
+@keyframes putarSegarkan {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.field-map-message.bisa-usap-detail {
+  cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
 }
 
 

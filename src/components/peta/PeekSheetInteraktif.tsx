@@ -67,6 +67,8 @@ export interface PeekSheetInteraktifProps {
   onPilihLapisanAktif?: (id: string | null) => void;
   objekTerpilih?: DataSpasialItem | null;
   tahapAwal?: TahapPeek;
+  /** Naikkan angkanya untuk meluaskan kartu ringkas langsung ke tampilan detail penuh */
+  paksaPenuhTick?: number;
   onTahapChange?: (tahap: TahapPeek) => void;
   onBukaFormLengkap: () => void;
   onBukaDetailLengkap: () => void;
@@ -170,6 +172,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   onPilihLapisanAktif,
   objekTerpilih,
   tahapAwal = "ringkas",
+  paksaPenuhTick = 0,
   onTahapChange,
   onBukaFormLengkap,
   onBukaDetailLengkap,
@@ -260,6 +263,12 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     onTahapChange?.(tahap);
   }, [tahap, onTahapChange]);
 
+  useEffect(() => {
+    if (paksaPenuhTick > 0) {
+      setTahap("penuh");
+    }
+  }, [paksaPenuhTick]);
+
   const gantiTahap = (tahapBaru: TahapPeek) => {
     setTahap(tahapBaru);
   };
@@ -297,15 +306,16 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     const jarakTotal = Math.hypot(dx, dy);
     if (!awal.lurusAktif) {
       if (jarakTotal < 10) return;
-      if (!adalahGeserLurusVertikal(dx, dy, awal.maksDx)) {
+      if (jarakTotal >= 24 && !adalahGeserLurusVertikal(dx, dy, awal.maksDx)) {
         awal.dibatalkan = true;
         sheetRef.current.style.transform = "";
         setSedangSeret(false);
         return;
       }
+      if (Math.abs(dy) < Math.abs(dx)) return;
       awal.lurusAktif = true;
       setSedangSeret(true);
-    } else if (!adalahGeserLurusVertikal(dx, dy, awal.maksDx)) {
+    } else if (jarakTotal >= 24 && !adalahGeserLurusVertikal(dx, dy, awal.maksDx)) {
       awal.dibatalkan = true;
       sheetRef.current.style.transform = "";
       setSedangSeret(false);
@@ -338,7 +348,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     }
     if (!validLurus) return;
 
-    const naik = dy < -28 || v < -0.32;
+    const naik = dy < -24 || v < -0.28;
     const turun = dy > 28 || v > 0.32;
 
     if (naik) {
@@ -552,16 +562,24 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       selesaikanSeret();
     },
     onTouchStart: (e: React.TouchEvent<HTMLElement>) => {
+      e.stopPropagation();
       if ((e.target as HTMLElement).closest("button")) return;
       if (e.touches.length === 1 && e.touches[0]) mulaiSeret(e.touches[0].clientX, e.touches[0].clientY);
     },
     onTouchMove: (e: React.TouchEvent<HTMLElement>) => {
+      e.stopPropagation();
       if (seretAwalRef.current && e.touches.length === 1 && e.touches[0]) {
         lakukanSeret(e.touches[0].clientX, e.touches[0].clientY);
       }
     },
-    onTouchEnd: () => selesaikanSeret(),
-    onTouchCancel: () => selesaikanSeret()
+    onTouchEnd: (e: React.TouchEvent<HTMLElement>) => {
+      e.stopPropagation();
+      selesaikanSeret();
+    },
+    onTouchCancel: (e: React.TouchEvent<HTMLElement>) => {
+      e.stopPropagation();
+      selesaikanSeret();
+    }
   };
 
   const handleBodyPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -596,6 +614,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   };
 
   const handleBodyTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     if ((e.target as HTMLElement).closest("input, textarea, select")) return;
     if (e.touches.length !== 1 || !e.touches[0]) return;
     if (tahap === "ringkas") {
@@ -609,6 +628,7 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
   };
 
   const handleBodyTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     if (!seretAwalRef.current || e.touches.length !== 1 || !e.touches[0]) return;
     const dy = e.touches[0].clientY - seretAwalRef.current.y;
     // Pada mode detail, hanya tarik sheet ke bawah jika user menggeser ke bawah di posisi paling atas scroll
@@ -621,7 +641,8 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
     lakukanSeret(e.touches[0].clientX, e.touches[0].clientY);
   };
 
-  const handleBodyTouchEnd = () => {
+  const handleBodyTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     if (seretAwalRef.current) selesaikanSeret();
   };
 
@@ -633,6 +654,28 @@ export const PeekSheetInteraktif: React.FC<PeekSheetInteraktifProps> = ({
       aria-label={judulRingkas}
       data-tahap={tahap}
       data-mode={mode}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        if (tahap === "ringkas" && !seretAwalRef.current && e.touches.length === 1 && e.touches[0]) {
+          if (!(e.target as HTMLElement).closest("input, textarea, select")) {
+            mulaiSeret(e.touches[0].clientX, e.touches[0].clientY);
+          }
+        }
+      }}
+      onTouchMove={(e) => {
+        e.stopPropagation();
+        if (tahap === "ringkas" && seretAwalRef.current && e.touches.length === 1 && e.touches[0]) {
+          lakukanSeret(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }}
+      onTouchEnd={(e) => {
+        e.stopPropagation();
+        if (tahap === "ringkas" && seretAwalRef.current) selesaikanSeret();
+      }}
+      onTouchCancel={(e) => {
+        e.stopPropagation();
+        if (tahap === "ringkas" && seretAwalRef.current) selesaikanSeret();
+      }}
     >
       {/* Kepala Mode Detail (Swipe ke bawah atau tekan chevron untuk kembali ke mode sederhana) */}
       {tahap !== "ringkas" ? (

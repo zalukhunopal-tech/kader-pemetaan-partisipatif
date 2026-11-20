@@ -2534,6 +2534,8 @@
 .avz-peta .avz-peek-card.tahap-ringkas {
   min-height: 145px;
   max-height: 195px;
+  touch-action: none;
+  user-select: none;
 }
 
 .avz-peta .avz-peek-card.tahap-ringkas .avz-peek-body,
