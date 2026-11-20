@@ -3,11 +3,17 @@ import React, { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InteractiveMap } from "../components/InteractiveMap";
+import { MenuAtas } from "../components/app/MenuAtas";
+import { PanelLapisanPeta } from "../components/peta/PanelLapisanPeta";
 import {
-  daftarTilePiramida10KmZoom20,
-  UnduhOfflineModal,
-  useUnduhAreaOffline
-} from "../components/peta/UnduhOfflineModal";
+  TUNDA_UNDUH_OTOMATIS_MS,
+  muatSlotAutoCache,
+  titikDiDalamKotak
+} from "../lib/cachePetaOtomatis";
+import {
+  StatusNotifCitraOffline,
+  useUnduhPetaOtomatis
+} from "../lib/useUnduhPetaOtomatis";
 import {
   adalahPetaTileOffline,
   isiTemplateTile,
@@ -20,7 +26,7 @@ import {
 } from "../lib/petaOffline";
 import { gambarLapisanPeta, latToTileY, lngToTileX } from "../lib/petaKanvas";
 import { setelUlangPenyimpananUntukUji } from "../lib/penyimpanan";
-import { AreaPetaOffline, BasemapType, LapisanSpasial, ProfilKader } from "../types";
+import { AreaPetaOffline, LapisanSpasial, ProfilKader } from "../types";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -124,7 +130,7 @@ async function tungguAsync(putaran = 6) {
   }
 }
 
-describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Interaktif dan Lingkaran Tahan 3 Detik", () => {
+describe("Unduh Citra Offline Otomatis 10x10 km, Jeda 3 Menit, Notifikasi HP, dan Overlay Halus", () => {
   beforeEach(() => {
     setelUlangPenyimpananUntukUji();
     setelUlangCacheUntukUji();
@@ -172,6 +178,7 @@ describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Int
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     if (akar) {
       act(() => akar!.unmount());
       akar = null;
@@ -185,14 +192,12 @@ describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Int
   it("1. sumberUnduhOfflineEfektif memakai sumber citra CORS sah (mengalihkan Google non-CORS ke Esri HD) dan mendukung cadangan server saat unduh", async () => {
     const cacheIsi = pasangCacheTiruan();
 
-    // Google tanpa kunci API (mt1.google.com) memblokir fetch CORS -> dialihkan otomatis ke Esri HD yang mendukung CORS
     const dariGoogle = sumberUnduhOfflineEfektif("google");
     expect(dariGoogle).not.toBeNull();
     expect(dariGoogle!.template).toContain("World_Imagery");
     expect(dariGoogle!.template).not.toContain("google.com/vt/");
     expect(dariGoogle!.dialihkanDariGoogle).toBe(true);
 
-    // Simulasi server utama error 500, cadangan berhasil 200 -> tersimpan di Cache API di bawah kunci URL utama!
     const urlUtama = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/14/13460/8022";
     const urlCadangan = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/14/13460/8022";
     vi.stubGlobal(
@@ -213,81 +218,248 @@ describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Int
     expect(cacheIsi.has(urlUtama)).toBe(true);
   });
 
-  it("2. Modal unduh hanya menampilkan lingkaran tahan 3 detik tanpa teks/isian nama peta, dan hasil unduhan disimpan sebagai overlay langsung tanpa membuat lapisan tersendiri", async () => {
-    const cacheIsi = pasangCacheTiruan();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(new Uint8Array(300), { status: 200, headers: { "content-type": "image/jpeg" } }))
+  it("2. Simbol dan label unduh peta offline manual telah dihilangkan dari Peta Interaktif dan Panel Lapisan", () => {
+    const { ctx } = buatMockCanvasCtx();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx);
+
+    const rootPeta = pasang(
+      <InteractiveMap
+        dataSpasial={[]}
+        profil={PROFIL_UJI}
+        areaOffline={[]}
+        petaKustomAktif={null}
+        fokusKoordinat={{ lat: LAT_UJI, lng: LNG_UJI }}
+        sedangOnline={true}
+        onSimpanDataBaru={vi.fn()}
+        onTambahPembaruanObjek={vi.fn(() => true)}
+        onSimpanAreaOffline={vi.fn()}
+        onImporBerkas={vi.fn(() => true)}
+      />
     );
 
-    const onSimpanAreaOffline = vi.fn();
-    const pesanToast: string[] = [];
-    let apiUnduh: ReturnType<typeof useUnduhAreaOffline> | null = null;
+    expect(rootPeta.querySelector("#unduh-progress-hud")).toBeNull();
+    expect(rootPeta.querySelector(".unduh-hold-circle")).toBeNull();
+    expect(rootPeta.textContent).not.toContain("Unduh area offline");
+    expect(rootPeta.textContent).not.toContain("Unduh Peta Offline");
 
-    function Harness({ basemap }: { basemap: BasemapType }) {
-      const unduh = useUnduhAreaOffline(basemap, [], onSimpanAreaOffline, (p) => pesanToast.push(p));
-      apiUnduh = unduh;
-      return unduh.bukaModalOffline ? <UnduhOfflineModal unduh={unduh} /> : null;
-    }
+    // Pastikan PanelLapisanPeta juga tidak lagi menampilkan tombol Unduh Area Offline
+    act(() => akar!.unmount());
+    akar = null;
+    wadah?.remove();
+    wadah = null;
 
-    const rootEl = pasang(<Harness basemap="google" />);
-    act(() => {
-      apiUnduh!.bukaModalUnduh({ minLat: LAT_UJI - 0.01, maxLat: LAT_UJI + 0.01, minLng: LNG_UJI - 0.01, maxLng: LNG_UJI + 0.01 });
-    });
-
-    // Tampilan modal minimalis: HANYA lingkaran tahan 3 detik tanpa keterangan download peta atau isian nama peta
-    expect(rootEl.querySelector("button.unduh-hold-circle")).not.toBeNull();
-    expect(rootEl.querySelector("input")).toBeNull();
-    expect(rootEl.querySelector(".unduh-stats-grid")).toBeNull();
-    expect(rootEl.querySelector(".offline-list")).toBeNull();
-    expect(rootEl.textContent).not.toContain("Unduh Peta Offline");
-    expect(rootEl.textContent).not.toContain("Masukkan nama area");
-    expect(rootEl.textContent).not.toContain("10 × 10 km");
-
-    const piramida = daftarTilePiramida10KmZoom20(LAT_UJI, LNG_UJI, 19);
-    expect(piramida.some((t) => t.z === 10)).toBe(true);
-    expect(piramida.some((t) => t.z === 15)).toBe(true);
-    expect(piramida.some((t) => t.z === 19)).toBe(true);
-
-    await act(async () => {
-      await apiUnduh!.handleUnduhAreaOffline();
-    });
-
-    // Tidak membuat lapisan atau item peta tersendiri di Pustaka Peta
-    expect(onSimpanAreaOffline).not.toHaveBeenCalled();
-
-    // Cakupan overlay offline tersimpan langsung dan seluruh tile ada di Cache API
-    const daftarOverlay = muatCakupanOverlayOffline();
-    expect(daftarOverlay).toHaveLength(1);
-    const ov = daftarOverlay[0];
-    expect(ov.jumlahTile).toBe(piramida.length);
-    expect(ov.ukuranMb).toBeGreaterThan(0);
-    expect(ov.templateTile).toContain("World_Imagery");
-    expect(cacheIsi.size).toBe(piramida.length);
-    expect(pesanToast.some((p) => p.includes("Peta Interaktif"))).toBe(true);
+    const rootPanel = pasang(
+      <PanelLapisanPeta
+        basemap="google"
+        jumlahObjek={0}
+        tampilDaftarObjek={false}
+        onPilihBasemap={vi.fn()}
+        onPilihBerkas={vi.fn()}
+        onAlihDaftarObjek={vi.fn()}
+        onTutup={vi.fn()}
+        areaOffline={[]}
+      />
+    );
+    expect(rootPanel.textContent).not.toContain("Unduh Area Offline");
+    expect(rootPanel.textContent).not.toContain("Unduh area offline");
   });
 
-  it("3. Hasil download langsung overlay halus di Peta Interaktif saat OFFLINE total bersama Lapisan Peta survei, tanpa garis atau warna tambahan", async () => {
+  it("3. useUnduhPetaOtomatis menunggu 3 menit untuk menyesuaikan posisi terkini user, lalu mengunduh otomatis 10 x 10 km", async () => {
+    vi.useFakeTimers();
+    const cacheIsi = pasangCacheTiruan();
+    const fetchMock = vi.fn(
+      async () => new Response(new Uint8Array(256), { status: 200, headers: { "content-type": "image/jpeg" } })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Simulasi GPS perangkat mengirim posisi terbaru selama masa tunggu 3 menit
+    let kirimGps: ((pos: GeolocationPosition) => void) | null = null;
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        watchPosition: vi.fn((cb: (pos: GeolocationPosition) => void) => {
+          kirimGps = cb;
+          return 1;
+        }),
+        clearWatch: vi.fn()
+      }
+    });
+
+    let statusTerkini: StatusNotifCitraOffline | null = null;
+    function Harness() {
+      const s = useUnduhPetaOtomatis({
+        aktif: true,
+        sedangOnline: true,
+        areaOffline: [],
+        basemap: "topo",
+        posisiAwal: { lat: LAT_UJI, lng: LNG_UJI }
+      });
+      statusTerkini = s;
+      return null;
+    }
+
+    pasang(<Harness />);
+
+    // Tepat saat aplikasi dibuka: belum mengunduh, masuk fase tunggu 3 menit dengan tanda peringatan
+    expect(statusTerkini!.fase).toBe("menunggu");
+    expect(statusTerkini!.perluPeringatan).toBe(true);
+    expect(statusTerkini!.sisaDetikTunggu).toBe(180);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Setelah 1 menit, user mendapatkan posisi GPS terkini yang bergeser ~20 km
+    const latBaru = LAT_UJI + 0.18;
+    const lngBaru = LNG_UJI + 0.18;
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(statusTerkini!.fase).toBe("menunggu");
+    expect(statusTerkini!.sisaDetikTunggu).toBeLessThanOrEqual(120);
+
+    await act(async () => {
+      kirimGps?.({
+        coords: { latitude: latBaru, longitude: lngBaru } as GeolocationCoordinates,
+        timestamp: Date.now()
+      } as GeolocationPosition);
+    });
+
+    // Setelah tepat 3 menit (sisa 2 menit lagi), unduhan otomatis dimulai untuk posisi TERKINI!
+    await act(async () => {
+      vi.advanceTimersByTime(TUNDA_UNDUH_OTOMATIS_MS - 60_000);
+      await Promise.resolve();
+    });
+    // Jalankan microtask pengunduhan
+    for (let i = 0; i < 20; i++) {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(statusTerkini!.fase).toBe("siap");
+    expect(statusTerkini!.perluPeringatan).toBe(false);
+    expect(statusTerkini!.daftarKotak).toHaveLength(1);
+    const kotak = muatSlotAutoCache()[0];
+    expect(titikDiDalamKotak(latBaru, lngBaru, kotak.kotak)).toBe(true);
+    expect(muatCakupanOverlayOffline()).toHaveLength(1);
+    expect(cacheIsi.size).toBeGreaterThan(0);
+  });
+
+  it("4. Notifikasi dekat indikator jaringan menampilkan tanda peringatan saat lokasi belum diunduh dan membuka kartu progres ala HP saat diklik", () => {
+    const statusMengunduh: StatusNotifCitraOffline = {
+      fase: "mengunduh",
+      perluPeringatan: true,
+      persen: 46,
+      tileSelesai: 230,
+      tileTotal: 500,
+      sisaDetikTunggu: 0,
+      totalDetikTunggu: 180,
+      posisi: { lat: LAT_UJI, lng: LNG_UJI },
+      daftarKotak: [],
+      kotakAktif: null,
+      maksKotak: 3
+    };
+
+    const statusMenunggu: StatusNotifCitraOffline = {
+      ...statusMengunduh,
+      fase: "menunggu",
+      persen: 0,
+      tileSelesai: 0,
+      tileTotal: 0,
+      sisaDetikTunggu: 135
+    };
+
+    // A. Saat lokasi belum diunduh (menunggu 3 menit): tampil tanda peringatan (!) di dekat tombol Online/Offline
+    const elTunggu = pasang(
+      <MenuAtas
+        tabAktif="peta"
+        setTabAktif={vi.fn()}
+        peran="kader"
+        adalahAkunAdmin={false}
+        gantiPeranAkun={vi.fn()}
+        bukaMenuTitikTiga={false}
+        setBukaMenuTitikTiga={vi.fn()}
+        sedangOnline={true}
+        jaringanTersedia={true}
+        modeOfflineManual={false}
+        setModeOfflineManual={vi.fn()}
+        tampilkanToast={vi.fn()}
+        onBukaPemberitahuan={vi.fn()}
+        onBukaEkspor={vi.fn()}
+        onBukaKeamanan={vi.fn()}
+        onBukaGantiSandi={vi.fn()}
+        onKeluar={vi.fn()}
+        statusCitraOffline={statusMenunggu}
+      />
+    );
+
+    const tombolNotif = elTunggu.querySelector("button.avenza-notif-offline-btn") as HTMLButtonElement | null;
+    expect(tombolNotif).not.toBeNull();
+    expect(elTunggu.querySelector(".avenza-notif-warn-badge")).not.toBeNull();
+
+    // Klik notifikasi -> muncul kartu notifikasi bergaya HP dengan hitung mundur & kuota 3 kotak
+    act(() => {
+      tombolNotif!.click();
+    });
+    const kartuHp = elTunggu.querySelector(".notif-hp-card");
+    expect(kartuHp).not.toBeNull();
+    expect(kartuHp!.textContent).toContain("Lokasi belum diunduh");
+    expect(kartuHp!.textContent).toContain("2:15");
+    expect(kartuHp!.textContent).toContain("0 / 3");
+    expect(kartuHp!.querySelector('[role="progressbar"]')).not.toBeNull();
+
+    // B. Saat sedang mengunduh: tampil persen progres di tombol & di kartu notifikasi HP
+    act(() => {
+      akar!.render(
+        <MenuAtas
+          tabAktif="peta"
+          setTabAktif={vi.fn()}
+          peran="kader"
+          adalahAkunAdmin={false}
+          gantiPeranAkun={vi.fn()}
+          bukaMenuTitikTiga={false}
+          setBukaMenuTitikTiga={vi.fn()}
+          sedangOnline={true}
+          jaringanTersedia={true}
+          modeOfflineManual={false}
+          setModeOfflineManual={vi.fn()}
+          tampilkanToast={vi.fn()}
+          onBukaPemberitahuan={vi.fn()}
+          onBukaEkspor={vi.fn()}
+          onBukaKeamanan={vi.fn()}
+          onBukaGantiSandi={vi.fn()}
+          onKeluar={vi.fn()}
+          statusCitraOffline={statusMengunduh}
+        />
+      );
+    });
+
+    expect(elTunggu.querySelector(".avenza-notif-pct")?.textContent).toBe("46%");
+    const kartuUnduh = elTunggu.querySelector(".notif-hp-card");
+    expect(kartuUnduh!.textContent).toContain("Mengunduh citra offline (10 × 10 km)");
+    expect(kartuUnduh!.textContent).toContain("230 dari 500 tile (46%)");
+    expect(kartuUnduh!.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("46");
+  });
+
+  it("5. Hasil download langsung overlay halus di Peta Interaktif saat OFFLINE total bersama Lapisan Peta survei, tanpa garis atau warna tambahan, dan mendukung fallback overzoom", async () => {
     const cacheIsi = pasangCacheTiruan();
     const { ctx, fillStyles, drawImageCalls, strokeRectCalls } = buatMockCanvasCtx();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx);
 
     const templateEsri = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-    const zoomTarget = 16;
-    const cx = Math.floor(lngToTileX(LNG_UJI, zoomTarget));
-    const cy = Math.floor(latToTileY(LAT_UJI, zoomTarget));
-
-    // Isi Cache API untuk grid 5x5 tile di sekitar titik pusat pada zoom 16
-    for (let dx = -2; dx <= 2; dx++) {
-      for (let dy = -2; dy <= 2; dy++) {
-        const u = isiTemplateTile(templateEsri, zoomTarget, cx + dx, cy + dy);
+    // Isi Cache API pada zoom 14 (untuk menguji overzoom ke zoom 16 sekaligus overlay langsung saat offline!)
+    const zInduk = 14;
+    const px = Math.floor(lngToTileX(LNG_UJI, zInduk));
+    const py = Math.floor(latToTileY(LAT_UJI, zInduk));
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const u = isiTemplateTile(templateEsri, zInduk, px + dx, py + dy);
         if (u) {
           cacheIsi.set(u, new Response(new Uint8Array(256), { status: 200, headers: { "content-type": "image/jpeg" } }));
         }
       }
     }
 
-    // Daftarkan cakupan overlay offline (tanpa petaKustomAktif / tanpa lapisan peta tambahan)
     simpanCakupanOverlayOffline({
       id: "OVL-TEST-01",
       basemapId: "esri",
@@ -298,12 +470,11 @@ describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Int
       zoomMin: 10,
       zoomMax: 19,
       templateTile: templateEsri,
-      jumlahTile: 25,
-      ukuranMb: 12.4,
+      jumlahTile: 9,
+      ukuranMb: 4.2,
       diunduhPada: "2026-11-20T10:00:00Z"
     });
 
-    // Simulasi kondisi benar-benar OFFLINE: setiap fetch jaringan gagal!
     const fetchOffline = vi.fn(async () => {
       throw new TypeError("Failed to fetch (offline)");
     });
@@ -334,90 +505,21 @@ describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Int
       />
     );
 
-    await tungguAsync(8);
-
-    // 1. Citra tile langsung ter-overlay ke kanvas Peta Interaktif saat lapisan survei aktif tanpa jaringan
-    expect(drawImageCalls.length).toBeGreaterThan(0);
-    // 2. Tidak pernah meminta jaringan saat offline
-    expect(fetchOffline).not.toHaveBeenCalled();
-    // 3. Tidak ada layar kertas putih GeoPDF (#f8f9fa / #4a4d52)
-    expect(fillStyles).not.toContain("#f8f9fa");
-    expect(fillStyles).not.toContain("#4a4d52");
-    // 4. Tidak ada garis kotak batas tambahan yang membingungkan di atas citra
-    expect(strokeRectCalls.length).toBe(0);
-  });
-
-  it("4. Overlay offline di Peta Interaktif pada zoom tinggi otomatis memakai fallback tile induk (overzoom) dari Cache API tanpa layar kosong", async () => {
-    const cacheIsi = pasangCacheTiruan();
-    const { ctx, drawImageCalls, strokeRectCalls } = buatMockCanvasCtx();
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx);
-
-    const templateEsri = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-    // Hanya tile zoom 14 yang ada di Cache API (simulasi pinggir area 10x10 km), tetapi peta dibuka di zoom 16!
-    const zInduk = 14;
-    const px = Math.floor(lngToTileX(LNG_UJI, zInduk));
-    const py = Math.floor(latToTileY(LAT_UJI, zInduk));
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const u = isiTemplateTile(templateEsri, zInduk, px + dx, py + dy);
-        if (u) {
-          cacheIsi.set(u, new Response(new Uint8Array(256), { status: 200, headers: { "content-type": "image/jpeg" } }));
-        }
-      }
-    }
-
-    simpanCakupanOverlayOffline({
-      id: "OVL-OVERZOOM-01",
-      basemapId: "esri",
-      minLat: LAT_UJI - 0.045,
-      maxLat: LAT_UJI + 0.045,
-      minLng: LNG_UJI - 0.045,
-      maxLng: LNG_UJI + 0.045,
-      zoomMin: 10,
-      zoomMax: 19,
-      templateTile: templateEsri,
-      jumlahTile: 9,
-      ukuranMb: 2.1,
-      diunduhPada: "2026-11-20T10:00:00Z"
-    });
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new TypeError("offline");
-      })
-    );
-
-    pasang(
-      <InteractiveMap
-        dataSpasial={[]}
-        profil={PROFIL_UJI}
-        areaOffline={[]}
-        petaKustomAktif={null}
-        fokusKoordinat={{ lat: LAT_UJI, lng: LNG_UJI }}
-        sedangOnline={false}
-        onSimpanDataBaru={vi.fn()}
-        onTambahPembaruanObjek={vi.fn(() => true)}
-        onSimpanAreaOffline={vi.fn()}
-        onImporBerkas={vi.fn(() => true)}
-      />
-    );
-
     await tungguAsync(10);
 
-    // drawImage 9 argumen = menggambar potongan sub-kuadran dari tile induk zoom 14 ke layar zoom 16!
-    const panggilanOverzoom = drawImageCalls.filter((args) => args.length === 9);
-    expect(panggilanOverzoom.length).toBeGreaterThan(0);
+    expect(drawImageCalls.filter((args) => args.length === 9).length).toBeGreaterThan(0);
+    expect(fetchOffline).not.toHaveBeenCalled();
+    expect(fillStyles).not.toContain("#f8f9fa");
+    expect(fillStyles).not.toContain("#4a4d52");
     expect(strokeRectCalls.length).toBe(0);
   });
 
-  it("5. gambarLapisanPeta tidak menutup citra XYZ Tiles dengan kertas putih maupun garis kotak tambahan, namun tetap menggambar lembar GeoPDF asli", () => {
+  it("6. gambarLapisanPeta tidak menutup citra XYZ Tiles dengan kertas putih maupun garis kotak tambahan, namun tetap menggambar lembar GeoPDF asli", () => {
     const keLayar = (lat: number, lng: number) => ({
       x: 200 + (lng - LNG_UJI) * 5000,
       y: 200 - (lat - LAT_UJI) * 5000
     });
 
-    // A. Area unduhan XYZ Tiles -> murni tanpa kertas putih dan tanpa garis batas kotak tambahan
     const mockXyz = buatMockCanvasCtx();
     const areaXyz: AreaPetaOffline = {
       id: "OFF-XYZ",
@@ -453,7 +555,6 @@ describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Int
     expect(mockXyz.fillStyles).not.toContain("#f8f9fa");
     expect(mockXyz.strokeRectCalls.length).toBe(0);
 
-    // B. Lembar peta GeoPDF (non-tile) -> tetap digambar seperti biasa
     const mockPdf = buatMockCanvasCtx();
     gambarLapisanPeta(mockPdf.ctx, {
       W: 400,

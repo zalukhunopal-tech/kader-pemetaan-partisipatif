@@ -6,6 +6,7 @@ import { BasemapType } from "../types";
  */
 
 export const KUNCI_POSISI_PETA = "geokader_posisi_peta_v1";
+export const EVENT_POSISI_PETA_DIPERBARUI = "geokader:posisi-peta-diperbarui";
 /** Dipakai hanya bila belum pernah ada posisi tersimpan dan GPS belum tersedia */
 export const POSISI_AWAL_PETA = { lat: 2.8575, lng: 117.3775 };
 export const ZOOM_MIN_PETA = 11;
@@ -63,6 +64,9 @@ export function simpanPosisiPeta(p: PosisiPeta): void {
       data.bearing = b < 0 ? b + 360 : b;
     }
     localStorage.setItem(KUNCI_POSISI_PETA, JSON.stringify(data));
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent(EVENT_POSISI_PETA_DIPERBARUI, { detail: { lat: p.lat, lng: p.lng, basemap: p.basemap } }));
+    }
   } catch {
     // penyimpanan penuh atau tidak tersedia: posisi tidak diingat, peta tetap berfungsi
   }
