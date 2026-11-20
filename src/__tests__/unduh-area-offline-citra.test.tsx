@@ -11,13 +11,16 @@ import {
 import {
   adalahPetaTileOffline,
   isiTemplateTile,
+  muatCakupanOverlayOffline,
   setelUlangCacheUntukUji,
+  setelUlangOverlayOfflineUntukUji,
+  simpanCakupanOverlayOffline,
   sumberUnduhOfflineEfektif,
   unduhTile
 } from "../lib/petaOffline";
 import { gambarLapisanPeta, latToTileY, lngToTileX } from "../lib/petaKanvas";
 import { setelUlangPenyimpananUntukUji } from "../lib/penyimpanan";
-import { AreaPetaOffline, BasemapType, ProfilKader } from "../types";
+import { AreaPetaOffline, BasemapType, LapisanSpasial, ProfilKader } from "../types";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -121,10 +124,11 @@ async function tungguAsync(putaran = 6) {
   }
 }
 
-describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS & Overzoom Offline", () => {
+describe("Perbaikan Unduh Area Offline Citra: Overlay Halus Langsung di Peta Interaktif dan Lingkaran Tahan 3 Detik", () => {
   beforeEach(() => {
     setelUlangPenyimpananUntukUji();
     setelUlangCacheUntukUji();
+    setelUlangOverlayOfflineUntukUji();
     localStorage.clear();
     Object.defineProperty(window, "matchMedia", {
       writable: true,
@@ -209,29 +213,36 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
     expect(cacheIsi.has(urlUtama)).toBe(true);
   });
 
-  it("2. Alur lengkap useUnduhAreaOffline menyimpan tile nyata ke Cache API dan membuat AreaPetaOffline bertipe XYZ Tiles yang dikenali adalahPetaTileOffline", async () => {
+  it("2. Modal unduh hanya menampilkan lingkaran tahan 3 detik tanpa teks/isian nama peta, dan hasil unduhan disimpan sebagai overlay langsung tanpa membuat lapisan tersendiri", async () => {
     const cacheIsi = pasangCacheTiruan();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response(new Uint8Array(300), { status: 200, headers: { "content-type": "image/jpeg" } }))
     );
 
-    const areaTersimpan: AreaPetaOffline[] = [];
+    const onSimpanAreaOffline = vi.fn();
     const pesanToast: string[] = [];
     let apiUnduh: ReturnType<typeof useUnduhAreaOffline> | null = null;
 
     function Harness({ basemap }: { basemap: BasemapType }) {
-      const unduh = useUnduhAreaOffline(basemap, areaTersimpan, (a) => areaTersimpan.push(a), (p) => pesanToast.push(p));
+      const unduh = useUnduhAreaOffline(basemap, [], onSimpanAreaOffline, (p) => pesanToast.push(p));
       apiUnduh = unduh;
-      return unduh.bukaModalOffline ? (
-        <UnduhOfflineModal basemap={basemap} areaOffline={areaTersimpan} unduh={unduh} onBukaArea={vi.fn()} />
-      ) : null;
+      return unduh.bukaModalOffline ? <UnduhOfflineModal unduh={unduh} /> : null;
     }
 
-    pasang(<Harness basemap="google" />);
+    const rootEl = pasang(<Harness basemap="google" />);
     act(() => {
       apiUnduh!.bukaModalUnduh({ minLat: LAT_UJI - 0.01, maxLat: LAT_UJI + 0.01, minLng: LNG_UJI - 0.01, maxLng: LNG_UJI + 0.01 });
     });
+
+    // Tampilan modal minimalis: HANYA lingkaran tahan 3 detik tanpa keterangan download peta atau isian nama peta
+    expect(rootEl.querySelector("button.unduh-hold-circle")).not.toBeNull();
+    expect(rootEl.querySelector("input")).toBeNull();
+    expect(rootEl.querySelector(".unduh-stats-grid")).toBeNull();
+    expect(rootEl.querySelector(".offline-list")).toBeNull();
+    expect(rootEl.textContent).not.toContain("Unduh Peta Offline");
+    expect(rootEl.textContent).not.toContain("Masukkan nama area");
+    expect(rootEl.textContent).not.toContain("10 × 10 km");
 
     const piramida = daftarTilePiramida10KmZoom20(LAT_UJI, LNG_UJI, 19);
     expect(piramida.some((t) => t.z === 10)).toBe(true);
@@ -242,19 +253,21 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
       await apiUnduh!.handleUnduhAreaOffline();
     });
 
-    expect(areaTersimpan).toHaveLength(1);
-    const area = areaTersimpan[0];
-    expect(area.jenisFile).toBe("XYZ Tiles");
-    expect(area.unduhanNyata).toBe(true);
-    expect(area.jumlahTile).toBe(piramida.length);
-    expect(area.ukuranMb).toBeGreaterThan(0);
-    expect(area.templateTile).toContain("World_Imagery");
-    expect(adalahPetaTileOffline(area)).toBe(true);
+    // Tidak membuat lapisan atau item peta tersendiri di Pustaka Peta
+    expect(onSimpanAreaOffline).not.toHaveBeenCalled();
+
+    // Cakupan overlay offline tersimpan langsung dan seluruh tile ada di Cache API
+    const daftarOverlay = muatCakupanOverlayOffline();
+    expect(daftarOverlay).toHaveLength(1);
+    const ov = daftarOverlay[0];
+    expect(ov.jumlahTile).toBe(piramida.length);
+    expect(ov.ukuranMb).toBeGreaterThan(0);
+    expect(ov.templateTile).toContain("World_Imagery");
     expect(cacheIsi.size).toBe(piramida.length);
-    expect(pesanToast.some((p) => p.includes("tersimpan untuk mode offline"))).toBe(true);
+    expect(pesanToast.some((p) => p.includes("Peta Interaktif"))).toBe(true);
   });
 
-  it("3. Membuka hasil download area offline di InteractiveMap saat OFFLINE total menggambar citra tile dari Cache API dan TIDAK menampilkan layar putih", async () => {
+  it("3. Hasil download langsung overlay halus di Peta Interaktif saat OFFLINE total bersama Lapisan Peta survei, tanpa garis atau warna tambahan", async () => {
     const cacheIsi = pasangCacheTiruan();
     const { ctx, fillStyles, drawImageCalls, strokeRectCalls } = buatMockCanvasCtx();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx);
@@ -274,15 +287,9 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
       }
     }
 
-    // Simulasi kondisi benar-benar OFFLINE: setiap fetch jaringan gagal!
-    const fetchOffline = vi.fn(async () => {
-      throw new TypeError("Failed to fetch (offline)");
-    });
-    vi.stubGlobal("fetch", fetchOffline);
-
-    const areaOfflineHasil: AreaPetaOffline = {
-      id: "OFF-TEST-01",
-      namaArea: "Area Long Bawan Offline",
+    // Daftarkan cakupan overlay offline (tanpa petaKustomAktif / tanpa lapisan peta tambahan)
+    simpanCakupanOverlayOffline({
+      id: "OVL-TEST-01",
       basemapId: "esri",
       minLat: LAT_UJI - 0.045,
       maxLat: LAT_UJI + 0.045,
@@ -290,20 +297,34 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
       maxLng: LNG_UJI + 0.045,
       zoomMin: 10,
       zoomMax: 19,
+      templateTile: templateEsri,
       jumlahTile: 25,
       ukuranMb: 12.4,
-      diunduhPada: "2026-11-19T14:00:00Z",
-      jenisFile: "XYZ Tiles",
-      unduhanNyata: true,
-      templateTile: templateEsri
+      diunduhPada: "2026-11-20T10:00:00Z"
+    });
+
+    // Simulasi kondisi benar-benar OFFLINE: setiap fetch jaringan gagal!
+    const fetchOffline = vi.fn(async () => {
+      throw new TypeError("Failed to fetch (offline)");
+    });
+    vi.stubGlobal("fetch", fetchOffline);
+
+    const lapisanSurvei: LapisanSpasial = {
+      id: "LAP-SURVEI-01",
+      nama: "Inventarisasi Anggrek Krayan",
+      jumlahPeta: 0,
+      adalahTematik: true,
+      createdAt: "2026-11-20T09:00:00Z"
     };
 
     pasang(
       <InteractiveMap
         dataSpasial={[]}
         profil={PROFIL_UJI}
-        areaOffline={[areaOfflineHasil]}
-        petaKustomAktif={areaOfflineHasil}
+        areaOffline={[]}
+        petaKustomAktif={null}
+        lapisanList={[lapisanSurvei]}
+        lapisanAktifId={lapisanSurvei.id}
         fokusKoordinat={{ lat: LAT_UJI, lng: LNG_UJI }}
         sedangOnline={false}
         onSimpanDataBaru={vi.fn()}
@@ -315,20 +336,20 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
 
     await tungguAsync(8);
 
-    // 1. Citra tile BENAR-BENAR digambar ke kanvas dari Cache API tanpa jaringan!
+    // 1. Citra tile langsung ter-overlay ke kanvas Peta Interaktif saat lapisan survei aktif tanpa jaringan
     expect(drawImageCalls.length).toBeGreaterThan(0);
     // 2. Tidak pernah meminta jaringan saat offline
     expect(fetchOffline).not.toHaveBeenCalled();
-    // 3. TIDAK ADA layar kertas putih GeoPDF (#f8f9fa) atau meja abu-abu GeoPDF (#4a4d52) yang menutupi citra!
+    // 3. Tidak ada layar kertas putih GeoPDF (#f8f9fa / #4a4d52)
     expect(fillStyles).not.toContain("#f8f9fa");
     expect(fillStyles).not.toContain("#4a4d52");
-    // 4. Batas area offline digambar sebagai garis tepi putus-putus saja (strokeRect), bukan blok putih
-    expect(strokeRectCalls.length).toBeGreaterThan(0);
+    // 4. Tidak ada garis kotak batas tambahan yang membingungkan di atas citra
+    expect(strokeRectCalls.length).toBe(0);
   });
 
-  it("4. Mode offline di zoom tinggi yang tidak tercakup tile detail otomatis memakai fallback tile induk (overzoom) dari Cache API tanpa layar kosong", async () => {
+  it("4. Overlay offline di Peta Interaktif pada zoom tinggi otomatis memakai fallback tile induk (overzoom) dari Cache API tanpa layar kosong", async () => {
     const cacheIsi = pasangCacheTiruan();
-    const { ctx, drawImageCalls } = buatMockCanvasCtx();
+    const { ctx, drawImageCalls, strokeRectCalls } = buatMockCanvasCtx();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx);
 
     const templateEsri = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -345,16 +366,8 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
       }
     }
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new TypeError("offline");
-      })
-    );
-
-    const areaOfflineHasil: AreaPetaOffline = {
-      id: "OFF-OVERZOOM-01",
-      namaArea: "Area Pinggir 10km",
+    simpanCakupanOverlayOffline({
+      id: "OVL-OVERZOOM-01",
       basemapId: "esri",
       minLat: LAT_UJI - 0.045,
       maxLat: LAT_UJI + 0.045,
@@ -362,20 +375,25 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
       maxLng: LNG_UJI + 0.045,
       zoomMin: 10,
       zoomMax: 19,
+      templateTile: templateEsri,
       jumlahTile: 9,
       ukuranMb: 2.1,
-      diunduhPada: "2026-11-19T14:00:00Z",
-      jenisFile: "XYZ Tiles",
-      unduhanNyata: true,
-      templateTile: templateEsri
-    };
+      diunduhPada: "2026-11-20T10:00:00Z"
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("offline");
+      })
+    );
 
     pasang(
       <InteractiveMap
         dataSpasial={[]}
         profil={PROFIL_UJI}
-        areaOffline={[areaOfflineHasil]}
-        petaKustomAktif={areaOfflineHasil}
+        areaOffline={[]}
+        petaKustomAktif={null}
         fokusKoordinat={{ lat: LAT_UJI, lng: LNG_UJI }}
         sedangOnline={false}
         onSimpanDataBaru={vi.fn()}
@@ -390,16 +408,35 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
     // drawImage 9 argumen = menggambar potongan sub-kuadran dari tile induk zoom 14 ke layar zoom 16!
     const panggilanOverzoom = drawImageCalls.filter((args) => args.length === 9);
     expect(panggilanOverzoom.length).toBeGreaterThan(0);
+    expect(strokeRectCalls.length).toBe(0);
   });
 
-  it("5. gambarLapisanPeta tidak menutup citra XYZ Tiles dengan kertas putih, namun tetap menggambar lembar GeoPDF asli", () => {
+  it("5. gambarLapisanPeta tidak menutup citra XYZ Tiles dengan kertas putih maupun garis kotak tambahan, namun tetap menggambar lembar GeoPDF asli", () => {
     const keLayar = (lat: number, lng: number) => ({
       x: 200 + (lng - LNG_UJI) * 5000,
       y: 200 - (lat - LAT_UJI) * 5000
     });
 
-    // A. Area unduhan XYZ Tiles -> tidak melukis kertas putih (#ffffff / #f8f9fa)
+    // A. Area unduhan XYZ Tiles -> murni tanpa kertas putih dan tanpa garis batas kotak tambahan
     const mockXyz = buatMockCanvasCtx();
+    const areaXyz: AreaPetaOffline = {
+      id: "OFF-XYZ",
+      namaArea: "Area Citra",
+      basemapId: "esri",
+      minLat: LAT_UJI - 0.01,
+      maxLat: LAT_UJI + 0.01,
+      minLng: LNG_UJI - 0.01,
+      maxLng: LNG_UJI + 0.01,
+      zoomMin: 10,
+      zoomMax: 19,
+      jumlahTile: 50,
+      ukuranMb: 3.2,
+      diunduhPada: "2026-11-19T14:00:00Z",
+      jenisFile: "XYZ Tiles",
+      unduhanNyata: true,
+      templateTile: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    };
+    expect(adalahPetaTileOffline(areaXyz)).toBe(true);
     gambarLapisanPeta(mockXyz.ctx, {
       W: 400,
       H: 400,
@@ -410,27 +447,11 @@ describe("Perbaikan Unduh Area Offline Citra: Bebas Layar Putih, Fallback CORS &
       titikDraft: [],
       targetGoTo: null,
       gpsPos: null,
-      petaKustomAktif: {
-        id: "OFF-XYZ",
-        namaArea: "Area Citra",
-        basemapId: "esri",
-        minLat: LAT_UJI - 0.01,
-        maxLat: LAT_UJI + 0.01,
-        minLng: LNG_UJI - 0.01,
-        maxLng: LNG_UJI + 0.01,
-        zoomMin: 10,
-        zoomMax: 19,
-        jumlahTile: 50,
-        ukuranMb: 3.2,
-        diunduhPada: "2026-11-19T14:00:00Z",
-        jenisFile: "XYZ Tiles",
-        unduhanNyata: true,
-        templateTile: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-      }
+      petaKustomAktif: areaXyz
     });
     expect(mockXyz.fillStyles).not.toContain("#ffffff");
     expect(mockXyz.fillStyles).not.toContain("#f8f9fa");
-    expect(mockXyz.strokeRectCalls.length).toBe(1);
+    expect(mockXyz.strokeRectCalls.length).toBe(0);
 
     // B. Lembar peta GeoPDF (non-tile) -> tetap digambar seperti biasa
     const mockPdf = buatMockCanvasCtx();

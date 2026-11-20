@@ -8,6 +8,7 @@ import {
   daftarTile,
   hapusTile,
   hitungJumlahTile,
+  muatCakupanOverlayOffline,
   penyimpananTileDidukung,
   unduhTile,
   unduhanLayak,
@@ -234,9 +235,19 @@ export async function jalankanAutoCache1Km(param: ParameterAutoCache): Promise<H
   const bertahan = gabungan.slice(0, MAKS_SLOT_CACHE_OTOMATIS);
   const tergusur = [...gabungan.slice(MAKS_SLOT_CACHE_OTOMATIS), ...slotLamaDiganti];
 
+  const overlayOffline = muatCakupanOverlayOffline();
+  const slotTertindihOverlay = (s: SlotCachePetaOtomatis) =>
+    overlayOffline.some(
+      (ov) =>
+        ov.maxLat >= s.kotak.minLat &&
+        ov.minLat <= s.kotak.maxLat &&
+        ov.maxLng >= s.kotak.minLng &&
+        ov.minLng <= s.kotak.maxLng
+    );
   const urlMasihDipakai = new Set<string>([
     ...bertahan.flatMap((s) => s.urls),
-    ...areaOffline.flatMap((area) => urlTileArea(area))
+    ...areaOffline.flatMap((area) => urlTileArea(area)),
+    ...tergusur.filter(slotTertindihOverlay).flatMap((s) => s.urls)
   ]);
   const urlDihapus = Array.from(new Set(tergusur.flatMap((s) => s.urls))).filter((u) => !urlMasihDipakai.has(u));
 
