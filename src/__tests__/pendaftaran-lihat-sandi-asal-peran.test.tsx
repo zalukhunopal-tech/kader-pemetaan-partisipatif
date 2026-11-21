@@ -117,35 +117,76 @@ describe("Pendaftaran Akun: Lihat Kata Sandi, Pilihan Asal (Masyarakat Desa / St
       (container.querySelector("#tombol-menu-daftar") as HTMLButtonElement)?.click();
     });
 
-    const btnPeranKader = container.querySelector("#daftar-peran-kader") as HTMLButtonElement | null;
-    const btnPeranAdmin = container.querySelector("#daftar-peran-admin") as HTMLButtonElement | null;
-    const btnAsalMasyarakat = container.querySelector("#daftar-asal-masyarakat") as HTMLButtonElement | null;
-    const btnAsalWarsi = container.querySelector("#daftar-asal-warsi") as HTMLButtonElement | null;
-    const btnAsalNgo = container.querySelector("#daftar-asal-ngo") as HTMLButtonElement | null;
+    const btnPemicuPeran = container.querySelector("#daftar-peran-pemicu") as HTMLButtonElement | null;
+    const btnPemicuAsal = container.querySelector("#daftar-asal-pemicu") as HTMLButtonElement | null;
 
-    expect(btnPeranKader?.getAttribute("aria-checked")).toBe("true");
-    expect(btnPeranAdmin?.getAttribute("aria-checked")).toBe("false");
-    expect(btnAsalMasyarakat?.getAttribute("aria-checked")).toBe("true");
+    expect(btnPemicuPeran).not.toBeNull();
+    expect(btnPemicuPeran?.textContent).toContain("User (Kader)");
+    expect(btnPemicuPeran?.getAttribute("aria-expanded")).toBe("false");
+    expect(btnPemicuAsal).not.toBeNull();
+    expect(btnPemicuAsal?.textContent).toContain("Masyarakat Desa");
+    expect(btnPemicuAsal?.getAttribute("aria-expanded")).toBe("false");
+
+    // Pilihan peran dan asal tersembunyi sebelum pemicu dipilih
+    expect(container.querySelector("#daftar-peran-kader")).toBeNull();
+    expect(container.querySelector("#daftar-peran-admin")).toBeNull();
+    expect(container.querySelector("#daftar-asal-masyarakat")).toBeNull();
+    expect(container.querySelector("#daftar-asal-warsi")).toBeNull();
+    expect(container.querySelector("#daftar-asal-ngo")).toBeNull();
 
     // Saat Masyarakat Desa aktif, IsianWilayah tampil
     expect(container.querySelector("#daftar-provinsi")).not.toBeNull();
     expect(container.querySelector("#daftar-wilayah-kerja")).toBeNull();
 
-    // Pilih Staff Warsi dan peran Admin
+    // Buka pilihan peran -> kedua opsi muncul tanpa keterangan lama
+    await act(async () => {
+      btnPemicuPeran?.click();
+    });
+    expect(btnPemicuPeran?.getAttribute("aria-expanded")).toBe("true");
+    const btnPeranKader = container.querySelector("#daftar-peran-kader") as HTMLButtonElement | null;
+    const btnPeranAdmin = container.querySelector("#daftar-peran-admin") as HTMLButtonElement | null;
+    expect(btnPeranKader?.getAttribute("aria-checked")).toBe("true");
+    expect(btnPeranAdmin?.getAttribute("aria-checked")).toBe("false");
+    expect(container.textContent).not.toContain("Pengambil data lapangan");
+    expect(container.textContent).not.toContain("Verifikasi dan kelola GIS");
+
+    // Pilih peran Admin -> daftar pilihan peran kembali tertutup
     await act(async () => {
       btnPeranAdmin?.click();
+    });
+    expect(btnPemicuPeran?.textContent).toContain("Admin");
+    expect(container.querySelector("#daftar-peran-admin")).toBeNull();
+
+    // Buka pilihan asal -> ketiga opsi muncul
+    await act(async () => {
+      btnPemicuAsal?.click();
+    });
+    expect(btnPemicuAsal?.getAttribute("aria-expanded")).toBe("true");
+    const btnAsalMasyarakat = container.querySelector("#daftar-asal-masyarakat") as HTMLButtonElement | null;
+    const btnAsalWarsi = container.querySelector("#daftar-asal-warsi") as HTMLButtonElement | null;
+    const btnAsalNgo = container.querySelector("#daftar-asal-ngo") as HTMLButtonElement | null;
+    expect(btnAsalMasyarakat?.getAttribute("aria-checked")).toBe("true");
+    expect(btnAsalWarsi).not.toBeNull();
+    expect(btnAsalNgo).not.toBeNull();
+
+    // Pilih Staff Warsi -> daftar pilihan asal kembali tertutup
+    await act(async () => {
       btnAsalWarsi?.click();
     });
-    expect(btnPeranAdmin?.getAttribute("aria-checked")).toBe("true");
-    expect(btnAsalWarsi?.getAttribute("aria-checked")).toBe("true");
+    expect(btnPemicuAsal?.textContent).toContain("Staff Warsi");
+    expect(container.querySelector("#daftar-asal-warsi")).toBeNull();
     expect(container.querySelector("#daftar-wilayah-kerja")).not.toBeNull();
     expect((container.querySelector("#daftar-kelompok") as HTMLInputElement)?.placeholder).toContain("KKI Warsi");
 
-    // Pilih NGO Lain -> input nama NGO menjadi wajib (required)
+    // Buka kembali dan pilih NGO Lain -> input nama NGO menjadi wajib (required) dan daftar kembali tertutup
     await act(async () => {
-      btnAsalNgo?.click();
+      btnPemicuAsal?.click();
     });
-    expect(btnAsalNgo?.getAttribute("aria-checked")).toBe("true");
+    await act(async () => {
+      (container.querySelector("#daftar-asal-ngo") as HTMLButtonElement | null)?.click();
+    });
+    expect(btnPemicuAsal?.textContent).toContain("NGO Lain");
+    expect(container.querySelector("#daftar-asal-ngo")).toBeNull();
     const inputKelompokNgo = container.querySelector("#daftar-kelompok") as HTMLInputElement;
     expect(inputKelompokNgo.required).toBe(true);
     expect(inputKelompokNgo.placeholder).toContain("NGO");

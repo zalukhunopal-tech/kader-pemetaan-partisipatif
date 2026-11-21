@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AkunSesi,
   KategoriAsalPendaftar,
@@ -25,7 +25,9 @@ import { IsianWilayah } from "./IsianWilayah";
 import { WILAYAH_KOSONG, wilayahLengkap } from "../lib/wilayah";
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Copy,
   Eye,
   EyeOff,
@@ -134,7 +136,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
   const [namaDaftar, setNamaDaftar] = useState("");
   const [emailDaftar, setEmailDaftar] = useState("");
   const [peranDaftar, setPeranDaftar] = useState<PeranPengguna>("kader");
+  const [bukaPilihanPeran, setBukaPilihanPeran] = useState(false);
+  const refPilihanPeran = useRef<HTMLDivElement | null>(null);
   const [kategoriAsalDaftar, setKategoriAsalDaftar] = useState<KategoriAsalPendaftar>("masyarakat_desa");
+  const [bukaPilihanAsal, setBukaPilihanAsal] = useState(false);
+  const refPilihanAsal = useRef<HTMLDivElement | null>(null);
   const [wilayahDaftar, setWilayahDaftar] = useState(WILAYAH_KOSONG);
   const [wilayahKerjaDaftar, setWilayahKerjaDaftar] = useState("");
   const [hpDaftar, setHpDaftar] = useState("");
@@ -167,6 +173,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
   const [pesanError, setPesanError] = useState<string | null>(null);
   const [pesanSukses, setPesanSukses] = useState<string | null>(null);
   const [sedangProses, setSedangProses] = useState(false);
+
+  useEffect(() => {
+    if (!bukaPilihanPeran && !bukaPilihanAsal) return;
+    const saatKlikLuar = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (bukaPilihanPeran && refPilihanPeran.current && !refPilihanPeran.current.contains(target)) {
+        setBukaPilihanPeran(false);
+      }
+      if (bukaPilihanAsal && refPilihanAsal.current && !refPilihanAsal.current.contains(target)) {
+        setBukaPilihanAsal(false);
+      }
+    };
+    const saatEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setBukaPilihanPeran(false);
+        setBukaPilihanAsal(false);
+      }
+    };
+    document.addEventListener("pointerdown", saatKlikLuar);
+    window.addEventListener("keydown", saatEsc);
+    return () => {
+      document.removeEventListener("pointerdown", saatKlikLuar);
+      window.removeEventListener("keydown", saatEsc);
+    };
+  }, [bukaPilihanPeran, bukaPilihanAsal]);
 
   const resetAlert = () => {
     setPesanError(null);
@@ -875,92 +906,225 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 </p>
               </div>
 
-              {/* Pilihan Peran Akun: User (Kader) atau Admin */}
-              <div>
-                <label style={gayaLabel}>Daftar Sebagai</label>
-                <div
-                  role="radiogroup"
-                  aria-label="Pilihan peran akun"
-                  style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
-                >
-                  {(
-                    [
-                      { id: "kader" as const, domId: "daftar-peran-kader", judul: "User (Kader)", sub: "Pengambil data lapangan" },
-                      { id: "admin" as const, domId: "daftar-peran-admin", judul: "Admin", sub: "Verifikasi dan kelola GIS" }
-                    ]
-                  ).map((item) => {
-                    const aktif = peranDaftar === item.id;
-                    return (
+              {/* Pilihan Peran Akun: tersembunyi dan muncul saat dipilih */}
+              <div ref={refPilihanPeran} style={{ position: "relative" }}>
+                <label htmlFor="daftar-peran-pemicu" style={gayaLabel}>
+                  Daftar Sebagai
+                </label>
+                {(() => {
+                  const opsiPeran = [
+                    { id: "kader" as const, domId: "daftar-peran-kader", label: "User (Kader)" },
+                    { id: "admin" as const, domId: "daftar-peran-admin", label: "Admin" }
+                  ];
+                  const aktifPeran = opsiPeran.find((o) => o.id === peranDaftar) ?? opsiPeran[0];
+                  return (
+                    <>
                       <button
-                        key={item.id}
-                        id={item.domId}
+                        id="daftar-peran-pemicu"
                         type="button"
-                        role="radio"
-                        aria-checked={aktif}
-                        onClick={() => setPeranDaftar(item.id)}
+                        aria-expanded={bukaPilihanPeran}
+                        aria-haspopup="listbox"
+                        aria-controls="daftar-peran-opsi"
+                        onClick={() => {
+                          setBukaPilihanAsal(false);
+                          setBukaPilihanPeran((v) => !v);
+                        }}
                         style={{
-                          padding: "8px 10px",
-                          borderRadius: 10,
-                          border: aktif ? "2px solid #0B6E4F" : "1.5px solid #cbd5e1",
-                          background: aktif ? "#ECFDF5" : "#ffffff",
-                          color: aktif ? "#065F46" : "#334155",
-                          cursor: "pointer",
-                          textAlign: "left",
+                          ...gayaInput,
                           display: "flex",
-                          flexDirection: "column",
-                          gap: 2
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          borderColor: bukaPilihanPeran ? "#0B6E4F" : "#cbd5e1",
+                          boxShadow: bukaPilihanPeran ? "0 0 0 3px rgba(11, 110, 79, 0.12)" : "none"
                         }}
                       >
-                        <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>{item.judul}</span>
-                        <span style={{ fontSize: "0.68rem", color: aktif ? "#047857" : "#64748b" }}>{item.sub}</span>
+                        <span>{aktifPeran.label}</span>
+                        <ChevronDown
+                          size={18}
+                          color="#64748b"
+                          aria-hidden="true"
+                          style={{
+                            flexShrink: 0,
+                            transform: bukaPilihanPeran ? "rotate(180deg)" : "rotate(0deg)",
+                            transition: "transform 0.2s ease"
+                          }}
+                        />
                       </button>
-                    );
-                  })}
-                </div>
+
+                      {bukaPilihanPeran && (
+                        <div
+                          id="daftar-peran-opsi"
+                          role="radiogroup"
+                          aria-label="Pilihan peran akun"
+                          style={{
+                            position: "absolute",
+                            top: "calc(100% + 6px)",
+                            left: 0,
+                            right: 0,
+                            zIndex: 31,
+                            background: "#ffffff",
+                            border: "1.5px solid #cbd5e1",
+                            borderRadius: 11,
+                            boxShadow: "0 12px 28px rgba(15, 23, 42, 0.14)",
+                            padding: 6,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4
+                          }}
+                        >
+                          {opsiPeran.map((item) => {
+                            const aktif = peranDaftar === item.id;
+                            return (
+                              <button
+                                key={item.id}
+                                id={item.domId}
+                                type="button"
+                                role="radio"
+                                aria-checked={aktif}
+                                onClick={() => {
+                                  setPeranDaftar(item.id);
+                                  setBukaPilihanPeran(false);
+                                }}
+                                style={{
+                                  minHeight: 44,
+                                  padding: "8px 12px",
+                                  borderRadius: 8,
+                                  border: aktif ? "1.5px solid #0B6E4F" : "1px solid transparent",
+                                  background: aktif ? "#ECFDF5" : "#ffffff",
+                                  color: aktif ? "#065F46" : "#334155",
+                                  fontSize: "0.84rem",
+                                  fontWeight: aktif ? 700 : 600,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  textAlign: "left"
+                                }}
+                              >
+                                <span>{item.label}</span>
+                                {aktif && <Check size={16} color="#0B6E4F" aria-hidden="true" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
-              {/* Pilihan Asal Pendaftar: Masyarakat Desa, Staff Warsi, atau NGO Lain */}
-              <div>
-                <label style={gayaLabel}>Asal Pendaftar</label>
-                <div
-                  role="radiogroup"
-                  aria-label="Asal pendaftar"
-                  style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}
-                >
-                  {(
-                    [
-                      { id: "masyarakat_desa" as const, domId: "daftar-asal-masyarakat", label: "Masyarakat Desa" },
-                      { id: "staff_warsi" as const, domId: "daftar-asal-warsi", label: "Staff Warsi" },
-                      { id: "ngo_lain" as const, domId: "daftar-asal-ngo", label: "NGO Lain" }
-                    ]
-                  ).map((item) => {
-                    const aktif = kategoriAsalDaftar === item.id;
-                    return (
+              {/* Pilihan Asal Pendaftar: tersembunyi dan muncul saat dipilih */}
+              <div ref={refPilihanAsal} style={{ position: "relative" }}>
+                <label htmlFor="daftar-asal-pemicu" style={gayaLabel}>
+                  Asal Pendaftar
+                </label>
+                {(() => {
+                  const opsiAsal = [
+                    { id: "masyarakat_desa" as const, domId: "daftar-asal-masyarakat", label: "Masyarakat Desa" },
+                    { id: "staff_warsi" as const, domId: "daftar-asal-warsi", label: "Staff Warsi" },
+                    { id: "ngo_lain" as const, domId: "daftar-asal-ngo", label: "NGO Lain" }
+                  ];
+                  const aktifItem = opsiAsal.find((o) => o.id === kategoriAsalDaftar) ?? opsiAsal[0];
+                  return (
+                    <>
                       <button
-                        key={item.id}
-                        id={item.domId}
+                        id="daftar-asal-pemicu"
                         type="button"
-                        role="radio"
-                        aria-checked={aktif}
-                        onClick={() => setKategoriAsalDaftar(item.id)}
+                        aria-expanded={bukaPilihanAsal}
+                        aria-haspopup="listbox"
+                        aria-controls="daftar-asal-opsi"
+                        onClick={() => {
+                          setBukaPilihanPeran(false);
+                          setBukaPilihanAsal((v) => !v);
+                        }}
                         style={{
-                          minHeight: 38,
-                          padding: "6px 6px",
-                          borderRadius: 9,
-                          border: aktif ? "2px solid #0B6E4F" : "1.5px solid #cbd5e1",
-                          background: aktif ? "#ECFDF5" : "#ffffff",
-                          color: aktif ? "#065F46" : "#334155",
-                          fontSize: "0.75rem",
-                          fontWeight: 700,
+                          ...gayaInput,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
                           cursor: "pointer",
-                          textAlign: "center"
+                          fontWeight: 600,
+                          borderColor: bukaPilihanAsal ? "#0B6E4F" : "#cbd5e1",
+                          boxShadow: bukaPilihanAsal ? "0 0 0 3px rgba(11, 110, 79, 0.12)" : "none"
                         }}
                       >
-                        {item.label}
+                        <span>{aktifItem.label}</span>
+                        <ChevronDown
+                          size={18}
+                          color="#64748b"
+                          aria-hidden="true"
+                          style={{
+                            flexShrink: 0,
+                            transform: bukaPilihanAsal ? "rotate(180deg)" : "rotate(0deg)",
+                            transition: "transform 0.2s ease"
+                          }}
+                        />
                       </button>
-                    );
-                  })}
-                </div>
+
+                      {bukaPilihanAsal && (
+                        <div
+                          id="daftar-asal-opsi"
+                          role="radiogroup"
+                          aria-label="Asal pendaftar"
+                          style={{
+                            position: "absolute",
+                            top: "calc(100% + 6px)",
+                            left: 0,
+                            right: 0,
+                            zIndex: 30,
+                            background: "#ffffff",
+                            border: "1.5px solid #cbd5e1",
+                            borderRadius: 11,
+                            boxShadow: "0 12px 28px rgba(15, 23, 42, 0.14)",
+                            padding: 6,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4
+                          }}
+                        >
+                          {opsiAsal.map((item) => {
+                            const aktif = kategoriAsalDaftar === item.id;
+                            return (
+                              <button
+                                key={item.id}
+                                id={item.domId}
+                                type="button"
+                                role="radio"
+                                aria-checked={aktif}
+                                onClick={() => {
+                                  setKategoriAsalDaftar(item.id);
+                                  setBukaPilihanAsal(false);
+                                }}
+                                style={{
+                                  minHeight: 44,
+                                  padding: "8px 12px",
+                                  borderRadius: 8,
+                                  border: aktif ? "1.5px solid #0B6E4F" : "1px solid transparent",
+                                  background: aktif ? "#ECFDF5" : "#ffffff",
+                                  color: aktif ? "#065F46" : "#334155",
+                                  fontSize: "0.84rem",
+                                  fontWeight: aktif ? 700 : 600,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  textAlign: "left"
+                                }}
+                              >
+                                <span>{item.label}</span>
+                                {aktif && <Check size={16} color="#0B6E4F" aria-hidden="true" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               <input
