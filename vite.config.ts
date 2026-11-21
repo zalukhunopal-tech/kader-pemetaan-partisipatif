@@ -71,7 +71,7 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        globPatterns: ["**/*.{js,mjs,css,html,svg,png,ico,json,webp,mp4,gif}"],
+        globPatterns: ["**/*.{js,mjs,css,html,svg,png,jpg,jpeg,ico,json,webp,mp4,gif}"],
         // Tangkapan layar hanya untuk dialog pemasangan, tidak perlu disimpan untuk offline
         globIgnores: ["**/screenshot-*"],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,

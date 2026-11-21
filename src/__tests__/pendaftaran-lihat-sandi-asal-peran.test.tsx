@@ -122,16 +122,21 @@ describe("Pendaftaran Akun: Lihat Kata Sandi, Pilihan Asal (Masyarakat Desa / St
     const btnAsalMasyarakat = container.querySelector("#daftar-asal-masyarakat") as HTMLButtonElement | null;
     const btnAsalWarsi = container.querySelector("#daftar-asal-warsi") as HTMLButtonElement | null;
     const btnAsalNgo = container.querySelector("#daftar-asal-ngo") as HTMLButtonElement | null;
+    const btnAsalPemerintah = container.querySelector("#daftar-asal-pemerintah") as HTMLButtonElement | null;
 
     expect(btnPeranKader?.getAttribute("aria-checked")).toBe("true");
     expect(btnPeranAdmin?.getAttribute("aria-checked")).toBe("false");
     expect(btnAsalMasyarakat?.getAttribute("aria-checked")).toBe("true");
+    expect(btnAsalMasyarakat?.textContent?.trim()).toBe("MAKL");
+    expect(btnAsalWarsi?.textContent?.trim()).toBe("N1");
+    expect(btnAsalNgo?.textContent?.trim()).toBe("N2");
+    expect(btnAsalPemerintah?.textContent?.trim()).toBe("N3");
 
-    // Saat Masyarakat Desa aktif, IsianWilayah tampil
+    // Saat MAKL aktif, IsianWilayah tampil
     expect(container.querySelector("#daftar-provinsi")).not.toBeNull();
     expect(container.querySelector("#daftar-wilayah-kerja")).toBeNull();
 
-    // Pilih Staff Warsi dan peran Admin
+    // Pilih N1 dan peran Admin
     await act(async () => {
       btnPeranAdmin?.click();
       btnAsalWarsi?.click();
@@ -141,14 +146,23 @@ describe("Pendaftaran Akun: Lihat Kata Sandi, Pilihan Asal (Masyarakat Desa / St
     expect(container.querySelector("#daftar-wilayah-kerja")).not.toBeNull();
     expect((container.querySelector("#daftar-kelompok") as HTMLInputElement)?.placeholder).toContain("KKI Warsi");
 
-    // Pilih NGO Lain -> input nama NGO menjadi wajib (required)
+    // Pilih N2 -> input nama NGO menjadi wajib (required)
     await act(async () => {
       btnAsalNgo?.click();
     });
     expect(btnAsalNgo?.getAttribute("aria-checked")).toBe("true");
     const inputKelompokNgo = container.querySelector("#daftar-kelompok") as HTMLInputElement;
     expect(inputKelompokNgo.required).toBe(true);
-    expect(inputKelompokNgo.placeholder).toContain("NGO");
+    expect(inputKelompokNgo.placeholder).toContain("N2");
+
+    // Pilih N3 -> input nama instansi pemerintah menjadi wajib (required)
+    await act(async () => {
+      btnAsalPemerintah?.click();
+    });
+    expect(btnAsalPemerintah?.getAttribute("aria-checked")).toBe("true");
+    const inputKelompokPem = container.querySelector("#daftar-kelompok") as HTMLInputElement;
+    expect(inputKelompokPem.required).toBe(true);
+    expect(inputKelompokPem.placeholder).toContain("N3");
 
     await act(async () => {
       root.unmount();
@@ -202,7 +216,7 @@ describe("Pendaftaran Akun: Lihat Kata Sandi, Pilihan Asal (Masyarakat Desa / St
     expect(akunWarsi.kelompokMasyarakat).toBe("KKI Warsi — Unit GIS dan Data Spasial");
     expect(akunWarsi.desaWilayah).toBe("Lanskap Bukit Tigapuluh");
     expect(akunWarsi.statusPersetujuan).toBe("menunggu");
-    expect(labelKategoriAsal(akunWarsi.kategoriAsal, akunWarsi.kelompokMasyarakat)).toBe("Staff KKI Warsi");
+    expect(labelKategoriAsal(akunWarsi.kategoriAsal, akunWarsi.kelompokMasyarakat)).toBe("N1");
 
     // 3. Pendaftaran NGO Lain tanpa nama NGO ditolak, dengan nama NGO berhasil sebagai User (Kader)
     const gagalNgoKosong = await mulaiPendaftaranEmail({
@@ -238,7 +252,38 @@ describe("Pendaftaran Akun: Lihat Kata Sandi, Pilihan Asal (Masyarakat Desa / St
     expect(akunNgo.kategoriAsal).toBe("ngo_lain");
     expect(akunNgo.kelompokMasyarakat).toBe("Yayasan Hutan Lestari Nusantara");
     expect(akunNgo.desaWilayah).toBe("Kalimantan Utara");
-    expect(labelKategoriAsal(akunNgo.kategoriAsal, akunNgo.kelompokMasyarakat)).toBe("NGO / Lembaga Lain");
+    expect(labelKategoriAsal(akunNgo.kategoriAsal, akunNgo.kelompokMasyarakat)).toBe("N2");
+
+    // 3b. Pendaftaran Pemerintah (N3) tanpa nama instansi ditolak, dengan nama instansi berhasil
+    const gagalPemKosong = await mulaiPendaftaranEmail({
+      nama: "Budi Dinas",
+      email: "budi@dinas.go.id",
+      peran: "kader",
+      kategoriAsal: "pemerintah",
+      noHp: "081344556677",
+      kelompokMasyarakat: "   ",
+      kataSandi: SANDI_UJI
+    });
+    expect(gagalPemKosong.sukses).toBe(false);
+    expect(gagalPemKosong.pesan).toMatch(/pemerintah|N3/i);
+
+    const mulaiPem = await mulaiPendaftaranEmail({
+      nama: "Budi Dinas",
+      email: "budi@dinas.go.id",
+      peran: "kader",
+      kategoriAsal: "pemerintah",
+      desaWilayah: "Provinsi Jambi",
+      noHp: "081344556677",
+      kelompokMasyarakat: "Dinas Kehutanan Provinsi Jambi",
+      kataSandi: SANDI_UJI
+    });
+    expect(mulaiPem.sukses).toBe(true);
+    const verifPem = await verifikasiKodeEmailPendaftaran("budi@dinas.go.id", mulaiPem.kodeVerifikasi!);
+    expect(verifPem.sukses).toBe(true);
+    const akunPem = muatSemuaAkun().find((a) => a.email === "budi@dinas.go.id")!;
+    expect(akunPem.kategoriAsal).toBe("pemerintah");
+    expect(labelKategoriAsal(akunPem.kategoriAsal, akunPem.kelompokMasyarakat)).toBe("N3");
+    expect(labelKategoriAsal("masyarakat_desa")).toBe("MAKL");
 
     // 4. Admin Utama menyetujui akun Staff Warsi (Admin) -> tetap berstatus Admin yang sah
     const setujuWarsi = setujuiAkunOlehAdmin(sesiAdminUtama, "rizky.gis@warsi.or.id");
