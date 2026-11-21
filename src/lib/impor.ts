@@ -342,6 +342,13 @@ export interface KonteksImpor {
   namaKader: string;
   desaWilayah: string;
   wilayah?: WilayahAdministrasi;
+  lapisanId?: string;
+  lapisanNama?: string;
+}
+
+export interface OpsiImporBerkas {
+  filterGeometri?: "semua" | JenisGeometri;
+  namaLapisan?: string;
 }
 
 /** Mengubah fitur impor menjadi objek spasial milik pengimpor (status lokal, ditandai diimpor) */
@@ -353,6 +360,8 @@ export function fiturKeDataSpasial(f: FiturImpor, ctx: KonteksImpor): DataSpasia
     namaKader: ctx.namaKader,
     desaWilayah: ctx.desaWilayah,
     ...(ctx.wilayah ? { wilayah: ctx.wilayah } : {}),
+    ...(ctx.lapisanId ? { lapisanId: ctx.lapisanId } : {}),
+    ...(ctx.lapisanNama ? { lapisanNama: ctx.lapisanNama } : {}),
     jenisGeometri: f.jenisGeometri,
     kategori: f.kategori ?? "Flora",
     judul: f.judul ?? "Hasil impor",

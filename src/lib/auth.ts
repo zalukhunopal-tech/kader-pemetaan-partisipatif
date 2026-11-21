@@ -53,15 +53,17 @@ export interface DataBiometrik {
 
 export type StatusPersetujuanAkun = "menunggu" | "disetujui" | "ditolak";
 
-export type KategoriAsalPendaftar = "masyarakat_desa" | "staff_warsi" | "ngo_lain";
+export type KategoriAsalPendaftar = "masyarakat_desa" | "staff_warsi" | "ngo_lain" | "pemerintah";
 
 export function labelKategoriAsal(kategori?: KategoriAsalPendaftar, kelompokMasyarakat?: string): string {
-  if (kategori === "staff_warsi") return "Staff KKI Warsi";
-  if (kategori === "ngo_lain") return "NGO / Lembaga Lain";
-  if (kategori === "masyarakat_desa") return "Masyarakat Desa";
+  if (kategori === "staff_warsi") return "N1";
+  if (kategori === "ngo_lain") return "N2";
+  if (kategori === "pemerintah") return "N3";
+  if (kategori === "masyarakat_desa") return "MAKL";
   const k = (kelompokMasyarakat ?? "").trim().toLowerCase();
-  if (k.includes("warsi")) return "Staff KKI Warsi";
-  return "Masyarakat Desa";
+  if (k.includes("warsi")) return "N1";
+  if (k.includes("pemerintah") || k.includes("dinas") || k.includes("kementerian")) return "N3";
+  return "MAKL";
 }
 
 export interface AkunPengguna {
@@ -69,7 +71,7 @@ export interface AkunPengguna {
   nama: string;
   email: string;
   peran: PeranPengguna;
-  /** Kategori asal pendaftar: masyarakat desa, staff KKI Warsi, atau NGO/lembaga lain */
+  /** Kategori asal pendaftar: MAKL (masyarakat desa), N1 (staff Warsi), N2 (NGO lain), atau N3 (pemerintah) */
   kategoriAsal?: KategoriAsalPendaftar;
   desaWilayah: string;
   /** Wilayah tugas yang diisi admin; menentukan folder Google Drive tempat data akun ini disimpan */
@@ -1698,7 +1700,10 @@ export async function mulaiPendaftaranEmail(
   const emailBersih = data.email.trim().toLowerCase();
   if (!data.nama.trim()) return { sukses: false, pesan: "Nama lengkap wajib diisi." };
   if (data.kategoriAsal === "ngo_lain" && !data.kelompokMasyarakat?.trim() && !data.namaOrganisasi?.trim()) {
-    return { sukses: false, pesan: "Nama NGO atau lembaga asal wajib diisi." };
+    return { sukses: false, pesan: "Nama NGO atau lembaga asal (N2) wajib diisi." };
+  }
+  if (data.kategoriAsal === "pemerintah" && !data.kelompokMasyarakat?.trim() && !data.namaOrganisasi?.trim()) {
+    return { sukses: false, pesan: "Nama instansi pemerintah (N3) wajib diisi." };
   }
   const galatEmail = validasiEmailAsli(emailBersih);
   if (galatEmail) return { sukses: false, pesan: galatEmail };
@@ -1801,11 +1806,17 @@ export async function mulaiPendaftaranEmail(
           : `KKI Warsi — ${inputKelompok}`
       : kategoriAsal === "ngo_lain"
         ? inputKelompok || data.namaOrganisasi?.trim() || "NGO / Lembaga Mitra"
-        : inputKelompok || "-";
+        : kategoriAsal === "pemerintah"
+          ? inputKelompok || data.namaOrganisasi?.trim() || "Instansi Pemerintah"
+          : inputKelompok || "-";
   const desaWilayah =
     wilayah.desa ||
     data.desaWilayah?.trim() ||
-    (kategoriAsal === "staff_warsi" ? "KKI Warsi" : kategoriAsal === "ngo_lain" ? kelompokMasyarakat : "-");
+    (kategoriAsal === "staff_warsi"
+      ? "KKI Warsi"
+      : kategoriAsal === "ngo_lain" || kategoriAsal === "pemerintah"
+        ? kelompokMasyarakat
+        : "-");
 
   const tertunda: DataPendaftaranEmailTertunda = {
     nama: data.nama.trim(),

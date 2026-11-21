@@ -49,7 +49,7 @@ import {
 } from "../lib/petaKanvas";
 import { InspektorObjek } from "./peta/InspektorObjek";
 import { PeekSheetInteraktif } from "./peta/PeekSheetInteraktif";
-import { namaBasemap, pratinjauBasemap } from "./peta/PanelLapisanPeta";
+import { namaBasemap, pratinjauBasemap, pratinjauBasemapFallback } from "./peta/PanelLapisanPeta";
 import { PanelPerekaman } from "./peta/PanelPerekaman";
 import { FormSurveiModal, useFormSurvei } from "./peta/FormSurveiModal";
 import { useTombolEsc } from "../lib/useTombolEsc";
@@ -2883,7 +2883,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                       setBukaPilihBasemap(false);
                     }}
                   >
-                    <img src={pratinjauBasemap(id)} alt="" className="avz-basemap-kartu-img" draggable={false} />
+                    <img
+                      src={pratinjauBasemap(id)}
+                      alt=""
+                      className="avz-basemap-kartu-img"
+                      draggable={false}
+                      onError={(e) => {
+                        const fallback = pratinjauBasemapFallback(id);
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
+                    />
                     <span className="avz-basemap-kartu-label">{namaBasemap(id)}</span>
                     {aktif && (
                       <span className="avz-basemap-kartu-cek" aria-hidden="true">

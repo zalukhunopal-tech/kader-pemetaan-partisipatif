@@ -15790,4 +15790,473 @@ html[data-field-theme="matahari"] .section-card h2 {
   pointer-events: auto;
 }
 
+/* =========================================================
+   KONFIRMASI KELUAR, EKSPOR KOMPAK, LAPISAN USER & DIALOG MINIMALIS
+   ========================================================= */
+.modal-konfirmasi-keluar-backdrop {
+  z-index: 12000;
+}
+
+.modal-konfirmasi-keluar {
+  width: min(340px, 92vw);
+  padding: 22px 20px 18px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.22);
+  text-align: center;
+}
+
+.konfirmasi-keluar-ikon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-konfirmasi-keluar h3 {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.konfirmasi-keluar-teks {
+  margin: 0 0 18px;
+  font-size: 0.86rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.konfirmasi-keluar-aksi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.konfirmasi-keluar-aksi button {
+  min-height: 40px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+/* Ekspor: kotak nama lebih ringkas + pilihan tipe data Point / Line / Polygon */
+.avenza-outlined-field.ekspor-nama-field {
+  max-width: 340px;
+  padding: 6px 12px 6px;
+  min-height: 42px;
+  border-radius: 10px;
+}
+
+.avenza-outlined-field.ekspor-nama-field input,
+.avenza-outlined-field.ekspor-nama-field select {
+  font-size: 0.88rem;
+  padding: 4px 0;
+  height: 28px;
+}
+
+.ekspor-geometri-chips,
+.impor-geometri-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ekspor-geometri-chips .avenza-format-chip,
+.impor-geometri-chips .avenza-format-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 6px;
+  font-size: 0.78rem;
+  border-radius: 10px;
+}
+
+.ekspor-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgba(15, 23, 42, 0.08);
+  color: inherit;
+}
+
+.avenza-format-chip.active .ekspor-chip-count {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Tab Lapisan: tombol Tambah Lapisan & Impor Lapisan untuk User/Admin */
+.pustaka-lapisan-aksi-bar {
+  display: flex;
+  gap: 8px;
+  padding: 4px 16px 10px;
+}
+
+.pustaka-lapisan-aksi-btn {
+  flex: 1;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.pustaka-lapisan-aksi-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.pustaka-lapisan-aksi-btn.primary {
+  background: #0d7344;
+  border-color: #0d7344;
+  color: #ffffff;
+}
+
+.pustaka-lapisan-aksi-btn.primary:hover {
+  background: #0b6039;
+}
+
+/* Modal Minimalis & Estetik (Tambah Peta, Pratinjau Peta, Lapisan Baru, Impor Lapisan) */
+.modal-card.modal-minimalis {
+  width: min(390px, 92vw);
+  border-radius: 20px;
+  padding: 18px 18px 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.modal-minimalis-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.modal-minimalis-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-minimalis-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-minimalis-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.modal-minimalis-field label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.modal-minimalis-field .form-input {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid #d5dde5;
+  padding: 8px 11px;
+  font-size: 0.88rem;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.modal-minimalis-field .form-input:focus {
+  outline: none;
+  border-color: #0d7344;
+  background: #ffffff;
+}
+
+.modal-minimalis-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.modal-minimalis-footer button {
+  min-height: 38px;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.peta-dropzone-minimalis {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  border: 1.5px dashed #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.peta-dropzone-minimalis:hover {
+  border-color: #0d7344;
+  background: #f0fdf4;
+}
+
+.peta-dropzone-minimalis.sibuk {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.peta-dropzone-ikon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: #e8f5ee;
+  color: #0d7344;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.peta-dropzone-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.peta-dropzone-teks strong {
+  font-size: 0.86rem;
+  color: #0f172a;
+}
+
+.peta-dropzone-teks small {
+  font-size: 0.73rem;
+  color: #64748b;
+}
+
+.peta-loading-box {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #065f46;
+}
+
+.peta-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.peta-progress-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #dcfce7;
+  overflow: hidden;
+  position: relative;
+}
+
+.peta-progress-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: 999px;
+  background: #0d7344;
+  animation: petaProgressSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes petaProgressSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(90%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.peta-meta-ringkas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+}
+
+.peta-meta-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #0d7344;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.peta-meta-ringkas-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.peta-meta-ringkas-info strong {
+  font-size: 0.82rem;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.peta-meta-ringkas-info span {
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.peta-galat-ringkas {
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b42318;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.peta-peringatan-ringkas {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.peta-peringatan-ringkas.hati {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.peta-peringatan-ringkas.bahaya {
+  background: #fef2f2;
+  color: #b42318;
+}
+
+.peta-kalibrasi-ringkas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.peta-kalibrasi-label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Pratinjau Peta Minimalis & Estetik */
+.peta-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.peta-preview-frame {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.peta-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.peta-preview-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #0d7344;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.peta-preview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.peta-preview-pills span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+
 

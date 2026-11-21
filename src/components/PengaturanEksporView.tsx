@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
+import { AreaPetaOffline, DataSpasialItem, JenisGeometri, LapisanSpasial } from "../types";
 import {
   eksporGeoJsonDenganOpsi,
   eksporKmlDenganOpsi,
@@ -25,6 +25,14 @@ import {
 import { useTombolEsc } from "../lib/useTombolEsc";
 
 export type FormatEksporSederhana = "kml" | "geojson" | "shp_zip";
+export type PilihanGeometriEkspor = "semua" | JenisGeometri;
+
+const OPSI_GEOMETRI_EKSPOR: { id: PilihanGeometriEkspor; label: string }[] = [
+  { id: "semua", label: "Semua" },
+  { id: "point", label: "Point" },
+  { id: "line", label: "Line" },
+  { id: "polygon", label: "Polygon" }
+];
 
 interface PengaturanEksporViewProps {
   dataSpasial: DataSpasialItem[];
@@ -84,6 +92,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     konteksEkspor?.petaDipilih?.length || konteksEkspor?.lapisanDipilih?.length || konteksEkspor?.fiturTerpilihIds?.length
   );
   const [formatFile, setFormatFile] = useState<FormatEksporSederhana>("geojson");
+  const [filterGeometri, setFilterGeometri] = useState<PilihanGeometriEkspor>("semua");
   const [filterLapisan, setFilterLapisan] = useState<string>("");
   const [statusEkspor, setStatusEkspor] = useState<string>("");
   const [pesanBagikan, setPesanBagikan] = useState<string>("");
@@ -102,7 +111,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
     return [...setNama].sort((a, b) => a.localeCompare(b, "id"));
   }, [dataSpasial, lapisanList]);
 
-  const dataTersaring = useMemo(
+  const dataSebelumGeometri = useMemo(
     () =>
       filterDataUntukEkspor(dataSpasial, {
         jenisData: adaKonteksTerpilih ? "Semua fitur terpilih" : "Hanya lapisan",
@@ -113,6 +122,26 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
         filterTematik: filterLapisan
       }),
     [dataSpasial, adaKonteksTerpilih, konteksEkspor, filterLapisan]
+  );
+
+  const jumlahPerGeometri = useMemo(() => {
+    let point = 0;
+    let line = 0;
+    let polygon = 0;
+    for (const item of dataSebelumGeometri) {
+      if (item.jenisGeometri === "point") point += 1;
+      else if (item.jenisGeometri === "line") line += 1;
+      else if (item.jenisGeometri === "polygon") polygon += 1;
+    }
+    return { semua: dataSebelumGeometri.length, point, line, polygon };
+  }, [dataSebelumGeometri]);
+
+  const dataTersaring = useMemo(
+    () =>
+      filterGeometri === "semua"
+        ? dataSebelumGeometri
+        : dataSebelumGeometri.filter((item) => item.jenisGeometri === filterGeometri),
+    [dataSebelumGeometri, filterGeometri]
   );
 
   const handleEksporSekarang = () => {
@@ -219,7 +248,7 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
       <div className="avenza-export-body">
         <section className="avenza-export-section">
           <div className="avenza-section-title">Nama file</div>
-          <div className="avenza-outlined-field">
+          <div className="avenza-outlined-field ekspor-nama-field">
             <span className="avenza-floating-label">Nama</span>
             <input type="text" value={namaFile} onChange={(e) => setNamaFile(e.target.value)} placeholder="Lapisan 1" />
           </div>
@@ -227,9 +256,16 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
 
         {!adaKonteksTerpilih && opsiLapisan.length > 0 && (
           <section className="avenza-export-section">
-            <div className="avenza-outlined-field select-field">
+            <div className="avenza-outlined-field select-field ekspor-nama-field">
               <span className="avenza-floating-label">Lapisan</span>
-              <select aria-label="Pilih lapisan ekspor" value={filterLapisan} onChange={(e) => setFilterLapisan(e.target.value)}>
+              <select
+                aria-label="Pilih lapisan ekspor"
+                value={filterLapisan}
+                onChange={(e) => {
+                  setFilterLapisan(e.target.value);
+                  setStatusEkspor("");
+                }}
+              >
                 <option value="">Semua data ({dataSpasial.length})</option>
                 {opsiLapisan.map((t) => (
                   <option key={t} value={t}>
@@ -243,6 +279,27 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
         )}
 
         <section className="avenza-export-section">
+          <div className="avenza-section-title">Tipe data</div>
+          <div className="avenza-format-chips ekspor-geometri-chips" role="group" aria-label="Pilih tipe data ekspor">
+            {OPSI_GEOMETRI_EKSPOR.map((opsi) => (
+              <button
+                key={opsi.id}
+                type="button"
+                aria-pressed={filterGeometri === opsi.id}
+                className={`avenza-format-chip ${filterGeometri === opsi.id ? "active" : ""}`}
+                onClick={() => {
+                  setFilterGeometri(opsi.id);
+                  setStatusEkspor("");
+                }}
+              >
+                <span>{opsi.label}</span>
+                <span className="ekspor-chip-count">{jumlahPerGeometri[opsi.id]}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="avenza-export-section">
           <div className="avenza-section-title">Format data</div>
           <div className="avenza-format-chips ekspor-format-sederhana" role="group" aria-label="Pilih format ekspor">
             {OPSI_FORMAT.map((fmt) => (
@@ -251,13 +308,19 @@ export const PengaturanEksporView: React.FC<PengaturanEksporViewProps> = ({
                 type="button"
                 aria-pressed={formatFile === fmt.id}
                 className={`avenza-format-chip ${formatFile === fmt.id ? "active" : ""}`}
-                onClick={() => setFormatFile(fmt.id)}
+                onClick={() => {
+                  setFormatFile(fmt.id);
+                  setStatusEkspor("");
+                }}
               >
                 {fmt.label}
               </button>
             ))}
           </div>
-          <div className="avenza-field-helper">{dataTersaring.length} objek siap diekspor</div>
+          <div className="avenza-field-helper">
+            {dataTersaring.length} objek siap diekspor
+            {filterGeometri !== "semua" ? ` (${OPSI_GEOMETRI_EKSPOR.find((o) => o.id === filterGeometri)?.label})` : ""}
+          </div>
         </section>
 
         <section className="avenza-export-section">
