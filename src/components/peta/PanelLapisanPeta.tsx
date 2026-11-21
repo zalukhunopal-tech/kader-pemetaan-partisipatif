@@ -66,6 +66,30 @@ export function pratinjauBasemap(id: BasemapType): string {
   }
 }
 
+/**
+ * Fallback SVG inline (100% tersedia offline tanpa jaringan) bila aset gambar pratinjau
+ * gagal dimuat atau cache browser terhapus saat perangkat offline.
+ */
+export function pratinjauBasemapFallback(id: BasemapType): string {
+  const svg = (() => {
+    switch (id) {
+      case "google":
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e4620"/><stop offset="55%" stop-color="#2e5e2e"/><stop offset="100%" stop-color="#17381a"/></linearGradient></defs><rect width="120" height="90" fill="url(#g)"/><path d="M0 62 Q40 44 82 58 T120 38" stroke="#f59e0b" stroke-width="3" fill="none" opacity="0.85"/><path d="M22 0 Q42 35 66 90" stroke="#e2e8f0" stroke-width="2" fill="none" opacity="0.7"/></svg>`;
+      case "esri":
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><defs><linearGradient id="e" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#12372a"/><stop offset="50%" stop-color="#1f4d36"/><stop offset="100%" stop-color="#0b241b"/></linearGradient></defs><rect width="120" height="90" fill="url(#e)"/><path d="M0 30 Q35 45 70 25 T120 50" stroke="#38bdf8" stroke-width="3.5" fill="none" opacity="0.55"/><circle cx="78" cy="58" r="18" fill="#166534" opacity="0.65"/></svg>`;
+      case "satelit":
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><defs><linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1a4331"/><stop offset="100%" stop-color="#0f2d22"/></linearGradient></defs><rect width="120" height="90" fill="url(#s)"/><path d="M10 80 Q50 50 110 20" stroke="#4ade80" stroke-width="2" fill="none" opacity="0.45"/><path d="M0 40 Q55 60 120 42" stroke="#0ea5e9" stroke-width="2.5" fill="none" opacity="0.5"/></svg>`;
+      case "osm":
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><rect width="120" height="90" fill="#f2efe9"/><rect x="12" y="10" width="34" height="24" rx="4" fill="#cdebb0"/><rect x="74" y="48" width="38" height="32" rx="4" fill="#cdebb0"/><path d="M0 42 L120 34 M48 0 L62 90" stroke="#ffffff" stroke-width="6" fill="none"/><path d="M0 42 L120 34 M48 0 L62 90" stroke="#f59e0b" stroke-width="2.2" fill="none"/></svg>`;
+      case "topo":
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><rect width="120" height="90" fill="#eef3e6"/><path d="M-10 72 Q30 48 65 62 T130 40" stroke="#a3b18a" stroke-width="1.6" fill="none"/><path d="M-10 52 Q35 28 70 42 T130 20" stroke="#84996e" stroke-width="1.6" fill="none"/><path d="M-10 32 Q35 12 72 24 T130 6" stroke="#6b8057" stroke-width="1.6" fill="none"/></svg>`;
+      default:
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><rect width="120" height="90" fill="#0f172a"/><path d="M0 68 Q40 46 80 62 T120 44" stroke="#334155" stroke-width="1.5" fill="none"/><path d="M0 42 Q40 24 80 38 T120 22" stroke="#10b981" stroke-width="1.5" fill="none" opacity="0.7"/></svg>`;
+    }
+  })();
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 interface PanelLapisanPetaProps {
   basemap: BasemapType;
   jumlahObjek: number;
@@ -176,8 +200,14 @@ export const PanelLapisanPeta: React.FC<PanelLapisanPetaProps> = ({
                       src={pratinjauBasemap(id)}
                       alt=""
                       className="avz-basemap-thumb-img"
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
+                      onError={(e) => {
+                        const fallback = pratinjauBasemapFallback(id);
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
                     />
                   </span>
                   <span className="avz-basemap-teks">

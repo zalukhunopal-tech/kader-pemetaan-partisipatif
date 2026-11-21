@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { AreaPetaOffline, DataSpasialItem, LapisanSpasial } from "../types";
+import React, { useCallback, useMemo, useState } from "react";
+import { AreaPetaOffline, DataSpasialItem, JenisGeometri, LapisanSpasial } from "../types";
 import { AkunSesi } from "../lib/auth";
 import { buatId } from "../lib/id";
 import { LatarPetaDasar } from "./LatarPetaDasar";
@@ -11,14 +11,15 @@ import {
   ArrowUpDown,
   Check,
   ChevronDown,
-  Eye,
   FileUp,
   Filter,
   Layers,
+  Loader2,
   Map as MapIcon,
   MoreHorizontal,
   Plus,
   Search,
+  Upload,
   X
 } from "lucide-react";
 import { HasilMetadataPeta, bacaMetadataBerkasPeta, hitungJarakReferensiKm, formatAngkaKoma } from "../lib/metaPeta";
@@ -31,6 +32,7 @@ import { objekCocokLapisan } from "../lib/tematik";
 import { hitungRingkasSkema } from "../lib/skemaTugas";
 import { useTombolEsc } from "../lib/useTombolEsc";
 import { KonteksEkspor } from "../lib/eksporFilter";
+import { HasilParse, OpsiImporBerkas, parseBerkas } from "../lib/impor";
 
 interface PustakaViewProps {
   areaOffline: AreaPetaOffline[];
@@ -46,7 +48,7 @@ interface PustakaViewProps {
   onHapusAreaOffline: (id: string) => void;
   onTambahLapisan?: (lapisan: LapisanSpasial) => void;
   onHapusLapisan: (id: string) => void;
-  onImporBerkas?: (namaBerkas: string, isi: string) => boolean;
+  onImporBerkas?: (namaBerkas: string, isi: string, opsi?: OpsiImporBerkas) => boolean;
   onBukaPengaturanEkspor: (konteks?: KonteksEkspor) => void;
 }
 
@@ -135,7 +137,9 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   onBukaAreaPeta,
   onTambahAreaOffline,
   onHapusAreaOffline,
+  onTambahLapisan,
   onHapusLapisan,
+  onImporBerkas,
   onBukaPengaturanEkspor
 }) => {
   const [subTab, setSubTab] = useState<"peta" | "lapisan">("peta");
@@ -174,15 +178,15 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [menuItemTerbuka, setMenuItemTerbuka] = useState<string | null>(null);
   const [menuArahAtas, setMenuArahAtas] = useState(false);
 
-  // Modal Tambah Peta Baru / Buat Lapisan Baru (tanpa nilai contoh)
+  // Modal Tambah Peta Baru (tanpa nilai contoh)
   const [bukaModalPetaBaru, setBukaModalPetaBaru] = useState(false);
   const [namaPetaBaru, setNamaPetaBaru] = useState("");
-  const [ukuranMbBaru, setUkuranMbBaru] = useState("");
-  const [jarakKmBaru, setJarakKmBaru] = useState("");
   const [metadataPetaBaru, setMetadataPetaBaru] = useState<HasilMetadataPeta | null>(null);
   const [berkasPetaMentah, setBerkasPetaMentah] = useState<File | null>(null);
   const [petaKustomDataUrlBaru, setPetaKustomDataUrlBaru] = useState<string | undefined>(undefined);
   const [sedangMemprosesBerkas, setSedangMemprosesBerkas] = useState(false);
+  const [sedangMenyimpanBerkas, setSedangMenyimpanBerkas] = useState(false);
+  const [statusProsesBerkas, setStatusProsesBerkas] = useState("");
 
   const [galatImpor, setGalatImpor] = useState("");
   const [rasterGeoreferensi, setRasterGeoreferensi] = useState(false);
@@ -193,9 +197,116 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
   const [kalibLatBawah, setKalibLatBawah] = useState("");
   const [kalibLngTimur, setKalibLngTimur] = useState("");
 
-  useTombolEsc(bukaModalPetaBaru, () => setBukaModalPetaBaru(false));
+  // Modal Tambah Lapisan Baru oleh akun User/Admin
+  const [bukaModalLapisanBaru, setBukaModalLapisanBaru] = useState(false);
+  const [namaLapisanBaru, setNamaLapisanBaru] = useState("");
+  const [deskripsiLapisanBaru, setDeskripsiLapisanBaru] = useState("");
+  const [galatLapisanBaru, setGalatLapisanBaru] = useState("");
+
+  // Modal Impor Lapisan Peta oleh akun User/Admin (pilih Point, Line, Polygon, atau Sekaligus)
+  const [bukaModalImporLapisan, setBukaModalImporLapisan] = useState(false);
+  const [sedangBacaImporLapisan, setSedangBacaImporLapisan] = useState(false);
+  const [namaBerkasImporLapisan, setNamaBerkasImporLapisan] = useState("");
+  const [isiBerkasImporLapisan, setIsiBerkasImporLapisan] = useState("");
+  const [hasilImporLapisan, setHasilImporLapisan] = useState<HasilParse | null>(null);
+  const [namaLapisanImpor, setNamaLapisanImpor] = useState("");
+  const [pilihanGeometriImpor, setPilihanGeometriImpor] = useState<"semua" | JenisGeometri>("semua");
+  const [galatImporLapisan, setGalatImporLapisan] = useState("");
+
+  useTombolEsc(bukaModalPetaBaru && !sedangMenyimpanBerkas, () => setBukaModalPetaBaru(false));
+  useTombolEsc(bukaModalLapisanBaru, () => setBukaModalLapisanBaru(false));
+  useTombolEsc(bukaModalImporLapisan, () => setBukaModalImporLapisan(false));
   const [petaPratinjauAktif, setPetaPratinjauAktif] = useState<AreaPetaOffline | null>(null);
   useTombolEsc(petaPratinjauAktif !== null, () => setPetaPratinjauAktif(null));
+
+  const ringkasGeometriImpor = useMemo(() => {
+    const fitur = hasilImporLapisan?.fitur ?? [];
+    let point = 0;
+    let line = 0;
+    let polygon = 0;
+    for (const f of fitur) {
+      if (f.jenisGeometri === "point") point += 1;
+      else if (f.jenisGeometri === "line") line += 1;
+      else if (f.jenisGeometri === "polygon") polygon += 1;
+    }
+    return { semua: fitur.length, point, line, polygon };
+  }, [hasilImporLapisan]);
+
+  const resetFormImporLapisan = () => {
+    setNamaBerkasImporLapisan("");
+    setIsiBerkasImporLapisan("");
+    setHasilImporLapisan(null);
+    setNamaLapisanImpor("");
+    setPilihanGeometriImpor("semua");
+    setGalatImporLapisan("");
+    setSedangBacaImporLapisan(false);
+  };
+
+  const handleSimpanLapisanBaru = (e: React.FormEvent) => {
+    e.preventDefault();
+    const namaBersih = namaLapisanBaru.trim();
+    if (!namaBersih || !onTambahLapisan) return;
+    if (lapisanList.some((l) => l.nama.trim().toLowerCase() === namaBersih.toLowerCase())) {
+      setGalatLapisanBaru("Lapisan dengan nama ini sudah ada.");
+      return;
+    }
+    const lapisanBaru: LapisanSpasial = {
+      id: buatId("LAP"),
+      nama: namaBersih,
+      jumlahPeta: 0,
+      ...(deskripsiLapisanBaru.trim() ? { deskripsi: deskripsiLapisanBaru.trim() } : {}),
+      createdAt: new Date().toISOString()
+    };
+    onTambahLapisan(lapisanBaru);
+    setNamaLapisanBaru("");
+    setDeskripsiLapisanBaru("");
+    setGalatLapisanBaru("");
+    setBukaModalLapisanBaru(false);
+  };
+
+  const handlePilihBerkasImporLapisan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    setSedangBacaImporLapisan(true);
+    setGalatImporLapisan("");
+    setHasilImporLapisan(null);
+    try {
+      const isi = await file.text();
+      const hasil = parseBerkas(file.name, isi);
+      if (hasil.fitur.length === 0) {
+        throw new Error("Tidak ada fitur valid yang dapat diimpor dari berkas ini.");
+      }
+      setNamaBerkasImporLapisan(file.name);
+      setIsiBerkasImporLapisan(isi);
+      setHasilImporLapisan(hasil);
+      const namaDasar = file.name.replace(/\.[^.]+$/, "").trim();
+      setNamaLapisanImpor(namaDasar || "Lapisan Impor");
+      setPilihanGeometriImpor("semua");
+    } catch (err) {
+      setGalatImporLapisan(err instanceof Error ? err.message : "Berkas lapisan tidak dapat dibaca.");
+    } finally {
+      setSedangBacaImporLapisan(false);
+      input.value = "";
+    }
+  };
+
+  const handleSubmitImporLapisan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onImporBerkas || !hasilImporLapisan || !isiBerkasImporLapisan) return;
+    if (ringkasGeometriImpor[pilihanGeometriImpor] === 0) {
+      setGalatImporLapisan("Tidak ada fitur dengan tipe geometri yang dipilih.");
+      return;
+    }
+    const sukses = onImporBerkas(namaBerkasImporLapisan, isiBerkasImporLapisan, {
+      filterGeometri: pilihanGeometriImpor,
+      namaLapisan: namaLapisanImpor.trim() || namaBerkasImporLapisan.replace(/\.[^.]+$/, "")
+    });
+    if (sukses) {
+      resetFormImporLapisan();
+      setBukaModalImporLapisan(false);
+    }
+  };
 
   const hitungObjekLapisan = (lapisan: LapisanSpasial): number => {
     return dataSpasial.filter((d) => objekCocokLapisan(d, lapisan)).length;
@@ -248,6 +359,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     const file = input.files?.[0];
     if (!file) return;
     setSedangMemprosesBerkas(true);
+    setStatusProsesBerkas("Memeriksa berkas peta...");
 
     setGalatImpor("");
     setMetadataPetaBaru(null);
@@ -259,25 +371,24 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
     try {
       const namaKecil = file.name.toLowerCase();
       if (/\.pmtiles$/i.test(namaKecil)) {
+        setStatusProsesBerkas("Membaca metadata PMTiles...");
         const meta = await bacaMetadataBerkasPeta(file);
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
         setThumbnailDataUrlBaru(meta.thumbnailDataUrl);
         setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
-        setUkuranMbBaru(meta.ukuranMbTeks);
-        setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(false);
       } else if (/\.mbtiles$/i.test(namaKecil)) {
+        setStatusProsesBerkas("Membaca metadata MBTiles...");
         const meta = await bacaMetadataBerkasPeta(file);
         setBerkasPetaMentah(file);
         setMetadataPetaBaru(meta);
         setThumbnailDataUrlBaru(meta.thumbnailDataUrl);
         setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
-        setUkuranMbBaru(meta.ukuranMbTeks);
-        setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(false);
       } else if (/\.(pdf|geopdf)$/i.test(namaKecil)) {
         setBerkasPetaMentah(file);
+        setStatusProsesBerkas("Mengekstrak georeferensi dan merender GeoPDF...");
         const { imporGeoPdf, renderHalamanPdfBiasa } = await import("../lib/geoPdf");
         const ukuranMb = Math.max(0.1, Number((file.size / (1024 * 1024)).toFixed(1)));
         const posisiRef = (typeof window !== "undefined" ? bacaPosisiPeta() : null) || POSISI_AWAL_PETA;
@@ -313,13 +424,12 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           };
           setMetadataPetaBaru(meta);
           setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
-          setUkuranMbBaru(meta.ukuranMbTeks);
-          setJarakKmBaru(jarakKmTeks);
           setPetaKustomDataUrlBaru(hasil.dataUrl);
           setThumbnailDataUrlBaru(hasil.thumbnailDataUrl);
           setRasterGeoreferensi(true);
         } catch (errGeoPdf) {
           try {
+            setStatusProsesBerkas("Merender halaman PDF untuk kalibrasi manual...");
             // Fallback: PDF biasa tanpa georeferensi -> render halaman 1 & buka form kalibrasi manual 2 titik (Barat Laut & Tenggara)
             const hasilBiasa = await renderHalamanPdfBiasa(file);
             const defLatAtas = Number((posisiRef.lat + 0.015).toFixed(5));
@@ -358,8 +468,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
             };
             setMetadataPetaBaru(metaManual);
             setNamaPetaBaru(singkatkanLabelPeta(file.name, 40));
-            setUkuranMbBaru(metaManual.ukuranMbTeks);
-            setJarakKmBaru("0");
             setPetaKustomDataUrlBaru(hasilBiasa.dataUrl);
             setThumbnailDataUrlBaru(hasilBiasa.thumbnailDataUrl);
             setRasterGeoreferensi(true);
@@ -368,6 +476,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           }
         }
       } else if (/\.(tif|tiff|geotiff)$/i.test(namaKecil)) {
+        setStatusProsesBerkas("Membaca georeferensi GeoTIFF...");
         const meta = await bacaMetadataBerkasPeta(file);
         const pratinjau = buatPratinjauRasterGeotiff(meta);
         setBerkasPetaMentah(file);
@@ -377,8 +486,6 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
           setThumbnailDataUrlBaru(pratinjau.thumbnailDataUrl);
         }
         setNamaPetaBaru(singkatkanLabelPeta(meta.namaArea, 40));
-        setUkuranMbBaru(meta.ukuranMbTeks);
-        setJarakKmBaru(meta.jarakKmTeks);
         setRasterGeoreferensi(true);
       } else {
         throw new Error(
@@ -389,105 +496,122 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       setGalatImpor(err instanceof Error ? err.message : "Berkas peta gagal dibaca.");
     } finally {
       setSedangMemprosesBerkas(false);
+      setStatusProsesBerkas("");
       input.value = "";
     }
   };
 
   const handleSimpanPetaBaru = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!namaPetaBaru.trim() || !metadataPetaBaru || (!petaKustomDataUrlBaru && !berkasPetaMentah) || sedangMemprosesBerkas || galatImpor) return;
+    if (
+      !namaPetaBaru.trim() ||
+      !metadataPetaBaru ||
+      (!petaKustomDataUrlBaru && !berkasPetaMentah) ||
+      sedangMemprosesBerkas ||
+      sedangMenyimpanBerkas ||
+      galatImpor
+    ) {
+      return;
+    }
 
-    const id = buatId("MAP-OFF");
-    let petaKustomUrl: string | undefined = undefined;
+    setSedangMenyimpanBerkas(true);
+    setStatusProsesBerkas("Menyimpan arsip peta ke perangkat...");
+    try {
+      const id = buatId("MAP-OFF");
+      let petaKustomUrl: string | undefined = undefined;
 
-    if (berkasPetaMentah) {
-      const namaKecil = berkasPetaMentah.name.toLowerCase();
-      const isPm = /\.pmtiles$/i.test(namaKecil);
-      const isMb = /\.mbtiles$/i.test(namaKecil);
-      const isPdf = /\.(pdf|geopdf)$/i.test(namaKecil);
-      const tipeArsip = isPm ? "pmtiles" : isMb ? "mbtiles" : isPdf ? "geopdf" : "geotiff";
+      if (berkasPetaMentah) {
+        const namaKecil = berkasPetaMentah.name.toLowerCase();
+        const isPm = /\.pmtiles$/i.test(namaKecil);
+        const isMb = /\.mbtiles$/i.test(namaKecil);
+        const isPdf = /\.(pdf|geopdf)$/i.test(namaKecil);
+        const tipeArsip = isPm ? "pmtiles" : isMb ? "mbtiles" : isPdf ? "geopdf" : "geotiff";
 
-      try {
-        await simpanArsipPeta(id, berkasPetaMentah, {
-          namaArea: namaPetaBaru.trim(),
-          tipe: tipeArsip,
-          ukuranMb: metadataPetaBaru.ukuranMb
-        });
+        try {
+          await simpanArsipPeta(id, berkasPetaMentah, {
+            namaArea: namaPetaBaru.trim(),
+            tipe: tipeArsip,
+            ukuranMb: metadataPetaBaru.ukuranMb
+          });
 
-        if (isPm) {
-          daftarkanSumberPmtiles(id, berkasPetaMentah);
-          petaKustomUrl = `pmtiles://${id}/{z}/{x}/{y}`;
-        } else if (isMb) {
-          await daftarkanSumberMbtiles(id, berkasPetaMentah);
-          petaKustomUrl = `mbtiles://${id}/{z}/{x}/{y}`;
+          if (isPm) {
+            setStatusProsesBerkas("Menyiapkan sumber PMTiles...");
+            daftarkanSumberPmtiles(id, berkasPetaMentah);
+            petaKustomUrl = `pmtiles://${id}/{z}/{x}/{y}`;
+          } else if (isMb) {
+            setStatusProsesBerkas("Menyiapkan sumber tile MBTiles...");
+            await daftarkanSumberMbtiles(id, berkasPetaMentah);
+            petaKustomUrl = `mbtiles://${id}/{z}/{x}/{y}`;
+          }
+        } catch (err) {
+          console.warn("Gagal menyimpan arsip biner ke IndexedDB:", err);
         }
-      } catch (err) {
-        console.warn("Gagal menyimpan arsip biner ke IndexedDB:", err);
       }
-    }
 
-    let minLatFinal = metadataPetaBaru.minLat;
-    let maxLatFinal = metadataPetaBaru.maxLat;
-    let minLngFinal = metadataPetaBaru.minLng;
-    let maxLngFinal = metadataPetaBaru.maxLng;
-    if (perluKalibrasiManual) {
-      const laAtas = parseFloat(kalibLatAtas.replace(",", "."));
-      const loBarat = parseFloat(kalibLngBarat.replace(",", "."));
-      const laBawah = parseFloat(kalibLatBawah.replace(",", "."));
-      const loTimur = parseFloat(kalibLngTimur.replace(",", "."));
-      if ([laAtas, loBarat, laBawah, loTimur].every(Number.isFinite)) {
-        minLatFinal = Math.min(laAtas, laBawah);
-        maxLatFinal = Math.max(laAtas, laBawah);
-        minLngFinal = Math.min(loBarat, loTimur);
-        maxLngFinal = Math.max(loBarat, loTimur);
+      let minLatFinal = metadataPetaBaru.minLat;
+      let maxLatFinal = metadataPetaBaru.maxLat;
+      let minLngFinal = metadataPetaBaru.minLng;
+      let maxLngFinal = metadataPetaBaru.maxLng;
+      if (perluKalibrasiManual) {
+        const laAtas = parseFloat(kalibLatAtas.replace(",", "."));
+        const loBarat = parseFloat(kalibLngBarat.replace(",", "."));
+        const laBawah = parseFloat(kalibLatBawah.replace(",", "."));
+        const loTimur = parseFloat(kalibLngTimur.replace(",", "."));
+        if ([laAtas, loBarat, laBawah, loTimur].every(Number.isFinite)) {
+          minLatFinal = Math.min(laAtas, laBawah);
+          maxLatFinal = Math.max(laAtas, laBawah);
+          minLngFinal = Math.min(loBarat, loTimur);
+          maxLngFinal = Math.max(loBarat, loTimur);
+        }
       }
-    }
 
-    const itemBaru: AreaPetaOffline = {
-      id,
-      namaArea: namaPetaBaru.trim(),
-      basemapId: "topo",
-      minLat: minLatFinal,
-      maxLat: maxLatFinal,
-      minLng: minLngFinal,
-      maxLng: maxLngFinal,
-      zoomMin: metadataPetaBaru.zoomMin ?? 11,
-      zoomMax: metadataPetaBaru.zoomMax ?? 18,
-      jumlahTile: 0,
-      rasterGeoreferensi,
-      ukuranMb: metadataPetaBaru.ukuranMb,
-      jarakKm: Number(jarakKmBaru.replace(",", ".")) || 0,
-      thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
-      thumbnailDataUrl: thumbnailDataUrlBaru ?? metadataPetaBaru?.thumbnailDataUrl,
-      petaKustomDataUrl: petaKustomDataUrlBaru,
-      petaKustomUrl,
-      diunduhPada: new Date().toISOString(),
-      jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
-      crs: metadataPetaBaru.crs,
-      crsDeskripsi: metadataPetaBaru?.crsDeskripsi,
-      pusatLat: (minLatFinal + maxLatFinal) / 2,
-      pusatLng: (minLngFinal + maxLngFinal) / 2,
-      lebarPixel: metadataPetaBaru?.lebarPixel,
-      tinggiPixel: metadataPetaBaru?.tinggiPixel,
-      resolusiMeter: metadataPetaBaru?.resolusiMeter,
-      formatGeoref: metadataPetaBaru?.formatGeoref,
-      metodeTransformasi: metadataPetaBaru?.metodeTransformasi,
-      sisaMeter: metadataPetaBaru?.sisaMeter,
-      indeksHalaman: metadataPetaBaru?.indeksHalaman,
-      empatSudut: metadataPetaBaru?.empatSudut,
-      unduhanNyata: true,
-      statusTeks: "Pada peta"
-    };
-    onTambahAreaOffline(itemBaru);
-    setNamaPetaBaru("");
-    setUkuranMbBaru("");
-    setJarakKmBaru("");
-    setPetaKustomDataUrlBaru(undefined);
-    setBerkasPetaMentah(null);
-    setMetadataPetaBaru(null);
-    setBukaModalPetaBaru(false);
-    // Tampilkan pratinjau peta setelah berhasil di-upload ke aplikasi
-    setPetaPratinjauAktif(itemBaru);
+      const itemBaru: AreaPetaOffline = {
+        id,
+        namaArea: namaPetaBaru.trim(),
+        basemapId: "topo",
+        minLat: minLatFinal,
+        maxLat: maxLatFinal,
+        minLng: minLngFinal,
+        maxLng: maxLngFinal,
+        zoomMin: metadataPetaBaru.zoomMin ?? 11,
+        zoomMax: metadataPetaBaru.zoomMax ?? 18,
+        jumlahTile: 0,
+        rasterGeoreferensi,
+        ukuranMb: metadataPetaBaru.ukuranMb,
+        jarakKm: metadataPetaBaru.jarakKm ?? 0,
+        thumbnailType: metadataPetaBaru?.thumbnailType ?? "geopdf_sheet",
+        thumbnailDataUrl: thumbnailDataUrlBaru ?? metadataPetaBaru?.thumbnailDataUrl,
+        petaKustomDataUrl: petaKustomDataUrlBaru,
+        petaKustomUrl,
+        diunduhPada: new Date().toISOString(),
+        jenisFile: metadataPetaBaru?.jenisFile ?? "GeoPDF / GeoTIFF",
+        crs: metadataPetaBaru.crs,
+        crsDeskripsi: metadataPetaBaru?.crsDeskripsi,
+        pusatLat: (minLatFinal + maxLatFinal) / 2,
+        pusatLng: (minLngFinal + maxLngFinal) / 2,
+        lebarPixel: metadataPetaBaru?.lebarPixel,
+        tinggiPixel: metadataPetaBaru?.tinggiPixel,
+        resolusiMeter: metadataPetaBaru?.resolusiMeter,
+        formatGeoref: metadataPetaBaru?.formatGeoref,
+        metodeTransformasi: metadataPetaBaru?.metodeTransformasi,
+        sisaMeter: metadataPetaBaru?.sisaMeter,
+        indeksHalaman: metadataPetaBaru?.indeksHalaman,
+        empatSudut: metadataPetaBaru?.empatSudut,
+        unduhanNyata: true,
+        statusTeks: "Pada peta"
+      };
+      onTambahAreaOffline(itemBaru);
+      setNamaPetaBaru("");
+      setPetaKustomDataUrlBaru(undefined);
+      setBerkasPetaMentah(null);
+      setMetadataPetaBaru(null);
+      setBukaModalPetaBaru(false);
+      // Tampilkan pratinjau peta setelah berhasil di-upload ke aplikasi
+      setPetaPratinjauAktif(itemBaru);
+    } finally {
+      setSedangMenyimpanBerkas(false);
+      setStatusProsesBerkas("");
+    }
   };
 
   const formatAngkaIndo = (num: number) => num.toString().replace(".", ",");
@@ -865,6 +989,39 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
       {/* KONTEN TAB 2: LAPISAN */}
       {subTab === "lapisan" && (
         <div className="avenza-lapisan-content">
+          {(onTambahLapisan || onImporBerkas) && (
+            <div className="pustaka-lapisan-aksi-bar">
+              {onTambahLapisan && (
+                <button
+                  type="button"
+                  className="pustaka-lapisan-aksi-btn primary"
+                  onClick={() => {
+                    setNamaLapisanBaru("");
+                    setDeskripsiLapisanBaru("");
+                    setGalatLapisanBaru("");
+                    setBukaModalLapisanBaru(true);
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>Tambah Lapisan</span>
+                </button>
+              )}
+              {onImporBerkas && (
+                <button
+                  type="button"
+                  className="pustaka-lapisan-aksi-btn"
+                  onClick={() => {
+                    resetFormImporLapisan();
+                    setBukaModalImporLapisan(true);
+                  }}
+                >
+                  <Upload size={15} />
+                  <span>Impor Lapisan</span>
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="avenza-layer-list">
             {daftarLapisanTampil.map((lapisan) => {
               const jmlObjek = hitungObjekLapisan(lapisan);
@@ -942,15 +1099,22 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                     className="avenza-map-more-wrap"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setMenuItemTerbuka(menuItemTerbuka === lapisan.id ? null : lapisan.id);
+                      if (menuItemTerbuka === lapisan.id) {
+                        setMenuItemTerbuka(null);
+                      } else {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const sisaBawah = (typeof window !== "undefined" ? window.innerHeight : 800) - rect.bottom;
+                        setMenuArahAtas(sisaBawah < 240 && rect.top > 160);
+                        setMenuItemTerbuka(lapisan.id);
+                      }
                     }}
                   >
-                    <button type="button" className="avenza-more-dots-btn" title="Opsi Lapisan">
+                    <button type="button" className="avenza-more-dots-btn" title="Opsi Lapisan" aria-expanded={menuItemTerbuka === lapisan.id}>
                       <MoreHorizontal size={20} />
                     </button>
 
                     {menuItemTerbuka === lapisan.id && (
-                      <div className="avenza-row-dropdown" onClick={(e) => e.stopPropagation()}>
+                      <div className={`avenza-row-dropdown ${menuArahAtas ? "buka-atas" : ""}`} onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => {
@@ -1008,7 +1172,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                 </div>
                 <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>Belum Ada Lapisan</h4>
                 <p style={{ margin: "0 auto", fontSize: "0.84rem", color: "#64748b", maxWidth: 300 }}>
-                  Lapisan pemetaan akan tampil di sini saat tersedia.
+                  Buat lapisan baru atau impor berkas GeoJSON, KML, dan GPX di atas.
                 </p>
               </div>
             )}
@@ -1016,186 +1180,141 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         </div>
       )}
 
-      {/* MODAL TAMBAH PETA KERJA BARU */}
+      {/* MODAL TAMBAH PETA KERJA BARU (MINIMALIS DAN ESTETIK) */}
       {bukaModalPetaBaru && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Peta</h3>
-              <button type="button" className="btn-icon-close" onClick={() => setBukaModalPetaBaru(false)}>
+        <div className="modal-backdrop" onClick={() => !sedangMenyimpanBerkas && setBukaModalPetaBaru(false)}>
+          <div className="modal-card modal-minimalis" role="dialog" aria-modal="true" aria-label="Tambah Peta" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-minimalis-head">
+              <h3>Tambah Peta</h3>
+              <button
+                type="button"
+                className="btn-icon-close"
+                disabled={sedangMenyimpanBerkas}
+                onClick={() => setBukaModalPetaBaru(false)}
+                aria-label="Tutup dialog tambah peta"
+              >
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleSimpanPetaBaru} className="modal-form">
-              {/* UPLOAD BERKAS PETA DARI PERANGKAT */}
-              <div className="peta-upload-container">
-                <label className="peta-upload-dropzone" htmlFor="upload-peta-input">
-                  <input
-                    id="upload-peta-input"
-                    type="file"
-                    accept=".pmtiles,.mbtiles,.pdf,.geopdf,.tif,.tiff"
-                    style={{ display: "none" }}
-                    onChange={handlePilihBerkasPeta}
-                  />
-                  <div className="peta-upload-icon-wrap">
-                    <FileUp size={22} />
+            <form onSubmit={handleSimpanPetaBaru} className="modal-minimalis-form">
+              <label className={`peta-dropzone-minimalis ${sedangMemprosesBerkas || sedangMenyimpanBerkas ? "sibuk" : ""}`} htmlFor="upload-peta-input">
+                <input
+                  id="upload-peta-input"
+                  type="file"
+                  accept=".pmtiles,.mbtiles,.pdf,.geopdf,.tif,.tiff"
+                  style={{ display: "none" }}
+                  disabled={sedangMemprosesBerkas || sedangMenyimpanBerkas}
+                  onChange={handlePilihBerkasPeta}
+                />
+                <span className="peta-dropzone-ikon">
+                  {sedangMemprosesBerkas ? <Loader2 size={20} className="putar-segarkan" /> : <FileUp size={20} />}
+                </span>
+                <span className="peta-dropzone-teks">
+                  <strong>{metadataPetaBaru ? "Ganti berkas peta" : "Pilih berkas peta"}</strong>
+                  <small>GeoPDF · MBTiles · PMTiles · GeoTIFF</small>
+                </span>
+              </label>
+
+              {(sedangMemprosesBerkas || sedangMenyimpanBerkas) && (
+                <div className="peta-loading-box" role="status" aria-live="polite">
+                  <div className="peta-loading-row">
+                    <Loader2 size={15} className="putar-segarkan" />
+                    <span>{statusProsesBerkas || "Memproses berkas peta..."}</span>
                   </div>
-                  <div className="peta-upload-text-wrap">
-                    <strong>Pilih Berkas</strong>
-                    <span>PMTiles, MBTiles, GeoPDF, GeoTIFF</span>
+                  <div className="peta-progress-track" aria-hidden="true">
+                    <div className="peta-progress-bar" />
                   </div>
-                  <span className="peta-upload-btn-chip">Buka</span>
-                </label>
-                {sedangMemprosesBerkas && (
-                  <div className="peta-upload-status loading">
-                    <span>Membaca batas peta…</span>
+                </div>
+              )}
+
+              {!sedangMemprosesBerkas && !sedangMenyimpanBerkas && metadataPetaBaru && (
+                <div className="peta-meta-ringkas">
+                  <span className="peta-meta-check">
+                    <Check size={13} />
+                  </span>
+                  <div className="peta-meta-ringkas-info">
+                    <strong title={metadataPetaBaru.namaArea}>
+                      {singkatkanLabelPeta(metadataPetaBaru.namaArea, 34)}
+                    </strong>
+                    <span>
+                      {metadataPetaBaru.ukuranMbTeks} MB · {ringkasLabelCrs(metadataPetaBaru.crs || "EPSG:4326", 26)}
+                    </span>
                   </div>
-                )}
-                {!sedangMemprosesBerkas && metadataPetaBaru && (
-                  <div className="peta-upload-status success">
-                    <Check size={14} />{" "}
-                    <b className="peta-upload-nama-berkas" title={metadataPetaBaru.namaArea}>
-                      {singkatkanLabelPeta(metadataPetaBaru.namaArea, 30)}
-                    </b>{" "}
-                    <span>({metadataPetaBaru.ukuranMbTeks} MB)</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {galatImpor && (
-                <p role="alert" style={{ color: "#b42318" }}>
+                <p className="peta-galat-ringkas" role="alert">
                   {galatImpor}
                 </p>
               )}
-              {perluKalibrasiManual && (
-                <div className="avenza-spatial-meta-card">
-                  <div className="avenza-spatial-header">
-                    <span className="avenza-spatial-title">📐 Kalibrasi Manual 2 Sudut (PDF Tanpa Georeferensi)</span>
-                  </div>
-                  <div className="form-row-2">
-                    <div>
-                      <label>Lintang Utara (Barat Laut)</label>
-                      <input type="text" className="form-input" value={kalibLatAtas} onChange={(e) => setKalibLatAtas(e.target.value)} />
-                    </div>
-                    <div>
-                      <label>Bujur Barat (Barat Laut)</label>
-                      <input type="text" className="form-input" value={kalibLngBarat} onChange={(e) => setKalibLngBarat(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="form-row-2">
-                    <div>
-                      <label>Lintang Selatan (Tenggara)</label>
-                      <input type="text" className="form-input" value={kalibLatBawah} onChange={(e) => setKalibLatBawah(e.target.value)} />
-                    </div>
-                    <div>
-                      <label>Bujur Timur (Tenggara)</label>
-                      <input type="text" className="form-input" value={kalibLngTimur} onChange={(e) => setKalibLngTimur(e.target.value)} />
-                    </div>
-                  </div>
+
+              {metadataPetaBaru && metadataPetaBaru.ukuranMb > 50 && (
+                <div className={`peta-peringatan-ringkas ${metadataPetaBaru.ukuranMb > 100 ? "bahaya" : "hati"}`}>
+                  {metadataPetaBaru.ukuranMb > 100 ? <AlertOctagon size={15} /> : <AlertTriangle size={15} />}
+                  <span>
+                    Berkas {metadataPetaBaru.ukuranMbTeks} MB
+                    {metadataPetaBaru.ukuranMb > 100 ? " · disarankan memakai format terkompresi" : ""}
+                  </span>
                 </div>
               )}
-              {/* CARD DETEKSI OTOMATIS CRS & BOUNDING BOX */}
-              {metadataPetaBaru && (
-                <div className="avenza-spatial-meta-card">
-                  <div className="avenza-spatial-header">
-                    <span className="avenza-spatial-title">Georeferensi</span>
-                    <span className="avenza-spatial-badge">
-                      <Check size={12} /> Otomatis
-                    </span>
+
+              {perluKalibrasiManual && (
+                <div className="peta-kalibrasi-ringkas">
+                  <span className="peta-kalibrasi-label">Kalibrasi Manual (Barat Laut · Tenggara)</span>
+                  <div className="form-row-2">
+                    <input type="text" className="form-input" placeholder="Lintang Utara" value={kalibLatAtas} onChange={(e) => setKalibLatAtas(e.target.value)} />
+                    <input type="text" className="form-input" placeholder="Bujur Barat" value={kalibLngBarat} onChange={(e) => setKalibLngBarat(e.target.value)} />
                   </div>
-                  <div className="avenza-spatial-grid">
-                    <div className="avenza-spatial-item full-width">
-                      <span className="spatial-label">CRS:</span>
-                      <strong className="spatial-value crs-name" title={metadataPetaBaru.crs || "EPSG:4326 (WGS 84)"}>
-                        {ringkasLabelCrs(metadataPetaBaru.crs || "EPSG:4326 (WGS 84)", 36)}
-                      </strong>
-                    </div>
-                    <div className="avenza-spatial-item">
-                      <span className="spatial-label">Lintang:</span>
-                      <span className="spatial-value">
-                        {metadataPetaBaru.minLat.toFixed(4)}° – {metadataPetaBaru.maxLat.toFixed(4)}°
-                      </span>
-                    </div>
-                    <div className="avenza-spatial-item">
-                      <span className="spatial-label">Bujur:</span>
-                      <span className="spatial-value">
-                        {metadataPetaBaru.minLng.toFixed(4)}° – {metadataPetaBaru.maxLng.toFixed(4)}°
-                      </span>
-                    </div>
+                  <div className="form-row-2">
+                    <input type="text" className="form-input" placeholder="Lintang Selatan" value={kalibLatBawah} onChange={(e) => setKalibLatBawah(e.target.value)} />
+                    <input type="text" className="form-input" placeholder="Bujur Timur" value={kalibLngTimur} onChange={(e) => setKalibLngTimur(e.target.value)} />
                   </div>
                 </div>
               )}
 
-              {/* PENGINGAT KETIKA DATA TERLALU BESAR */}
-              {metadataPetaBaru &&
-                (() => {
-                  const mb = Number(ukuranMbBaru.replace(",", ".")) || metadataPetaBaru.ukuranMb;
-                  if (mb > 100) {
-                    return (
-                      <div className="peta-warning-banner danger">
-                        <AlertOctagon size={20} className="warning-banner-icon" />
-                        <div className="warning-banner-content">
-                          <strong>Ukuran sangat besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
-                          <p>Disarankan memakai berkas terkompresi atau MBTiles.</p>
-                        </div>
-                      </div>
-                    );
-                  }
-                  if (mb > 50) {
-                    return (
-                      <div className="peta-warning-banner caution">
-                        <AlertTriangle size={20} className="warning-banner-icon" />
-                        <div className="warning-banner-content">
-                          <strong>Ukuran cukup besar ({metadataPetaBaru.ukuranMbTeks} MB)</strong>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              <div>
-                <label>Nama Peta</label>
+              <div className="modal-minimalis-field">
+                <label htmlFor="input-nama-peta-baru">Nama peta</label>
                 <input
+                  id="input-nama-peta-baru"
                   type="text"
                   required
+                  disabled={sedangMenyimpanBerkas}
                   className="form-input"
                   placeholder="Nama peta"
                   value={namaPetaBaru}
                   onChange={(e) => setNamaPetaBaru(e.target.value)}
                 />
               </div>
-              <div className="form-row-2">
-                <div>
-                  <label>Ukuran (MB)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="0"
-                    value={ukuranMbBaru}
-                    onChange={(e) => setUkuranMbBaru(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label>Jarak (km)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="0"
-                    value={jarakKmBaru}
-                    onChange={(e) => setJarakKmBaru(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-outline-sm" onClick={() => setBukaModalPetaBaru(false)}>
+
+              <div className="modal-minimalis-footer">
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  disabled={sedangMenyimpanBerkas}
+                  onClick={() => setBukaModalPetaBaru(false)}
+                >
                   Batal
                 </button>
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={!namaPetaBaru.trim() || !metadataPetaBaru || (!petaKustomDataUrlBaru && !berkasPetaMentah) || sedangMemprosesBerkas || !!galatImpor}
+                  disabled={
+                    !namaPetaBaru.trim() ||
+                    !metadataPetaBaru ||
+                    (!petaKustomDataUrlBaru && !berkasPetaMentah) ||
+                    sedangMemprosesBerkas ||
+                    sedangMenyimpanBerkas ||
+                    !!galatImpor
+                  }
                 >
-                  Simpan
+                  {sedangMenyimpanBerkas ? (
+                    <>
+                      <Loader2 size={15} className="putar-segarkan" /> Menyimpan...
+                    </>
+                  ) : (
+                    "Simpan"
+                  )}
                 </button>
               </div>
             </form>
@@ -1203,87 +1322,225 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
         </div>
       )}
 
-      {/* MODAL PRATINJAU LEMBAR PETA SETELAH DI-UPLOAD KE APLIKASI */}
+      {/* MODAL TAMBAH LAPISAN BARU (AKUN USER / ADMIN) */}
+      {bukaModalLapisanBaru && (
+        <div className="modal-backdrop" onClick={() => setBukaModalLapisanBaru(false)}>
+          <div className="modal-card modal-minimalis" role="dialog" aria-modal="true" aria-label="Tambah Lapisan Baru" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-minimalis-head">
+              <h3>Lapisan Baru</h3>
+              <button type="button" className="btn-icon-close" onClick={() => setBukaModalLapisanBaru(false)} aria-label="Tutup dialog lapisan baru">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSimpanLapisanBaru} className="modal-minimalis-form">
+              <div className="modal-minimalis-field">
+                <label htmlFor="input-nama-lapisan-baru">Nama lapisan</label>
+                <input
+                  id="input-nama-lapisan-baru"
+                  type="text"
+                  required
+                  className="form-input"
+                  placeholder="Mis. Sebaran Sumber Air"
+                  value={namaLapisanBaru}
+                  onChange={(e) => {
+                    setNamaLapisanBaru(e.target.value);
+                    setGalatLapisanBaru("");
+                  }}
+                />
+              </div>
+              {galatLapisanBaru && (
+                <p className="peta-galat-ringkas" role="alert">
+                  {galatLapisanBaru}
+                </p>
+              )}
+              <div className="modal-minimalis-field">
+                <label htmlFor="input-deskripsi-lapisan-baru">Catatan (opsional)</label>
+                <input
+                  id="input-deskripsi-lapisan-baru"
+                  type="text"
+                  className="form-input"
+                  placeholder="Keterangan singkat lapisan"
+                  value={deskripsiLapisanBaru}
+                  onChange={(e) => setDeskripsiLapisanBaru(e.target.value)}
+                />
+              </div>
+              <div className="modal-minimalis-footer">
+                <button type="button" className="btn-outline-sm" onClick={() => setBukaModalLapisanBaru(false)}>
+                  Batal
+                </button>
+                <button type="submit" className="btn-primary" disabled={!namaLapisanBaru.trim()}>
+                  Buat Lapisan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL IMPOR LAPISAN PETA (PILIH POINT, LINE, POLYGON, ATAU SEKALIGUS) */}
+      {bukaModalImporLapisan && (
+        <div className="modal-backdrop" onClick={() => setBukaModalImporLapisan(false)}>
+          <div className="modal-card modal-minimalis" role="dialog" aria-modal="true" aria-label="Impor Lapisan Peta" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-minimalis-head">
+              <h3>Impor Lapisan</h3>
+              <button type="button" className="btn-icon-close" onClick={() => setBukaModalImporLapisan(false)} aria-label="Tutup dialog impor lapisan">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitImporLapisan} className="modal-minimalis-form">
+              <label className={`peta-dropzone-minimalis ${sedangBacaImporLapisan ? "sibuk" : ""}`} htmlFor="upload-impor-lapisan-input">
+                <input
+                  id="upload-impor-lapisan-input"
+                  type="file"
+                  accept=".geojson,.json,.kml,.gpx"
+                  style={{ display: "none" }}
+                  disabled={sedangBacaImporLapisan}
+                  onChange={handlePilihBerkasImporLapisan}
+                />
+                <span className="peta-dropzone-ikon">
+                  {sedangBacaImporLapisan ? <Loader2 size={20} className="putar-segarkan" /> : <Upload size={20} />}
+                </span>
+                <span className="peta-dropzone-teks">
+                  <strong>{hasilImporLapisan ? "Ganti berkas lapisan" : "Pilih berkas lapisan"}</strong>
+                  <small>GeoJSON · KML · GPX</small>
+                </span>
+              </label>
+
+              {sedangBacaImporLapisan && (
+                <div className="peta-loading-box" role="status" aria-live="polite">
+                  <div className="peta-loading-row">
+                    <Loader2 size={15} className="putar-segarkan" />
+                    <span>Membaca berkas lapisan...</span>
+                  </div>
+                  <div className="peta-progress-track" aria-hidden="true">
+                    <div className="peta-progress-bar" />
+                  </div>
+                </div>
+              )}
+
+              {galatImporLapisan && (
+                <p className="peta-galat-ringkas" role="alert">
+                  {galatImporLapisan}
+                </p>
+              )}
+
+              {hasilImporLapisan && (
+                <>
+                  <div className="peta-meta-ringkas">
+                    <span className="peta-meta-check">
+                      <Check size={13} />
+                    </span>
+                    <div className="peta-meta-ringkas-info">
+                      <strong title={namaBerkasImporLapisan}>{singkatkanLabelPeta(namaBerkasImporLapisan, 34)}</strong>
+                      <span>
+                        {hasilImporLapisan.format} · {ringkasGeometriImpor.semua} fitur terdeteksi
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="modal-minimalis-field">
+                    <label htmlFor="input-nama-lapisan-impor">Nama lapisan</label>
+                    <input
+                      id="input-nama-lapisan-impor"
+                      type="text"
+                      required
+                      className="form-input"
+                      placeholder="Nama lapisan"
+                      value={namaLapisanImpor}
+                      onChange={(e) => setNamaLapisanImpor(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="modal-minimalis-field">
+                    <label>Data yang diimpor</label>
+                    <div className="impor-geometri-chips" role="group" aria-label="Pilih tipe data impor lapisan">
+                      {(
+                        [
+                          { id: "semua" as const, label: "Sekaligus" },
+                          { id: "point" as const, label: "Point" },
+                          { id: "line" as const, label: "Line" },
+                          { id: "polygon" as const, label: "Polygon" }
+                        ]
+                      ).map((opsi) => (
+                        <button
+                          key={opsi.id}
+                          type="button"
+                          aria-pressed={pilihanGeometriImpor === opsi.id}
+                          className={`avenza-format-chip ${pilihanGeometriImpor === opsi.id ? "active" : ""}`}
+                          onClick={() => {
+                            setPilihanGeometriImpor(opsi.id);
+                            setGalatImporLapisan("");
+                          }}
+                        >
+                          <span>{opsi.label}</span>
+                          <span className="ekspor-chip-count">{ringkasGeometriImpor[opsi.id]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="modal-minimalis-footer">
+                <button type="button" className="btn-outline-sm" onClick={() => setBukaModalImporLapisan(false)}>
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={
+                    !hasilImporLapisan ||
+                    !namaLapisanImpor.trim() ||
+                    ringkasGeometriImpor[pilihanGeometriImpor] === 0
+                  }
+                >
+                  Impor ({ringkasGeometriImpor[pilihanGeometriImpor]})
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PRATINJAU PETA (MINIMALIS DAN ESTETIK) */}
       {petaPratinjauAktif && (
         <div className="modal-backdrop" onClick={() => setPetaPratinjauAktif(null)}>
-          <div className="modal-card avenza-preview-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="avenza-preview-modal-head">
-                <Eye size={20} className="text-emerald" />
-                <h3 className="avenza-preview-modal-title">Pratinjau Lembar Peta</h3>
-              </div>
-              <button type="button" className="btn-icon-close" onClick={() => setPetaPratinjauAktif(null)} title="Tutup Pratinjau">
+          <div className="modal-card modal-minimalis peta-preview-minimalis" role="dialog" aria-modal="true" aria-label="Pratinjau Peta" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-minimalis-head">
+              <h3 title={petaPratinjauAktif.namaArea}>{singkatkanLabelPeta(petaPratinjauAktif.namaArea, 34)}</h3>
+              <button type="button" className="btn-icon-close" onClick={() => setPetaPratinjauAktif(null)} title="Tutup">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="avenza-preview-modal-body">
-              {/* VIEWPORT LEMBAR PETA OTENTIK */}
-              <div className="avenza-preview-stage">
+            <div className="peta-preview-body">
+              <div className="peta-preview-frame">
                 {ambilUrlGambarThumbnail(petaPratinjauAktif) ? (
                   <img
                     src={ambilUrlGambarThumbnail(petaPratinjauAktif)!}
                     alt={petaPratinjauAktif.namaArea}
-                    className="avenza-preview-stage-img"
+                    className="peta-preview-img"
                   />
                 ) : (
-                  <div className="avenza-preview-placeholder">
-                    <MapIcon size={48} className="text-emerald" />
-                    <span>Lembar Dokumen Peta</span>
+                  <div className="peta-preview-kosong">
+                    <MapIcon size={40} />
+                    <span>{petaPratinjauAktif.jenisFile || "Lembar Peta"}</span>
                   </div>
                 )}
-                <div className="avenza-preview-stage-badge">
-                  <Check size={12} /> Dokumen Peta Terunggah
-                </div>
               </div>
 
-              {/* INFORMASI SPASIAL LENGKAP */}
-              <div className="avenza-preview-info-card">
-                <div className="avenza-preview-map-name">{petaPratinjauAktif.namaArea}</div>
-
-                <div className="avenza-preview-meta-row">
-                  <span className="meta-badge-crs" title={petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)"}>
-                    {ringkasLabelCrs(petaPratinjauAktif.crs || "EPSG:4326 (WGS 84)", 28)}
-                  </span>
-                  <span className="meta-text-size">{formatAngkaIndo(petaPratinjauAktif.ukuranMb)} MB</span>
-                  <span className="meta-text-status text-emerald font-semibold">● {petaPratinjauAktif.statusTeks || "Pada peta"}</span>
-                  {petaPratinjauAktif.jarakKm !== undefined && petaPratinjauAktif.jarakKm > 0 && (
-                    <span className="meta-text-distance">Jarak: {formatAngkaIndo(petaPratinjauAktif.jarakKm)} km</span>
-                  )}
-                </div>
-
-                <div className="avenza-preview-spatial-grid">
-                  <div className="spatial-grid-item">
-                    <span className="spatial-grid-label">Batas Lintang (Lat):</span>
-                    <span className="spatial-grid-val">
-                      {petaPratinjauAktif.minLat.toFixed(4)}° s/d {petaPratinjauAktif.maxLat.toFixed(4)}°
-                    </span>
-                  </div>
-                  <div className="spatial-grid-item">
-                    <span className="spatial-grid-label">Batas Bujur (Lng):</span>
-                    <span className="spatial-grid-val">
-                      {petaPratinjauAktif.minLng.toFixed(4)}° s/d {petaPratinjauAktif.maxLng.toFixed(4)}°
-                    </span>
-                  </div>
-                  {petaPratinjauAktif.pusatLat !== undefined && petaPratinjauAktif.pusatLng !== undefined && (
-                    <div className="spatial-grid-item">
-                      <span className="spatial-grid-label">Titik Pusat:</span>
-                      <span className="spatial-grid-val">
-                        {petaPratinjauAktif.pusatLat.toFixed(4)}°, {petaPratinjauAktif.pusatLng.toFixed(4)}°
-                      </span>
-                    </div>
-                  )}
-                  {petaPratinjauAktif.crsDeskripsi && (
-                    <div className="spatial-grid-item full-width">
-                      <span className="spatial-grid-label">Deskripsi Proyeksi:</span>
-                      <span className="spatial-grid-val">{petaPratinjauAktif.crsDeskripsi}</span>
-                    </div>
-                  )}
-                </div>
+              <div className="peta-preview-pills">
+                <span>{formatAngkaIndo(petaPratinjauAktif.ukuranMb)} MB</span>
+                <span>{ringkasLabelCrs(petaPratinjauAktif.crs || "EPSG:4326", 24)}</span>
+                <span>
+                  {petaPratinjauAktif.jarakKm !== undefined && petaPratinjauAktif.jarakKm > 0
+                    ? `${formatAngkaIndo(petaPratinjauAktif.jarakKm)} km`
+                    : "Area saat ini"}
+                </span>
               </div>
             </div>
 
-            <div className="modal-footer avenza-preview-modal-footer">
+            <div className="modal-minimalis-footer">
               <button type="button" className="btn-outline-sm" onClick={() => setPetaPratinjauAktif(null)}>
                 Tutup
               </button>
@@ -1296,7 +1553,7 @@ export const PustakaView: React.FC<PustakaViewProps> = ({
                   bukaPeta(target);
                 }}
               >
-                <MapIcon size={16} /> Buka di Peta Survei
+                <MapIcon size={15} /> Buka di Peta
               </button>
             </div>
           </div>

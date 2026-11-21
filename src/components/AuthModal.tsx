@@ -1016,16 +1016,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 })()}
               </div>
 
-              {/* Pilihan Asal Pendaftar: tersembunyi dan muncul saat dipilih */}
+              {/* Pilihan Asal Pendaftar: tersembunyi dan muncul saat dipilih (MAKL, N1, N2, N3) */}
               <div ref={refPilihanAsal} style={{ position: "relative" }}>
                 <label htmlFor="daftar-asal-pemicu" style={gayaLabel}>
-                  Asal Pendaftar
+                  Kategori Pendaftar
                 </label>
                 {(() => {
                   const opsiAsal = [
-                    { id: "masyarakat_desa" as const, domId: "daftar-asal-masyarakat", label: "Masyarakat Desa" },
-                    { id: "staff_warsi" as const, domId: "daftar-asal-warsi", label: "Staff Warsi" },
-                    { id: "ngo_lain" as const, domId: "daftar-asal-ngo", label: "NGO Lain" }
+                    { id: "masyarakat_desa" as const, domId: "daftar-asal-masyarakat", label: "MAKL" },
+                    { id: "staff_warsi" as const, domId: "daftar-asal-warsi", label: "N1" },
+                    { id: "ngo_lain" as const, domId: "daftar-asal-ngo", label: "N2" },
+                    { id: "pemerintah" as const, domId: "daftar-asal-pemerintah", label: "N3" }
                   ];
                   const aktifItem = opsiAsal.find((o) => o.id === kategoriAsalDaftar) ?? opsiAsal[0];
                   return (
@@ -1142,10 +1143,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 required
                 placeholder={
                   kategoriAsalDaftar === "staff_warsi"
-                    ? "Email aktif Staff KKI Warsi"
+                    ? "Email aktif N1 (KKI Warsi)"
                     : kategoriAsalDaftar === "ngo_lain"
-                      ? "Email aktif NGO / lembaga"
-                      : "Alamat email aktif (mis. nama@gmail.com)"
+                      ? "Email aktif N2 (NGO / lembaga)"
+                      : kategoriAsalDaftar === "pemerintah"
+                        ? "Email aktif N3 (instansi pemerintah)"
+                        : "Alamat email aktif (mis. nama@gmail.com)"
                 }
                 value={emailDaftar}
                 onChange={(e) => setEmailDaftar(e.target.value)}
@@ -1163,13 +1166,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                 <input
                   id="daftar-kelompok"
                   type="text"
-                  required={kategoriAsalDaftar === "ngo_lain"}
+                  required={kategoriAsalDaftar === "ngo_lain" || kategoriAsalDaftar === "pemerintah"}
                   placeholder={
                     kategoriAsalDaftar === "staff_warsi"
-                      ? "Divisi / jabatan di KKI Warsi"
+                      ? "Divisi / jabatan di KKI Warsi (N1)"
                       : kategoriAsalDaftar === "ngo_lain"
-                        ? "Nama NGO / lembaga asal (wajib)"
-                        : "Kelompok masyarakat / KTH"
+                        ? "Nama NGO / lembaga (N2, wajib)"
+                        : kategoriAsalDaftar === "pemerintah"
+                          ? "Nama instansi pemerintah (N3, wajib)"
+                          : "Kelompok masyarakat / KTH (MAKL)"
                   }
                   value={kelompokDaftar}
                   onChange={(e) => setKelompokDaftar(e.target.value)}
@@ -1185,7 +1190,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onLoginSukses, onBukaSplas
                   placeholder={
                     kategoriAsalDaftar === "staff_warsi"
                       ? "Wilayah kerja / lanskap KKI Warsi (mis. Jambi, Sumbar)"
-                      : "Wilayah kerja / lokasi pendampingan NGO (opsional)"
+                      : kategoriAsalDaftar === "pemerintah"
+                        ? "Wilayah kerja instansi pemerintah (opsional)"
+                        : "Wilayah kerja / lokasi pendampingan NGO (opsional)"
                   }
                   value={wilayahKerjaDaftar}
                   onChange={(e) => setWilayahKerjaDaftar(e.target.value)}

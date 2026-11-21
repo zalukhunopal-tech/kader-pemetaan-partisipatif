@@ -1,7 +1,7 @@
 import { selesaikanKonflik } from "./lib/gdriveBertahap";
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-motion";
 import {
   AreaPetaOffline,
@@ -87,7 +87,7 @@ import {
   tabTujuan
 } from "./lib/geserTab";
 import { bacaDraftSurvei, DRAFT_KOSONG, simpanDraftSurvei } from "./lib/draftSurvei";
-import { fiturKeDataSpasial, parseBerkas, ringkasDilewati } from "./lib/impor";
+import { fiturKeDataSpasial, OpsiImporBerkas, parseBerkas, ringkasDilewati } from "./lib/impor";
 import { hapusTileArea } from "./lib/petaOffline";
 import { EVENT_OVERLAY_OFFLINE_DIPERBARUI } from "./lib/cachePetaOtomatis";
 import { useUnduhPetaOtomatis } from "./lib/useUnduhPetaOtomatis";
@@ -119,10 +119,9 @@ import { NavigasiBawah } from "./components/app/NavigasiBawah";
 import { LayarPembukaTaka, sudahTampilSplashTakaSesiIni } from "./components/LayarPembukaTaka";
 import { BantuanBugView } from "./components/BantuanBugView";
 import { pasangPenangkapBugGlobal, useInventarisBug } from "./lib/inventarisBug";
-import { pasangPenjagaKembali, pastikanRiwayatPenjaga, PESAN_TEKAN_KEMBALI_LAGI, userSudahAktif } from "./lib/penjagaKembali";
+import { pasangPenjagaKembali, pastikanRiwayatPenjaga, userSudahAktif } from "./lib/penjagaKembali";
 import { sinkronkanLapisanDenganItem } from "./lib/tematik";
 import { sinkronkanLapisanDariTugas } from "./lib/skemaTugas";
-import { PullToRefresh } from "./components/common/PullToRefresh";
 
 const KURVA_TRANSISI_MASUK: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const KURVA_TRANSISI_KELUAR: [number, number, number, number] = [0.4, 0, 1, 1];
@@ -238,6 +237,15 @@ export const App: React.FC = () => {
   const [bukaBantuan, setBukaBantuan] = useState<boolean>(false);
   const [konteksEkspor, setKonteksEkspor] = useState<KonteksEkspor | null>(null);
   const [bukaMenuTitikTiga, setBukaMenuTitikTiga] = useState<boolean>(false);
+  const [konfirmasiKeluar, setKonfirmasiKeluar] = useState<"akun" | "aplikasi" | null>(null);
+  useEffect(() => {
+    if (konfirmasiKeluar === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setKonfirmasiKeluar(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [konfirmasiKeluar]);
   const [bukaGantiSandi, setBukaGantiSandi] = useState<boolean>(false);
   const [modePilihPustaka, setModePilihPustaka] = useState<boolean>(false);
   const inventarisBug = useInventarisBug();
@@ -474,6 +482,10 @@ export const App: React.FC = () => {
   // atau minta pengguna menekan Back 2 kali dalam 2 detik sebelum keluar dari aplikasi.
   const tutupLapisanTeratasRef = useRef<() => boolean>(() => false);
   tutupLapisanTeratasRef.current = () => {
+    if (konfirmasiKeluar !== null) {
+      setKonfirmasiKeluar(null);
+      return true;
+    }
     if (!sesiPengguna || layarKunci !== null) return false;
     if (bukaMenuTitikTiga) {
       setBukaMenuTitikTiga(false);
@@ -515,9 +527,12 @@ export const App: React.FC = () => {
     () =>
       pasangPenjagaKembali({
         onTutupLapisanTeratas: () => tutupLapisanTeratasRef.current(),
-        onPeringatanKeluar: () => tampilkanToast(PESAN_TEKAN_KEMBALI_LAGI)
+        onPeringatanKeluar: () => {
+          setKonfirmasiKeluar("aplikasi");
+          pastikanRiwayatPenjaga();
+        }
       }),
-    [tampilkanToast]
+    []
   );
 
   // Pastikan riwayat penjaga tombol Back terpasang setiap kali pindah dari tab home (Peta Interaktif) atau membuka sub-halaman
@@ -767,24 +782,70 @@ export const App: React.FC = () => {
   };
 
   // Handler Impor Berkas (GeoJSON, KML, GPX): fitur divalidasi, yang tidak valid dilewati dan
-  // dilaporkan. Data impor ditandai dan baru dihitung ke capaian setelah diverifikasi admin.
-  const handleImporBerkas = (namaBerkas: string, isi: string): boolean => {
+  // dilaporkan. Mendukung filter geometri (point/line/polygon/semua) dan pengelompokan ke lapisan.
+  const handleImporBerkas = (namaBerkas: string, isi: string, opsi?: OpsiImporBerkas): boolean => {
     try {
       const hasil = parseBerkas(namaBerkas, isi);
+      const filterGeo = opsi?.filterGeometri ?? "semua";
+      const fiturTerpilih =
+        filterGeo === "semua"
+          ? hasil.fitur
+          : hasil.fitur.filter((f) => f.jenisGeometri === filterGeo);
+      const labelFilter =
+        filterGeo === "point"
+          ? "Point"
+          : filterGeo === "line"
+            ? "Line"
+            : filterGeo === "polygon"
+              ? "Polygon"
+              : "";
+      const catatan = hasil.dilewati.length > 0 ? ` ${hasil.dilewati.length} dilewati: ${ringkasDilewati(hasil.dilewati)}.` : "";
+      if (fiturTerpilih.length === 0) {
+        tampilkanToast(
+          labelFilter
+            ? `⚠️ Tidak ada objek ${labelFilter} yang ditemukan di ${namaBerkas}.${catatan}`
+            : `⚠️ Tidak ada objek yang bisa diimpor dari ${namaBerkas}.${catatan}`
+        );
+        return false;
+      }
+
+      let lapisanId: string | undefined;
+      let lapisanNama: string | undefined;
+      const namaLapisanDiminta = opsi?.namaLapisan?.trim();
+      if (namaLapisanDiminta) {
+        const lapisanAda = lapisanList.find((l) => l.nama.trim().toLowerCase() === namaLapisanDiminta.toLowerCase());
+        if (lapisanAda) {
+          lapisanId = lapisanAda.id;
+          lapisanNama = lapisanAda.nama;
+        } else {
+          const lapisanBaru: LapisanSpasial = {
+            id: buatId("LAP"),
+            nama: namaLapisanDiminta,
+            jumlahPeta: 0,
+            deskripsi: `Impor ${hasil.format}${labelFilter ? ` (${labelFilter})` : ""}`,
+            createdAt: new Date().toISOString()
+          };
+          lapisanId = lapisanBaru.id;
+          lapisanNama = lapisanBaru.nama;
+          setLapisanList((prev) => [lapisanBaru, ...prev]);
+        }
+      }
+
       const konteks = {
         idKader: profil.idKader,
         namaKader: profil.nama,
         desaWilayah: profil.desaWilayah,
-        ...capWilayah(profil.idKader)
+        ...capWilayah(profil.idKader),
+        ...(lapisanId ? { lapisanId } : {}),
+        ...(lapisanNama ? { lapisanNama } : {})
       };
-      const items = hasil.fitur.map((f) => fiturKeDataSpasial(f, konteks));
-      const catatan = hasil.dilewati.length > 0 ? ` ${hasil.dilewati.length} dilewati: ${ringkasDilewati(hasil.dilewati)}.` : "";
-      if (items.length === 0) {
-        tampilkanToast(`⚠️ Tidak ada objek yang bisa diimpor dari ${namaBerkas}.${catatan}`);
-        return false;
-      }
+      const items = fiturTerpilih.map((f) => fiturKeDataSpasial(f, konteks));
       setDataSpasial((prev) => [...items, ...prev]);
-      tampilkanToast(`✓ ${items.length} objek ${hasil.format} diimpor.${catatan} Dihitung ke capaian setelah diverifikasi admin.`);
+      const infoLapisan = lapisanNama ? ` ke lapisan "${lapisanNama}"` : "";
+      const infoGeo = labelFilter ? ` ${labelFilter}` : "";
+      tampilkanToast(
+        `✓ ${items.length} objek${infoGeo} ${hasil.format} diimpor${infoLapisan}.${catatan} Dihitung ke capaian setelah diverifikasi admin.`
+      );
       return true;
     } catch (err) {
       tampilkanToast(`⚠️ ${err instanceof Error ? err.message : "Berkas tidak dapat dibaca."}`);
@@ -802,7 +863,6 @@ export const App: React.FC = () => {
         h.jalankan();
       });
       hapusPetaTertunda.current.clear();
-      setTabAktif("peta");
     };
     window.addEventListener("pagehide", jalankanSemua);
     return () => window.removeEventListener("pagehide", jalankanSemua);
@@ -1140,29 +1200,7 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sedangOnline, pendingCadanganCount, adaSesi]);
 
-  // Handler Pull to Refresh Global: menarik layar ke bawah menyegarkan dan menyinkronkan data
-  const handleRefreshGlobal = async () => {
-    try {
-      if (gdriveTerpasang() && sedangOnline) {
-        await handleSinkronkanSekarang(false);
-        await sinkronkanDaftarAkunGDrive();
-        if (aksesAdmin) {
-          await jalankanRekonsiliasiGDrive(false);
-        }
-      } else {
-        // Muat ulang state lokal bila luring
-        setDataSpasial(muatDataSpasial());
-        setTugasList(muatTugas());
-        setPencadanganList(muatPencadanganSpasial());
-        setLapisanList(sinkronkanLapisanDariTugas(muatLapisan(), muatTugas()));
-      }
-      tampilkanToast("🔄 Data berhasil diperbarui.");
-    } catch {
-      tampilkanToast("⚠️ Gagal menyegarkan data. Periksa koneksi internet.");
-    }
-  };
-
-  // Handler Fokus ke Titik Koordinat di Peta (atau buka lapisan tugas sebagai kolam data tanpa garis navigasi otomatis)
+  // Handler fokus ke titik koordinat di peta (atau buka lapisan tugas sebagai kolam data tanpa garis navigasi otomatis)
   const handleFokusKePeta = (lat: number, lng: number, label: string, tugasId?: string) => {
     if (tugasId) {
       setPetaKustomAktif(null);
@@ -1298,9 +1336,62 @@ export const App: React.FC = () => {
         segarkanKeamanan();
         tampilkanToast(pesan.startsWith("🔒") ? pesan : `🔓 ${pesan}`);
       }}
-      onKeluar={handleLogout}
+      onKeluar={() => setKonfirmasiKeluar("akun")}
     />
   );
+
+  const modalKonfirmasiKeluar = konfirmasiKeluar !== null && (
+    <div
+      className="modal-backdrop modal-konfirmasi-keluar-backdrop"
+      onClick={() => setKonfirmasiKeluar(null)}
+    >
+      <div
+        className="modal-box modal-konfirmasi-keluar"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="judul-konfirmasi-keluar"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="konfirmasi-keluar-ikon">
+          <LogOut size={20} />
+        </div>
+        <h3 id="judul-konfirmasi-keluar">Keluar dari Aplikasi?</h3>
+        <p className="konfirmasi-keluar-teks">
+          Apakah Anda yakin ingin keluar dari aplikasi?
+        </p>
+        <div className="konfirmasi-keluar-aksi">
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => setKonfirmasiKeluar(null)}
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={() => {
+              const mode = konfirmasiKeluar;
+              setKonfirmasiKeluar(null);
+              if (mode === "akun") {
+                handleLogout();
+              } else {
+                try {
+                  window.close();
+                  window.history.go(-2);
+                } catch {
+                  handleLogout();
+                }
+              }
+            }}
+          >
+            Ya, Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const denganKunci = (isi: React.ReactNode, denganToastGlobal = false) => (
     <>
       {tampilSplashTaka && <LayarPembukaTaka onSelesai={() => setTampilSplashTaka(false)} />}
@@ -1308,6 +1399,7 @@ export const App: React.FC = () => {
         {isi}
       </div>
       {lapisKunci}
+      {modalKonfirmasiKeluar}
       {(layarKunci !== null || denganToastGlobal) && renderToast(true)}
     </>
   );
@@ -1398,7 +1490,7 @@ export const App: React.FC = () => {
         onBukaGantiSandi={() => setBukaGantiSandi(true)}
         onBukaBantuan={() => setBukaBantuan(true)}
         jumlahBug={inventarisBug.length}
-        onKeluar={handleLogout}
+        onKeluar={() => setKonfirmasiKeluar("akun")}
         autoSync={autoSync}
         onBukaSplashTaka={() => setTampilSplashTaka(true)}
         statusCitraOffline={statusCitraOffline}
@@ -1538,7 +1630,7 @@ export const App: React.FC = () => {
               onKembali={() => setTabAktif(peran === "admin" ? "admin" : "pustaka")}
             />
           ) : (
-            <PullToRefresh onRefresh={handleRefreshGlobal}>
+            <>
               {tabAktif === "pustaka" && (
               <PustakaView
                 areaOffline={areaOffline}
@@ -1576,7 +1668,10 @@ export const App: React.FC = () => {
                   setLapisanList((prev) => [l, ...prev]);
                   tampilkanToast(`✓ "${l.nama}" berhasil dibuat.`);
                 }}
-                onHapusLapisan={(id) => setLapisanList((prev) => prev.filter((l) => l.id !== id))}
+                onHapusLapisan={(id) => {
+                  setLapisanList((prev) => prev.filter((l) => l.id !== id));
+                  if (lapisanAktifId === id) setLapisanAktifId(null);
+                }}
                 onImporBerkas={handleImporBerkas}
                 onBukaPengaturanEkspor={(konteks) => {
                   setKonteksEkspor(konteks ?? null);
@@ -1714,7 +1809,7 @@ export const App: React.FC = () => {
                 onFokusKePeta={handleFokusKePeta}
               />
             )}
-              </PullToRefresh>
+            </>
             )}
             </motion.div>
           ) : null}
